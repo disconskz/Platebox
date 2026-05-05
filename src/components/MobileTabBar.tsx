@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutGrid, Calculator, BarChart3, Database, LogOut } from "lucide-react";
+import { LayoutGrid, Calculator, BarChart3, Database, LogOut, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -8,6 +8,7 @@ const items = [
   { to: "/calculator", label: "Калькулятор", icon: Calculator },
   { to: "/analytics",  label: "Аналитика",  icon: BarChart3 },
   { to: "/references", label: "Справочники", icon: Database },
+  { to: "/knowledge",  label: "База знаний", icon: BookOpen },
 ];
 
 export const MobileTabBar = () => {
@@ -15,7 +16,7 @@ export const MobileTabBar = () => {
   const { signOut } = useAuth();
   return (
     <nav className="fixed-bottom md:hidden" aria-label="Основная навигация">
-      <ul className="grid grid-cols-5 px-1 pt-1">
+      <ul className="grid grid-cols-6 px-1 pt-1">
         {items.map(({ to, label, icon: Icon }) => {
           const active = pathname === to || (to !== "/app" && pathname.startsWith(to));
           return (

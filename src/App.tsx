@@ -14,6 +14,7 @@ import References from "./pages/References.tsx";
 import CalculationView from "./pages/CalculationView.tsx";
 import Quote from "./pages/Quote.tsx";
 import Analytics from "./pages/Analytics.tsx";
+import Knowledge from "./pages/Knowledge.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/calculator" element={<Calculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/knowledge" element={<Knowledge />} />
               <Route path="/calculation/:id" element={<CalculationView />} />
               <Route path="/calculation/:id/quote" element={<Quote />} />
             </Route>

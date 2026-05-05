@@ -1,4 +1,4 @@
-import { LayoutGrid, Calculator, BarChart3, Database, Plus, LogOut } from "lucide-react";
+import { LayoutGrid, Calculator, BarChart3, Database, Plus, LogOut, BookOpen } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -21,6 +21,7 @@ const main = [
   { title: "Новый расчёт", url: "/calculator", icon: Plus },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },
   { title: "Справочники", url: "/references", icon: Database },
+  { title: "База знаний", url: "/knowledge", icon: BookOpen },
 ];
 
 export function AppSidebar() {
