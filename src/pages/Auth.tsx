@@ -323,6 +323,5 @@ const PwdToggle = ({ shown, onToggle }: { shown: boolean; onToggle: () => void }
     {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
   </button>
 );
-};
 
 export default AuthPage;
