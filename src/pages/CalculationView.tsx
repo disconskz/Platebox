@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import { exportSpecToExcel } from "@/lib/export";
+import MobileTabBar from "@/components/MobileTabBar";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",
@@ -91,8 +92,8 @@ const CalculationView = () => {
   }, {});
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-subtle has-tabbar">
+      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-2 py-3 px-4 flex-wrap">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
@@ -248,6 +249,7 @@ const CalculationView = () => {
           </CardContent>
         </Card>
       </main>
+      <MobileTabBar />
     </div>
   );
 };

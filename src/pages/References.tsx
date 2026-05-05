@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import MobileTabBar from "@/components/MobileTabBar";
 
 type AnyRow = Record<string, any>;
 
@@ -75,8 +76,8 @@ const TABLES = [
 
 const References = () => {
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-subtle has-tabbar">
+      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-3 py-3 px-4">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">На главную</span>
@@ -96,6 +97,7 @@ const References = () => {
           ))}
         </Tabs>
       </main>
+      <MobileTabBar />
     </div>
   );
 };

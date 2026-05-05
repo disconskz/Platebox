@@ -138,6 +138,7 @@
     input, select, textarea {
       font-size: 16px !important;
     }
+    body { background-image: none; background: hsl(var(--background)); }
   }
 
   html { -webkit-text-size-adjust: 100%; }
@@ -177,4 +178,46 @@
     background-image: radial-gradient(hsl(var(--foreground)) 1px, transparent 1px);
     background-size: 3px 3px;
   }
+
+  /* iOS safe areas */
+  .safe-top    { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-x      { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+  /* Tap targets and behavior */
+  button, a, [role="button"] { touch-action: manipulation; }
+  .tap-target { min-height: 44px; min-width: 44px; }
+
+  /* Hide scrollbars (used in horizontal scrollers) */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Snap helpers */
+  .snap-x-mandatory { scroll-snap-type: x mandatory; }
+  .snap-start       { scroll-snap-align: start; }
+
+  /* Bottom-fixed bar (used for sticky CTAs and tab bar) */
+  .fixed-bottom {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+    background: hsl(var(--background) / 0.92);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  /* Floating action button */
+  .fab {
+    position: fixed; right: 16px; z-index: 45;
+    bottom: calc(env(safe-area-inset-bottom) + 80px);
+    height: 56px; min-width: 56px; padding: 0 18px;
+    display: inline-flex; align-items: center; gap: 8px;
+    border-radius: 9999px; font-weight: 600; font-size: 14px;
+    background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Reserve space for fixed bottom bar on mobile */
+  .has-tabbar { padding-bottom: calc(env(safe-area-inset-bottom) + 84px); }
+  @media (min-width: 768px) { .has-tabbar { padding-bottom: 0; } }
 }
