@@ -9,6 +9,7 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import { exportSpecToExcel } from "@/lib/export";
 import MobileTabBar from "@/components/MobileTabBar";
+import { PRODUCT_LABELS } from "@/lib/calc/products";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",
@@ -16,11 +17,6 @@ const STAGE_LABELS: Record<string, string> = {
   print: "Печать",
   postpress: "Послепечатные",
   logistics: "Логистика",
-};
-
-const PRODUCT_LABELS: Record<string, string> = {
-  leaflet: "Листовка", leaflet_diecut: "Листовка с вырубкой", booklet: "Буклет",
-  sticker: "Стикер", sticker_diecut: "Стикер с вырубкой", bag: "Пакет",
 };
 
 const CalculationView = () => {
