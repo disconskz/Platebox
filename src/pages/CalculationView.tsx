@@ -93,25 +93,25 @@ const CalculationView = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
-        <div className="container mx-auto flex items-center gap-3 py-3">
+        <div className="container mx-auto flex items-center gap-2 py-3 px-4 flex-wrap">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="inline h-4 w-4 mr-1" /> Все расчёты
+            <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
           </Link>
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex gap-1.5 sm:gap-2">
             <Button variant="outline" size="sm" onClick={() => exportSpecToExcel(calc?.name || "calc", items, { cost: totalCost, sale: salePrice, margin })}>
-              <Download className="mr-2 h-4 w-4" /> Excel
+              <Download className="sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Excel</span>
             </Button>
             <Link to={`/calculator?from=${id}`}>
-              <Button variant="outline" size="sm"><Copy className="mr-2 h-4 w-4" /> Дублировать</Button>
+              <Button variant="outline" size="sm"><Copy className="sm:mr-2 h-4 w-4" /><span className="hidden sm:inline">Дублировать</span></Button>
             </Link>
             <Link to={`/calculation/${id}/quote`}>
-              <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" /> КП для печати</Button>
+              <Button variant="outline" size="sm"><FileText className="sm:mr-2 h-4 w-4" /><span className="hidden sm:inline">КП</span></Button>
             </Link>
           </div>
         </div>
       </header>
-      <main className="container mx-auto py-6 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
+      <main className="container mx-auto py-4 sm:py-6 px-4 grid gap-4 sm:gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-4 order-2 lg:order-1">
           <Card>
             <CardHeader className="pb-2"><CardTitle>{calc.name}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -129,7 +129,7 @@ const CalculationView = () => {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Спецификация</CardTitle></CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-md border">
+              <div className="scroll-x overflow-x-auto rounded-md border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
@@ -231,7 +231,7 @@ const CalculationView = () => {
           </Card>
         </div>
 
-        <Card className="h-fit sticky top-20 shadow-elevated">
+        <Card className="h-fit lg:sticky lg:top-20 shadow-elevated order-1 lg:order-2">
           <CardHeader className="pb-2"><CardTitle className="text-base">Итоги</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <Row label="Себестоимость" value={fmtMoney(totalCost)} />

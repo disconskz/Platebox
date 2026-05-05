@@ -273,9 +273,9 @@ const Calculator = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
-        <div className="container mx-auto flex items-center gap-3 py-3">
+        <div className="container mx-auto flex items-center gap-3 py-3 px-4">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="inline h-4 w-4 mr-1" /> Все расчёты
+            <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -284,11 +284,11 @@ const Calculator = () => {
         </div>
       </header>
 
-      <main className="container mx-auto py-6">
+      <main className="container mx-auto py-4 sm:py-6 px-4">
         <Stepper current={step} maxReached={maxReached} onStepClick={goto} />
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3 space-y-4">
+        <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3 space-y-4 lg:order-1 order-2">
             {step === 1 && (
               <Card>
                 <CardHeader><CardTitle>1. Продукция и параметры</CardTitle></CardHeader>
@@ -539,9 +539,9 @@ const Calculator = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-4 lg:order-2 order-1">
             {result && !("error" in result) && (
-              <Card className="sticky top-20 shadow-elevated">
+              <Card className="lg:sticky lg:top-20 shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
                 <CardContent>
                   <LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} />
@@ -601,7 +601,7 @@ const SpecTable = ({ result }: { result: any }) => {
     return acc;
   }, {});
   return (
-    <div className="overflow-hidden rounded-md border">
+    <div className="scroll-x overflow-x-auto rounded-md border">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
