@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database, TrendingUp, Copy, Trash2, Search, Sparkles } from "lucide-react";
+import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database, TrendingUp, Copy, Trash2, Search, Sparkles, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { fmtMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 type Calc = {
   id: string;
@@ -32,6 +33,7 @@ const Index = () => {
   const [calcs, setCalcs] = useState<Calc[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const { user, signOut } = useAuth();
 
   const load = async () => {
     const { data } = await supabase.from("calculations").select("*").order("created_at", { ascending: false }).limit(200);
@@ -80,6 +82,9 @@ const Index = () => {
             <Link to="/analytics" className="flex-1 sm:flex-none"><Button variant="outline" className="w-full"><TrendingUp className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Аналитика</span><span className="sm:hidden">Аналитика</span></Button></Link>
             <Link to="/references" className="flex-1 sm:flex-none"><Button variant="outline" className="w-full"><Database className="mr-2 h-4 w-4" /> Справочники</Button></Link>
             <Link to="/calculator" className="flex-1 sm:flex-none"><Button className="w-full shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый</Button></Link>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => signOut()} title={user?.email || ""}>
+              <LogOut className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Выйти</span>
+            </Button>
           </div>
         </div>
       </header>
