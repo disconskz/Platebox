@@ -60,14 +60,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar">
-      <header className="border-b bg-card/80 backdrop-blur safe-top sticky top-0 z-30">
+      <header className="border-b border-border/60 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55 safe-top sticky top-0 z-30 shadow-[0_1px_0_hsl(var(--border)/0.6)]">
         <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 py-3 px-4 sm:py-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-primary text-primary-foreground shadow-elevated">
+            <div className="ring-glow flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground shadow-elevated transition-transform duration-300 hover:scale-105 hover:rotate-[-2deg]">
               <CalcIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Platebox</h1>
+              <h1 className="text-base sm:text-lg font-bold leading-tight truncate text-shimmer">Platebox</h1>
               <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Просчёт полиграфической продукции</p>
             </div>
           </div>
@@ -90,16 +90,16 @@ const Index = () => {
         </div>
 
         {templates.length > 0 && (
-          <section>
+          <section className="animate-fade-in">
             <div className="mb-3 flex items-center gap-2">
-              <Bookmark className="h-4 w-4 text-accent" />
+              <Bookmark className="h-4 w-4 text-accent animate-float-soft" />
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Шаблоны</h2>
             </div>
             <CalcTable rows={templates} onRemove={remove} isTemplate />
           </section>
         )}
 
-        <section>
+        <section className="animate-fade-in">
           <div className="mb-3 flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Последние расчёты</h2>
@@ -107,9 +107,9 @@ const Index = () => {
           {loading ? (
             <p className="text-sm text-muted-foreground">Загрузка…</p>
           ) : recent.length === 0 ? (
-            <Card>
+            <Card className="lift">
               <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-                <CalcIcon className="h-10 w-10 text-muted-foreground" />
+                <div className="ring-glow rounded-2xl p-4 bg-muted/40 animate-float-soft"><CalcIcon className="h-10 w-10 text-muted-foreground" /></div>
                 <p className="text-muted-foreground">Расчётов пока нет. Начните первый — это займёт 2-3 минуты.</p>
                 <Link to="/calculator"><Button><Plus className="mr-2 h-4 w-4" /> Новый расчёт</Button></Link>
               </CardContent>
@@ -132,7 +132,7 @@ const Index = () => {
 const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id: string) => void; isTemplate?: boolean }) => (
   <>
   {/* Desktop table */}
-  <div className="hidden md:block overflow-hidden rounded-lg border bg-card shadow-card">
+  <div className="hidden md:block overflow-hidden rounded-2xl border border-border/60 bg-card shadow-card transition-shadow duration-300 hover:shadow-elevated animate-fade-in">
     <div className="scroll-x overflow-x-auto"><table className="w-full text-sm">
       <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
         <tr>
@@ -147,7 +147,7 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
       </thead>
       <tbody>
         {rows.map((c) => (
-          <tr key={c.id} className="border-t hover:bg-muted/30 group">
+          <tr key={c.id} className="border-t border-border/60 row-hover group transition-colors">
             <td className="p-3 font-medium"><Link to={`/calculation/${c.id}`} className="hover:text-primary">{c.name || "—"}</Link></td>
             <td className="p-3 text-muted-foreground">{PRODUCT_LABELS[c.product_type] || c.product_type}</td>
             <td className="p-3 text-right tabular-nums">{c.circulation}</td>
@@ -179,7 +179,7 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
   {/* Mobile cards */}
   <div className="md:hidden grid gap-2">
     {rows.map((c) => (
-      <div key={c.id} className="rounded-lg border bg-card p-3 shadow-card">
+      <div key={c.id} className="rounded-xl border border-border/60 bg-card p-3 shadow-card lift-sm pressable animate-fade-in">
         <div className="flex items-start justify-between gap-2">
           <Link to={`/calculation/${c.id}`} className="font-semibold text-sm flex-1 min-w-0 truncate hover:text-primary">{c.name || "—"}</Link>
           <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
