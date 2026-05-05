@@ -37,7 +37,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b">
         <NavLink to="/app" className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-foreground text-background font-bold text-sm">
+          <div className="ring-glow flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground font-bold text-sm shadow-elevated transition-transform duration-300 hover:scale-105">
             P
           </div>
           {!collapsed && (
@@ -62,11 +62,15 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         className={cn(
-                          "flex items-center gap-2",
-                          active && "font-medium"
+                          "group flex items-center gap-2 rounded-md transition-all duration-200",
+                          "hover:bg-muted/60 hover:translate-x-0.5",
+                          active && "font-medium bg-muted/70 shadow-[inset_2px_0_0_hsl(var(--accent))]"
                         )}
                       >
-                        <item.icon className="h-4 w-4" />
+                        <item.icon className={cn(
+                          "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
+                          active && "text-accent"
+                        )} />
                         {!collapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
