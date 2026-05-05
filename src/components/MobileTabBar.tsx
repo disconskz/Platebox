@@ -24,11 +24,14 @@ export const MobileTabBar = () => {
               <Link
                 to={to}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2 tap-target rounded-md",
-                  active ? "text-foreground" : "text-muted-foreground"
+                  "flex flex-col items-center justify-center gap-0.5 py-2 tap-target rounded-md transition-all duration-200 active:scale-[0.92]",
+                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "text-accent")} />
+                <Icon className={cn(
+                  "h-5 w-5 transition-transform duration-200",
+                  active && "text-accent scale-110 drop-shadow-[0_2px_6px_hsl(var(--accent)/0.45)]"
+                )} />
                 <span className="text-[10px] leading-none">{label}</span>
               </Link>
             </li>
