@@ -73,11 +73,14 @@ export default {
       boxShadow: {
         card: "var(--shadow-card)",
         elevated: "var(--shadow-elevated)",
+        glass: "var(--shadow-glass)",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        "2xl": "calc(var(--radius) + 0.5rem)",
+        xl: "var(--radius)",
+        lg: "calc(var(--radius) - 0.25rem)",
+        md: "calc(var(--radius) - 0.5rem)",
+        sm: "calc(var(--radius) - 0.75rem)",
       },
       keyframes: {
         "accordion-down": {
