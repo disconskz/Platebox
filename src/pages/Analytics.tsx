@@ -7,11 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { fmtMoney } from "@/lib/format";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import MobileTabBar from "@/components/MobileTabBar";
-
-const PRODUCT_LABELS: Record<string, string> = {
-  leaflet: "Листовка", leaflet_diecut: "Листовка (выр.)", booklet: "Буклет",
-  sticker: "Стикер", sticker_diecut: "Стикер (выр.)", bag: "Пакет",
-};
+import { PRODUCT_LABELS } from "@/lib/calc/products";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--primary-glow))", "hsl(var(--destructive))"];
 
