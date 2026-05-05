@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
+import { HelpHint } from "@/components/HelpHint";
 
 type AnyRow = Record<string, any>;
 
@@ -86,6 +87,12 @@ const References = () => {
         </div>
       </header>
       <main className="container mx-auto py-4 sm:py-6 px-4">
+        <div className="mb-3 text-sm text-muted-foreground inline-flex items-center">
+          Справочники питают калькулятор: меняете цены и нормативы здесь — они подтягиваются во все новые расчёты.
+          <HelpHint title="Справочники" learnMore="refs-materials">
+            Бумага, операции, оборудование, ламинация и системные константы. Изменения видны во всех новых расчётах.
+          </HelpHint>
+        </div>
         <Tabs defaultValue="materials">
           <TabsList className="scroll-x flex w-full overflow-x-auto h-auto justify-start">
             {TABLES.map((t) => <TabsTrigger key={t.key} value={t.key}>{t.title}</TabsTrigger>)}
