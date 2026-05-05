@@ -10,6 +10,7 @@ export interface ProductPreset {
   foldCount?: number;
   hasDieCut?: boolean;
   hasLamPrepress?: boolean;
+  lamPrepressSides?: 1 | 2;
   hasLamination?: boolean;
   laminationSides?: 1 | 2;
   /** Имена операций из таблицы operations, которые типично применяются */
