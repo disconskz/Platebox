@@ -64,6 +64,8 @@ export interface CalcInput {
   inkCostPerSet?: number;
   // packaging
   packagingPerUnit?: number;
+  // taxes
+  vatPercent?: number; // НДС, % (из system_settings.vat_percent)
 }
 
 export interface SpecItem {
@@ -97,6 +99,9 @@ export interface CalcResult {
   logistics: SpecItem[];
   spec: SpecItem[];
   totalCost: number;
+  vatPercent: number;
+  vatAmount: number; // НДС от себестоимости (информативно)
+  totalWithVat: number; // себестоимость + НДС
   warnings: string[];
 }
 
