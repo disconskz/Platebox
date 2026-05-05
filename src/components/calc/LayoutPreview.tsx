@@ -1,12 +1,15 @@
 import { LayoutResult } from "@/lib/calc/types";
+import { ProductType } from "@/lib/calc/types";
+import { ProductGlyph } from "./ProductGlyph";
 
 interface Props {
   layout: LayoutResult;
   productW: number;
   productH: number;
+  productType?: ProductType;
 }
 
-export const LayoutPreview = ({ layout, productW, productH }: Props) => {
+export const LayoutPreview = ({ layout, productW, productH, productType = "leaflet" }: Props) => {
   const W = layout.printFormat.width;
   const H = layout.printFormat.height;
   const SCALE = 1.1;
@@ -31,8 +34,7 @@ export const LayoutPreview = ({ layout, productW, productH }: Props) => {
       rects.push(
         <g key={`${r}-${c}`}>
           <rect x={x - bleed} y={y - bleed} width={itemW + bleed * 2} height={itemH + bleed * 2} fill="hsl(var(--warning))" fillOpacity={0.18} />
-          <rect x={x} y={y} width={itemW} height={itemH} fill="hsl(var(--primary))" fillOpacity={0.12} stroke="hsl(var(--primary))" strokeWidth={0.5} />
-          <text x={x + itemW / 2} y={y + itemH / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.min(itemW, itemH) * 0.25} fill="hsl(var(--primary))" fontWeight="600">{n}</text>
+          <ProductGlyph type={productType} x={x} y={y} w={itemW} h={itemH} index={n} />
         </g>
       );
       n++;
