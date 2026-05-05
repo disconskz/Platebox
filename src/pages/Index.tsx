@@ -9,6 +9,7 @@ import { fmtMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import MobileTabBar from "@/components/MobileTabBar";
+import { PRODUCT_LABELS } from "@/lib/calc/products";
 
 type Calc = {
   id: string;
@@ -19,15 +20,6 @@ type Calc = {
   sale_price: number | null;
   is_template: boolean;
   created_at: string;
-};
-
-const PRODUCT_LABELS: Record<string, string> = {
-  leaflet: "Листовка",
-  leaflet_diecut: "Листовка с вырубкой",
-  booklet: "Буклет",
-  sticker: "Стикер",
-  sticker_diecut: "Стикер с вырубкой",
-  bag: "Пакет",
 };
 
 const Index = () => {
