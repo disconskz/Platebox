@@ -569,7 +569,9 @@ const Calculator = () => {
                     <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
                     <Slider value={[margin]} onValueChange={([v]) => setMargin(v)} min={0} max={200} step={1} />
                   </div>
-                  <Row label="Цена продажи" value={fmtMoney(salePrice)} bold />
+                  <Row label="Цена без НДС" value={fmtMoney(priceBeforeVat)} />
+                  <Row label={`НДС ${vatPercent}%`} value={fmtMoney(vatAmount)} />
+                  <Row label="Цена продажи с НДС" value={fmtMoney(salePrice)} bold />
                   <Row label="Прибыль" value={fmtMoney(profit)} className="text-success" />
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t text-xs text-muted-foreground">
                     <div>За шт (с/с): <span className="text-foreground font-medium">{fmtMoney(totalCost / Math.max(1, circulation))}</span></div>
@@ -611,7 +613,9 @@ const Calculator = () => {
                   <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
                   <Slider value={[margin]} onValueChange={([v]) => setMargin(v)} min={0} max={200} step={1} />
                 </div>
-                <Row label="Цена продажи" value={fmtMoney(salePrice)} bold />
+                <Row label="Цена без НДС" value={fmtMoney(priceBeforeVat)} />
+                <Row label={`НДС ${vatPercent}%`} value={fmtMoney(vatAmount)} />
+                <Row label="Цена продажи с НДС" value={fmtMoney(salePrice)} bold />
                 <Row label="Прибыль" value={fmtMoney(profit)} className="text-success" />
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t text-xs text-muted-foreground">
                   <div>За шт (с/с): <span className="text-foreground font-medium">{fmtMoney(totalCost / Math.max(1, circulation))}</span></div>
