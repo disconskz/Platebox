@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, Check, X, FileText, Download, Copy, History } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, FileText, Download, Copy, History, FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import { exportSpecToExcel } from "@/lib/export";
+import { exportCalculationToPdf } from "@/lib/pdf-export";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
 
@@ -97,6 +98,15 @@ const CalculationView = () => {
           <div className="ml-auto flex gap-1.5 sm:gap-2">
             <Button variant="outline" size="sm" onClick={() => exportSpecToExcel(calc?.name || "calc", items, { cost: totalCost, sale: salePrice, margin })}>
               <Download className="sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Excel</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={async () => {
+              try {
+                await exportCalculationToPdf(calc, items, { cost: totalCost, sale: salePrice, margin, profit });
+              } catch (e: any) {
+                toast.error("Не удалось создать PDF: " + (e?.message || ""));
+              }
+            }}>
+              <FileDown className="sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">PDF</span>
             </Button>
             <Link to={`/calculator?from=${id}`}>
               <Button variant="outline" size="sm"><Copy className="sm:mr-2 h-4 w-4" /><span className="hidden sm:inline">Дублировать</span></Button>
