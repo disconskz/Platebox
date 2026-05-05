@@ -4,13 +4,10 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { fmtMoney, fmtNum } from "@/lib/format";
+import { PRODUCT_LABELS } from "@/lib/calc/products";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные", material: "Материалы", print: "Печать", postpress: "Послепечатные", logistics: "Логистика",
-};
-const PRODUCT_LABELS: Record<string, string> = {
-  leaflet: "Листовка", leaflet_diecut: "Листовка с вырубкой", booklet: "Буклет",
-  sticker: "Стикер", sticker_diecut: "Стикер с вырубкой", bag: "Пакет",
 };
 
 const Quote = () => {
