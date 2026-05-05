@@ -246,7 +246,13 @@ const Calculator = () => {
       profit,
       is_template: asTemplate,
     };
-    const { data, error } = await supabase.from("calculations").insert(payload).select("id").single();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Сессия истекла, войдите заново");
+      setSaving(false);
+      return;
+    }
+    const { data, error } = await supabase.from("calculations").insert({ ...payload, user_id: user.id }).select("id").single();
     if (error) {
       toast.error("Ошибка сохранения: " + error.message);
       setSaving(false);
