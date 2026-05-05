@@ -15,6 +15,9 @@ import { FORMAT_PRESETS, runCalculation } from "@/lib/calc/engine";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
+import MobileTabBar from "@/components/MobileTabBar";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ChevronUp } from "lucide-react";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -277,8 +280,8 @@ const Calculator = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
+      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-3 py-3 px-4">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
@@ -290,11 +293,11 @@ const Calculator = () => {
         </div>
       </header>
 
-      <main className="container mx-auto py-4 sm:py-6 px-4">
+      <main className="container mx-auto py-3 sm:py-6 px-4">
         <Stepper current={step} maxReached={maxReached} onStepClick={goto} />
 
         <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3 space-y-4 lg:order-1 order-2">
+          <div className="lg:col-span-3 space-y-4 lg:order-1 order-1">
             {step === 1 && (
               <Card>
                 <CardHeader><CardTitle>1. Продукция и параметры</CardTitle></CardHeader>
@@ -400,7 +403,7 @@ const Calculator = () => {
                   <div className="flex items-center gap-3">
                     <Checkbox checked={photoOutput} onCheckedChange={(v) => setPhotoOutput(!!v)} id="po" />
                     <Label htmlFor="po" className="flex-1">Фотовывод</Label>
-                    <Input className="w-32" type="number" value={photoOutputCost} onChange={(e) => setPhotoOutputCost(Number(e.target.value))} disabled={!photoOutput} />
+                    <Input className="w-28" type="number" inputMode="numeric" value={photoOutputCost} onChange={(e) => setPhotoOutputCost(Number(e.target.value))} disabled={!photoOutput} />
                     <span className="text-xs text-muted-foreground">₸/шт</span>
                   </div>
                   {(productType === "sticker" || productType === "sticker_diecut") && (
@@ -443,7 +446,7 @@ const Calculator = () => {
                 <CardHeader><CardTitle>5. Послепечатные операции</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   {productType === "booklet" && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasFold} onCheckedChange={(v) => setHasFold(!!v)} id="fold" />
                       <Label htmlFor="fold" className="flex-1">Фальцовка</Label>
                       <Select value={String(foldCount)} onValueChange={(v) => setFoldCount(Number(v))}>
@@ -459,7 +462,7 @@ const Calculator = () => {
                     </div>
                   )}
                   {productType === "bag" && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
                       <Label htmlFor="lp" className="flex-1">Припрессовка плёнки</Label>
                       <Select value={String(lamPrepressSides)} onValueChange={(v) => setLamPrepressSides(Number(v) as 1 | 2)}>
@@ -468,11 +471,11 @@ const Calculator = () => {
                       </Select>
                     </div>
                   )}
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Checkbox checked={hasLamination} onCheckedChange={(v) => setHasLamination(!!v)} id="lam" />
                     <Label htmlFor="lam" className="flex-1">Ламинация</Label>
                     <Select value={laminationFilm} onValueChange={(v) => setLaminationFilm(v as any)}>
-                      <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-32 flex-1 sm:flex-none"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="gloss">Глянец</SelectItem>
                         <SelectItem value="matte">Матовая</SelectItem>
@@ -480,22 +483,22 @@ const Calculator = () => {
                       </SelectContent>
                     </Select>
                     <Select value={String(laminationSides)} onValueChange={(v) => setLaminationSides(Number(v) as 1 | 2)}>
-                      <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                       <SelectContent><SelectItem value="1">1 ст.</SelectItem><SelectItem value="2">2 ст.</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Checkbox checked={hasNumbering} onCheckedChange={(v) => setHasNumbering(!!v)} id="num" />
                     <Label htmlFor="num" className="flex-1">Нумерация</Label>
-                    <Input className="w-32" type="number" value={numbersPerSheet} onChange={(e) => setNumbersPerSheet(Number(e.target.value))} disabled={!hasNumbering} />
+                    <Input className="w-28" type="number" inputMode="numeric" value={numbersPerSheet} onChange={(e) => setNumbersPerSheet(Number(e.target.value))} disabled={!hasNumbering} />
                     <span className="text-xs text-muted-foreground">номеров/лист</span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Checkbox checked={hasStamping} onCheckedChange={(v) => setHasStamping(!!v)} id="st" />
                     <Label htmlFor="st" className="flex-1">Тиснение</Label>
-                    <Input className="w-20" type="number" value={stampW} onChange={(e) => setStampW(Number(e.target.value))} disabled={!hasStamping} />
+                    <Input className="w-20" type="number" inputMode="numeric" value={stampW} onChange={(e) => setStampW(Number(e.target.value))} disabled={!hasStamping} />
                     <span className="text-xs">×</span>
-                    <Input className="w-20" type="number" value={stampH} onChange={(e) => setStampH(Number(e.target.value))} disabled={!hasStamping} />
+                    <Input className="w-20" type="number" inputMode="numeric" value={stampH} onChange={(e) => setStampH(Number(e.target.value))} disabled={!hasStamping} />
                     <span className="text-xs text-muted-foreground">см</span>
                   </div>
                 </CardContent>
@@ -539,13 +542,15 @@ const Calculator = () => {
               </div>
             )}
 
-            <div className="flex justify-between pt-2">
+            {/* Desktop nav buttons */}
+            <div className="hidden sm:flex justify-between pt-2">
               <Button variant="outline" onClick={prev} disabled={step === 1}><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
               <Button onClick={next} disabled={step === 7 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-4 lg:order-2 order-1">
+          {/* Desktop sidebar with totals */}
+          <div className="hidden lg:block lg:col-span-2 space-y-4 lg:order-2">
             {result && !("error" in result) && (
               <Card className="lg:sticky lg:top-20 shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
@@ -575,6 +580,57 @@ const Calculator = () => {
           </div>
         </div>
       </main>
+
+      {/* Mobile sticky bottom: totals + nav */}
+      <div className="lg:hidden fixed left-0 right-0 z-40 bottom-[64px] safe-x">
+        {result && !("error" in result) && (
+          <Sheet>
+            <SheetTrigger asChild>
+              <button className="w-full bg-card/95 backdrop-blur border-t border-border px-4 py-2.5 flex items-center justify-between text-left">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Цена продажи · {margin}%</div>
+                  <div className="text-base font-bold tabular-nums">{fmtMoney(salePrice)}</div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>с/с {fmtMoney(totalCost)}</span>
+                  <ChevronUp className="h-4 w-4" />
+                </div>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-2xl">
+              <SheetHeader><SheetTitle>Итоги</SheetTitle></SheetHeader>
+              <div className="mt-4 space-y-3">
+                <Row label="Себестоимость" value={fmtMoney(totalCost)} />
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
+                  <Slider value={[margin]} onValueChange={([v]) => setMargin(v)} min={0} max={200} step={1} />
+                </div>
+                <Row label="Цена продажи" value={fmtMoney(salePrice)} bold />
+                <Row label="Прибыль" value={fmtMoney(profit)} className="text-success" />
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t text-xs text-muted-foreground">
+                  <div>За шт (с/с): <span className="text-foreground font-medium">{fmtMoney(totalCost / Math.max(1, circulation))}</span></div>
+                  <div>За шт (продажа): <span className="text-foreground font-medium">{fmtMoney(salePrice / Math.max(1, circulation))}</span></div>
+                </div>
+                {result.warnings.length > 0 && (
+                  <div className="rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
+                    {result.warnings.map((w, i) => <div key={i} className="flex gap-1.5"><AlertTriangle className="h-3 w-3 mt-0.5 text-warning" /> {w}</div>)}
+                  </div>
+                )}
+                <details className="rounded-md border bg-card p-3">
+                  <summary className="cursor-pointer text-sm font-medium">Превью раскладки</summary>
+                  <div className="mt-3"><LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} /></div>
+                </details>
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
+        <div className="bg-background border-t border-border grid grid-cols-2 gap-2 px-4 py-2">
+          <Button variant="outline" onClick={prev} disabled={step === 1} className="h-11"><ArrowLeft className="mr-1 h-4 w-4" /> Назад</Button>
+          <Button onClick={next} disabled={step === 7 || !!stepError} className="h-11">Далее <ArrowRight className="ml-1 h-4 w-4" /></Button>
+        </div>
+      </div>
+
+      <MobileTabBar />
     </div>
   );
 };
