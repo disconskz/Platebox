@@ -6,56 +6,52 @@
 
 @layer base {
   :root {
-    /* iOS system canvas */
-    --background: 220 20% 97%;
-    --foreground: 220 15% 8%;
+    /* App canvas — warm off-white, editorial */
+    --background: 36 24% 96%;
+    --foreground: 30 10% 9%;
 
-    /* Glass surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 8%;
-    --glass: 0 0% 100% / 0.72;
-    --glass-stroke: 220 15% 8% / 0.06;
+    --card-foreground: 30 10% 9%;
+    --glass: 0 0% 100% / 0.7;
+    --glass-stroke: 30 10% 9% / 0.08;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 8%;
+    --popover-foreground: 30 10% 9%;
 
-    /* Apple system blue */
-    --primary: 211 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 211 100% 62%;
+    /* Ink primary */
+    --primary: 30 10% 9%;
+    --primary-foreground: 36 24% 96%;
+    --primary-glow: 30 10% 18%;
 
-    --secondary: 220 14% 93%;
-    --secondary-foreground: 220 15% 8%;
+    --secondary: 36 16% 91%;
+    --secondary-foreground: 30 10% 9%;
 
-    --muted: 220 14% 95%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 36 16% 92%;
+    --muted-foreground: 30 6% 38%;
 
-    /* iOS system teal */
-    --accent: 188 78% 41%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent — burnished copper/terracotta */
+    --accent: 18 62% 48%;
+    --accent-foreground: 36 24% 96%;
 
-    /* iOS system green / orange / red */
-    --success: 142 71% 41%;
-    --success-foreground: 0 0% 100%;
-    --warning: 28 100% 52%;
+    --success: 150 36% 32%;
+    --success-foreground: 36 24% 96%;
+    --warning: 32 78% 46%;
     --warning-foreground: 0 0% 100%;
-    --destructive: 4 90% 58%;
+    --destructive: 4 70% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 89%;
-    --input: 220 13% 89%;
-    --ring: 211 100% 50%;
+    --border: 30 12% 86%;
+    --input: 30 12% 86%;
+    --ring: 18 62% 48%;
 
-    /* Squircle-ish radii (iOS 26 ~ 22px on cards, full pills on buttons) */
-    --radius: 1.25rem;
+    --radius: 0.625rem;
 
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-subtle: radial-gradient(1200px 600px at 0% -10%, hsl(211 100% 50% / 0.08), transparent 60%),
-                       radial-gradient(900px 500px at 100% 110%, hsl(188 78% 41% / 0.07), transparent 60%),
-                       linear-gradient(180deg, hsl(220 25% 99%), hsl(220 20% 96%));
-    --shadow-card: 0 1px 0 hsl(220 15% 8% / 0.04), 0 8px 24px -12px hsl(220 30% 20% / 0.12);
-    --shadow-elevated: 0 1px 0 hsl(220 15% 8% / 0.04), 0 24px 48px -20px hsl(211 100% 35% / 0.18);
-    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 1px 0 hsl(220 15% 8% / 0.04), 0 12px 32px -16px hsl(220 30% 20% / 0.18);
+    --gradient-subtle: radial-gradient(900px 500px at 100% 0%, hsl(18 62% 48% / 0.06), transparent 60%),
+                       linear-gradient(180deg, hsl(36 24% 97%), hsl(36 20% 94%));
+    --shadow-card: 0 1px 0 hsl(30 10% 9% / 0.04), 0 1px 2px hsl(30 10% 9% / 0.04);
+    --shadow-elevated: 0 1px 0 hsl(30 10% 9% / 0.04), 0 20px 40px -24px hsl(30 20% 12% / 0.25);
+    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 1px 0 hsl(30 10% 9% / 0.04), 0 8px 24px -16px hsl(30 20% 12% / 0.18);
 
     --sidebar-background: 0 0% 98%;
 
@@ -75,31 +71,31 @@
   }
 
   .dark {
-    --background: 220 25% 6%;
-    --foreground: 210 20% 98%;
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 98%;
-    --glass: 220 18% 14% / 0.6;
-    --glass-stroke: 0 0% 100% / 0.08;
-    --popover: 220 18% 10%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 211 100% 56%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 211 100% 70%;
-    --secondary: 220 15% 16%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 220 15% 14%;
-    --muted-foreground: 220 10% 65%;
-    --accent: 188 78% 48%;
-    --accent-foreground: 0 0% 100%;
-    --success: 142 71% 48%;
-    --warning: 28 100% 58%;
-    --destructive: 4 90% 62%;
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 211 100% 56%;
-    --shadow-card: 0 1px 0 hsl(0 0% 100% / 0.04), 0 8px 24px -12px hsl(0 0% 0% / 0.6);
-    --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.04), 0 24px 48px -20px hsl(211 100% 50% / 0.35);
+    --background: 30 8% 6%;
+    --foreground: 36 22% 94%;
+    --card: 30 8% 9%;
+    --card-foreground: 36 22% 94%;
+    --glass: 30 8% 11% / 0.6;
+    --glass-stroke: 36 20% 90% / 0.08;
+    --popover: 30 8% 9%;
+    --popover-foreground: 36 22% 94%;
+    --primary: 36 22% 94%;
+    --primary-foreground: 30 10% 9%;
+    --primary-glow: 36 22% 84%;
+    --secondary: 30 6% 14%;
+    --secondary-foreground: 36 22% 94%;
+    --muted: 30 6% 13%;
+    --muted-foreground: 36 8% 64%;
+    --accent: 18 70% 56%;
+    --accent-foreground: 30 10% 9%;
+    --success: 150 40% 50%;
+    --warning: 32 86% 56%;
+    --destructive: 4 76% 56%;
+    --border: 30 6% 18%;
+    --input: 30 6% 18%;
+    --ring: 18 70% 56%;
+    --shadow-card: 0 1px 0 hsl(0 0% 100% / 0.03), 0 8px 24px -12px hsl(0 0% 0% / 0.6);
+    --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.04), 0 24px 48px -20px hsl(0 0% 0% / 0.7);
     --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 12px 32px -16px hsl(0 0% 0% / 0.6);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -118,11 +114,11 @@
   }
 
   html {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
     font-feature-settings: "ss01", "cv11", "tnum";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.011em;
+    letter-spacing: -0.012em;
   }
 
   body {
@@ -131,7 +127,11 @@
     background-attachment: fixed;
   }
 
-  h1, h2, h3, h4 { letter-spacing: -0.022em; }
+  h1, h2, h3, h4 { letter-spacing: -0.028em; }
+
+  .font-serif { font-family: "Instrument Serif", "Times New Roman", serif; letter-spacing: -0.01em; }
+  .font-mono  { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .eyebrow    { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
 
   /* Mobile: avoid iOS zoom on focus, smooth scroll */
   @media (max-width: 640px) {
@@ -168,4 +168,13 @@
   .ios-list > * + * { border-top: 1px solid hsl(var(--border)); }
 
   .tap-highlight-none { -webkit-tap-highlight-color: transparent; }
+
+  /* Editorial hairline grid */
+  .hairline { border-color: hsl(var(--foreground) / 0.12); }
+  .grain::before {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.05; mix-blend-mode: multiply;
+    background-image: radial-gradient(hsl(var(--foreground)) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
 }
