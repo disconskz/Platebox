@@ -96,7 +96,7 @@ const CalculationView = () => {
           <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
           </Link>
-          <div className="ml-auto flex gap-1.5 sm:gap-2">
+          <div className="ml-auto flex flex-wrap justify-end gap-1.5 sm:gap-2">
             <Button variant="outline" size="sm" onClick={() => exportSpecToExcel(calc?.name || "calc", items, { cost: totalCost, sale: salePrice, margin })}>
               <Download className="sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Excel</span>
             </Button>
