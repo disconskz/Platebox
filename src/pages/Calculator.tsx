@@ -474,6 +474,20 @@ const Calculator = () => {
               <Card>
                 <CardHeader><CardTitle>5. Послепечатные операции</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
+                  {(() => {
+                    const p = PRODUCT_PRESETS[productType];
+                    if (!p || (!p.hint && !p.suggestedOps?.length)) return null;
+                    return (
+                      <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                        {p.hint && <div className="text-foreground"><Sparkles className="inline h-3.5 w-3.5 mr-1 text-primary" />{p.hint}</div>}
+                        {p.suggestedOps?.length ? (
+                          <div className="mt-1.5 text-xs text-muted-foreground">
+                            Типичные операции для этого изделия: <span className="text-foreground">{p.suggestedOps.join(" · ")}</span>. Их можно добавить вручную в спецификации после расчёта.
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                   {productType === "booklet" && (
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasFold} onCheckedChange={(v) => setHasFold(!!v)} id="fold" />
