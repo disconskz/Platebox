@@ -257,6 +257,10 @@ export function runCalculation(input: CalcInput): CalcResult {
   const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics];
   const totalCost = spec.reduce((s, i) => s + i.total, 0);
 
+  const vatPercent = input.vatPercent ?? 0;
+  const vatAmount = totalCost * (vatPercent / 100);
+  const totalWithVat = totalCost + vatAmount;
+
   return {
     layout,
     turnaround,
@@ -279,6 +283,9 @@ export function runCalculation(input: CalcInput): CalcResult {
     logistics,
     spec,
     totalCost,
+    vatPercent,
+    vatAmount,
+    totalWithVat,
     warnings,
   };
 }
