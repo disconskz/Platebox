@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import Calculator from "./pages/Calculator.tsx";
+import References from "./pages/References.tsx";
+import CalculationView from "./pages/CalculationView.tsx";
+import Quote from "./pages/Quote.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -18,6 +21,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/calculator" element={<Calculator />} />
+          <Route path="/references" element={<References />} />
+          <Route path="/calculation/:id" element={<CalculationView />} />
+          <Route path="/calculation/:id/quote" element={<Quote />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
