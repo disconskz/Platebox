@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import {
   Calculator as CalcIcon,
@@ -38,6 +38,10 @@ const signUpSchema = z.object({
 const AuthPage = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawRedirect = searchParams.get("redirect") || "/app";
+  // Only allow internal paths to prevent open-redirect
+  const redirectTo = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/app";
   const [tab, setTab] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
 
@@ -53,7 +57,7 @@ const AuthPage = () => {
     document.title = tab === "signup" ? "Регистрация — Platebox" : "Вход — Platebox";
   }, [tab]);
 
-  if (!loading && user) return <Navigate to="/app" replace />;
+  if (!loading && user) return <Navigate to={redirectTo} replace />;
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +77,7 @@ const AuthPage = () => {
       return;
     }
     toast.success("Добро пожаловать!");
-    navigate("/app", { replace: true });
+    navigate(redirectTo, { replace: true });
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -89,7 +93,7 @@ const AuthPage = () => {
       return;
     }
     setBusy(true);
-    const redirectUrl = `${window.location.origin}/app`;
+    const redirectUrl = `${window.location.origin}${redirectTo}`;
     const { error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
@@ -106,7 +110,7 @@ const AuthPage = () => {
       return;
     }
     toast.success("Аккаунт создан!");
-    navigate("/app", { replace: true });
+    navigate(redirectTo, { replace: true });
   };
 
   const [showSiPwd, setShowSiPwd] = useState(false);
