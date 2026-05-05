@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Calculator as CalcIcon, FileText, Bookmark } from "lucide-react";
+import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,9 +54,10 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">Просчёт полиграфической продукции</p>
             </div>
           </div>
-          <Link to="/calculator">
-            <Button size="lg" className="shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый расчёт</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link to="/references"><Button variant="outline" size="lg"><Database className="mr-2 h-4 w-4" /> Справочники</Button></Link>
+            <Link to="/calculator"><Button size="lg" className="shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый расчёт</Button></Link>
+          </div>
         </div>
       </header>
 
@@ -110,8 +111,8 @@ const CalcTable = ({ rows }: { rows: Calc[] }) => (
       </thead>
       <tbody>
         {rows.map((c) => (
-          <tr key={c.id} className="border-t hover:bg-muted/30">
-            <td className="p-3 font-medium">{c.name || "—"}</td>
+          <tr key={c.id} className="border-t hover:bg-muted/30 cursor-pointer">
+            <td className="p-3 font-medium"><Link to={`/calculation/${c.id}`} className="hover:text-primary">{c.name || "—"}</Link></td>
             <td className="p-3 text-muted-foreground">{PRODUCT_LABELS[c.product_type] || c.product_type}</td>
             <td className="p-3 text-right tabular-nums">{c.circulation}</td>
             <td className="p-3 text-right tabular-nums">{c.total_cost ? fmtMoney(Number(c.total_cost)) : "—"}</td>
