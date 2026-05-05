@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, Check, X, FileText } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, FileText, Download, Copy, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
+import { exportSpecToExcel } from "@/lib/export";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",
@@ -25,6 +26,8 @@ const CalculationView = () => {
   const { id } = useParams();
   const [calc, setCalc] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [adjustments, setAdjustments] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [editReason, setEditReason] = useState<string>("");
@@ -33,8 +36,10 @@ const CalculationView = () => {
     if (!id) return;
     const { data: c } = await supabase.from("calculations").select("*").eq("id", id).single();
     const { data: it } = await supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order");
+    const { data: adj } = await supabase.from("calculation_adjustments").select("*").eq("calculation_id", id).order("created_at", { ascending: false });
     setCalc(c);
     setItems(it || []);
+    setAdjustments(adj || []);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
@@ -93,6 +98,12 @@ const CalculationView = () => {
             <ArrowLeft className="inline h-4 w-4 mr-1" /> Все расчёты
           </Link>
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportSpecToExcel(calc?.name || "calc", items, { cost: totalCost, sale: salePrice, margin })}>
+              <Download className="mr-2 h-4 w-4" /> Excel
+            </Button>
+            <Link to={`/calculator?from=${id}`}>
+              <Button variant="outline" size="sm"><Copy className="mr-2 h-4 w-4" /> Дублировать</Button>
+            </Link>
             <Link to={`/calculation/${id}/quote`}>
               <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" /> КП для печати</Button>
             </Link>
@@ -178,6 +189,45 @@ const CalculationView = () => {
                 </table>
               </div>
             </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2 flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4" /> История правок ({adjustments.length})</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setShowHistory((v) => !v)}>{showHistory ? "Скрыть" : "Показать"}</Button>
+            </CardHeader>
+            {showHistory && (
+              <CardContent>
+                {adjustments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Правок пока нет.</p>
+                ) : (
+                  <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                        <tr>
+                          <th className="text-left p-2">Дата</th>
+                          <th className="text-left p-2">Статья</th>
+                          <th className="text-right p-2">Было</th>
+                          <th className="text-right p-2">Стало</th>
+                          <th className="text-left p-2">Причина</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adjustments.map((a) => (
+                          <tr key={a.id} className="border-t">
+                            <td className="p-2 text-muted-foreground">{new Date(a.created_at).toLocaleString("ru-RU")}</td>
+                            <td className="p-2">{a.item_name}</td>
+                            <td className="p-2 text-right tabular-nums">{fmtMoney(Number(a.original_price || 0))}</td>
+                            <td className="p-2 text-right tabular-nums font-medium">{fmtMoney(Number(a.adjusted_price || 0))}</td>
+                            <td className="p-2 text-muted-foreground">{a.reason || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            )}
           </Card>
         </div>
 

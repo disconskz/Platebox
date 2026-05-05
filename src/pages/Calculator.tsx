@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Save, FileText, Sparkles, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
+type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 
 const PRODUCT_OPTIONS: { value: ProductType; label: string; category: "sheet" | "book_journal" }[] = [
   { value: "leaflet", label: "Листовка", category: "sheet" },
@@ -28,14 +29,16 @@ const PRODUCT_OPTIONS: { value: ProductType; label: string; category: "sheet" | 
   { value: "bag", label: "Пакет", category: "book_journal" },
 ];
 
-const FORMAT_OPTIONS: FormatType[] = ["A6", "A5", "A4", "A4+", "A3", "A3+", "custom"];
+const FORMAT_OPTIONS: FormatType[] = ["A6", "A5", "A4", "A4+", "A3", "A3+", "A2", "A1", "custom"];
 
 const Calculator = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [maxReached, setMaxReached] = useState(1);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Step 1
@@ -50,6 +53,7 @@ const Calculator = () => {
 
   // Step 2
   const [materialId, setMaterialId] = useState<string>("");
+  const [equipmentId, setEquipmentId] = useState<string>("");
 
   // Step 3
   const [designQty, setDesignQty] = useState(2);
@@ -80,11 +84,36 @@ const Calculator = () => {
     (async () => {
       const { data: m } = await supabase.from("materials").select("*").order("name");
       const { data: l } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
+      const { data: e } = await supabase.from("equipment").select("*").eq("type", "print").order("name");
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
+      setEquipment((e as Equipment[]) || []);
       if (m && m.length) setMaterialId((m[0] as Material).id);
+      if (e && e.length) setEquipmentId((e[0] as Equipment).id);
     })();
   }, []);
+
+  // Load template/clone if requested
+  useEffect(() => {
+    const tpl = searchParams.get("from");
+    if (!tpl) return;
+    (async () => {
+      const { data } = await supabase.from("calculations").select("*").eq("id", tpl).single();
+      if (!data) return;
+      setName((data.name || "") + (data.is_template ? "" : " (копия)"));
+      setProductType(data.product_type as ProductType);
+      setCirculation(data.circulation);
+      setFormatType(data.format_type as FormatType);
+      if (data.format_width) setCustomW(data.format_width);
+      if (data.format_height) setCustomH(data.format_height);
+      setColorFront(data.color_front);
+      setColorBack(data.color_back);
+      if (data.material_id) setMaterialId(data.material_id);
+      if (data.equipment_id) setEquipmentId(data.equipment_id);
+      if (data.margin_percent) setMargin(Number(data.margin_percent));
+      toast.info(data.is_template ? "Загружен шаблон" : "Создана копия расчёта");
+    })();
+  }, [searchParams]);
 
   // Auto select bag defaults
   useEffect(() => {
@@ -102,6 +131,7 @@ const Calculator = () => {
   }, [formatType, customW, customH]);
 
   const material = materials.find((m) => m.id === materialId);
+  const selectedEquipment = equipment.find((e) => e.id === equipmentId);
 
   const lamMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -138,8 +168,11 @@ const Calculator = () => {
       stampingClicheH: stampH,
       hasLamPrepress,
       lamPrepressSides,
+      printCostPerImpression: selectedEquipment?.cost_per_impression
+        ? Number(selectedEquipment.cost_per_impression)
+        : undefined,
     };
-  }, [material, productType, circulation, formatType, dims, colorFront, colorBack, designQty, photoOutput, photoOutputCost, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides]);
+  }, [material, selectedEquipment, productType, circulation, formatType, dims, colorFront, colorBack, designQty, photoOutput, photoOutputCost, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides]);
 
   const result = useMemo(() => {
     if (!calcInput) return null;
@@ -162,6 +195,19 @@ const Calculator = () => {
   const salePrice = totalCost * (1 + margin / 100);
   const profit = salePrice - totalCost;
 
+  // Validations per step
+  const stepError = useMemo(() => {
+    if (step >= 1 && (!circulation || circulation < 1)) return "Укажите тираж больше 0";
+    if (step >= 1 && (!dims.w || !dims.h || dims.w < 10 || dims.h < 10)) return "Укажите корректный формат";
+    if (step >= 2 && !materialId) return "Выберите материал";
+    if (selectedEquipment && selectedEquipment.max_format_width && selectedEquipment.max_format_height) {
+      const fitW = Math.max(dims.w, dims.h);
+      const machineMax = Math.max(selectedEquipment.max_format_width, selectedEquipment.max_format_height);
+      if (fitW > machineMax) return `Формат превышает возможности машины ${selectedEquipment.name}`;
+    }
+    return null;
+  }, [step, circulation, dims, materialId, selectedEquipment]);
+
   const save = async (asTemplate = false) => {
     if (!result || "error" in result || !calcInput || !material) return;
     setSaving(true);
@@ -176,6 +222,8 @@ const Calculator = () => {
       color_front: colorFront,
       color_back: colorBack,
       material_id: materialId,
+      equipment_id: equipmentId || null,
+      print_cost_per_impression: selectedEquipment?.cost_per_impression ?? null,
       print_format_width: result.layout.printFormat.width,
       print_format_height: result.layout.printFormat.height,
       items_per_sheet: result.layout.itemsPerSheet,
@@ -294,7 +342,8 @@ const Calculator = () => {
             {step === 2 && (
               <Card>
                 <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <div>
                   <Label>Материал</Label>
                   <Select value={materialId} onValueChange={setMaterialId}>
                     <SelectTrigger><SelectValue placeholder="Выберите бумагу" /></SelectTrigger>
@@ -307,6 +356,26 @@ const Calculator = () => {
                   {material && (
                     <p className="mt-3 text-sm text-muted-foreground">Закупочный формат: {material.format_width}×{material.format_height} мм. Цена: {fmtMoney(material.cost_per_sheet)} за лист.</p>
                   )}
+                  </div>
+                  <div>
+                    <Label>Печатная машина</Label>
+                    <Select value={equipmentId} onValueChange={setEquipmentId}>
+                      <SelectTrigger><SelectValue placeholder="Выберите оборудование" /></SelectTrigger>
+                      <SelectContent>
+                        {equipment.map((eq) => (
+                          <SelectItem key={eq.id} value={eq.id}>
+                            {eq.name} · до {eq.max_format_width}×{eq.max_format_height} · {fmtMoney(Number(eq.cost_per_impression || 0))}/оттиск
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedEquipment && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Макс. формат: {selectedEquipment.max_format_width}×{selectedEquipment.max_format_height} мм.
+                        Цена оттиска: {fmtMoney(Number(selectedEquipment.cost_per_impression || 0))}.
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -447,12 +516,17 @@ const Calculator = () => {
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={() => save(false)} disabled={saving}><Save className="mr-2 h-4 w-4" /> Сохранить расчёт</Button>
                     <Button variant="outline" onClick={() => save(true)} disabled={saving}>Сохранить как шаблон</Button>
-                    <Button variant="outline" disabled><FileText className="mr-2 h-4 w-4" /> КП в PDF (скоро)</Button>
                   </div>
+                  <p className="text-xs text-muted-foreground">Шаблон будет доступен на главной — из него можно создать новый расчёт одной кнопкой.</p>
                 </CardContent>
               </Card>
             )}
 
+            {stepError && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 mt-0.5 text-warning" /> {stepError}
+              </div>
+            )}
             {result && "error" in result && (
               <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                 <AlertTriangle className="h-4 w-4 mt-0.5" /> {String(result.error)}
@@ -461,7 +535,7 @@ const Calculator = () => {
 
             <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={prev} disabled={step === 1}><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
-              <Button onClick={next} disabled={step === 7}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <Button onClick={next} disabled={step === 7 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
             </div>
           </div>
 

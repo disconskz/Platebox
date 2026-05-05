@@ -45,8 +45,10 @@ const TABLES = [
       { k: "type", t: "select", label: "Тип", opts: ["print", "cut", "fold", "laminate", "die_cut", "stamp", "other"] },
       { k: "max_format_width", t: "number", label: "Макс. шир." },
       { k: "max_format_height", t: "number", label: "Макс. выс." },
+      { k: "cost_per_impression", t: "number", label: "₸/оттиск" },
+      { k: "notes", t: "text", label: "Примечание" },
     ],
-    defaults: { name: "", type: "print", max_format_width: 520, max_format_height: 360 },
+    defaults: { name: "", type: "print", max_format_width: 520, max_format_height: 360, cost_per_impression: 3, notes: "" },
   },
   {
     key: "lamination_prices",
