@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ChevronUp } from "lucide-react";
+import { HelpHint } from "@/components/HelpHint";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -336,7 +337,12 @@ const Calculator = () => {
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Авто, если оставить пустым" />
                   </div>
                   <div>
-                    <Label>Вид продукции</Label>
+                    <Label>
+                      Вид продукции
+                      <HelpHint title="Вид продукции" learnMore="calc-product">
+                        Определяет автопресет постпечати и геометрию плитки в превью раскладки. Выберите ближайший по типу.
+                      </HelpHint>
+                    </Label>
                     <Select value={productType} onValueChange={(v) => setProductType(v as ProductType)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -347,11 +353,21 @@ const Calculator = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Тираж, шт</Label>
+                    <Label>
+                      Тираж, шт
+                      <HelpHint title="Тираж" learnMore="calc-sheets">
+                        Сколько готовых изделий нужно. От тиража напрямую зависит число тиражных листов.
+                      </HelpHint>
+                    </Label>
                     <Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(Number(e.target.value) || 0)} />
                   </div>
                   <div>
-                    <Label>Формат</Label>
+                    <Label>
+                      Формат
+                      <HelpHint title="Формат изделия" learnMore="calc-product">
+                        Размер готового изделия. «Нестандартный» — задайте ширину и высоту вручную.
+                      </HelpHint>
+                    </Label>
                     <Select value={formatType} onValueChange={(v) => setFormatType(v as FormatType)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -366,11 +382,21 @@ const Calculator = () => {
                     </div>
                   )}
                   <div>
-                    <Label>Цветность фронт</Label>
+                    <Label>
+                      Цветность фронт
+                      <HelpHint title="Красочность" learnMore="calc-forms">
+                        Число красок на лицо. CMYK = 4, моно = 1. От этого зависит количество печатных форм.
+                      </HelpHint>
+                    </Label>
                     <Input type="number" min={1} max={10} value={colorFront} onChange={(e) => setColorFront(Number(e.target.value))} />
                   </div>
                   <div>
-                    <Label>Цветность оборот (0 = без оборота)</Label>
+                    <Label>
+                      Цветность оборот (0 = без оборота)
+                      <HelpHint title="Оборот" learnMore="calc-forms">
+                        0 — печать только с лица. Иначе указывает красочность оборотной стороны; влияет на формы и оттиски.
+                      </HelpHint>
+                    </Label>
                     <Input type="number" min={0} max={10} value={colorBack} onChange={(e) => setColorBack(Number(e.target.value))} />
                   </div>
                 </CardContent>
@@ -382,7 +408,12 @@ const Calculator = () => {
                 <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                  <Label>Материал</Label>
+                  <Label>
+                    Материал
+                    <HelpHint title="Материал" learnMore="calc-material">
+                      Список из справочника «Бумага». Формат закупочного листа и цена за лист идут в раскладку и в стоимость.
+                    </HelpHint>
+                  </Label>
                   <Select value={materialId} onValueChange={setMaterialId}>
                     <SelectTrigger><SelectValue placeholder="Выберите бумагу" /></SelectTrigger>
                     <SelectContent>
@@ -396,7 +427,12 @@ const Calculator = () => {
                   )}
                   </div>
                   <div>
-                    <Label>Печатная машина</Label>
+                    <Label>
+                      Печатная машина
+                      <HelpHint title="Оборудование" learnMore="calc-print">
+                        Задаёт максимальный печатный формат и стоимость одного оттиска. Если изделие крупнее лимита — будет ошибка.
+                      </HelpHint>
+                    </Label>
                     <Select value={equipmentId} onValueChange={setEquipmentId}>
                       <SelectTrigger><SelectValue placeholder="Выберите оборудование" /></SelectTrigger>
                       <SelectContent>
@@ -453,7 +489,14 @@ const Calculator = () => {
 
             {step === 4 && (
               <Card>
-                <CardHeader><CardTitle>4. Раскладка</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    4. Раскладка
+                    <HelpHint title="Раскладка" learnMore="calc-layout">
+                      Автоматически подбирается оптимальное число изделий на печатном листе с учётом поворота и полей.
+                    </HelpHint>
+                  </CardTitle>
+                </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
                   Раскладка подбирается автоматически из печатных форматов 520×360 и 460×320. Превью справа.
                   {result && !("error" in result) && (
@@ -472,7 +515,14 @@ const Calculator = () => {
 
             {step === 5 && (
               <Card>
-                <CardHeader><CardTitle>5. Послепечатные операции</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    5. Послепечатные операции
+                    <HelpHint title="Постпечать" learnMore="calc-postpress">
+                      Ламинация, фальцовка, высечка, нумерация, тиснение. Цены берутся из справочников.
+                    </HelpHint>
+                  </CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-3">
                   {(() => {
                     const p = PRODUCT_PRESETS[productType];
@@ -603,7 +653,15 @@ const Calculator = () => {
                 <div className="border-t p-4 space-y-3 bg-gradient-subtle rounded-b-lg">
                   <Row label="Себестоимость" value={fmtMoney(totalCost)} />
                   <div>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span className="inline-flex items-center">
+                        Наценка
+                        <HelpHint title="Наценка и итог" learnMore="calc-margin">
+                          Цена без НДС = себестоимость × (1 + наценка/100). К ней добавляется НДС из системных констант.
+                        </HelpHint>
+                      </span>
+                      <span>{margin}%</span>
+                    </div>
                     <Slider value={[margin]} onValueChange={([v]) => setMargin(v)} min={0} max={200} step={1} />
                   </div>
                   <Row label="Цена без НДС" value={fmtMoney(priceBeforeVat)} />
