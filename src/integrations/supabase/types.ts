@@ -110,6 +110,7 @@ export type Database = {
           color_back: number
           color_front: number
           created_at: string | null
+          equipment_id: string | null
           format_height: number | null
           format_type: string
           format_width: number | null
@@ -129,6 +130,7 @@ export type Database = {
           paper_cut_cost: number | null
           postpress: Json | null
           print_cost: number | null
+          print_cost_per_impression: number | null
           print_format_height: number | null
           print_format_width: number | null
           print_sheets: number | null
@@ -148,6 +150,7 @@ export type Database = {
           color_back?: number
           color_front?: number
           created_at?: string | null
+          equipment_id?: string | null
           format_height?: number | null
           format_type: string
           format_width?: number | null
@@ -167,6 +170,7 @@ export type Database = {
           paper_cut_cost?: number | null
           postpress?: Json | null
           print_cost?: number | null
+          print_cost_per_impression?: number | null
           print_format_height?: number | null
           print_format_width?: number | null
           print_sheets?: number | null
@@ -186,6 +190,7 @@ export type Database = {
           color_back?: number
           color_front?: number
           created_at?: string | null
+          equipment_id?: string | null
           format_height?: number | null
           format_type?: string
           format_width?: number | null
@@ -205,6 +210,7 @@ export type Database = {
           paper_cut_cost?: number | null
           postpress?: Json | null
           print_cost?: number | null
+          print_cost_per_impression?: number | null
           print_format_height?: number | null
           print_format_width?: number | null
           print_sheets?: number | null
@@ -257,27 +263,33 @@ export type Database = {
       }
       equipment: {
         Row: {
+          cost_per_impression: number | null
           created_at: string | null
           id: string
           max_format_height: number | null
           max_format_width: number | null
           name: string
+          notes: string | null
           type: string
         }
         Insert: {
+          cost_per_impression?: number | null
           created_at?: string | null
           id?: string
           max_format_height?: number | null
           max_format_width?: number | null
           name: string
+          notes?: string | null
           type: string
         }
         Update: {
+          cost_per_impression?: number | null
           created_at?: string | null
           id?: string
           max_format_height?: number | null
           max_format_width?: number | null
           name?: string
+          notes?: string | null
           type?: string
         }
         Relationships: []
