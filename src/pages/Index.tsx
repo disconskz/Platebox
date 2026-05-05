@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { fmtMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import MobileTabBar from "@/components/MobileTabBar";
 
 type Calc = {
   id: string;
@@ -66,9 +67,9 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="border-b bg-card/80 backdrop-blur">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
+    <div className="min-h-screen bg-gradient-subtle has-tabbar">
+      <header className="border-b bg-card/80 backdrop-blur safe-top sticky top-0 z-30">
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 py-3 px-4 sm:py-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-primary text-primary-foreground shadow-elevated">
               <CalcIcon className="h-5 w-5" />
@@ -78,21 +79,22 @@ const Index = () => {
               <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Просчёт полиграфической продукции</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <Link to="/analytics" className="flex-1 sm:flex-none"><Button variant="outline" className="w-full"><TrendingUp className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Аналитика</span><span className="sm:hidden">Аналитика</span></Button></Link>
-            <Link to="/references" className="flex-1 sm:flex-none"><Button variant="outline" className="w-full"><Database className="mr-2 h-4 w-4" /> Справочники</Button></Link>
-            <Link to="/calculator" className="flex-1 sm:flex-none"><Button className="w-full shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый</Button></Link>
-            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => signOut()} title={user?.email || ""}>
-              <LogOut className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Выйти</span>
+          {/* Desktop nav only — mobile uses bottom tab-bar */}
+          <div className="hidden md:flex gap-2">
+            <Link to="/analytics"><Button variant="outline"><TrendingUp className="mr-2 h-4 w-4" /> Аналитика</Button></Link>
+            <Link to="/references"><Button variant="outline"><Database className="mr-2 h-4 w-4" /> Справочники</Button></Link>
+            <Link to="/calculator"><Button className="shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый</Button></Link>
+            <Button variant="outline" onClick={() => signOut()} title={user?.email || ""}>
+              <LogOut className="mr-2 h-4 w-4" /> Выйти
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8 px-4">
+      <main className="container mx-auto py-4 sm:py-8 space-y-5 sm:space-y-8 px-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Поиск по названию или виду продукции..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Input className="pl-9 h-11" placeholder="Поиск по названию или виду продукции…" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
 
         {templates.length > 0 && (
@@ -125,6 +127,12 @@ const Index = () => {
           )}
         </section>
       </main>
+
+      {/* Mobile FAB + Tab bar */}
+      <Link to="/calculator" className="fab md:hidden" aria-label="Новый расчёт">
+        <Plus className="h-5 w-5" /> Новый
+      </Link>
+      <MobileTabBar />
     </div>
   );
 };
