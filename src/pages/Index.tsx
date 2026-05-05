@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database, TrendingUp, Copy, Trash2, Search, Sparkles, LogOut } from "lucide-react";
+import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database, TrendingUp, Copy, Trash2, Search, Sparkles, LogOut, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -156,6 +156,11 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
             <td className="p-3 text-right text-muted-foreground">{new Date(c.created_at).toLocaleDateString("ru-RU")}</td>
             <td className="p-2 text-right opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
               <div className="flex justify-end gap-1">
+                <Link to={`/calculation/${c.id}`}>
+                  <Button size="sm" variant="outline" className="h-8 px-2" title="Открыть">
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
                 <Link to={`/calculator?from=${c.id}`}>
                   <Button size="sm" variant="outline" className="h-8 px-2" title={isTemplate ? "Создать из шаблона" : "Дублировать"}>
                     {isTemplate ? <Sparkles className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -186,6 +191,9 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
             <span className="text-muted-foreground ml-2">прод:</span> <span className="font-semibold tabular-nums">{c.sale_price ? fmtMoney(Number(c.sale_price)) : "—"}</span>
           </div>
           <div className="flex gap-1 shrink-0">
+            <Link to={`/calculation/${c.id}`}>
+              <Button size="sm" variant="outline" className="h-8 w-8 p-0"><Eye className="h-3.5 w-3.5" /></Button>
+            </Link>
             <Link to={`/calculator?from=${c.id}`}>
               <Button size="sm" variant="outline" className="h-8 w-8 p-0">{isTemplate ? <Sparkles className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}</Button>
             </Link>
