@@ -155,7 +155,7 @@ const Analytics = () => {
 };
 
 const KPI = ({ label, value, accent, hint, anchor }: { label: string; value: string; accent?: "success"; hint?: string; anchor?: string }) => (
-  <Card>
+  <Card className="lift-sm">
     <CardContent className="py-4">
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground inline-flex items-center">
         {label}
