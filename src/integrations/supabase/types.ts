@@ -297,6 +297,33 @@ export type Database = {
         }
         Relationships: []
       }
+      format_presets: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          height: number
+          id: string
+          name: string
+          width: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          height: number
+          id?: string
+          name: string
+          width: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          height?: number
+          id?: string
+          name?: string
+          width?: number
+        }
+        Relationships: []
+      }
       lamination_prices: {
         Row: {
           cost_per_side: number
@@ -359,8 +386,10 @@ export type Database = {
           category: string
           created_at: string | null
           fixed_cost: number | null
+          format_label: string | null
           id: string
           name: string
+          setup_sheets: number | null
           unit: string | null
           variable_cost: number | null
         }
@@ -368,8 +397,10 @@ export type Database = {
           category: string
           created_at?: string | null
           fixed_cost?: number | null
+          format_label?: string | null
           id?: string
           name: string
+          setup_sheets?: number | null
           unit?: string | null
           variable_cost?: number | null
         }
@@ -377,8 +408,10 @@ export type Database = {
           category?: string
           created_at?: string | null
           fixed_cost?: number | null
+          format_label?: string | null
           id?: string
           name?: string
+          setup_sheets?: number | null
           unit?: string | null
           variable_cost?: number | null
         }
