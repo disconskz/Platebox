@@ -74,7 +74,7 @@ const Index = () => {
               <CalcIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold leading-tight truncate">МАТ-Полиграф Калькулятор</h1>
+              <h1 className="text-base sm:text-lg font-bold leading-tight truncate">Platebox</h1>
               <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Просчёт полиграфической продукции</p>
             </div>
           </div>

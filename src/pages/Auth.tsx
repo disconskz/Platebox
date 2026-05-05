@@ -38,7 +38,7 @@ const AuthPage = () => {
   const [suPassword, setSuPassword] = useState("");
 
   useEffect(() => {
-    document.title = "Вход — МАТ-Полиграф";
+    document.title = "Вход — Platebox";
   }, []);
 
   if (!loading && user) return <Navigate to="/app" replace />;
@@ -111,7 +111,7 @@ const AuthPage = () => {
               <CalcIcon className="h-6 w-6" />
             </div>
             <div>
-              <CardTitle className="text-xl">МАТ-Полиграф</CardTitle>
+              <CardTitle className="text-xl">Platebox</CardTitle>
               <CardDescription>Калькулятор полиграфической продукции</CardDescription>
             </div>
           </CardHeader>
