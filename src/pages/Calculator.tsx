@@ -342,7 +342,8 @@ const Calculator = () => {
             {step === 2 && (
               <Card>
                 <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <div>
                   <Label>Материал</Label>
                   <Select value={materialId} onValueChange={setMaterialId}>
                     <SelectTrigger><SelectValue placeholder="Выберите бумагу" /></SelectTrigger>
@@ -355,6 +356,26 @@ const Calculator = () => {
                   {material && (
                     <p className="mt-3 text-sm text-muted-foreground">Закупочный формат: {material.format_width}×{material.format_height} мм. Цена: {fmtMoney(material.cost_per_sheet)} за лист.</p>
                   )}
+                  </div>
+                  <div>
+                    <Label>Печатная машина</Label>
+                    <Select value={equipmentId} onValueChange={setEquipmentId}>
+                      <SelectTrigger><SelectValue placeholder="Выберите оборудование" /></SelectTrigger>
+                      <SelectContent>
+                        {equipment.map((eq) => (
+                          <SelectItem key={eq.id} value={eq.id}>
+                            {eq.name} · до {eq.max_format_width}×{eq.max_format_height} · {fmtMoney(Number(eq.cost_per_impression || 0))}/оттиск
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedEquipment && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Макс. формат: {selectedEquipment.max_format_width}×{selectedEquipment.max_format_height} мм.
+                        Цена оттиска: {fmtMoney(Number(selectedEquipment.cost_per_impression || 0))}.
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -495,12 +516,17 @@ const Calculator = () => {
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={() => save(false)} disabled={saving}><Save className="mr-2 h-4 w-4" /> Сохранить расчёт</Button>
                     <Button variant="outline" onClick={() => save(true)} disabled={saving}>Сохранить как шаблон</Button>
-                    <Button variant="outline" disabled><FileText className="mr-2 h-4 w-4" /> КП в PDF (скоро)</Button>
                   </div>
+                  <p className="text-xs text-muted-foreground">Шаблон будет доступен на главной — из него можно создать новый расчёт одной кнопкой.</p>
                 </CardContent>
               </Card>
             )}
 
+            {stepError && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 mt-0.5 text-warning" /> {stepError}
+              </div>
+            )}
             {result && "error" in result && (
               <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                 <AlertTriangle className="h-4 w-4 mt-0.5" /> {String(result.error)}
@@ -509,7 +535,7 @@ const Calculator = () => {
 
             <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={prev} disabled={step === 1}><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
-              <Button onClick={next} disabled={step === 7}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <Button onClick={next} disabled={step === 7 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
             </div>
           </div>
 
