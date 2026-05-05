@@ -282,9 +282,13 @@
     padding-right: max(1rem, env(safe-area-inset-right));
   }
   .page-main {
-    @apply page-container py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6;
+    @apply container mx-auto w-full py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
   }
   .page-header-row {
-    @apply page-container flex flex-wrap items-center gap-3 py-3 sm:py-4 min-h-[3.25rem];
+    @apply container mx-auto w-full flex flex-wrap items-center gap-3 py-3 sm:py-4 min-h-[3.25rem];
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
   }
 }
