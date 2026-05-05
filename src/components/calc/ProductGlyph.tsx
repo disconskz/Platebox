@@ -245,7 +245,6 @@ const Glyph = ({ type, landscape, stroke, ink, muted }: GlyphProps) => {
           <path d={`M 50 48 L 50 83`} {...common} />
         </g>
       );
-    case "envelope" as never:
     default:
       return (
         <g>
