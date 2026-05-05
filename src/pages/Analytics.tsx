@@ -64,13 +64,13 @@ const Analytics = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
-        <div className="container mx-auto flex items-center gap-3 py-3">
+        <div className="container mx-auto flex items-center gap-2 py-3 px-4 flex-wrap">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="inline h-4 w-4 mr-1" /> На главную
+            <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">На главную</span>
           </Link>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <TrendingUp className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Аналитика</span>
+            <span className="text-sm font-medium hidden sm:inline">Аналитика</span>
             <Select value={period} onValueChange={setPeriod}>
               <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -83,7 +83,7 @@ const Analytics = () => {
           </div>
         </div>
       </header>
-      <main className="container mx-auto py-6 space-y-6">
+      <main className="container mx-auto py-4 sm:py-6 px-4 space-y-4 sm:space-y-6">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <KPI label="Расчётов" value={String(stats.count)} />
           <KPI label="Выручка" value={fmtMoney(stats.totalSale)} />
@@ -126,9 +126,9 @@ const Analytics = () => {
           </Card>
         </div>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="pb-2"><CardTitle className="text-base">По видам продукции</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="scroll-x overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
