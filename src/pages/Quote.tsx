@@ -34,31 +34,35 @@ const Quote = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card no-print sticky top-0 z-10">
-        <div className="container mx-auto flex items-center gap-3 py-3">
+      <header className="border-b bg-card/80 backdrop-blur no-print sticky top-0 z-10 safe-top">
+        <div className="container mx-auto flex flex-wrap items-center gap-2 py-3 px-4">
           <Link to={`/calculation/${id}`} className="text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="inline h-4 w-4 mr-1" /> К расчёту
           </Link>
           <div className="ml-auto">
-            <Button onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Печать / Сохранить PDF</Button>
+            <Button size="sm" onClick={() => window.print()}>
+              <Printer className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Печать / Сохранить PDF</span>
+              <span className="sm:hidden">Печать</span>
+            </Button>
           </div>
         </div>
       </header>
-      <main className="container mx-auto max-w-3xl py-8 print:py-2">
-        <div className="bg-card rounded-lg border shadow-card p-8 print:p-0 print:border-0 print:shadow-none">
-          <div className="flex items-start justify-between border-b pb-4 mb-6">
+      <main className="container mx-auto max-w-3xl py-4 sm:py-8 px-4 print:py-2 print:px-0">
+        <div className="bg-card rounded-lg border shadow-card p-4 sm:p-8 print:p-0 print:border-0 print:shadow-none">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 border-b pb-4 mb-5 sm:mb-6">
             <div>
-              <h1 className="text-2xl font-bold">Коммерческое предложение</h1>
-              <p className="text-sm text-muted-foreground mt-1">Типография «Platebox»</p>
+              <h1 className="text-xl sm:text-2xl font-bold leading-tight">Коммерческое предложение</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Типография «Platebox»</p>
             </div>
-            <div className="text-right text-sm">
+            <div className="text-left sm:text-right text-xs sm:text-sm">
               <div>№ {calc.id.slice(0, 8).toUpperCase()}</div>
               <div className="text-muted-foreground">от {new Date(calc.created_at).toLocaleDateString("ru-RU")}</div>
             </div>
           </div>
 
           <h2 className="text-base font-semibold mb-2">{calc.name}</h2>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm mb-6">
             <Field k="Продукция" v={PRODUCT_LABELS[calc.product_type] || calc.product_type} />
             <Field k="Тираж" v={String(calc.circulation) + " шт"} />
             <Field k="Формат изделия" v={`${calc.format_type} (${calc.format_width}×${calc.format_height} мм)`} />
@@ -67,7 +71,8 @@ const Quote = () => {
             <Field k="На листе" v={`${calc.items_per_sheet} шт`} />
           </div>
 
-          <table className="w-full text-sm border-collapse mb-6">
+          <div className="-mx-4 sm:mx-0 overflow-x-auto scroll-x mb-6 print:mx-0 print:overflow-visible">
+            <table className="w-full text-sm border-collapse min-w-[520px] sm:min-w-0 px-4 sm:px-0 print:min-w-0">
             <thead>
               <tr className="border-b-2 border-foreground">
                 <th className="text-left py-2">№</th>
@@ -102,8 +107,9 @@ const Quote = () => {
               })()}
             </tbody>
           </table>
+          </div>
 
-          <div className="ml-auto w-full max-w-sm space-y-1 text-sm">
+          <div className="ml-auto w-full sm:max-w-sm space-y-1 text-sm">
             {(() => {
               const tc = Number(calc.total_cost);
               const mp = Number(calc.margin_percent);
@@ -126,7 +132,7 @@ const Quote = () => {
             </div>
           </div>
 
-          <div className="mt-10 pt-6 border-t text-xs text-muted-foreground">
+          <div className="mt-8 sm:mt-10 pt-5 sm:pt-6 border-t text-xs text-muted-foreground">
             <p>Срок изготовления уточняется отдельно. Цены действительны 14 дней с даты выставления КП.</p>
           </div>
         </div>
