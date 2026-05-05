@@ -112,6 +112,8 @@ const References = () => {
 const RefTable = ({ spec }: { spec: any }) => {
   const [rows, setRows] = useState<AnyRow[]>([]);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
   const pk = spec.pk || "id";
 
   const load = async () => {
@@ -119,7 +121,7 @@ const RefTable = ({ spec }: { spec: any }) => {
     setRows((data as any) || []);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [spec.key]);
+  useEffect(() => { load(); setPage(1); /* eslint-disable-next-line */ }, [spec.key]);
 
   const update = async (row: AnyRow, k: string, v: any) => {
     const next = { ...row, [k]: v };
@@ -140,7 +142,7 @@ const RefTable = ({ spec }: { spec: any }) => {
   const add = async () => {
     const { error } = await (supabase as any).from(spec.key).insert(draft);
     if (error) toast.error(error.message);
-    else { toast.success("Добавлено"); setDraft({ ...spec.defaults }); load(); }
+    else { toast.success("Добавлено"); setDraft({ ...spec.defaults }); setPage(1); load(); }
   };
 
   const renderField = (col: any, value: any, onChange: (v: any) => void) => {
@@ -162,6 +164,15 @@ const RefTable = ({ spec }: { spec: any }) => {
     );
   };
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const pageRows = useMemo(
+    () => rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [rows, currentPage]
+  );
+  const fromIdx = rows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const toIdx = Math.min(currentPage * PAGE_SIZE, rows.length);
+
   return (
     <Card>
       <CardHeader className="pb-3"><CardTitle className="text-base">{spec.title}</CardTitle></CardHeader>
@@ -181,7 +192,7 @@ const RefTable = ({ spec }: { spec: any }) => {
                 ))}
                 <td className="p-1.5 text-right"><Button size="sm" onClick={add}><Plus className="h-3.5 w-3.5" /></Button></td>
               </tr>
-              {rows.map((row) => (
+              {pageRows.map((row) => (
                 <tr key={row[pk]} className="border-t">
                   {spec.cols.map((c: any) => (
                     <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
@@ -194,8 +205,49 @@ const RefTable = ({ spec }: { spec: any }) => {
                   </td>
                 </tr>
               ))}
+              {rows.length === 0 && (
+                <tr className="border-t">
+                  <td colSpan={spec.cols.length + 1} className="p-4 text-center text-xs text-muted-foreground">
+                    Нет записей
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div>
+            {rows.length > 0 ? (
+              <>Показаны <span className="font-medium text-foreground">{fromIdx}–{toIdx}</span> из <span className="font-medium text-foreground">{rows.length}</span></>
+            ) : (
+              <>0 записей</>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              aria-label="Предыдущая страница"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="px-2 tabular-nums">
+              <span className="font-medium text-foreground">{currentPage}</span> / {totalPages}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              aria-label="Следующая страница"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
