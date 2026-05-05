@@ -113,4 +113,19 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Mobile: avoid iOS zoom on focus, smooth scroll */
+  @media (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+  .scroll-x { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+}
+
+@layer utilities {
+  .no-print { }
+  @media print { .no-print { display: none !important; } }
 }

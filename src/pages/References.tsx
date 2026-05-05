@@ -77,16 +77,16 @@ const References = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
-        <div className="container mx-auto flex items-center gap-3 py-3">
+        <div className="container mx-auto flex items-center gap-3 py-3 px-4">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="inline h-4 w-4 mr-1" /> На главную
+            <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">На главную</span>
           </Link>
-          <div className="ml-auto text-sm font-medium">Справочники (НСИ)</div>
+          <div className="ml-auto text-sm font-medium truncate">Справочники (НСИ)</div>
         </div>
       </header>
-      <main className="container mx-auto py-6">
+      <main className="container mx-auto py-4 sm:py-6 px-4">
         <Tabs defaultValue="materials">
-          <TabsList className="flex-wrap h-auto">
+          <TabsList className="scroll-x flex w-full overflow-x-auto h-auto justify-start">
             {TABLES.map((t) => <TabsTrigger key={t.key} value={t.key}>{t.title}</TabsTrigger>)}
           </TabsList>
           {TABLES.map((t) => (
@@ -157,7 +157,7 @@ const RefTable = ({ spec }: { spec: any }) => {
     <Card>
       <CardHeader className="pb-3"><CardTitle className="text-base">{spec.title}</CardTitle></CardHeader>
       <CardContent>
-        <div className="overflow-auto rounded-md border">
+        <div className="scroll-x overflow-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>

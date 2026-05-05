@@ -19,20 +19,20 @@ interface Props {
 
 export const Stepper = ({ current, onStepClick, maxReached }: Props) => {
   return (
-    <ol className="flex w-full items-center gap-2 overflow-x-auto pb-2">
+    <ol className="scroll-x flex w-full items-center gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 sm:gap-2">
       {STEPS.map((label, i) => {
         const idx = i + 1;
         const done = idx < current;
         const active = idx === current;
         const reachable = idx <= maxReached;
         return (
-          <li key={label} className="flex flex-1 min-w-[110px] items-center gap-2">
+          <li key={label} className="flex shrink-0 sm:flex-1 sm:min-w-[110px] items-center gap-2">
             <button
               type="button"
               disabled={!reachable}
               onClick={() => onStepClick?.(idx)}
               className={cn(
-                "flex flex-1 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                "flex flex-1 items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs sm:text-sm sm:px-3 transition-colors whitespace-nowrap",
                 active && "border-primary bg-primary text-primary-foreground shadow-elevated",
                 done && "border-success/40 bg-success/5 text-foreground",
                 !active && !done && "border-border bg-card text-muted-foreground",
@@ -49,7 +49,7 @@ export const Stepper = ({ current, onStepClick, maxReached }: Props) => {
               >
                 {done ? <Check className="h-3.5 w-3.5" /> : idx}
               </span>
-              <span className="truncate">{label}</span>
+              <span className={cn("truncate", !active && "hidden sm:inline")}>{label}</span>
             </button>
           </li>
         );

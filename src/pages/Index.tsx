@@ -66,25 +66,25 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <header className="border-b bg-card/80 backdrop-blur">
-        <div className="container mx-auto flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 py-3 sm:py-4">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-primary text-primary-foreground shadow-elevated">
               <CalcIcon className="h-5 w-5" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold leading-tight">МАТ-Полиграф Калькулятор</h1>
-              <p className="text-xs text-muted-foreground">Просчёт полиграфической продукции</p>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold leading-tight truncate">МАТ-Полиграф Калькулятор</h1>
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Просчёт полиграфической продукции</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Link to="/analytics"><Button variant="outline" size="lg"><TrendingUp className="mr-2 h-4 w-4" /> Аналитика</Button></Link>
-            <Link to="/references"><Button variant="outline" size="lg"><Database className="mr-2 h-4 w-4" /> Справочники</Button></Link>
-            <Link to="/calculator"><Button size="lg" className="shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый расчёт</Button></Link>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Link to="/analytics" className="flex-1 sm:flex-none"><Button variant="outline" className="w-full"><TrendingUp className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Аналитика</span><span className="sm:hidden">Аналитика</span></Button></Link>
+            <Link to="/references" className="flex-1 sm:flex-none"><Button variant="outline" className="w-full"><Database className="mr-2 h-4 w-4" /> Справочники</Button></Link>
+            <Link to="/calculator" className="flex-1 sm:flex-none"><Button className="w-full shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый</Button></Link>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto py-8 space-y-8">
+      <main className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8 px-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" placeholder="Поиск по названию или виду продукции..." value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -125,8 +125,10 @@ const Index = () => {
 };
 
 const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id: string) => void; isTemplate?: boolean }) => (
-  <div className="overflow-hidden rounded-lg border bg-card shadow-card">
-    <table className="w-full text-sm">
+  <>
+  {/* Desktop table */}
+  <div className="hidden md:block overflow-hidden rounded-lg border bg-card shadow-card">
+    <div className="scroll-x overflow-x-auto"><table className="w-full text-sm">
       <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
         <tr>
           <th className="text-left p-3">Название</th>
@@ -147,7 +149,7 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
             <td className="p-3 text-right tabular-nums">{c.total_cost ? fmtMoney(Number(c.total_cost)) : "—"}</td>
             <td className="p-3 text-right tabular-nums font-semibold">{c.sale_price ? fmtMoney(Number(c.sale_price)) : "—"}</td>
             <td className="p-3 text-right text-muted-foreground">{new Date(c.created_at).toLocaleDateString("ru-RU")}</td>
-            <td className="p-2 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+            <td className="p-2 text-right opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
               <div className="flex justify-end gap-1">
                 <Link to={`/calculator?from=${c.id}`}>
                   <Button size="sm" variant="outline" className="h-8 px-2" title={isTemplate ? "Создать из шаблона" : "Дублировать"}>
@@ -162,8 +164,33 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   </div>
+  {/* Mobile cards */}
+  <div className="md:hidden grid gap-2">
+    {rows.map((c) => (
+      <div key={c.id} className="rounded-lg border bg-card p-3 shadow-card">
+        <div className="flex items-start justify-between gap-2">
+          <Link to={`/calculation/${c.id}`} className="font-semibold text-sm flex-1 min-w-0 truncate hover:text-primary">{c.name || "—"}</Link>
+          <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.created_at).toLocaleDateString("ru-RU")}</span>
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">{PRODUCT_LABELS[c.product_type] || c.product_type} · тираж {c.circulation}</div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="text-xs">
+            <span className="text-muted-foreground">с/с:</span> <span className="tabular-nums">{c.total_cost ? fmtMoney(Number(c.total_cost)) : "—"}</span>
+            <span className="text-muted-foreground ml-2">прод:</span> <span className="font-semibold tabular-nums">{c.sale_price ? fmtMoney(Number(c.sale_price)) : "—"}</span>
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <Link to={`/calculator?from=${c.id}`}>
+              <Button size="sm" variant="outline" className="h-8 w-8 p-0">{isTemplate ? <Sparkles className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}</Button>
+            </Link>
+            <Button size="sm" variant="outline" className="h-8 w-8 p-0 hover:text-destructive" onClick={() => onRemove(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+  </>
 );
 
 export default Index;
