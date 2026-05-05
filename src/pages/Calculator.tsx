@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Save, FileText, Sparkles, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -540,8 +540,8 @@ const SpecTable = ({ result }: { result: any }) => {
         </thead>
         <tbody>
           {Object.entries(grouped).map(([stage, items]: any) => (
-            <>
-              <tr key={stage} className="bg-secondary/40">
+            <Fragment key={stage}>
+              <tr className="bg-secondary/40">
                 <td colSpan={5} className="p-2 text-xs font-semibold uppercase tracking-wide text-foreground">{STAGE_LABELS[stage]}</td>
               </tr>
               {items.map((it: any, i: number) => (
@@ -553,7 +553,7 @@ const SpecTable = ({ result }: { result: any }) => {
                   <td className="p-2 text-right tabular-nums font-medium">{fmtMoney(it.total)}</td>
                 </tr>
               ))}
-            </>
+            </Fragment>
           ))}
           <tr className="border-t-2 bg-primary/5">
             <td colSpan={4} className="p-2 text-right font-semibold">Итого себестоимость</td>
