@@ -18,21 +18,54 @@ interface Props {
 }
 
 export const Stepper = ({ current, onStepClick, maxReached }: Props) => {
+  const total = STEPS.length;
+  const label = STEPS[current - 1];
   return (
-    <ol className="scroll-x flex w-full items-center gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 sm:gap-2">
+    <>
+    {/* Mobile compact indicator */}
+    <div className="sm:hidden">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">Шаг {current} из {total}</div>
+        <div className="text-sm font-semibold text-foreground">{label}</div>
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-1">
+        {STEPS.map((_, i) => {
+          const idx = i + 1;
+          const reachable = idx <= maxReached;
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={!reachable}
+              onClick={() => onStepClick?.(idx)}
+              aria-label={`Шаг ${idx}`}
+              className={cn(
+                "h-1.5 rounded-full",
+                idx < current && "bg-success",
+                idx === current && "bg-primary",
+                idx > current && "bg-muted",
+                !reachable && "opacity-50"
+              )}
+            />
+          );
+        })}
+      </div>
+    </div>
+    {/* Desktop full stepper */}
+    <ol className="hidden sm:flex w-full items-center gap-2">
       {STEPS.map((label, i) => {
         const idx = i + 1;
         const done = idx < current;
         const active = idx === current;
         const reachable = idx <= maxReached;
         return (
-          <li key={label} className="flex shrink-0 sm:flex-1 sm:min-w-[110px] items-center gap-2">
+          <li key={label} className="flex flex-1 min-w-[110px] items-center gap-2">
             <button
               type="button"
               disabled={!reachable}
               onClick={() => onStepClick?.(idx)}
               className={cn(
-                "flex flex-1 items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs sm:text-sm sm:px-3 transition-colors whitespace-nowrap",
+                "flex flex-1 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors whitespace-nowrap",
                 active && "border-primary bg-primary text-primary-foreground shadow-elevated",
                 done && "border-success/40 bg-success/5 text-foreground",
                 !active && !done && "border-border bg-card text-muted-foreground",
@@ -49,11 +82,12 @@ export const Stepper = ({ current, onStepClick, maxReached }: Props) => {
               >
                 {done ? <Check className="h-3.5 w-3.5" /> : idx}
               </span>
-              <span className={cn("truncate", !active && "hidden sm:inline")}>{label}</span>
+              <span className="truncate">{label}</span>
             </button>
           </li>
         );
       })}
     </ol>
+    </>
   );
 };
