@@ -43,6 +43,7 @@ const Calculator = () => {
   const [lam, setLam] = useState<LamRow[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [saving, setSaving] = useState(false);
+  const [vatPercent, setVatPercent] = useState(0);
 
   // Step 1
   const [productType, setProductType] = useState<ProductType>("leaflet");
@@ -88,6 +89,8 @@ const Calculator = () => {
       const { data: m } = await supabase.from("materials").select("*").order("name");
       const { data: l } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
       const { data: e } = await supabase.from("equipment").select("*").eq("type", "print").order("name");
+      const { data: s } = await supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle();
+      if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
       setEquipment((e as Equipment[]) || []);
@@ -174,8 +177,9 @@ const Calculator = () => {
       printCostPerImpression: selectedEquipment?.cost_per_impression
         ? Number(selectedEquipment.cost_per_impression)
         : undefined,
+      vatPercent,
     };
-  }, [material, selectedEquipment, productType, circulation, formatType, dims, colorFront, colorBack, designQty, photoOutput, photoOutputCost, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides]);
+  }, [material, selectedEquipment, productType, circulation, formatType, dims, colorFront, colorBack, designQty, photoOutput, photoOutputCost, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent]);
 
   const result = useMemo(() => {
     if (!calcInput) return null;
@@ -195,8 +199,10 @@ const Calculator = () => {
   const prev = () => goto(Math.max(1, step - 1));
 
   const totalCost = result && !("error" in result) ? result.totalCost : 0;
-  const salePrice = totalCost * (1 + margin / 100);
-  const profit = salePrice - totalCost;
+  const priceBeforeVat = totalCost * (1 + margin / 100);
+  const vatAmount = priceBeforeVat * (vatPercent / 100);
+  const salePrice = priceBeforeVat + vatAmount;
+  const profit = priceBeforeVat - totalCost;
 
   // Validations per step
   const stepError = useMemo(() => {
