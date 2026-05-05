@@ -8,6 +8,7 @@ import { fmtMoney } from "@/lib/format";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
+import { HelpHint } from "@/components/HelpHint";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--primary-glow))", "hsl(var(--destructive))"];
 
@@ -82,11 +83,11 @@ const Analytics = () => {
       </header>
       <main className="container mx-auto py-4 sm:py-6 px-4 space-y-4 sm:space-y-6">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <KPI label="Расчётов" value={String(stats.count)} />
-          <KPI label="Выручка" value={fmtMoney(stats.totalSale)} />
-          <KPI label="Себестоимость" value={fmtMoney(stats.totalCost)} />
-          <KPI label="Прибыль" value={fmtMoney(stats.totalProfit)} accent="success" />
-          <KPI label="Средняя наценка" value={`${stats.avgMargin.toFixed(1)}%`} />
+          <KPI label="Расчётов" value={String(stats.count)} hint="Сохранённые расчёты за выбранный период (без шаблонов)." anchor="analytics-kpi" />
+          <KPI label="Выручка" value={fmtMoney(stats.totalSale)} hint="Сумма цен продажи по расчётам периода." anchor="analytics-kpi" />
+          <KPI label="Себестоимость" value={fmtMoney(stats.totalCost)} hint="Сумма затрат по тем же расчётам." anchor="analytics-kpi" />
+          <KPI label="Прибыль" value={fmtMoney(stats.totalProfit)} accent="success" hint="Выручка минус себестоимость." anchor="analytics-kpi" />
+          <KPI label="Средняя наценка" value={`${stats.avgMargin.toFixed(1)}%`} hint="Среднее значение наценки по расчётам периода." anchor="analytics-kpi" />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -153,10 +154,13 @@ const Analytics = () => {
   );
 };
 
-const KPI = ({ label, value, accent }: { label: string; value: string; accent?: "success" }) => (
+const KPI = ({ label, value, accent, hint, anchor }: { label: string; value: string; accent?: "success"; hint?: string; anchor?: string }) => (
   <Card>
     <CardContent className="py-4">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground inline-flex items-center">
+        {label}
+        {hint && <HelpHint learnMore={anchor}>{hint}</HelpHint>}
+      </div>
       <div className={`mt-1 text-xl font-bold ${accent === "success" ? "text-success" : "text-foreground"}`}>{value}</div>
     </CardContent>
   </Card>

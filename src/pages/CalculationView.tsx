@@ -11,6 +11,7 @@ import { exportSpecToExcel } from "@/lib/export";
 import { exportCalculationToPdf } from "@/lib/pdf-export";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
+import { HelpHint } from "@/components/HelpHint";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",
@@ -134,7 +135,14 @@ const CalculationView = () => {
           </Card>
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Спецификация</CardTitle></CardHeader>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center">
+                Спецификация
+                <HelpHint title="Спецификация" learnMore="list-edit">
+                  Постатейный расклад себестоимости. Любую цену можно поправить вручную — изменение попадёт в историю правок.
+                </HelpHint>
+              </CardTitle>
+            </CardHeader>
             <CardContent>
               <div className="scroll-x overflow-x-auto rounded-md border">
                 <table className="w-full text-sm">
@@ -239,7 +247,14 @@ const CalculationView = () => {
         </div>
 
         <Card className="h-fit lg:sticky lg:top-20 shadow-elevated order-1 lg:order-2">
-          <CardHeader className="pb-2"><CardTitle className="text-base">Итоги</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center">
+              Итоги
+              <HelpHint title="Итоги" learnMore="calc-margin">
+                Цена продажи = себестоимость × (1 + наценка/100). Меняйте процент — пересчёт мгновенный.
+              </HelpHint>
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             <Row label="Себестоимость" value={fmtMoney(totalCost)} />
             <div>
