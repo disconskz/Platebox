@@ -13,6 +13,7 @@ import { Stepper } from "@/components/calc/Stepper";
 import { LayoutPreview } from "@/components/calc/LayoutPreview";
 import { FORMAT_PRESETS, runCalculation } from "@/lib/calc/engine";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
+import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
@@ -139,13 +140,17 @@ const Calculator = () => {
     })();
   }, [searchParams]);
 
-  // Auto select bag defaults
+  // Авто-пресет постпечати по типу продукции (из исторических маршрутов)
   useEffect(() => {
-    if (productType === "bag") {
-      setHasLamPrepress(true);
-      setHasDieCut(true);
-    }
-    if (productType === "booklet") setHasFold(true);
+    const p = PRODUCT_PRESETS[productType];
+    if (!p) return;
+    if (p.hasFold !== undefined) setHasFold(p.hasFold);
+    if (p.foldCount !== undefined) setFoldCount(p.foldCount);
+    if (p.hasDieCut !== undefined) setHasDieCut(p.hasDieCut);
+    if (p.hasLamPrepress !== undefined) setHasLamPrepress(p.hasLamPrepress);
+    if (p.lamPrepressSides !== undefined) setLamPrepressSides(p.lamPrepressSides);
+    if (p.hasLamination !== undefined) setHasLamination(p.hasLamination);
+    if (p.laminationSides !== undefined) setLaminationSides(p.laminationSides);
   }, [productType]);
 
   const dims = useMemo(() => {
