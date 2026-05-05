@@ -8,7 +8,7 @@ export type ProductType =
 
 export type Turnaround = "none" | "own" | "foreign";
 
-export type FormatType = "A3" | "A4" | "A5" | "A6" | "A3+" | "A4+" | "custom";
+export type FormatType = "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A3+" | "A4+" | "custom";
 
 export interface PrintFormat {
   width: number;

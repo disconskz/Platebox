@@ -284,6 +284,8 @@ export function runCalculation(input: CalcInput): CalcResult {
 }
 
 export const FORMAT_PRESETS: Record<string, { w: number; h: number }> = {
+  A1: { w: 594, h: 841 },
+  A2: { w: 420, h: 594 },
   A3: { w: 297, h: 420 },
   "A3+": { w: 320, h: 460 },
   A4: { w: 210, h: 297 },
