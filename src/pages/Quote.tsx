@@ -104,8 +104,6 @@ const Quote = () => {
           </table>
 
           <div className="ml-auto w-full max-w-sm space-y-1 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Себестоимость:</span><span>{fmtMoney(Number(calc.total_cost))}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Наценка:</span><span>{Number(calc.margin_percent)}%</span></div>
             {(() => {
               const tc = Number(calc.total_cost);
               const mp = Number(calc.margin_percent);
