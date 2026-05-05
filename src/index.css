@@ -264,4 +264,31 @@
   /* Reserve space for fixed bottom bar on mobile */
   .has-tabbar { padding-bottom: calc(env(safe-area-inset-bottom) + 84px); }
   @media (min-width: 768px) { .has-tabbar { padding-bottom: 0; } }
+
+  /* ===== Unified mobile-first page shell =====
+     Use .page-shell on the root, .page-header for sticky top bar,
+     .page-container for horizontal gutters + safe-area, .page-main for vertical rhythm.
+     Keeps padding, safe-area, max-width and tab-bar offset consistent across pages. */
+  .page-shell {
+    @apply min-h-screen bg-gradient-subtle has-tabbar flex flex-col;
+  }
+  .page-header {
+    @apply sticky top-0 z-30 border-b border-border/60 bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/55 safe-top;
+    box-shadow: 0 1px 0 hsl(var(--border) / 0.6);
+  }
+  .page-container {
+    @apply container mx-auto w-full;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .page-main {
+    @apply container mx-auto w-full py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .page-header-row {
+    @apply container mx-auto w-full flex flex-wrap items-center gap-3 py-3 sm:py-4 min-h-[3.25rem];
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
 }
