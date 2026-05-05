@@ -4,7 +4,25 @@ export type ProductType =
   | "booklet"
   | "sticker"
   | "sticker_diecut"
-  | "bag";
+  | "bag"
+  | "businesscard"
+  | "envelope"
+  | "box"
+  | "blank"
+  | "selfcopy"
+  | "folder"
+  | "poster"
+  | "notepad"
+  | "book"
+  | "magazine"
+  | "brochure"
+  | "label"
+  | "calendar_wall"
+  | "calendar_desk"
+  | "calendar_quarter"
+  | "wobbler"
+  | "shelftalker"
+  | "kubus";
 
 export type Turnaround = "none" | "own" | "foreign";
 

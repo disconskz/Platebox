@@ -1,0 +1,28 @@
+import { ProductType } from "./types";
+
+export const PRODUCT_LABELS: Record<ProductType, string> = {
+  leaflet: "Листовка",
+  leaflet_diecut: "Листовка с вырубкой",
+  booklet: "Буклет",
+  sticker: "Стикер",
+  sticker_diecut: "Стикер с вырубкой",
+  bag: "Пакет",
+  businesscard: "Визитки",
+  envelope: "Конверт",
+  box: "Коробка",
+  blank: "Бланк",
+  selfcopy: "Самокопир (2 слоя)",
+  folder: "Папка",
+  poster: "Плакат",
+  notepad: "Блокнот",
+  book: "Книга",
+  magazine: "Журнал",
+  brochure: "Брошюра",
+  label: "Этикетка",
+  calendar_wall: "Календарь настенный перекидной",
+  calendar_desk: "Календарь настольный перекидной",
+  calendar_quarter: "Календарь квартальный",
+  wobbler: "Воблер",
+  shelftalker: "Шелфтокер",
+  kubus: "Кубус",
+};
