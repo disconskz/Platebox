@@ -109,9 +109,23 @@ const Quote = () => {
           <div className="ml-auto w-full max-w-sm space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Себестоимость:</span><span>{fmtMoney(Number(calc.total_cost))}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Наценка:</span><span>{Number(calc.margin_percent)}%</span></div>
-            <div className="flex justify-between border-t-2 border-foreground pt-2 text-lg font-bold">
-              <span>Итого к оплате:</span><span>{fmtMoney(Number(calc.sale_price))}</span>
-            </div>
+            {(() => {
+              const tc = Number(calc.total_cost);
+              const mp = Number(calc.margin_percent);
+              const sp = Number(calc.sale_price);
+              const beforeVat = tc * (1 + mp / 100);
+              const vat = Math.max(0, sp - beforeVat);
+              const vatPct = beforeVat > 0 ? Math.round((vat / beforeVat) * 100) : 0;
+              return (
+                <>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Цена без НДС:</span><span>{fmtMoney(beforeVat)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">НДС {vatPct}%:</span><span>{fmtMoney(vat)}</span></div>
+                  <div className="flex justify-between border-t-2 border-foreground pt-2 text-lg font-bold">
+                    <span>Итого к оплате:</span><span>{fmtMoney(sp)}</span>
+                  </div>
+                </>
+              );
+            })()}
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Цена за единицу:</span><span>{fmtMoney(Number(calc.sale_price) / Math.max(1, calc.circulation))}</span>
             </div>
