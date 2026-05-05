@@ -104,7 +104,7 @@ const RefTable = ({ spec }: { spec: any }) => {
   const pk = spec.pk || "id";
 
   const load = async () => {
-    const { data } = await supabase.from(spec.key).select("*").order(spec.cols[0].k);
+    const { data } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
     setRows((data as any) || []);
   };
 
@@ -117,17 +117,17 @@ const RefTable = ({ spec }: { spec: any }) => {
 
   const save = async (row: AnyRow) => {
     const { [pk]: id, created_at, ...rest } = row;
-    const { error } = await supabase.from(spec.key).update(rest).eq(pk, id);
+    const { error } = await (supabase as any).from(spec.key).update(rest).eq(pk, id);
     if (error) toast.error(error.message); else toast.success("Сохранено");
   };
 
   const remove = async (row: AnyRow) => {
-    const { error } = await supabase.from(spec.key).delete().eq(pk, row[pk]);
+    const { error } = await (supabase as any).from(spec.key).delete().eq(pk, row[pk]);
     if (error) toast.error(error.message); else { toast.success("Удалено"); load(); }
   };
 
   const add = async () => {
-    const { error } = await supabase.from(spec.key).insert(draft);
+    const { error } = await (supabase as any).from(spec.key).insert(draft);
     if (error) toast.error(error.message);
     else { toast.success("Добавлено"); setDraft({ ...spec.defaults }); load(); }
   };

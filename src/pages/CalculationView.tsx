@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, Check, X, FileText, Copy } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,7 +131,7 @@ const CalculationView = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(grouped).map(([stage, list]) => (
+                    {(Object.entries(grouped) as [string, any[]][]).map(([stage, list]) => (
                       <>
                         <tr key={stage} className="bg-secondary/40">
                           <td colSpan={6} className="p-2 text-xs font-semibold uppercase">{STAGE_LABELS[stage]}</td>

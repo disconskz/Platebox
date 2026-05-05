@@ -84,7 +84,7 @@ const Quote = () => {
             <tbody>
               {(() => {
                 let n = 0;
-                return Object.entries(grouped).map(([stage, list]) => (
+                return (Object.entries(grouped) as [string, any[]][]).map(([stage, list]) => (
                   <>
                     <tr key={stage}><td colSpan={6} className="pt-3 pb-1 text-xs uppercase font-semibold text-muted-foreground">{STAGE_LABELS[stage]}</td></tr>
                     {list.map((it) => {
