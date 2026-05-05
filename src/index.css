@@ -49,9 +49,10 @@
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --gradient-subtle: radial-gradient(900px 500px at 100% 0%, hsl(18 62% 48% / 0.06), transparent 60%),
                        linear-gradient(180deg, hsl(36 24% 97%), hsl(36 20% 94%));
-    --shadow-card: 0 1px 0 hsl(30 10% 9% / 0.04), 0 1px 2px hsl(30 10% 9% / 0.04);
-    --shadow-elevated: 0 1px 0 hsl(30 10% 9% / 0.04), 0 20px 40px -24px hsl(30 20% 12% / 0.25);
-    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 1px 0 hsl(30 10% 9% / 0.04), 0 8px 24px -16px hsl(30 20% 12% / 0.18);
+    --shadow-card: inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 1px 2px hsl(30 10% 9% / 0.05), 0 10px 26px -18px hsl(30 30% 14% / 0.22);
+    --shadow-elevated: inset 0 1px 0 hsl(0 0% 100% / 0.7), 0 2px 6px hsl(30 20% 12% / 0.06), 0 30px 50px -24px hsl(30 30% 14% / 0.34);
+    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.7), 0 1px 2px hsl(30 10% 9% / 0.05), 0 18px 40px -22px hsl(30 30% 14% / 0.28);
+    --shadow-ring: 0 0 0 1px hsl(30 12% 86% / 0.9), 0 1px 2px hsl(30 10% 9% / 0.04);
 
     --sidebar-background: 0 0% 98%;
 
@@ -94,9 +95,10 @@
     --border: 30 6% 18%;
     --input: 30 6% 18%;
     --ring: 18 70% 56%;
-    --shadow-card: 0 1px 0 hsl(0 0% 100% / 0.03), 0 8px 24px -12px hsl(0 0% 0% / 0.6);
-    --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.04), 0 24px 48px -20px hsl(0 0% 0% / 0.7);
-    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 12px 32px -16px hsl(0 0% 0% / 0.6);
+    --shadow-card: inset 0 1px 0 hsl(0 0% 100% / 0.04), 0 1px 2px hsl(0 0% 0% / 0.4), 0 14px 30px -16px hsl(0 0% 0% / 0.6);
+    --shadow-elevated: inset 0 1px 0 hsl(0 0% 100% / 0.05), 0 2px 6px hsl(0 0% 0% / 0.4), 0 34px 56px -22px hsl(0 0% 0% / 0.7);
+    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 18px 40px -18px hsl(0 0% 0% / 0.65);
+    --shadow-ring: 0 0 0 1px hsl(30 6% 18% / 0.9), 0 1px 2px hsl(0 0% 0% / 0.4);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -148,6 +150,48 @@
 @layer utilities {
   .no-print { }
   @media print { .no-print { display: none !important; } }
+
+  /* Depth & motion utilities */
+  .lift { @apply transition-[transform,box-shadow] duration-300 ease-out will-change-transform; }
+  .lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-elevated); }
+  .lift-sm { @apply transition-[transform,box-shadow] duration-200 ease-out will-change-transform; }
+  .lift-sm:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+  .pressable { @apply transition-transform duration-150 active:scale-[0.98]; }
+
+  .surface-raised {
+    background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.45) 100%);
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .ring-glow { position: relative; }
+  .ring-glow::before {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--accent) / 0.55), transparent 40%, hsl(var(--primary) / 0.35));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: .8;
+  }
+
+  .bg-aurora {
+    background:
+      radial-gradient(60rem 30rem at 110% -10%, hsl(var(--accent) / 0.18), transparent 60%),
+      radial-gradient(40rem 24rem at -10% 10%, hsl(var(--primary) / 0.12), transparent 55%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 100%);
+  }
+
+  .text-shimmer {
+    background: linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--accent)) 50%, hsl(var(--foreground)) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    animation: shimmer 3s linear infinite;
+  }
+
+  .row-hover { @apply transition-colors duration-150; }
+  .row-hover:hover { background: hsl(var(--muted) / 0.55); }
+
 
   /* Liquid Glass surface */
   .glass {
