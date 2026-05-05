@@ -52,7 +52,7 @@ const Quote = () => {
           <div className="flex items-start justify-between border-b pb-4 mb-6">
             <div>
               <h1 className="text-2xl font-bold">Коммерческое предложение</h1>
-              <p className="text-sm text-muted-foreground mt-1">Типография «МАТ-Полиграф»</p>
+              <p className="text-sm text-muted-foreground mt-1">Типография «Platebox»</p>
             </div>
             <div className="text-right text-sm">
               <div>№ {calc.id.slice(0, 8).toUpperCase()}</div>
