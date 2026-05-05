@@ -13,6 +13,7 @@ import { Stepper } from "@/components/calc/Stepper";
 import { LayoutPreview } from "@/components/calc/LayoutPreview";
 import { FORMAT_PRESETS, runCalculation } from "@/lib/calc/engine";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
+import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
@@ -139,13 +140,17 @@ const Calculator = () => {
     })();
   }, [searchParams]);
 
-  // Auto select bag defaults
+  // Авто-пресет постпечати по типу продукции (из исторических маршрутов)
   useEffect(() => {
-    if (productType === "bag") {
-      setHasLamPrepress(true);
-      setHasDieCut(true);
-    }
-    if (productType === "booklet") setHasFold(true);
+    const p = PRODUCT_PRESETS[productType];
+    if (!p) return;
+    if (p.hasFold !== undefined) setHasFold(p.hasFold);
+    if (p.foldCount !== undefined) setFoldCount(p.foldCount);
+    if (p.hasDieCut !== undefined) setHasDieCut(p.hasDieCut);
+    if (p.hasLamPrepress !== undefined) setHasLamPrepress(p.hasLamPrepress);
+    if (p.lamPrepressSides !== undefined) setLamPrepressSides(p.lamPrepressSides);
+    if (p.hasLamination !== undefined) setHasLamination(p.hasLamination);
+    if (p.laminationSides !== undefined) setLaminationSides(p.laminationSides);
   }, [productType]);
 
   const dims = useMemo(() => {
@@ -469,6 +474,20 @@ const Calculator = () => {
               <Card>
                 <CardHeader><CardTitle>5. Послепечатные операции</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
+                  {(() => {
+                    const p = PRODUCT_PRESETS[productType];
+                    if (!p || (!p.hint && !p.suggestedOps?.length)) return null;
+                    return (
+                      <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                        {p.hint && <div className="text-foreground"><Sparkles className="inline h-3.5 w-3.5 mr-1 text-primary" />{p.hint}</div>}
+                        {p.suggestedOps?.length ? (
+                          <div className="mt-1.5 text-xs text-muted-foreground">
+                            Типичные операции для этого изделия: <span className="text-foreground">{p.suggestedOps.join(" · ")}</span>. Их можно добавить вручную в спецификации после расчёта.
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                   {productType === "booklet" && (
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasFold} onCheckedChange={(v) => setHasFold(!!v)} id="fold" />
