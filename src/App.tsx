@@ -8,6 +8,7 @@ import Landing from "./pages/Landing.tsx";
 import AuthPage from "./pages/Auth.tsx";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import AppLayout from "@/components/AppLayout";
 import Calculator from "./pages/Calculator.tsx";
 import References from "./pages/References.tsx";
 import CalculationView from "./pages/CalculationView.tsx";
@@ -40,12 +41,17 @@ const App = () => (
             <Route path="/" element={<HomeRoute />} />
             <Route path="/landing" element={<Landing />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/app" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/calculator" element={<ProtectedRoute><Calculator /></ProtectedRoute>} />
-            <Route path="/references" element={<ProtectedRoute><References /></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-            <Route path="/calculation/:id" element={<ProtectedRoute><CalculationView /></ProtectedRoute>} />
-            <Route path="/calculation/:id/quote" element={<ProtectedRoute><Quote /></ProtectedRoute>} />
+
+            {/* Protected app shell with sidebar */}
+            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route path="/app" element={<Index />} />
+              <Route path="/calculator" element={<Calculator />} />
+              <Route path="/references" element={<References />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/calculation/:id" element={<CalculationView />} />
+              <Route path="/calculation/:id/quote" element={<Quote />} />
+            </Route>
+
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
