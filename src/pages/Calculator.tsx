@@ -1012,6 +1012,121 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+const CATEGORY_LABEL: Record<string, string> = {
+  prepress: "Допечать",
+  print: "Печать",
+  postpress: "Постпечать",
+  logistics: "Логистика",
+};
+
+const ExtraOpsPicker = ({
+  operations,
+  extraOps,
+  setExtraOps,
+  circulation,
+  sheets,
+  forms,
+}: {
+  operations: OperationRow[];
+  extraOps: Record<string, ExtraOpState>;
+  setExtraOps: (v: Record<string, ExtraOpState>) => void;
+  circulation: number;
+  sheets: number;
+  forms: number;
+}) => {
+  // Группируем по категории → подгруппе
+  const tree = useMemo(() => {
+    const t: Record<string, Record<string, OperationRow[]>> = {};
+    for (const op of operations) {
+      const cat = op.category || "postpress";
+      const sub = op.subgroup || "Прочее";
+      (t[cat] ||= {})[sub] ||= [];
+      t[cat][sub].push(op);
+    }
+    return t;
+  }, [operations]);
+
+  const defaultQty = (unit: string | null): number => {
+    if (!unit) return circulation || 1;
+    if (unit === "лист" || unit === "оттиск" || unit === "сгиб") return sheets || circulation || 1;
+    if (unit === "форма") return forms || 1;
+    return circulation || 1;
+  };
+
+  const toggle = (op: OperationRow) => {
+    const next = { ...extraOps };
+    if (next[op.id]) {
+      delete next[op.id];
+    } else {
+      next[op.id] = { qty: defaultQty(op.unit), price: Number(op.variable_cost || 0) };
+    }
+    setExtraOps(next);
+  };
+
+  const update = (id: string, patch: Partial<ExtraOpState>) => {
+    setExtraOps({ ...extraOps, [id]: { ...extraOps[id], ...patch } });
+  };
+
+  if (!operations.length) return null;
+
+  return (
+    <div className="rounded-md border bg-muted/20 p-3 mt-3">
+      <div className="text-sm font-semibold mb-2">Операции из справочника</div>
+      <div className="text-xs text-muted-foreground mb-3">
+        Отметьте нужные. Цены подтянуты из справочника, можно перебить вручную.
+      </div>
+      <div className="space-y-3">
+        {Object.entries(tree).map(([cat, subs]) => (
+          <details key={cat} className="rounded-md border bg-card">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+              {CATEGORY_LABEL[cat] || cat}
+            </summary>
+            <div className="px-3 pb-3 space-y-3">
+              {Object.entries(subs).map(([sub, ops]) => (
+                <div key={sub}>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground mt-2 mb-1">{sub}</div>
+                  <div className="space-y-1.5">
+                    {ops.map((op) => {
+                      const sel = extraOps[op.id];
+                      return (
+                        <div key={op.id} className="flex flex-wrap items-center gap-2 rounded border bg-background p-2 text-sm">
+                          <Checkbox checked={!!sel} onCheckedChange={() => toggle(op)} id={`op-${op.id}`} />
+                          <Label htmlFor={`op-${op.id}`} className="flex-1 cursor-pointer text-sm">{op.name}</Label>
+                          {sel && (
+                            <>
+                              <Input
+                                type="number"
+                                className="w-24 h-8"
+                                value={sel.qty}
+                                onChange={(e) => update(op.id, { qty: Number(e.target.value) || 0 })}
+                              />
+                              <span className="text-xs text-muted-foreground w-14">{op.unit || "шт"}</span>
+                              <Input
+                                type="number"
+                                className="w-24 h-8"
+                                value={sel.price}
+                                onChange={(e) => update(op.id, { price: Number(e.target.value) || 0 })}
+                              />
+                              <span className="text-xs text-muted-foreground">₸</span>
+                              <span className="text-xs font-medium tabular-nums w-24 text-right">
+                                = {fmtMoney(sel.qty * sel.price + Number(op.fixed_cost || 0))}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",
   material: "Материалы",
