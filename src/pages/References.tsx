@@ -33,11 +33,12 @@ const TABLES = [
     cols: [
       { k: "name", t: "text", label: "Название" },
       { k: "category", t: "select", label: "Категория", opts: ["prepress", "print", "postpress", "logistics"] },
+      { k: "subgroup", t: "text", label: "Подгруппа" },
       { k: "fixed_cost", t: "number", label: "Фикс. ₸" },
       { k: "variable_cost", t: "number", label: "Перем. ₸" },
       { k: "unit", t: "text", label: "Ед." },
     ],
-    defaults: { name: "", category: "postpress", fixed_cost: 0, variable_cost: 0, unit: "шт" },
+    defaults: { name: "", category: "postpress", subgroup: "", fixed_cost: 0, variable_cost: 0, unit: "шт" },
   },
   {
     key: "equipment",

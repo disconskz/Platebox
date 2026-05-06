@@ -27,6 +27,9 @@ type Equipment = { id: string; name: string; type: string; max_format_width: num
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
 type PressMachineRow = { id: string; name: string; max_format_width: number; max_format_height: number; cost_per_impression: number; sort_order: number };
+type OperationRow = { id: string; name: string; category: string; subgroup: string | null; fixed_cost: number; variable_cost: number; unit: string | null };
+
+type ExtraOpState = { qty: number; price: number };
 
 const MATERIAL_CATEGORIES: { value: string; label: string }[] = [
   { value: "cardboard", label: "Картон" },
@@ -99,6 +102,9 @@ const Calculator = () => {
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
   const [pressMachines, setPressMachines] = useState<PressMachineRow[]>([]);
+  const [operations, setOperations] = useState<OperationRow[]>([]);
+  // выбранные операции из справочника: id -> { qty, price }
+  const [extraOps, setExtraOps] = useState<Record<string, ExtraOpState>>({});
   const [saving, setSaving] = useState(false);
   const [vatPercent, setVatPercent] = useState(0);
 
@@ -154,6 +160,7 @@ const Calculator = () => {
       const { data: pf } = await supabase.from("print_formats" as any).select("*").order("sort_order");
       const { data: buyf } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
       const { data: pm } = await supabase.from("press_machines" as any).select("*").order("sort_order");
+      const { data: ops } = await supabase.from("operations").select("*").order("subgroup").order("name");
       if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
@@ -161,6 +168,7 @@ const Calculator = () => {
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
       setPressMachines(((pm as any) || []) as PressMachineRow[]);
+      setOperations(((ops as any) || []) as OperationRow[]);
       if (m && m.length) setMaterialId((m[0] as Material).id);
       if (e && e.length) setEquipmentId((e[0] as Equipment).id);
     })();
@@ -337,7 +345,7 @@ const Calculator = () => {
   }, [preResult, pressMachines]);
 
   // Финальный расчёт с подставленной ценой оттиска (либо авто, либо ручной из equipment)
-  const result = useMemo(() => {
+  const baseResult = useMemo(() => {
     if (!calcInput) return null;
     const cpi = advancedMode
       ? selectedEquipment?.cost_per_impression
@@ -350,6 +358,43 @@ const Calculator = () => {
       return { error: e.message } as any;
     }
   }, [calcInput, advancedMode, selectedEquipment, autoMachine]);
+
+  // Доп. строки спецификации из выбранных операций справочника
+  const extraSpecItems = useMemo(() => {
+    return Object.entries(extraOps)
+      .map(([id, st]) => {
+        const op = operations.find((o) => o.id === id);
+        if (!op || !st.qty) return null;
+        const stage = (op.category as any) || "postpress";
+        const total = st.qty * st.price + Number(op.fixed_cost || 0);
+        return {
+          stage,
+          name: op.name,
+          quantity: st.qty,
+          unit: op.unit || "шт",
+          unitPrice: st.price,
+          total,
+        };
+      })
+      .filter(Boolean) as any[];
+  }, [extraOps, operations]);
+
+  // Итоговый result со склеенной спецификацией и пересчитанной суммой
+  const result = useMemo(() => {
+    if (!baseResult || "error" in baseResult) return baseResult;
+    if (!extraSpecItems.length) return baseResult;
+    const spec = [...baseResult.spec, ...extraSpecItems];
+    const extrasTotal = extraSpecItems.reduce((s: number, i: any) => s + i.total, 0);
+    const totalCost = baseResult.totalCost + extrasTotal;
+    const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
+    return {
+      ...baseResult,
+      spec,
+      totalCost,
+      vatAmount,
+      totalWithVat: totalCost + vatAmount,
+    };
+  }, [baseResult, extraSpecItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -799,6 +844,14 @@ const Calculator = () => {
                     <Input className="w-20" type="number" inputMode="numeric" value={stampH} onChange={(e) => setStampH(Number(e.target.value))} disabled={!hasStamping} />
                     <span className="text-xs text-muted-foreground">см</span>
                   </div>
+                  <ExtraOpsPicker
+                    operations={operations.filter((o) => o.category === "postpress" || o.category === "logistics" || o.category === "print" || o.category === "prepress")}
+                    extraOps={extraOps}
+                    setExtraOps={setExtraOps}
+                    circulation={circulation}
+                    sheets={result && !("error" in result) ? result.printSheets : 0}
+                    forms={result && !("error" in result) ? result.forms : 0}
+                  />
                 </CardContent>
               </Card>
             )}
@@ -958,6 +1011,121 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
     <div className="text-sm font-semibold text-foreground">{value}</div>
   </div>
 );
+
+const CATEGORY_LABEL: Record<string, string> = {
+  prepress: "Допечать",
+  print: "Печать",
+  postpress: "Постпечать",
+  logistics: "Логистика",
+};
+
+const ExtraOpsPicker = ({
+  operations,
+  extraOps,
+  setExtraOps,
+  circulation,
+  sheets,
+  forms,
+}: {
+  operations: OperationRow[];
+  extraOps: Record<string, ExtraOpState>;
+  setExtraOps: (v: Record<string, ExtraOpState>) => void;
+  circulation: number;
+  sheets: number;
+  forms: number;
+}) => {
+  // Группируем по категории → подгруппе
+  const tree = useMemo(() => {
+    const t: Record<string, Record<string, OperationRow[]>> = {};
+    for (const op of operations) {
+      const cat = op.category || "postpress";
+      const sub = op.subgroup || "Прочее";
+      (t[cat] ||= {})[sub] ||= [];
+      t[cat][sub].push(op);
+    }
+    return t;
+  }, [operations]);
+
+  const defaultQty = (unit: string | null): number => {
+    if (!unit) return circulation || 1;
+    if (unit === "лист" || unit === "оттиск" || unit === "сгиб") return sheets || circulation || 1;
+    if (unit === "форма") return forms || 1;
+    return circulation || 1;
+  };
+
+  const toggle = (op: OperationRow) => {
+    const next = { ...extraOps };
+    if (next[op.id]) {
+      delete next[op.id];
+    } else {
+      next[op.id] = { qty: defaultQty(op.unit), price: Number(op.variable_cost || 0) };
+    }
+    setExtraOps(next);
+  };
+
+  const update = (id: string, patch: Partial<ExtraOpState>) => {
+    setExtraOps({ ...extraOps, [id]: { ...extraOps[id], ...patch } });
+  };
+
+  if (!operations.length) return null;
+
+  return (
+    <div className="rounded-md border bg-muted/20 p-3 mt-3">
+      <div className="text-sm font-semibold mb-2">Операции из справочника</div>
+      <div className="text-xs text-muted-foreground mb-3">
+        Отметьте нужные. Цены подтянуты из справочника, можно перебить вручную.
+      </div>
+      <div className="space-y-3">
+        {Object.entries(tree).map(([cat, subs]) => (
+          <details key={cat} className="rounded-md border bg-card">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+              {CATEGORY_LABEL[cat] || cat}
+            </summary>
+            <div className="px-3 pb-3 space-y-3">
+              {Object.entries(subs).map(([sub, ops]) => (
+                <div key={sub}>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground mt-2 mb-1">{sub}</div>
+                  <div className="space-y-1.5">
+                    {ops.map((op) => {
+                      const sel = extraOps[op.id];
+                      return (
+                        <div key={op.id} className="flex flex-wrap items-center gap-2 rounded border bg-background p-2 text-sm">
+                          <Checkbox checked={!!sel} onCheckedChange={() => toggle(op)} id={`op-${op.id}`} />
+                          <Label htmlFor={`op-${op.id}`} className="flex-1 cursor-pointer text-sm">{op.name}</Label>
+                          {sel && (
+                            <>
+                              <Input
+                                type="number"
+                                className="w-24 h-8"
+                                value={sel.qty}
+                                onChange={(e) => update(op.id, { qty: Number(e.target.value) || 0 })}
+                              />
+                              <span className="text-xs text-muted-foreground w-14">{op.unit || "шт"}</span>
+                              <Input
+                                type="number"
+                                className="w-24 h-8"
+                                value={sel.price}
+                                onChange={(e) => update(op.id, { price: Number(e.target.value) || 0 })}
+                              />
+                              <span className="text-xs text-muted-foreground">₸</span>
+                              <span className="text-xs font-medium tabular-nums w-24 text-right">
+                                = {fmtMoney(sel.qty * sel.price + Number(op.fixed_cost || 0))}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",

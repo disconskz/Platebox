@@ -390,6 +390,7 @@ export type Database = {
           id: string
           name: string
           setup_sheets: number | null
+          subgroup: string | null
           unit: string | null
           variable_cost: number | null
         }
@@ -401,6 +402,7 @@ export type Database = {
           id?: string
           name: string
           setup_sheets?: number | null
+          subgroup?: string | null
           unit?: string | null
           variable_cost?: number | null
         }
@@ -412,6 +414,7 @@ export type Database = {
           id?: string
           name?: string
           setup_sheets?: number | null
+          subgroup?: string | null
           unit?: string | null
           variable_cost?: number | null
         }
