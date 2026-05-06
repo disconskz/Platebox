@@ -419,6 +419,7 @@ export type Database = {
       }
       press_machines: {
         Row: {
+          cost_per_impression: number
           created_at: string
           id: string
           max_format_height: number
@@ -427,6 +428,7 @@ export type Database = {
           sort_order: number
         }
         Insert: {
+          cost_per_impression?: number
           created_at?: string
           id?: string
           max_format_height: number
@@ -435,6 +437,7 @@ export type Database = {
           sort_order?: number
         }
         Update: {
+          cost_per_impression?: number
           created_at?: string
           id?: string
           max_format_height?: number
