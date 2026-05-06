@@ -224,24 +224,6 @@ const Calculator = () => {
     [printFormats]
   );
 
-  // Жёсткие пары (печатный↔закупочный) из справочника — фильтруем по категории материала
-  const formatPairs = useMemo(() => {
-    const purchaseById = new Map(purchaseFormats.map((p) => [p.id, p]));
-    const cat = advancedMode
-      ? (effectiveMaterial ? inferCategory(effectiveMaterial.type) : null)
-      : materialCategory;
-    return printFormats
-      .map((pf) => {
-        const buy = pf.purchase_format_id ? purchaseById.get(pf.purchase_format_id) : null;
-        if (!buy) return null;
-        if (cat && buy.material_category !== cat) return null;
-        return {
-          print: { width: pf.width, height: pf.height },
-          purchase: { width: buy.width, height: buy.height },
-        };
-      })
-      .filter(Boolean) as { print: { width: number; height: number }; purchase: { width: number; height: number } }[];
-  }, [printFormats, purchaseFormats, advancedMode, materialCategory]);
 
   // Подбор оптимальной печатной машины по подобранному печатному формату
   const autoPickMachine = (printW: number, printH: number): PressMachineRow | null => {
