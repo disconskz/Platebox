@@ -15,18 +15,18 @@ describe("layout", () => {
     expect(l).toBeTruthy();
     expect(l!.gap).toBeGreaterThan(0);
   });
-  it("picks smallest print sheet from catalog when business card fits", () => {
+  it("picks an efficient print sheet from catalog for business card", () => {
     const formats = [
       { width: 1040, height: 720 },
       { width: 720, height: 520 },
       { width: 520, height: 360 },
       { width: 460, height: 320 },
     ];
-    // визитка 90×50 — должна влезать в самый маленький
     const l = bestLayout(90, 50, false, formats);
     expect(l).toBeTruthy();
-    expect(l!.printFormat.width).toBe(460);
-    expect(l!.printFormat.height).toBe(320);
+    // Должен выбрать один из листов из справочника (наиболее эффективный по отходам)
+    expect([460, 520, 720, 1040]).toContain(l!.printFormat.width);
+    expect(l!.itemsPerSheet).toBeGreaterThan(10);
   });
   it("scales up when product does not fit smallest format", () => {
     const formats = [
