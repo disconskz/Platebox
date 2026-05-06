@@ -45,6 +45,20 @@ function inferCategory(type: string): string {
   return "other";
 }
 
+// Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
+function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
+  let best = 0;
+  for (const rotated of [false, true]) {
+    const w = rotated ? printH : printW;
+    const h = rotated ? printW : printH;
+    const cols = Math.floor(purchaseW / w);
+    const rows = Math.floor(purchaseH / h);
+    const n = cols * rows;
+    if (n > best) best = n;
+  }
+  return best;
+}
+
 const PRODUCT_OPTIONS: { value: ProductType; label: string; category: "sheet" | "book_journal" }[] = [
   { value: "leaflet", label: "Листовка", category: "sheet" },
   { value: "booklet", label: "Буклет", category: "sheet" },
