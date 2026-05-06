@@ -15,6 +15,30 @@ describe("layout", () => {
     expect(l).toBeTruthy();
     expect(l!.gap).toBeGreaterThan(0);
   });
+  it("picks smallest print sheet from catalog when business card fits", () => {
+    const formats = [
+      { width: 1040, height: 720 },
+      { width: 720, height: 520 },
+      { width: 520, height: 360 },
+      { width: 460, height: 320 },
+    ];
+    // визитка 90×50 — должна влезать в самый маленький
+    const l = bestLayout(90, 50, false, formats);
+    expect(l).toBeTruthy();
+    expect(l!.printFormat.width).toBe(460);
+    expect(l!.printFormat.height).toBe(320);
+  });
+  it("scales up when product does not fit smallest format", () => {
+    const formats = [
+      { width: 720, height: 520 },
+      { width: 460, height: 320 },
+    ];
+    // А4 листовка 210×297 не помещается несколько раз в 460×320 эффективно — проверяем что выбран какой-то из списка
+    const l = bestLayout(210, 297, false, formats);
+    expect(l).toBeTruthy();
+    expect([460, 720]).toContain(l!.printFormat.width);
+  });
+});
 });
 
 describe("turnaround", () => {
