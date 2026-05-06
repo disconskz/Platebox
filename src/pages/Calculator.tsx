@@ -556,49 +556,106 @@ const Calculator = () => {
               <Card>
                 <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                  <Label>
-                    Материал
-                    <HelpHint title="Материал" learnMore="calc-material">
-                      Список из справочника «Бумага». Формат закупочного листа и цена за лист идут в раскладку и в стоимость.
-                    </HelpHint>
-                  </Label>
-                  <Select value={materialId} onValueChange={setMaterialId}>
-                    <SelectTrigger><SelectValue placeholder="Выберите бумагу" /></SelectTrigger>
-                    <SelectContent>
-                      {materials.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name} — {fmtMoney(m.cost_per_sheet)}/лист</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {material && (
-                    <p className="mt-3 text-sm text-muted-foreground">Закупочный формат: {material.format_width}×{material.format_height} мм. Цена: {fmtMoney(material.cost_per_sheet)} за лист.</p>
+                  <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
+                    <div>
+                      <div className="text-sm font-medium">Расширенный режим</div>
+                      <div className="text-xs text-muted-foreground">Ручной выбор бумаги и оборудования</div>
+                    </div>
+                    <Checkbox checked={advancedMode} onCheckedChange={(v) => setAdvancedMode(!!v)} />
+                  </div>
+
+                  {!advancedMode && (
+                    <>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <Label>
+                            Тип материала
+                            <HelpHint title="Тип материала" learnMore="calc-material">
+                              Закупочный формат и печатная машина подбираются автоматически.
+                            </HelpHint>
+                          </Label>
+                          <Select value={materialCategory} onValueChange={setMaterialCategory}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {MATERIAL_CATEGORIES.map((c) => (
+                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Плотность, г/м² (необязательно)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={materialDensity}
+                            onChange={(e) => setMaterialDensity(e.target.value === "" ? "" : Number(e.target.value))}
+                            placeholder="любая"
+                          />
+                        </div>
+                      </div>
+                      {effectiveMaterial ? (
+                        <div className="rounded-md border bg-card p-3 text-sm space-y-1">
+                          <div className="font-medium">{effectiveMaterial.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Закупочный формат: {effectiveMaterial.format_width}×{effectiveMaterial.format_height} мм · {fmtMoney(effectiveMaterial.cost_per_sheet)}/лист
+                          </div>
+                          {autoMachine && preResult && !("error" in preResult) && (
+                            <div className="text-xs text-muted-foreground">
+                              Авто-машина: <span className="text-foreground font-medium">{autoMachine.name}</span> · печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs">
+                          В справочнике «Бумага» нет материала категории «{MATERIAL_CATEGORIES.find((c) => c.value === materialCategory)?.label}». Добавьте подходящую запись или включите расширенный режим.
+                        </div>
+                      )}
+                    </>
                   )}
-                  </div>
-                  <div>
-                    <Label>
-                      Печатная машина
-                      <HelpHint title="Оборудование" learnMore="calc-print">
-                        Задаёт максимальный печатный формат и стоимость одного оттиска. Если изделие крупнее лимита — будет ошибка.
-                      </HelpHint>
-                    </Label>
-                    <Select value={equipmentId} onValueChange={setEquipmentId}>
-                      <SelectTrigger><SelectValue placeholder="Выберите оборудование" /></SelectTrigger>
-                      <SelectContent>
-                        {equipment.map((eq) => (
-                          <SelectItem key={eq.id} value={eq.id}>
-                            {eq.name} · до {eq.max_format_width}×{eq.max_format_height} · {fmtMoney(Number(eq.cost_per_impression || 0))}/оттиск
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedEquipment && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Макс. формат: {selectedEquipment.max_format_width}×{selectedEquipment.max_format_height} мм.
-                        Цена оттиска: {fmtMoney(Number(selectedEquipment.cost_per_impression || 0))}.
-                      </p>
-                    )}
-                  </div>
+
+                  {advancedMode && (
+                    <>
+                      <div>
+                        <Label>Материал</Label>
+                        <Select value={materialId} onValueChange={setMaterialId}>
+                          <SelectTrigger><SelectValue placeholder="Выберите бумагу" /></SelectTrigger>
+                          <SelectContent>
+                            {materials.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>{m.name} — {fmtMoney(m.cost_per_sheet)}/лист</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {material && (
+                          <p className="mt-3 text-sm text-muted-foreground">Закупочный формат: {material.format_width}×{material.format_height} мм. Цена: {fmtMoney(material.cost_per_sheet)} за лист.</p>
+                        )}
+                      </div>
+                      {suggestionHint && (
+                        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                          <Sparkles className="inline h-3.5 w-3.5 mr-1 text-primary" />{suggestionHint}
+                        </div>
+                      )}
+                      <div>
+                        <Label>Печатная машина</Label>
+                        <Select value={equipmentId} onValueChange={setEquipmentId}>
+                          <SelectTrigger><SelectValue placeholder="Выберите оборудование" /></SelectTrigger>
+                          <SelectContent>
+                            {equipment.map((eq) => (
+                              <SelectItem key={eq.id} value={eq.id}>
+                                {eq.name} · до {eq.max_format_width}×{eq.max_format_height} · {fmtMoney(Number(eq.cost_per_impression || 0))}/оттиск
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedEquipment && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            Макс. формат: {selectedEquipment.max_format_width}×{selectedEquipment.max_format_height} мм.
+                            Цена оттиска: {fmtMoney(Number(selectedEquipment.cost_per_impression || 0))}.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
