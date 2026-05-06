@@ -844,6 +844,14 @@ const Calculator = () => {
                     <Input className="w-20" type="number" inputMode="numeric" value={stampH} onChange={(e) => setStampH(Number(e.target.value))} disabled={!hasStamping} />
                     <span className="text-xs text-muted-foreground">см</span>
                   </div>
+                  <ExtraOpsPicker
+                    operations={operations.filter((o) => o.category === "postpress" || o.category === "logistics" || o.category === "print" || o.category === "prepress")}
+                    extraOps={extraOps}
+                    setExtraOps={setExtraOps}
+                    circulation={circulation}
+                    sheets={result && !("error" in result) ? result.printSheets : 0}
+                    forms={result && !("error" in result) ? result.forms : 0}
+                  />
                 </CardContent>
               </Card>
             )}
