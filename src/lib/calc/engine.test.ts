@@ -39,7 +39,6 @@ describe("layout", () => {
     expect([460, 720]).toContain(l!.printFormat.width);
   });
 });
-});
 
 describe("turnaround", () => {
   it("none when back=0", () => {
