@@ -1,4 +1,4 @@
-import { CalcInput, CalcResult, DEFAULTS, LayoutResult, PrintFormat, SpecItem, Turnaround } from "./types";
+import { CalcInput, CalcResult, DEFAULTS, FormatPair, LayoutResult, PrintFormat, SpecItem, Turnaround } from "./types";
 
 export function calculateLayout(
   productW: number,
@@ -77,6 +77,30 @@ export function bestLayout(
   return best;
 }
 
+/**
+ * Подбор пары (печатный, закупочный) из жёстких связок справочника.
+ * Выбирается пара с минимумом отходов на изделие.
+ */
+export function bestPair(
+  productW: number,
+  productH: number,
+  isSticker: boolean,
+  pairs: FormatPair[]
+): { layout: LayoutResult; pair: FormatPair } | null {
+  let best: { layout: LayoutResult; pair: FormatPair } | null = null;
+  let bestScore = Infinity;
+  for (const p of pairs) {
+    const l = calculateLayout(productW, productH, p.print.width, p.print.height, isSticker);
+    if (!l) continue;
+    const wastePerItem = l.wasteArea / Math.max(1, l.itemsPerSheet);
+    if (wastePerItem < bestScore) {
+      bestScore = wastePerItem;
+      best = { layout: l, pair: p };
+    }
+  }
+  return best;
+}
+
 export function determineTurnaround(
   productType: string,
   formatType: string,
@@ -134,9 +158,18 @@ export function runCalculation(input: CalcInput): CalcResult {
   const isBag = input.productType === "bag";
   const isBooklet = input.productType === "booklet";
 
-  const layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);
-  if (!layout) {
-    throw new Error("Изделие не вмещается в печатный лист. Выберите другой формат.");
+  // Если переданы жёсткие пары (закупочный↔печатный) — используем их и
+  // автоматически переопределяем закупочный формат материала.
+  let layout: LayoutResult | null;
+  let pickedPurchase: PrintFormat | null = null;
+  if (input.formatPairs && input.formatPairs.length) {
+    const r = bestPair(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
+    if (!r) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
+    layout = r.layout;
+    pickedPurchase = r.pair.purchase;
+  } else {
+    layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);
+    if (!layout) throw new Error("Изделие не вмещается в печатный лист. Выберите другой формат.");
   }
 
   const turnaround = determineTurnaround(
@@ -166,10 +199,12 @@ export function runCalculation(input: CalcInput): CalcResult {
 
   const printSheets = netPrintSheets + setupSheets;
 
-  // Purchase sheets
+  // Purchase sheets — закупочный формат берём из пары (если есть), иначе из материала
+  const purchaseW = pickedPurchase?.width ?? input.material.format_width;
+  const purchaseH = pickedPurchase?.height ?? input.material.format_height;
   const purchaseNesting = Math.max(
     1,
-    nestingPurchaseToPrint(input.material.format_width, input.material.format_height, layout.printFormat.width, layout.printFormat.height)
+    nestingPurchaseToPrint(purchaseW, purchaseH, layout.printFormat.width, layout.printFormat.height)
   );
   const purchaseSheets = Math.ceil(printSheets / purchaseNesting);
   const paperCost = purchaseSheets * input.material.cost_per_sheet;
