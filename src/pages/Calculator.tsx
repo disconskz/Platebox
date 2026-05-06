@@ -391,7 +391,7 @@ const Calculator = () => {
   }, [step, circulation, dims, materialId, selectedEquipment]);
 
   const save = async (asTemplate = false) => {
-    if (!result || "error" in result || !calcInput || !material) return;
+    if (!result || "error" in result || !calcInput || !effectiveMaterial) return;
     setSaving(true);
     const payload = {
       name: name || `${PRODUCT_OPTIONS.find((p) => p.value === productType)?.label} ${formatType} ${colorFront}+${colorBack}, тираж ${circulation}`,
@@ -403,9 +403,11 @@ const Calculator = () => {
       format_height: dims.h,
       color_front: colorFront,
       color_back: colorBack,
-      material_id: materialId,
-      equipment_id: equipmentId || null,
-      print_cost_per_impression: selectedEquipment?.cost_per_impression ?? null,
+      material_id: advancedMode ? materialId : effectiveMaterial.id,
+      equipment_id: advancedMode ? (equipmentId || null) : null,
+      print_cost_per_impression: advancedMode
+        ? (selectedEquipment?.cost_per_impression ?? null)
+        : (autoMachine?.cost_per_impression ?? null),
       print_format_width: result.layout.printFormat.width,
       print_format_height: result.layout.printFormat.height,
       items_per_sheet: result.layout.itemsPerSheet,
@@ -701,7 +703,7 @@ const Calculator = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
-                  Раскладка подбирается автоматически из печатных форматов 520×360 и 460×320. Превью справа.
+                  Раскладка подбирается автоматически из печатных форматов справочника. Превью справа.
                   {result && !("error" in result) && (
                     <div className="mt-4 grid grid-cols-2 gap-3 text-foreground">
                       <Stat label="Печатный формат" value={`${result.layout.printFormat.width}×${result.layout.printFormat.height}`} />
