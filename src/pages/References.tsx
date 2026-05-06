@@ -13,6 +13,27 @@ import { HelpHint } from "@/components/HelpHint";
 
 type AnyRow = Record<string, any>;
 
+// Динамические опции (загружаются из БД) для select-полей со ссылками на другие таблицы
+type DynamicOptions = {
+  purchase_formats?: { value: string; label: string }[];
+};
+
+const useDynamicOptions = (): DynamicOptions => {
+  const [opts, setOpts] = useState<DynamicOptions>({});
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order");
+      setOpts({
+        purchase_formats: ((data as any[]) || []).map((r) => ({
+          value: r.id,
+          label: `${r.width} × ${r.height}`,
+        })),
+      });
+    })();
+  }, []);
+  return opts;
+};
+
 const TABLES = [
   {
     key: "materials",
@@ -21,11 +42,12 @@ const TABLES = [
       { k: "name", t: "text", label: "Название" },
       { k: "type", t: "select", label: "Тип", opts: ["coated", "offset", "self_adhesive", "cardboard", "other"] },
       { k: "density", t: "number", label: "Плотность" },
+      { k: "purchase_format_id", t: "ref", label: "Закуп. формат", refKey: "purchase_formats" },
       { k: "format_width", t: "number", label: "Шир., мм" },
       { k: "format_height", t: "number", label: "Выс., мм" },
       { k: "cost_per_sheet", t: "number", label: "Цена/лист" },
     ],
-    defaults: { name: "", type: "coated", density: 130, format_width: 640, format_height: 920, cost_per_sheet: 0 },
+    defaults: { name: "", type: "coated", density: 130, purchase_format_id: null, format_width: 640, format_height: 920, cost_per_sheet: 0 },
   },
   {
     key: "operations",
@@ -80,9 +102,10 @@ const TABLES = [
     cols: [
       { k: "width", t: "number", label: "Шир., мм" },
       { k: "height", t: "number", label: "Выс., мм" },
+      { k: "purchase_format_id", t: "ref", label: "Закуп. формат", refKey: "purchase_formats" },
       { k: "sort_order", t: "number", label: "Порядок" },
     ],
-    defaults: { width: 520, height: 360, sort_order: 100 },
+    defaults: { width: 520, height: 360, purchase_format_id: null, sort_order: 100 },
   },
   {
     key: "purchase_formats",
@@ -107,9 +130,21 @@ const TABLES = [
     ],
     defaults: { name: "", max_format_width: 520, max_format_height: 360, cost_per_impression: 3, sort_order: 100 },
   },
+  {
+    key: "envelope_formats",
+    title: "Конверты",
+    cols: [
+      { k: "name", t: "text", label: "Название" },
+      { k: "width", t: "number", label: "Шир., мм" },
+      { k: "height", t: "number", label: "Выс., мм" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { name: "", width: 110, height: 220, sort_order: 100 },
+  },
 ] as const;
 
 const References = () => {
+  const dynOpts = useDynamicOptions();
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
@@ -133,7 +168,7 @@ const References = () => {
           </TabsList>
           {TABLES.map((t) => (
             <TabsContent key={t.key} value={t.key} className="mt-4">
-              <RefTable spec={t as any} />
+              <RefTable spec={t as any} dynOpts={dynOpts} />
             </TabsContent>
           ))}
         </Tabs>
@@ -143,7 +178,7 @@ const References = () => {
   );
 };
 
-const RefTable = ({ spec }: { spec: any }) => {
+const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => {
   const [rows, setRows] = useState<AnyRow[]>([]);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
   const [page, setPage] = useState(1);
@@ -180,6 +215,17 @@ const RefTable = ({ spec }: { spec: any }) => {
   };
 
   const renderField = (col: any, value: any, onChange: (v: any) => void) => {
+    if (col.t === "ref") {
+      const options = (dynOpts[col.refKey as keyof DynamicOptions] as { value: string; label: string }[]) || [];
+      return (
+        <Select value={value ?? ""} onValueChange={(v) => onChange(v || null)}>
+          <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+          <SelectContent>
+            {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      );
+    }
     if (col.t === "select") {
       return (
         <Select value={String(value ?? "")} onValueChange={onChange}>
