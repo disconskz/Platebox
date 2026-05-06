@@ -47,15 +47,32 @@ export function calculateLayout(
   return variants[0];
 }
 
-export function bestLayout(productW: number, productH: number, isSticker: boolean): LayoutResult | null {
-  const formats: PrintFormat[] = [
-    { width: DEFAULTS.maxPrintW, height: DEFAULTS.maxPrintH },
-    { width: DEFAULTS.altPrintW, height: DEFAULTS.altPrintH },
-  ];
+export function bestLayout(
+  productW: number,
+  productH: number,
+  isSticker: boolean,
+  formats?: PrintFormat[]
+): LayoutResult | null {
+  const list: PrintFormat[] =
+    formats && formats.length
+      ? formats
+      : [
+          { width: DEFAULTS.maxPrintW, height: DEFAULTS.maxPrintH },
+          { width: DEFAULTS.altPrintW, height: DEFAULTS.altPrintH },
+        ];
+  // Сортировка по возрастанию площади — выбираем САМЫЙ МАЛЕНЬКИЙ лист,
+  // в который помещается нужное количество (минимизируем отходы).
+  const sorted = [...list].sort((a, b) => a.width * a.height - b.width * b.height);
   let best: LayoutResult | null = null;
-  for (const f of formats) {
+  let bestScore = Infinity; // меньше — лучше: отходы на 1 изделие
+  for (const f of sorted) {
     const l = calculateLayout(productW, productH, f.width, f.height, isSticker);
-    if (l && (!best || l.itemsPerSheet > best.itemsPerSheet)) best = l;
+    if (!l) continue;
+    const wastePerItem = l.wasteArea / Math.max(1, l.itemsPerSheet);
+    if (wastePerItem < bestScore) {
+      bestScore = wastePerItem;
+      best = l;
+    }
   }
   return best;
 }
@@ -117,7 +134,7 @@ export function runCalculation(input: CalcInput): CalcResult {
   const isBag = input.productType === "bag";
   const isBooklet = input.productType === "booklet";
 
-  const layout = bestLayout(input.formatWidth, input.formatHeight, isSticker);
+  const layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);
   if (!layout) {
     throw new Error("Изделие не вмещается в печатный лист. Выберите другой формат.");
   }

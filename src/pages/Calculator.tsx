@@ -24,6 +24,40 @@ import { HelpHint } from "@/components/HelpHint";
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
+type PrintFormatRow = { id: string; width: number; height: number; sort_order: number };
+type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
+type PressMachineRow = { id: string; name: string; max_format_width: number; max_format_height: number; cost_per_impression: number; sort_order: number };
+
+const MATERIAL_CATEGORIES: { value: string; label: string }[] = [
+  { value: "cardboard", label: "Картон" },
+  { value: "coated", label: "Мелованная" },
+  { value: "offset", label: "Офсетная" },
+  { value: "self_adhesive", label: "Самоклейка" },
+  { value: "other", label: "Другое" },
+];
+
+function inferCategory(type: string): string {
+  const t = (type || "").toLowerCase();
+  if (t.includes("cardboard") || t.includes("картон")) return "cardboard";
+  if (t.includes("coated") || t.includes("мелов")) return "coated";
+  if (t.includes("offset") || t.includes("офсет")) return "offset";
+  if (t.includes("self") || t.includes("самокл")) return "self_adhesive";
+  return "other";
+}
+
+// Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
+function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
+  let best = 0;
+  for (const rotated of [false, true]) {
+    const w = rotated ? printH : printW;
+    const h = rotated ? printW : printH;
+    const cols = Math.floor(purchaseW / w);
+    const rows = Math.floor(purchaseH / h);
+    const n = cols * rows;
+    if (n > best) best = n;
+  }
+  return best;
+}
 
 const PRODUCT_OPTIONS: { value: ProductType; label: string; category: "sheet" | "book_journal" }[] = [
   { value: "leaflet", label: "Листовка", category: "sheet" },
@@ -62,6 +96,9 @@ const Calculator = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
+  const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
+  const [pressMachines, setPressMachines] = useState<PressMachineRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [vatPercent, setVatPercent] = useState(0);
 
@@ -76,13 +113,17 @@ const Calculator = () => {
   const [colorBack, setColorBack] = useState(4);
 
   // Step 2
+  // Авто-режим: менеджер выбирает только тип материала + плотность,
+  // система автоподбирает закупочный формат и печатную машину.
+  // Расширенный режим: ручной выбор конкретной бумаги (как раньше).
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [materialCategory, setMaterialCategory] = useState<string>("coated");
+  const [materialDensity, setMaterialDensity] = useState<number | "">("");
   const [materialId, setMaterialId] = useState<string>("");
   const [equipmentId, setEquipmentId] = useState<string>("");
 
   // Step 3
   const [designQty, setDesignQty] = useState(2);
-  const [photoOutput, setPhotoOutput] = useState(false);
-  const [photoOutputCost, setPhotoOutputCost] = useState(800);
   const [manualForms, setManualForms] = useState<number | "">("");
   const [manualSetup, setManualSetup] = useState<number | "">("");
 
@@ -110,10 +151,16 @@ const Calculator = () => {
       const { data: l } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
       const { data: e } = await supabase.from("equipment").select("*").eq("type", "print").order("name");
       const { data: s } = await supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle();
+      const { data: pf } = await supabase.from("print_formats" as any).select("*").order("sort_order");
+      const { data: buyf } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
+      const { data: pm } = await supabase.from("press_machines" as any).select("*").order("sort_order");
       if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
       setEquipment((e as Equipment[]) || []);
+      setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
+      setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
+      setPressMachines(((pm as any) || []) as PressMachineRow[]);
       if (m && m.length) setMaterialId((m[0] as Material).id);
       if (e && e.length) setEquipmentId((e[0] as Equipment).id);
     })();
@@ -163,6 +210,74 @@ const Calculator = () => {
   const material = materials.find((m) => m.id === materialId);
   const selectedEquipment = equipment.find((e) => e.id === equipmentId);
 
+  // ===== АВТО-РЕЖИМ: предварительный подбор печатного формата по габаритам изделия
+  const printFormatList = useMemo(
+    () => printFormats.map((p) => ({ width: p.width, height: p.height })),
+    [printFormats]
+  );
+
+  // Подбор оптимальной печатной машины по подобранному печатному формату
+  const autoPickMachine = (printW: number, printH: number): PressMachineRow | null => {
+    const fitW = Math.max(printW, printH);
+    const fitH = Math.min(printW, printH);
+    const sorted = [...pressMachines].sort(
+      (a, b) => a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height
+    );
+    for (const pm of sorted) {
+      const mW = Math.max(pm.max_format_width, pm.max_format_height);
+      const mH = Math.min(pm.max_format_width, pm.max_format_height);
+      if (fitW <= mW && fitH <= mH) return pm;
+    }
+    return null;
+  };
+
+  // Подбор оптимального закупочного формата (минимальный, в который кратно укладывается печатный)
+  const autoPickPurchase = (
+    printW: number,
+    printH: number,
+    category: string
+  ): PurchaseFormatRow | null => {
+    const candidates = purchaseFormats.filter((p) => p.material_category === category);
+    const sorted = [...candidates].sort((a, b) => a.width * a.height - b.width * b.height);
+    let best: PurchaseFormatRow | null = null;
+    let bestUps = 0;
+    for (const p of sorted) {
+      const ups = nestingFit(p.width, p.height, printW, printH);
+      if (ups > 0 && (best === null || ups > bestUps)) {
+        best = p;
+        bestUps = ups;
+      }
+      if (best && bestUps >= 1) break; // минимальный из подходящих
+    }
+    return best;
+  };
+
+  // Авто-материал из справочника materials по категории + плотности + закупочному формату
+  const autoMaterial = useMemo<Material | null>(() => {
+    if (advancedMode) return null;
+    if (!materials.length || !printFormatList.length) return null;
+    // Грубая прикидка раскладки на самом большом печатном формате,
+    // чтобы определить какой закупочный формат нужен — но в финале движок выберет сам.
+    // Для подстановки достаточно: берём любой материал нужной категории/плотности,
+    // и закупочный формат = самый большой из доступных (движок всё равно режет).
+    const catMatch = materials.filter((m) => inferCategory(m.type) === materialCategory);
+    const dens = materialDensity === "" ? null : Number(materialDensity);
+    const densMatch = dens ? catMatch.filter((m) => m.density === dens) : catMatch;
+    const pool = densMatch.length ? densMatch : catMatch;
+    if (!pool.length) return null;
+    // Берём самый дешёвый (по цене за см²) — оптимизация.
+    const scored = [...pool].sort(
+      (a, b) =>
+        a.cost_per_sheet / (a.format_width * a.format_height) -
+        b.cost_per_sheet / (b.format_width * b.format_height)
+    );
+    return scored[0];
+  }, [advancedMode, materials, materialCategory, materialDensity, printFormatList]);
+
+  const effectiveMaterial = advancedMode ? material : autoMaterial;
+
+  // Авто-машина: вычисляется после раскладки (см. ниже useMemo result)
+
   const lamMap = useMemo(() => {
     const map: Record<string, number> = {};
     lam.forEach((r) => (map[`${r.film_type}:${r.size_range}`] = Number(r.cost_per_side)));
@@ -170,7 +285,7 @@ const Calculator = () => {
   }, [lam]);
 
   const calcInput: CalcInput | null = useMemo(() => {
-    if (!material) return null;
+    if (!effectiveMaterial) return null;
     return {
       productType,
       circulation,
@@ -179,9 +294,10 @@ const Calculator = () => {
       formatHeight: dims.h,
       colorFront,
       colorBack,
-      material,
+      material: effectiveMaterial,
+      printFormats: printFormatList.length ? printFormatList : undefined,
       designQty,
-      photoOutputUnitCost: photoOutput ? photoOutputCost : 0,
+      photoOutputUnitCost: 0,
       manualForms: manualForms === "" ? undefined : Number(manualForms),
       manualSetupSheets: manualSetup === "" ? undefined : Number(manualSetup),
       hasFold: productType === "booklet" ? hasFold : false,
@@ -198,14 +314,13 @@ const Calculator = () => {
       stampingClicheH: stampH,
       hasLamPrepress,
       lamPrepressSides,
-      printCostPerImpression: selectedEquipment?.cost_per_impression
-        ? Number(selectedEquipment.cost_per_impression)
-        : undefined,
+      printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
     };
-  }, [material, selectedEquipment, productType, circulation, formatType, dims, colorFront, colorBack, designQty, photoOutput, photoOutputCost, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, designQty, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList]);
 
-  const result = useMemo(() => {
+  // Промежуточный расчёт (без авто-цены машины)
+  const preResult = useMemo(() => {
     if (!calcInput) return null;
     try {
       return runCalculation(calcInput);
@@ -213,6 +328,39 @@ const Calculator = () => {
       return { error: e.message } as any;
     }
   }, [calcInput]);
+
+  // Авто-выбранная машина по подобранному печатному формату
+  const autoMachine = useMemo<PressMachineRow | null>(() => {
+    if (!preResult || "error" in preResult) return null;
+    const pf = preResult.layout.printFormat;
+    return autoPickMachine(pf.width, pf.height);
+  }, [preResult, pressMachines]);
+
+  // Финальный расчёт с подставленной ценой оттиска (либо авто, либо ручной из equipment)
+  const result = useMemo(() => {
+    if (!calcInput) return null;
+    const cpi = advancedMode
+      ? selectedEquipment?.cost_per_impression
+        ? Number(selectedEquipment.cost_per_impression)
+        : undefined
+      : autoMachine?.cost_per_impression;
+    try {
+      return runCalculation({ ...calcInput, printCostPerImpression: cpi });
+    } catch (e: any) {
+      return { error: e.message } as any;
+    }
+  }, [calcInput, advancedMode, selectedEquipment, autoMachine]);
+
+  // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
+  const suggestionHint = useMemo(() => {
+    if (!advancedMode || !material || !preResult || "error" in preResult) return null;
+    const cat = inferCategory(material.type);
+    const pf = preResult.layout.printFormat;
+    const better = autoPickPurchase(pf.width, pf.height, cat);
+    if (!better) return null;
+    if (better.width === material.format_width && better.height === material.format_height) return null;
+    return `Для печатного формата ${pf.width}×${pf.height} оптимальнее закупочный ${better.width}×${better.height} (вместо ${material.format_width}×${material.format_height}).`;
+  }, [advancedMode, material, preResult, purchaseFormats]);
 
   const goto = (n: number) => {
     setStep(n);
@@ -232,7 +380,8 @@ const Calculator = () => {
   const stepError = useMemo(() => {
     if (step >= 1 && (!circulation || circulation < 1)) return "Укажите тираж больше 0";
     if (step >= 1 && (!dims.w || !dims.h || dims.w < 10 || dims.h < 10)) return "Укажите корректный формат";
-    if (step >= 2 && !materialId) return "Выберите материал";
+    if (step >= 2 && advancedMode && !materialId) return "Выберите материал";
+    if (step >= 2 && !advancedMode && !effectiveMaterial) return "Не найден материал. Добавьте бумагу нужной категории/плотности в справочник.";
     if (selectedEquipment && selectedEquipment.max_format_width && selectedEquipment.max_format_height) {
       const fitW = Math.max(dims.w, dims.h);
       const machineMax = Math.max(selectedEquipment.max_format_width, selectedEquipment.max_format_height);
@@ -242,7 +391,7 @@ const Calculator = () => {
   }, [step, circulation, dims, materialId, selectedEquipment]);
 
   const save = async (asTemplate = false) => {
-    if (!result || "error" in result || !calcInput || !material) return;
+    if (!result || "error" in result || !calcInput || !effectiveMaterial) return;
     setSaving(true);
     const payload = {
       name: name || `${PRODUCT_OPTIONS.find((p) => p.value === productType)?.label} ${formatType} ${colorFront}+${colorBack}, тираж ${circulation}`,
@@ -254,9 +403,11 @@ const Calculator = () => {
       format_height: dims.h,
       color_front: colorFront,
       color_back: colorBack,
-      material_id: materialId,
-      equipment_id: equipmentId || null,
-      print_cost_per_impression: selectedEquipment?.cost_per_impression ?? null,
+      material_id: advancedMode ? materialId : effectiveMaterial.id,
+      equipment_id: advancedMode ? (equipmentId || null) : null,
+      print_cost_per_impression: advancedMode
+        ? (selectedEquipment?.cost_per_impression ?? null)
+        : (autoMachine?.cost_per_impression ?? null),
       print_format_width: result.layout.printFormat.width,
       print_format_height: result.layout.printFormat.height,
       items_per_sheet: result.layout.itemsPerSheet,
@@ -407,49 +558,106 @@ const Calculator = () => {
               <Card>
                 <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                  <Label>
-                    Материал
-                    <HelpHint title="Материал" learnMore="calc-material">
-                      Список из справочника «Бумага». Формат закупочного листа и цена за лист идут в раскладку и в стоимость.
-                    </HelpHint>
-                  </Label>
-                  <Select value={materialId} onValueChange={setMaterialId}>
-                    <SelectTrigger><SelectValue placeholder="Выберите бумагу" /></SelectTrigger>
-                    <SelectContent>
-                      {materials.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name} — {fmtMoney(m.cost_per_sheet)}/лист</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {material && (
-                    <p className="mt-3 text-sm text-muted-foreground">Закупочный формат: {material.format_width}×{material.format_height} мм. Цена: {fmtMoney(material.cost_per_sheet)} за лист.</p>
+                  <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
+                    <div>
+                      <div className="text-sm font-medium">Расширенный режим</div>
+                      <div className="text-xs text-muted-foreground">Ручной выбор бумаги и оборудования</div>
+                    </div>
+                    <Checkbox checked={advancedMode} onCheckedChange={(v) => setAdvancedMode(!!v)} />
+                  </div>
+
+                  {!advancedMode && (
+                    <>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <Label>
+                            Тип материала
+                            <HelpHint title="Тип материала" learnMore="calc-material">
+                              Закупочный формат и печатная машина подбираются автоматически.
+                            </HelpHint>
+                          </Label>
+                          <Select value={materialCategory} onValueChange={setMaterialCategory}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {MATERIAL_CATEGORIES.map((c) => (
+                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Плотность, г/м² (необязательно)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={materialDensity}
+                            onChange={(e) => setMaterialDensity(e.target.value === "" ? "" : Number(e.target.value))}
+                            placeholder="любая"
+                          />
+                        </div>
+                      </div>
+                      {effectiveMaterial ? (
+                        <div className="rounded-md border bg-card p-3 text-sm space-y-1">
+                          <div className="font-medium">{effectiveMaterial.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Закупочный формат: {effectiveMaterial.format_width}×{effectiveMaterial.format_height} мм · {fmtMoney(effectiveMaterial.cost_per_sheet)}/лист
+                          </div>
+                          {autoMachine && preResult && !("error" in preResult) && (
+                            <div className="text-xs text-muted-foreground">
+                              Авто-машина: <span className="text-foreground font-medium">{autoMachine.name}</span> · печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs">
+                          В справочнике «Бумага» нет материала категории «{MATERIAL_CATEGORIES.find((c) => c.value === materialCategory)?.label}». Добавьте подходящую запись или включите расширенный режим.
+                        </div>
+                      )}
+                    </>
                   )}
-                  </div>
-                  <div>
-                    <Label>
-                      Печатная машина
-                      <HelpHint title="Оборудование" learnMore="calc-print">
-                        Задаёт максимальный печатный формат и стоимость одного оттиска. Если изделие крупнее лимита — будет ошибка.
-                      </HelpHint>
-                    </Label>
-                    <Select value={equipmentId} onValueChange={setEquipmentId}>
-                      <SelectTrigger><SelectValue placeholder="Выберите оборудование" /></SelectTrigger>
-                      <SelectContent>
-                        {equipment.map((eq) => (
-                          <SelectItem key={eq.id} value={eq.id}>
-                            {eq.name} · до {eq.max_format_width}×{eq.max_format_height} · {fmtMoney(Number(eq.cost_per_impression || 0))}/оттиск
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedEquipment && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Макс. формат: {selectedEquipment.max_format_width}×{selectedEquipment.max_format_height} мм.
-                        Цена оттиска: {fmtMoney(Number(selectedEquipment.cost_per_impression || 0))}.
-                      </p>
-                    )}
-                  </div>
+
+                  {advancedMode && (
+                    <>
+                      <div>
+                        <Label>Материал</Label>
+                        <Select value={materialId} onValueChange={setMaterialId}>
+                          <SelectTrigger><SelectValue placeholder="Выберите бумагу" /></SelectTrigger>
+                          <SelectContent>
+                            {materials.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>{m.name} — {fmtMoney(m.cost_per_sheet)}/лист</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {material && (
+                          <p className="mt-3 text-sm text-muted-foreground">Закупочный формат: {material.format_width}×{material.format_height} мм. Цена: {fmtMoney(material.cost_per_sheet)} за лист.</p>
+                        )}
+                      </div>
+                      {suggestionHint && (
+                        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                          <Sparkles className="inline h-3.5 w-3.5 mr-1 text-primary" />{suggestionHint}
+                        </div>
+                      )}
+                      <div>
+                        <Label>Печатная машина</Label>
+                        <Select value={equipmentId} onValueChange={setEquipmentId}>
+                          <SelectTrigger><SelectValue placeholder="Выберите оборудование" /></SelectTrigger>
+                          <SelectContent>
+                            {equipment.map((eq) => (
+                              <SelectItem key={eq.id} value={eq.id}>
+                                {eq.name} · до {eq.max_format_width}×{eq.max_format_height} · {fmtMoney(Number(eq.cost_per_impression || 0))}/оттиск
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedEquipment && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            Макс. формат: {selectedEquipment.max_format_width}×{selectedEquipment.max_format_height} мм.
+                            Цена оттиска: {fmtMoney(Number(selectedEquipment.cost_per_impression || 0))}.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -465,11 +673,8 @@ const Calculator = () => {
                     </div>
                     <div className="text-right text-sm text-muted-foreground pb-2">= {fmtMoney(designQty * 500)}</div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Checkbox checked={photoOutput} onCheckedChange={(v) => setPhotoOutput(!!v)} id="po" />
-                    <Label htmlFor="po" className="flex-1">Фотовывод</Label>
-                    <Input className="w-28" type="number" inputMode="numeric" value={photoOutputCost} onChange={(e) => setPhotoOutputCost(Number(e.target.value))} disabled={!photoOutput} />
-                    <span className="text-xs text-muted-foreground">₸/шт</span>
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                    Допечатные операции считаются автоматически: <span className="text-foreground font-medium">формы × 500 ₸</span>.
                   </div>
                   {(productType === "sticker" || productType === "sticker_diecut") && (
                     <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3">
@@ -498,7 +703,7 @@ const Calculator = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
-                  Раскладка подбирается автоматически из печатных форматов 520×360 и 460×320. Превью справа.
+                  Раскладка подбирается автоматически из печатных форматов справочника. Превью справа.
                   {result && !("error" in result) && (
                     <div className="mt-4 grid grid-cols-2 gap-3 text-foreground">
                       <Stat label="Печатный формат" value={`${result.layout.printFormat.width}×${result.layout.printFormat.height}`} />
