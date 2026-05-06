@@ -33,6 +33,11 @@ export interface PrintFormat {
   height: number;
 }
 
+export interface FormatPair {
+  print: PrintFormat;
+  purchase: PrintFormat;
+}
+
 export interface LayoutResult {
   itemsPerSheet: number;
   rotated: boolean;
@@ -60,6 +65,8 @@ export interface CalcInput {
   photoOutputUnitCost: number; // 0 if disabled
   // Допустимые печатные форматы из справочника (если не задан — fallback на DEFAULTS)
   printFormats?: PrintFormat[];
+  /** Жёсткие связки закупочный↔печатный из справочника. Если задано — используется вместо printFormats. */
+  formatPairs?: FormatPair[];
   // sticker manual overrides
   manualForms?: number;
   manualSetupSheets?: number;
