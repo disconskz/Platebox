@@ -614,11 +614,8 @@ const Calculator = () => {
                     </div>
                     <div className="text-right text-sm text-muted-foreground pb-2">= {fmtMoney(designQty * 500)}</div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Checkbox checked={photoOutput} onCheckedChange={(v) => setPhotoOutput(!!v)} id="po" />
-                    <Label htmlFor="po" className="flex-1">Фотовывод</Label>
-                    <Input className="w-28" type="number" inputMode="numeric" value={photoOutputCost} onChange={(e) => setPhotoOutputCost(Number(e.target.value))} disabled={!photoOutput} />
-                    <span className="text-xs text-muted-foreground">₸/шт</span>
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                    Допечатные операции считаются автоматически: <span className="text-foreground font-medium">формы × 500 ₸</span>.
                   </div>
                   {(productType === "sticker" || productType === "sticker_diecut") && (
                     <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3">
