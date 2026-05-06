@@ -264,6 +264,33 @@ export type Database = {
         }
         Relationships: []
       }
+      envelope_formats: {
+        Row: {
+          created_at: string
+          height: number
+          id: string
+          name: string
+          sort_order: number
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          height: number
+          id?: string
+          name: string
+          sort_order?: number
+          width: number
+        }
+        Update: {
+          created_at?: string
+          height?: number
+          id?: string
+          name?: string
+          sort_order?: number
+          width?: number
+        }
+        Relationships: []
+      }
       equipment: {
         Row: {
           cost_per_impression: number | null
@@ -355,6 +382,7 @@ export type Database = {
           id: string
           is_fortress_sync: boolean | null
           name: string
+          purchase_format_id: string | null
           type: string
         }
         Insert: {
@@ -366,6 +394,7 @@ export type Database = {
           id?: string
           is_fortress_sync?: boolean | null
           name: string
+          purchase_format_id?: string | null
           type: string
         }
         Update: {
@@ -377,9 +406,18 @@ export type Database = {
           id?: string
           is_fortress_sync?: boolean | null
           name?: string
+          purchase_format_id?: string | null
           type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "materials_purchase_format_id_fkey"
+            columns: ["purchase_format_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_formats"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       operations: {
         Row: {
@@ -455,6 +493,7 @@ export type Database = {
           created_at: string
           height: number
           id: string
+          purchase_format_id: string | null
           sort_order: number
           width: number
         }
@@ -462,6 +501,7 @@ export type Database = {
           created_at?: string
           height: number
           id?: string
+          purchase_format_id?: string | null
           sort_order?: number
           width: number
         }
@@ -469,10 +509,19 @@ export type Database = {
           created_at?: string
           height?: number
           id?: string
+          purchase_format_id?: string | null
           sort_order?: number
           width?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "print_formats_purchase_format_id_fkey"
+            columns: ["purchase_format_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_formats"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
