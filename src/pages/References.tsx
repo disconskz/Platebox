@@ -73,6 +73,39 @@ const TABLES = [
     defaults: { key: "", value: "", description: "" },
     pk: "key",
   },
+  {
+    key: "print_formats",
+    title: "Печатные форматы",
+    cols: [
+      { k: "width", t: "number", label: "Шир., мм" },
+      { k: "height", t: "number", label: "Выс., мм" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { width: 520, height: 360, sort_order: 100 },
+  },
+  {
+    key: "purchase_formats",
+    title: "Закупочные форматы",
+    cols: [
+      { k: "material_category", t: "select", label: "Категория", opts: ["cardboard", "coated", "offset", "self_adhesive", "other"] },
+      { k: "width", t: "number", label: "Шир., мм" },
+      { k: "height", t: "number", label: "Выс., мм" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { material_category: "coated", width: 640, height: 920, sort_order: 100 },
+  },
+  {
+    key: "press_machines",
+    title: "Печатные машины",
+    cols: [
+      { k: "name", t: "text", label: "Название" },
+      { k: "max_format_width", t: "number", label: "Макс. шир." },
+      { k: "max_format_height", t: "number", label: "Макс. выс." },
+      { k: "cost_per_impression", t: "number", label: "₸/оттиск" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { name: "", max_format_width: 520, max_format_height: 360, cost_per_impression: 3, sort_order: 100 },
+  },
 ] as const;
 
 const References = () => {
