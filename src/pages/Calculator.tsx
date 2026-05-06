@@ -27,6 +27,9 @@ type Equipment = { id: string; name: string; type: string; max_format_width: num
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
 type PressMachineRow = { id: string; name: string; max_format_width: number; max_format_height: number; cost_per_impression: number; sort_order: number };
+type OperationRow = { id: string; name: string; category: string; subgroup: string | null; fixed_cost: number; variable_cost: number; unit: string | null };
+
+type ExtraOpState = { qty: number; price: number };
 
 const MATERIAL_CATEGORIES: { value: string; label: string }[] = [
   { value: "cardboard", label: "Картон" },
@@ -99,6 +102,9 @@ const Calculator = () => {
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
   const [pressMachines, setPressMachines] = useState<PressMachineRow[]>([]);
+  const [operations, setOperations] = useState<OperationRow[]>([]);
+  // выбранные операции из справочника: id -> { qty, price }
+  const [extraOps, setExtraOps] = useState<Record<string, ExtraOpState>>({});
   const [saving, setSaving] = useState(false);
   const [vatPercent, setVatPercent] = useState(0);
 
@@ -154,6 +160,7 @@ const Calculator = () => {
       const { data: pf } = await supabase.from("print_formats" as any).select("*").order("sort_order");
       const { data: buyf } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
       const { data: pm } = await supabase.from("press_machines" as any).select("*").order("sort_order");
+      const { data: ops } = await supabase.from("operations").select("*").order("subgroup").order("name");
       if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
@@ -161,6 +168,7 @@ const Calculator = () => {
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
       setPressMachines(((pm as any) || []) as PressMachineRow[]);
+      setOperations(((ops as any) || []) as OperationRow[]);
       if (m && m.length) setMaterialId((m[0] as Material).id);
       if (e && e.length) setEquipmentId((e[0] as Equipment).id);
     })();
