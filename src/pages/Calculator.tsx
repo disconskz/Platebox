@@ -24,7 +24,7 @@ import { HelpHint } from "@/components/HelpHint";
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
-type PrintFormatRow = { id: string; width: number; height: number; sort_order: number };
+type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
 type PressMachineRow = { id: string; name: string; max_format_width: number; max_format_height: number; cost_per_impression: number; sort_order: number };
 type OperationRow = { id: string; name: string; category: string; subgroup: string | null; fixed_cost: number; variable_cost: number; unit: string | null };
@@ -224,6 +224,25 @@ const Calculator = () => {
     [printFormats]
   );
 
+  // Жёсткие пары (печатный↔закупочный) из справочника — фильтруем по категории материала
+  const formatPairs = useMemo(() => {
+    const purchaseById = new Map(purchaseFormats.map((p) => [p.id, p]));
+    const cat = advancedMode
+      ? (effectiveMaterial ? inferCategory(effectiveMaterial.type) : null)
+      : materialCategory;
+    return printFormats
+      .map((pf) => {
+        const buy = pf.purchase_format_id ? purchaseById.get(pf.purchase_format_id) : null;
+        if (!buy) return null;
+        if (cat && buy.material_category !== cat) return null;
+        return {
+          print: { width: pf.width, height: pf.height },
+          purchase: { width: buy.width, height: buy.height },
+        };
+      })
+      .filter(Boolean) as { print: { width: number; height: number }; purchase: { width: number; height: number } }[];
+  }, [printFormats, purchaseFormats, advancedMode, materialCategory]);
+
   // Подбор оптимальной печатной машины по подобранному печатному формату
   const autoPickMachine = (printW: number, printH: number): PressMachineRow | null => {
     const fitW = Math.max(printW, printH);
@@ -304,6 +323,7 @@ const Calculator = () => {
       colorBack,
       material: effectiveMaterial,
       printFormats: printFormatList.length ? printFormatList : undefined,
+      formatPairs: formatPairs.length ? formatPairs : undefined,
       designQty,
       photoOutputUnitCost: 0,
       manualForms: manualForms === "" ? undefined : Number(manualForms),
