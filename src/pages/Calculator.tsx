@@ -345,7 +345,7 @@ const Calculator = () => {
   }, [preResult, pressMachines]);
 
   // Финальный расчёт с подставленной ценой оттиска (либо авто, либо ручной из equipment)
-  const result = useMemo(() => {
+  const baseResult = useMemo(() => {
     if (!calcInput) return null;
     const cpi = advancedMode
       ? selectedEquipment?.cost_per_impression
@@ -358,6 +358,43 @@ const Calculator = () => {
       return { error: e.message } as any;
     }
   }, [calcInput, advancedMode, selectedEquipment, autoMachine]);
+
+  // Доп. строки спецификации из выбранных операций справочника
+  const extraSpecItems = useMemo(() => {
+    return Object.entries(extraOps)
+      .map(([id, st]) => {
+        const op = operations.find((o) => o.id === id);
+        if (!op || !st.qty) return null;
+        const stage = (op.category as any) || "postpress";
+        const total = st.qty * st.price + Number(op.fixed_cost || 0);
+        return {
+          stage,
+          name: op.name,
+          quantity: st.qty,
+          unit: op.unit || "шт",
+          unitPrice: st.price,
+          total,
+        };
+      })
+      .filter(Boolean) as any[];
+  }, [extraOps, operations]);
+
+  // Итоговый result со склеенной спецификацией и пересчитанной суммой
+  const result = useMemo(() => {
+    if (!baseResult || "error" in baseResult) return baseResult;
+    if (!extraSpecItems.length) return baseResult;
+    const spec = [...baseResult.spec, ...extraSpecItems];
+    const extrasTotal = extraSpecItems.reduce((s: number, i: any) => s + i.total, 0);
+    const totalCost = baseResult.totalCost + extrasTotal;
+    const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
+    return {
+      ...baseResult,
+      spec,
+      totalCost,
+      vatAmount,
+      totalWithVat: totalCost + vatAmount,
+    };
+  }, [baseResult, extraSpecItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
