@@ -417,6 +417,57 @@ export type Database = {
         }
         Relationships: []
       }
+      press_machines: {
+        Row: {
+          created_at: string
+          id: string
+          max_format_height: number
+          max_format_width: number
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_format_height: number
+          max_format_width: number
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_format_height?: number
+          max_format_width?: number
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      print_formats: {
+        Row: {
+          created_at: string
+          height: number
+          id: string
+          sort_order: number
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          height: number
+          id?: string
+          sort_order?: number
+          width: number
+        }
+        Update: {
+          created_at?: string
+          height?: number
+          id?: string
+          sort_order?: number
+          width?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
@@ -438,6 +489,33 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      purchase_formats: {
+        Row: {
+          created_at: string
+          height: number
+          id: string
+          material_category: string
+          sort_order: number
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          height: number
+          id?: string
+          material_category: string
+          sort_order?: number
+          width: number
+        }
+        Update: {
+          created_at?: string
+          height?: number
+          id?: string
+          material_category?: string
+          sort_order?: number
+          width?: number
         }
         Relationships: []
       }
