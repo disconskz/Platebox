@@ -58,6 +58,8 @@ export interface CalcInput {
   material: { id: string; name: string; format_width: number; format_height: number; cost_per_sheet: number };
   designQty: number; // default 2
   photoOutputUnitCost: number; // 0 if disabled
+  // Допустимые печатные форматы из справочника (если не задан — fallback на DEFAULTS)
+  printFormats?: PrintFormat[];
   // sticker manual overrides
   manualForms?: number;
   manualSetupSheets?: number;
