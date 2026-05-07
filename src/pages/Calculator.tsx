@@ -1070,7 +1070,17 @@ const Calculator = () => {
                   Раскладка подбирается автоматически из печатных форматов справочника. Превью справа.
                   {result && !("error" in result) && (
                     <div className="mt-4 grid grid-cols-2 gap-3 text-foreground">
-                      <Stat label="Печатный формат" value={`${result.layout.printFormat.width}×${result.layout.printFormat.height}`} />
+                       <div className="rounded-md border bg-card p-2">
+                         <div className="text-xs text-muted-foreground">Печатный формат</div>
+                         <div className="text-sm font-medium flex items-center gap-2">
+                           {result.layout.printFormat.width}×{result.layout.printFormat.height}
+                           {isPriorityFormat && (
+                             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-primary/10 text-primary">
+                               приоритет
+                             </span>
+                           )}
+                         </div>
+                       </div>
                       <Stat label="Тип оборота" value={result.turnaround === "none" ? "Без оборота" : result.turnaround === "own" ? "Свой" : "Чужой"} />
                       <Stat label="Форм" value={String(result.forms)} />
                       <Stat label="Приладка" value={`${result.setupSheets} л.`} />
