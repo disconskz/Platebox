@@ -713,32 +713,56 @@ const Calculator = () => {
 
                   {!advancedMode && (
                     <>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div>
-                          <Label>
-                            Тип материала
-                            <HelpHint title="Тип материала" learnMore="calc-material">
-                              Закупочный формат и печатная машина подбираются автоматически.
-                            </HelpHint>
-                          </Label>
-                          <Select value={materialCategory} onValueChange={setMaterialCategory}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {MATERIAL_CATEGORIES.map((c) => (
-                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                      <div>
+                        <Label>
+                          Тип материала
+                          <HelpHint title="Тип материала" learnMore="calc-material">
+                            Закупочный формат и печатная машина подбираются автоматически.
+                          </HelpHint>
+                        </Label>
+                        <div className="mt-1 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                          {MATERIAL_CATEGORIES.map((c) => {
+                            const active = materialCategory === c.value;
+                            return (
+                              <button
+                                key={c.value}
+                                type="button"
+                                onClick={() => setMaterialCategory(c.value)}
+                                className={cn(
+                                  "rounded-lg border px-3 py-2 text-sm transition-all text-left",
+                                  active
+                                    ? "border-primary bg-primary/10 text-foreground shadow-card"
+                                    : "bg-card hover:border-primary/40 hover:bg-muted/40 text-muted-foreground"
+                                )}
+                              >
+                                {active && <CheckIcon className="inline h-3 w-3 mr-1 text-primary" />}
+                                {c.label}
+                              </button>
+                            );
+                          })}
                         </div>
-                        <div>
-                          <Label>Плотность, г/м² (необязательно)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={materialDensity}
-                            onChange={(e) => setMaterialDensity(e.target.value === "" ? "" : Number(e.target.value))}
-                            placeholder="любая"
-                          />
+                      </div>
+                      <div>
+                        <Label>Плотность, г/м²</Label>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {[null, 80, 90, 115, 130, 150, 170, 200, 250, 300, 350].map((d, i) => {
+                            const active = (d === null && materialDensity === "") || materialDensity === d;
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setMaterialDensity(d === null ? "" : d)}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                                  active
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                                )}
+                              >
+                                {d === null ? "Любая" : d}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                       {effectiveMaterial ? (
