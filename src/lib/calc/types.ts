@@ -138,6 +138,10 @@ export interface CalcResult {
     itemsPerSheet: number;
     itemsPerPurchase: number;
     layout: LayoutResult;
+    paperCost: number;
+    printCost: number;
+    wasteCost: number;
+    totalCost: number;
   }>;
 }
 
