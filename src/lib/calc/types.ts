@@ -93,6 +93,10 @@ export interface CalcInput {
   packagingPerUnit?: number;
   // taxes
   vatPercent?: number; // НДС, % (из system_settings.vat_percent)
+  /** Требовать чётное количество изделий на печатном листе (для печати «свой оборот»). */
+  requireEvenItems?: boolean;
+  /** Приоритетные печатные форматы (при равенстве отходов выигрывают эти). */
+  priorityPrintFormats?: PrintFormat[];
 }
 
 export interface SpecItem {
