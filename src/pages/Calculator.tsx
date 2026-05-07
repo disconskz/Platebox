@@ -937,6 +937,16 @@ const Calculator = () => {
                                 </span>
                               )}
                               {" · "}печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
+                              {isPriorityFormat && (
+                                <span className="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-primary/10 text-primary">
+                                  приоритет
+                                </span>
+                              )}
+                              {a2Reason && (
+                                <div className="text-[11px] text-primary">
+                                  Переключено на A2+: {a2Reason === "size" ? "формат изделия > 520×360" : `тираж листов > 10000 (${fmtNum(preResult.printSheets)})`}
+                                </div>
+                              )}
                               {(autoMachine.min_circulation != null || autoMachine.max_circulation != null) && (
                                 <div className="text-[11px] text-muted-foreground/80">
                                   Подходит для тиража: {autoMachine.min_circulation ?? 0}
