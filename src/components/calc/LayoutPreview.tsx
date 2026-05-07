@@ -6,6 +6,23 @@ import { ProductGlyph } from "./ProductGlyph";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+
+/** Универсальная обёртка для подсказки — оборачивает любой элемент */
+const Hint = ({ children, text, side = "top" }: { children: React.ReactNode; text: React.ReactNode; side?: "top" | "bottom" | "left" | "right" }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>{children}</TooltipTrigger>
+    <TooltipContent side={side} className="max-w-xs text-xs leading-relaxed">{text}</TooltipContent>
+  </Tooltip>
+);
+
+/** Маленький "?" рядом с заголовками */
+const HintIcon = ({ text }: { text: React.ReactNode }) => (
+  <Hint text={text}>
+    <HelpCircle className="h-3 w-3 cursor-help text-muted-foreground/60 transition hover:text-muted-foreground" />
+  </Hint>
+);
 
 export interface AlternativeView {
   printW: number;
@@ -419,23 +436,25 @@ export const LayoutPreview = ({
         {/* === Схема листа === */}
         <div className="relative rounded-lg border bg-card p-3 shadow-card">
           <div className="absolute right-2 top-2 z-10 flex gap-1">
-            <button
-              type="button"
-              onClick={downloadPng}
-              className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
-              title="Скачать PNG"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
+            <Hint text="Скачать схему листа в PNG (3× разрешение, для печатника)">
+              <button
+                type="button"
+                onClick={downloadPng}
+                className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </button>
+            </Hint>
             <Dialog open={fullOpen} onOpenChange={setFullOpen}>
               <DialogTrigger asChild>
-                <button
-                  type="button"
-                  className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
-                  title="Развернуть"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </button>
+                <Hint text="Открыть в большом размере — для презентации клиенту">
+                  <button
+                    type="button"
+                    className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                </Hint>
               </DialogTrigger>
               <DialogContent className="max-w-5xl">
                 <div className="p-2">
@@ -479,6 +498,35 @@ export const LayoutPreview = ({
               />
             </motion.div>
           </AnimatePresence>
+          {/* Легенда схемы */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-[10px] text-muted-foreground">
+            <Hint text="Зона вылета (bleed) — 3 мм с каждой стороны изделия, обрезается после печати.">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm border border-dashed border-destructive" />
+                bleed
+              </span>
+            </Hint>
+            <Hint text="Технические поля печатной машины — зона, где невозможна печать (захват, отступы под марки).">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm border border-dashed border-muted-foreground" />
+                техполя
+              </span>
+            </Hint>
+            <Hint text="Изделия чередуются по цвету в столбцах для удобства подсчёта.">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-warning/30" />
+                <span className="h-2 w-2 rounded-sm bg-primary/30" />
+                изделия
+              </span>
+            </Hint>
+            <Hint text="Розовая подложка показывает площадь листа, уходящую в отходы.">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-destructive/15" />
+                отходы
+              </span>
+            </Hint>
+            <span className="ml-auto text-muted-foreground/70">наведите на изделие — позиция</span>
+          </div>
         </div>
 
         {/* === Баннер при просмотре альтернативы === */}
@@ -495,55 +543,79 @@ export const LayoutPreview = ({
         <div className="grid gap-3 sm:grid-cols-2">
           {/* Геометрия */}
           <div className="rounded-lg border bg-card p-4 shadow-card">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Геометрия
+              <HintIcon text="Параметры раскладки изделий на печатном листе и связь с закупочным." />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <div className="text-3xl font-bold leading-none text-foreground">
-                {activeAlt?.itemsPerPurchase ?? "—"}
+            <Hint text="Главный показатель эффективности раскладки — сколько готовых изделий получится из ОДНОГО закупочного листа бумаги. Чем больше, тем выгоднее.">
+              <div className="mt-2 flex cursor-help items-baseline gap-2">
+                <div className="text-3xl font-bold leading-none text-foreground">
+                  {activeAlt?.itemsPerPurchase ?? "—"}
+                </div>
+                <div className="text-xs text-muted-foreground">шт с закупочного</div>
               </div>
-              <div className="text-xs text-muted-foreground">шт с закупочного</div>
-            </div>
+            </Hint>
             <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-              <Row label="Печатный" value={`${W}×${H} мм`} />
+              <Row label="Печатный" value={`${W}×${H} мм`} hint="Размер листа, который идёт в печатную машину." />
               <Row
                 label="Закупочный"
                 value={activeAlt ? `${activeAlt.purchaseW}×${activeAlt.purchaseH}` : "—"}
+                hint="Размер листа, который покупаем у поставщика. Из него нарезается несколько печатных."
               />
-              <Row label="Раскладка" value={`${active.cols}×${active.rows}`} />
-              <Row label="Поворот" value={active.rotated ? "↻ да" : "нет"} />
-              <Row label="Шт/лист" value={`${active.itemsPerSheet}`} />
-              <Row label="Отходы" value={`${wastePct}%`} />
+              <Row
+                label="Раскладка"
+                value={`${active.cols}×${active.rows}`}
+                hint="Колонки × ряды изделий на печатном листе."
+              />
+              <Row
+                label="Поворот"
+                value={active.rotated ? "↻ да" : "нет"}
+                hint="Развёрнуты ли изделия на 90° для лучшего размещения."
+              />
+              <Row
+                label="Шт/лист"
+                value={`${active.itemsPerSheet}`}
+                hint="Сколько изделий помещается на ОДИН печатный лист."
+              />
+              <Row
+                label="Отходы"
+                value={`${wastePct}%`}
+                hint="Доля площади листа, которая уходит в обрезки. Чем меньше — тем лучше."
+              />
             </div>
           </div>
 
           {/* Экономика */}
           <div className="rounded-lg border bg-card p-4 shadow-card">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Экономика
+              <HintIcon text="Упрощённая стоимость варианта: бумага + печать. Без постпечати и логистики — только для сравнения раскладок." />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <div className="text-3xl font-bold leading-none text-foreground">
-                {fmt(activeAlt?.totalCost ?? mainCosts?.totalCost ?? 0)}
+            <Hint text="Себестоимость варианта раскладки (бумага + печать). Полная себестоимость со всеми операциями — в основном расчёте справа.">
+              <div className="mt-2 flex cursor-help items-baseline gap-2">
+                <div className="text-3xl font-bold leading-none text-foreground">
+                  {fmt(activeAlt?.totalCost ?? mainCosts?.totalCost ?? 0)}
+                </div>
+                <div className="text-xs text-muted-foreground">₸ итого</div>
               </div>
-              <div className="text-xs text-muted-foreground">₸ итого</div>
-            </div>
+            </Hint>
             <div className="mt-3 space-y-1.5 text-xs">
               {activeAlt ? (
                 <>
-                  <CostBar label="Печать" value={activeAlt.printCost} max={maxTotal} color="hsl(var(--primary))" />
-                  <CostBar label="Закуп" value={activeAlt.paperCost} max={maxTotal} color="hsl(var(--warning))" />
+                  <CostBar label="Печать" value={activeAlt.printCost} max={maxTotal} color="hsl(var(--primary))" hint="Стоимость оттисков (тираж × цена за оттиск, с учётом приладки и оборота)." />
+                  <CostBar label="Закуп" value={activeAlt.paperCost} max={maxTotal} color="hsl(var(--warning))" hint="Стоимость закупочной бумаги (нужное количество листов × цена за лист)." />
                   <CostBar
                     label="Отходы"
                     value={activeAlt.wasteCost}
                     max={maxTotal}
                     color="hsl(var(--destructive))"
+                    hint="Какая часть стоимости бумаги уходит в обрезки на печатном листе."
                   />
                 </>
               ) : mainCosts ? (
                 <>
-                  <CostBar label="Печать" value={mainCosts.printCost} max={maxTotal} color="hsl(var(--primary))" />
-                  <CostBar label="Закуп" value={mainCosts.paperCost} max={maxTotal} color="hsl(var(--warning))" />
+                  <CostBar label="Печать" value={mainCosts.printCost} max={maxTotal} color="hsl(var(--primary))" hint="Стоимость оттисков (тираж × цена за оттиск, с учётом приладки и оборота)." />
+                  <CostBar label="Закуп" value={mainCosts.paperCost} max={maxTotal} color="hsl(var(--warning))" hint="Стоимость закупочной бумаги (нужное количество листов × цена за лист)." />
                 </>
               ) : (
                 <div className="text-muted-foreground">—</div>
@@ -583,25 +655,35 @@ export const LayoutPreview = ({
         {alternatives && alternatives.length > 0 && (
           <div className="rounded-lg border bg-card p-3 shadow-card">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                 Варианты раскладки
+                <HintIcon text="Все рассмотренные пары «закупочный → печатный формат». Нажмите на строку, чтобы увидеть схему этого варианта на превью выше." />
               </div>
               <div className="flex gap-1 text-[10px]">
-                {(["items", "price", "waste"] as SortMode[]).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setSortMode(m)}
-                    className={cn(
-                      "rounded px-1.5 py-0.5 uppercase tracking-wide transition",
-                      sortMode === m
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {m === "items" ? "шт" : m === "price" ? "цена" : "отходы"}
-                  </button>
-                ))}
+                {(["items", "price", "waste"] as SortMode[]).map((m) => {
+                  const tip =
+                    m === "items"
+                      ? "Сортировать по количеству изделий с одного закупочного листа (больше — лучше)."
+                      : m === "price"
+                      ? "Сортировать по итоговой стоимости варианта (дешевле — лучше)."
+                      : "Сортировать по доле отходов на печатном листе (меньше — лучше).";
+                  return (
+                    <Hint key={m} text={tip}>
+                      <button
+                        type="button"
+                        onClick={() => setSortMode(m)}
+                        className={cn(
+                          "rounded px-1.5 py-0.5 uppercase tracking-wide transition",
+                          sortMode === m
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {m === "items" ? "шт" : m === "price" ? "цена" : "отходы"}
+                      </button>
+                    </Hint>
+                  );
+                })}
               </div>
             </div>
             <div className="space-y-1.5">
@@ -609,13 +691,17 @@ export const LayoutPreview = ({
                 active={selected === -1}
                 onClick={() => setSelected(-1)}
                 mini={
-                  <MiniSheet layout={layout} printW={layout.printFormat.width} printH={layout.printFormat.height} />
+                  <Hint text="Схематичная раскладка изделий на этом печатном листе.">
+                    <span className="inline-flex"><MiniSheet layout={layout} printW={layout.printFormat.width} printH={layout.printFormat.height} /></span>
+                  </Hint>
                 }
                 title={
                   <>
-                    <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                      ★ Оптимально
-                    </span>{" "}
+                    <Hint text="Этот вариант выбран системой как оптимальный — даёт максимум готовых изделий с одного закупочного листа.">
+                      <span className="cursor-help rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        ★ Оптимально
+                      </span>
+                    </Hint>{" "}
                     Печ. {layout.printFormat.width}×{layout.printFormat.height}
                   </>
                 }
@@ -638,7 +724,11 @@ export const LayoutPreview = ({
                     key={i}
                     active={selected === i}
                     onClick={() => setSelected(i)}
-                    mini={<MiniSheet layout={a.layout} printW={a.printW} printH={a.printH} />}
+                    mini={
+                      <Hint text={`Раскладка ${a.layout.cols}×${a.layout.rows} на печатном листе ${a.printW}×${a.printH} мм.`}>
+                        <span className="inline-flex"><MiniSheet layout={a.layout} printW={a.printW} printH={a.printH} /></span>
+                      </Hint>
+                    }
                     title={
                       <>
                         Печ. {a.printW}×{a.printH}
@@ -652,22 +742,28 @@ export const LayoutPreview = ({
                         </span>
                         <span className="text-muted-foreground">{fmt(a.totalCost)} ₸</span>
                         {priceDelta > 0 && (
-                          <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-                            +{fmt(priceDelta)} ₸
-                          </span>
+                          <Hint text="Насколько этот вариант дороже основного.">
+                            <span className="cursor-help rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                              +{fmt(priceDelta)} ₸
+                            </span>
+                          </Hint>
                         )}
                         {itemDelta !== 0 && (
-                          <span
-                            className={cn(
-                              "rounded px-1.5 py-0.5 text-[10px] font-medium",
-                              itemDelta > 0
-                                ? "bg-success/15 text-success"
-                                : "bg-muted text-muted-foreground"
-                            )}
-                          >
-                            {itemDelta > 0 ? "+" : ""}
-                            {itemDelta} шт
-                          </span>
+                          <Hint text={itemDelta > 0
+                            ? "В этом варианте помещается больше изделий на ОДИН печатный лист (но с закупочного может быть меньше из-за раскроя)."
+                            : "В этом варианте на печатный лист помещается меньше изделий, чем в основном."}>
+                            <span
+                              className={cn(
+                                "cursor-help rounded px-1.5 py-0.5 text-[10px] font-medium",
+                                itemDelta > 0
+                                  ? "bg-success/15 text-success"
+                                  : "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {itemDelta > 0 ? "+" : ""}
+                              {itemDelta} шт
+                            </span>
+                          </Hint>
                         )}
                       </>
                     }
@@ -679,13 +775,23 @@ export const LayoutPreview = ({
         )}
 
         {/* === Техкарточка для печатника === */}
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
-          Печ. {W}×{H} · Бумага {activeAlt?.purchaseW ?? "—"}×{activeAlt?.purchaseH ?? "—"} · Раскладка{" "}
-          {active.cols}×{active.rows}
-          {active.rotated ? " (rot)" : ""} · Bleed 3 · Отступы{" "}
-          {active.margins.left}/{active.margins.right}/{active.margins.top}/{active.margins.bottom} ·{" "}
-          {active.itemsPerSheet} шт/лист
-        </div>
+        <Hint text="Сводка для печатника. Кликните, чтобы скопировать в буфер обмена и вставить в наряд-заказ.">
+          <button
+            type="button"
+            onClick={() => {
+              const text = `Печ. ${W}×${H} · Бумага ${activeAlt?.purchaseW ?? "—"}×${activeAlt?.purchaseH ?? "—"} · Раскладка ${active.cols}×${active.rows}${active.rotated ? " (rot)" : ""} · Bleed 3 · Отступы ${active.margins.left}/${active.margins.right}/${active.margins.top}/${active.margins.bottom} · ${active.itemsPerSheet} шт/лист`;
+              navigator.clipboard.writeText(text);
+              toast({ title: "Скопировано", description: "Техкарточка в буфере обмена" });
+            }}
+            className="w-full rounded-md border border-dashed bg-muted/30 px-3 py-2 text-left font-mono text-[11px] leading-relaxed text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+          >
+            Печ. {W}×{H} · Бумага {activeAlt?.purchaseW ?? "—"}×{activeAlt?.purchaseH ?? "—"} · Раскладка{" "}
+            {active.cols}×{active.rows}
+            {active.rotated ? " (rot)" : ""} · Bleed 3 · Отступы{" "}
+            {active.margins.left}/{active.margins.right}/{active.margins.top}/{active.margins.bottom} ·{" "}
+            {active.itemsPerSheet} шт/лист
+          </button>
+        </Hint>
       </div>
     </TooltipProvider>
   );
@@ -693,26 +799,39 @@ export const LayoutPreview = ({
 
 /* ------------------------- Вспомогательные ------------------------- */
 
-const Row = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between border-b border-border/50 py-0.5 last:border-b-0">
-    <span className="text-muted-foreground">{label}</span>
-    <span className="font-medium text-foreground">{value}</span>
-  </div>
-);
+const Row = ({ label, value, hint }: { label: string; value: string; hint?: string }) => {
+  const content = (
+    <div className="flex items-center justify-between border-b border-border/50 py-0.5 last:border-b-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
+    </div>
+  );
+  if (!hint) return content;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="cursor-help">{content}</div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">{hint}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 const CostBar = ({
   label,
   value,
   max,
   color,
+  hint,
 }: {
   label: string;
   value: number;
   max: number;
   color: string;
+  hint?: string;
 }) => {
   const pct = max > 0 ? (value / max) * 100 : 0;
-  return (
+  const inner = (
     <div className="space-y-0.5">
       <div className="flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">{label}</span>
@@ -728,6 +847,15 @@ const CostBar = ({
         />
       </div>
     </div>
+  );
+  if (!hint) return inner;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="cursor-help">{inner}</div>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-xs text-xs leading-relaxed">{hint}</TooltipContent>
+    </Tooltip>
   );
 };
 
