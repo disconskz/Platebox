@@ -17,6 +17,10 @@ interface Props {
     itemsPerSheet: number;
     itemsPerPurchase: number;
     layout: LayoutResult;
+    paperCost: number;
+    printCost: number;
+    wasteCost: number;
+    totalCost: number;
   }>;
 }
 
@@ -107,6 +111,14 @@ export const LayoutPreview = ({ layout, productW, productH, productType = "leafl
           <Stat label="Шт с закупочного" value={`${activeAlt.itemsPerPurchase}`} />
         </div>
       )}
+      {activeAlt && (
+        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <Stat label="Печать" value={`${fmt(activeAlt.printCost)} ₸`} />
+          <Stat label="Закуп" value={`${fmt(activeAlt.paperCost)} ₸`} />
+          <Stat label="Отходы" value={`${fmt(activeAlt.wasteCost)} ₸`} />
+          <Stat label="Итого" value={`${fmt(activeAlt.totalCost)} ₸`} />
+        </div>
+      )}
       {alternatives && alternatives.length > 0 && (
         <div className="rounded-lg border bg-card p-3 shadow-card">
           <div className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -140,11 +152,11 @@ export const LayoutPreview = ({ layout, productW, productH, productType = "leafl
                     : "border-transparent hover:bg-muted/50 text-muted-foreground"
                 )}
               >
-                <span>
+                <span className="truncate">
                   Печ. {a.printW}×{a.printH} ← Закуп. {a.purchaseW}×{a.purchaseH}
                 </span>
-                <span className="font-medium text-foreground">
-                  {a.itemsPerSheet} шт/лист · {a.itemsPerPurchase} с закуп.
+                <span className="whitespace-nowrap font-medium text-foreground">
+                  {a.itemsPerPurchase} с закуп. · {fmt(a.totalCost)} ₸
                 </span>
               </button>
             ))}
@@ -154,6 +166,8 @@ export const LayoutPreview = ({ layout, productW, productH, productType = "leafl
     </div>
   );
 };
+
+const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(Math.round(n));
 
 const Stat = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-md border bg-card px-3 py-2 shadow-card">
