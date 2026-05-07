@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { bestLayout, calculateForms, determineTurnaround, runCalculation } from "./engine";
-import { CalcInput } from "./types";
+import { bestLayout, bestPair, calculateForms, determineTurnaround, runCalculation } from "./engine";
+import { CalcInput, FormatPair } from "./types";
 
 const material = { id: "m1", name: "Test 130", format_width: 640, format_height: 920, cost_per_sheet: 80 };
 
@@ -37,6 +37,21 @@ describe("layout", () => {
     const l = bestLayout(210, 297, false, formats);
     expect(l).toBeTruthy();
     expect([460, 720]).toContain(l!.printFormat.width);
+  });
+});
+
+describe("bestPair", () => {
+  it("250x297 leaflet picks 520x360 from 720x1040 (4 per purchase), not 640x306 from 640x920 (3 per purchase)", () => {
+    const pairs: FormatPair[] = [
+      { print: { width: 640, height: 306 }, purchase: { width: 640, height: 920 } },
+      { print: { width: 520, height: 360 }, purchase: { width: 720, height: 1040 } },
+      { print: { width: 460, height: 320 }, purchase: { width: 640, height: 920 } },
+    ];
+    const r = bestPair(250, 297, false, pairs);
+    expect(r).toBeTruthy();
+    expect(r!.pair.print.width).toBe(520);
+    expect(r!.pair.print.height).toBe(360);
+    expect(r!.pair.purchase.width).toBe(720);
   });
 });
 
