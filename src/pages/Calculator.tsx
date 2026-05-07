@@ -440,8 +440,8 @@ const Calculator = () => {
   const autoMachine = useMemo<PressMachineRow | null>(() => {
     if (!preResult || "error" in preResult) return null;
     const pf = preResult.layout.printFormat;
-    return autoPickMachine(pf.width, pf.height);
-  }, [preResult, pressMachines]);
+    return autoPickMachine(pf.width, pf.height, productType, circulation, preResult.printSheets);
+  }, [preResult, pressMachines, circulationRules, productType, circulation]);
 
   // Финальный расчёт с подставленной ценой оттиска (либо авто, либо ручной из equipment)
   const baseResult = useMemo(() => {
