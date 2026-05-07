@@ -612,6 +612,23 @@ const Calculator = () => {
                       </HelpHint>
                     </Label>
                     <Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(Number(e.target.value) || 0)} />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[100, 500, 1000, 2000, 5000, 10000].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setCirculation(n)}
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-xs border transition-colors",
+                            circulation === n
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                          )}
+                        >
+                          {n >= 1000 ? `${n / 1000}k` : n}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <Label>
@@ -633,23 +650,49 @@ const Calculator = () => {
                       <div><Label>Высота, мм</Label><Input type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} /></div>
                     </div>
                   )}
-                  <div>
+                  <div className="md:col-span-2">
                     <Label>
-                      Цветность фронт
+                      Красочность
                       <HelpHint title="Красочность" learnMore="calc-forms">
-                        Число красок на лицо. CMYK = 4, моно = 1. От этого зависит количество печатных форм.
+                        Сколько красок на лицо/оборот. CMYK = 4, моно = 1. 0 на обороте — печать только с лица.
                       </HelpHint>
                     </Label>
-                    <Input type="number" min={1} max={10} value={colorFront} onChange={(e) => setColorFront(Number(e.target.value))} />
-                  </div>
-                  <div>
-                    <Label>
-                      Цветность оборот (0 = без оборота)
-                      <HelpHint title="Оборот" learnMore="calc-forms">
-                        0 — печать только с лица. Иначе указывает красочность оборотной стороны; влияет на формы и оттиски.
-                      </HelpHint>
-                    </Label>
-                    <Input type="number" min={0} max={10} value={colorBack} onChange={(e) => setColorBack(Number(e.target.value))} />
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {[
+                        { f: 4, b: 4, label: "4+4 CMYK двусторонний" },
+                        { f: 4, b: 0, label: "4+0 CMYK односторонний" },
+                        { f: 4, b: 1, label: "4+1" },
+                        { f: 1, b: 1, label: "1+1 моно" },
+                        { f: 1, b: 0, label: "1+0 моно" },
+                      ].map((p) => {
+                        const active = colorFront === p.f && colorBack === p.b;
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => { setColorFront(p.f); setColorBack(p.b); }}
+                            className={cn(
+                              "px-3 py-1 rounded-full text-xs border transition-colors",
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                            )}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Лицо</Label>
+                        <Input type="number" min={1} max={10} value={colorFront} onChange={(e) => setColorFront(Number(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Оборот (0 = без)</Label>
+                        <Input type="number" min={0} max={10} value={colorBack} onChange={(e) => setColorBack(Number(e.target.value))} />
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
