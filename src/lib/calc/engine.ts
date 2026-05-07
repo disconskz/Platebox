@@ -101,7 +101,21 @@ export function rankPairs(
   pairs: FormatPair[]
 ): Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> {
   const out: Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> = [];
-  for (const p of pairs) {
+  // Лимит максимального печатного формата (по правкам fortress: 520×360).
+  // Если изделие физически не помещается в этот лимит — лимит снимается,
+  // чтобы не блокировать большие тиражи (плакаты и т.п.).
+  const maxArea = DEFAULTS.maxPrintW * DEFAULTS.maxPrintH;
+  const productFitsInLimit = (() => {
+    const w = Math.min(productW, productH);
+    const h = Math.max(productW, productH);
+    const lw = Math.min(DEFAULTS.maxPrintW, DEFAULTS.maxPrintH);
+    const lh = Math.max(DEFAULTS.maxPrintW, DEFAULTS.maxPrintH);
+    return w + 2 * DEFAULTS.bleed <= lw && h + 2 * DEFAULTS.bleed <= lh;
+  })();
+  const filtered = productFitsInLimit
+    ? pairs.filter((p) => p.print.width * p.print.height <= maxArea)
+    : pairs;
+  for (const p of (filtered.length ? filtered : pairs)) {
     const l = calculateLayout(productW, productH, p.print.width, p.print.height, isSticker);
     if (!l) continue;
     const nesting = Math.max(
