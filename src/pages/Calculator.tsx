@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Save, FileText, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, FileText, Sparkles, AlertTriangle, Check as CheckIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -431,6 +431,14 @@ const Calculator = () => {
   const goto = (n: number) => {
     setStep(n);
     setMaxReached((m) => Math.max(m, n));
+    // плавно прокручиваем к началу формы при смене шага
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        const el = document.getElementById("step-anchor");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        else window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
   };
 
   const next = () => goto(Math.min(7, step + 1));
@@ -530,17 +538,44 @@ const Calculator = () => {
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-3 py-3 px-4">
-          <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground shrink-0">
             <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
           </Link>
-          <div className="ml-auto flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Новый расчёт</span>
+          {/* Контекстная сводка: что считаем + текущий итог */}
+          <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground min-w-0 ml-2">
+            <span className="px-2 py-0.5 rounded-full bg-secondary/60 text-foreground font-medium truncate max-w-[180px]">
+              {PRODUCT_OPTIONS.find((p) => p.value === productType)?.label}
+            </span>
+            <span className="opacity-60">·</span>
+            <span className="tabular-nums">{fmtNum(circulation)} шт</span>
+            <span className="opacity-60">·</span>
+            <span>{formatType === "custom" ? `${dims.w}×${dims.h}` : formatType}</span>
+            <span className="opacity-60">·</span>
+            <span>{colorFront}{colorBack ? `+${colorBack}` : ""}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-3">
+            {result && !("error" in result) ? (
+              <div className="hidden sm:flex items-center gap-3 text-right">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">С/с</div>
+                  <div className="text-sm font-semibold tabular-nums">{fmtMoney(totalCost)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Цена</div>
+                  <div className="text-sm font-bold text-primary tabular-nums">{fmtMoney(salePrice)}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Новый расчёт</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto py-3 sm:py-6 px-4">
+      <main id="step-anchor" className="container mx-auto py-3 sm:py-6 px-4 scroll-mt-20">
         <Stepper current={step} maxReached={maxReached} onStepClick={goto} />
 
         <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 lg:grid-cols-5">
