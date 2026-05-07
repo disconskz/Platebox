@@ -205,6 +205,7 @@ export function runCalculation(input: CalcInput): CalcResult {
       purchaseH: r.pair.purchase.height,
       itemsPerSheet: r.layout.itemsPerSheet,
       itemsPerPurchase: r.itemsPerPurchase,
+      layout: r.layout,
     }));
   } else {
     layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);

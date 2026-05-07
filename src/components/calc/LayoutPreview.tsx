@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { LayoutResult } from "@/lib/calc/types";
 import { ProductType } from "@/lib/calc/types";
 import { ProductGlyph } from "./ProductGlyph";
+import { cn } from "@/lib/utils";
 
 interface Props {
   layout: LayoutResult;
@@ -14,31 +16,37 @@ interface Props {
     purchaseH: number;
     itemsPerSheet: number;
     itemsPerPurchase: number;
+    layout: LayoutResult;
   }>;
 }
 
 export const LayoutPreview = ({ layout, productW, productH, productType = "leaflet", alternatives }: Props) => {
-  const W = layout.printFormat.width;
-  const H = layout.printFormat.height;
+  // -1 = выбран основной вариант (layout), иначе индекс альтернативы
+  const [selected, setSelected] = useState<number>(-1);
+  const active = selected === -1 ? layout : alternatives?.[selected]?.layout ?? layout;
+  const activeAlt = selected >= 0 ? alternatives?.[selected] : null;
+
+  const W = active.printFormat.width;
+  const H = active.printFormat.height;
   const SCALE = 1.1;
   const viewW = W * SCALE;
   const viewH = H * SCALE;
 
-  const itemW = layout.rotated ? productH : productW;
-  const itemH = layout.rotated ? productW : productH;
+  const itemW = active.rotated ? productH : productW;
+  const itemH = active.rotated ? productW : productH;
   const bleed = 3;
-  const effW = layout.effectiveItemW;
-  const effH = layout.effectiveItemH;
+  const effW = active.effectiveItemW;
+  const effH = active.effectiveItemH;
 
-  const startX = layout.margins.left + layout.edgeMargin;
-  const startY = layout.margins.top + layout.edgeMargin;
+  const startX = active.margins.left + active.edgeMargin;
+  const startY = active.margins.top + active.edgeMargin;
 
   const rects = [];
   let n = 1;
-  for (let r = 0; r < layout.rows; r++) {
-    for (let c = 0; c < layout.cols; c++) {
-      const x = startX + c * effW + bleed + layout.gap / 2;
-      const y = startY + r * effH + bleed + layout.gap / 2;
+  for (let r = 0; r < active.rows; r++) {
+    for (let c = 0; c < active.cols; c++) {
+      const x = startX + c * effW + bleed + active.gap / 2;
+      const y = startY + r * effH + bleed + active.gap / 2;
       rects.push(
         <g key={`${r}-${c}`}>
           <rect x={x - bleed} y={y - bleed} width={itemW + bleed * 2} height={itemH + bleed * 2} fill="hsl(var(--warning))" fillOpacity={0.18} />
@@ -49,7 +57,7 @@ export const LayoutPreview = ({ layout, productW, productH, productType = "leafl
     }
   }
 
-  const wastePct = ((layout.wasteArea / (W * H)) * 100).toFixed(1);
+  const wastePct = ((active.wasteArea / (W * H)) * 100).toFixed(1);
 
   return (
     <div className="space-y-3">
@@ -59,10 +67,10 @@ export const LayoutPreview = ({ layout, productW, productH, productType = "leafl
           <rect x={0} y={0} width={W} height={H} fill="hsl(var(--background))" stroke="hsl(var(--border))" strokeWidth={1} />
           {/* tech margins */}
           <rect
-            x={layout.margins.left}
-            y={layout.margins.top}
-            width={W - layout.margins.left - layout.margins.right}
-            height={H - layout.margins.top - layout.margins.bottom}
+            x={active.margins.left}
+            y={active.margins.top}
+            width={W - active.margins.left - active.margins.right}
+            height={H - active.margins.top - active.margins.bottom}
             fill="none"
             stroke="hsl(var(--muted-foreground))"
             strokeWidth={0.4}
@@ -71,27 +79,74 @@ export const LayoutPreview = ({ layout, productW, productH, productType = "leafl
           {rects}
         </svg>
       </div>
+      {selected >= 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+          Просмотр альтернативного варианта. Выбран в расчёте — основной (с максимумом изделий с закупочного).
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-        <Stat label="На листе" value={`${layout.itemsPerSheet} шт`} />
-        <Stat label="Раскладка" value={`${layout.cols}×${layout.rows}`} />
-        <Stat label="Поворот" value={layout.rotated ? "да" : "нет"} />
+        <Stat label="На листе" value={`${active.itemsPerSheet} шт`} />
+        <Stat label="Раскладка" value={`${active.cols}×${active.rows}`} />
+        <Stat label="Поворот" value={active.rotated ? "да" : "нет"} />
         <Stat label="Отходы" value={`${wastePct}%`} />
       </div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <Stat label="Печатный" value={`${W}×${H} мм`} />
+        <Stat
+          label="Закупочный"
+          value={
+            activeAlt
+              ? `${activeAlt.purchaseW}×${activeAlt.purchaseH} мм`
+              : "—"
+          }
+        />
+      </div>
+      {activeAlt && (
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <Stat label="Шт/лист" value={`${activeAlt.itemsPerSheet}`} />
+          <Stat label="Шт с закупочного" value={`${activeAlt.itemsPerPurchase}`} />
+        </div>
+      )}
       {alternatives && alternatives.length > 0 && (
         <div className="rounded-lg border bg-card p-3 shadow-card">
           <div className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-            Рассмотрено ещё вариантов: {alternatives.length}
+            Варианты раскладки (нажмите, чтобы просмотреть)
           </div>
           <div className="space-y-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setSelected(-1)}
+              className={cn(
+                "flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left transition",
+                selected === -1
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-transparent hover:bg-muted/50 text-muted-foreground"
+              )}
+            >
+              <span>
+                ★ Печ. {layout.printFormat.width}×{layout.printFormat.height} (основной)
+              </span>
+              <span className="font-medium text-foreground">{layout.itemsPerSheet} шт/лист</span>
+            </button>
             {alternatives.map((a, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 text-muted-foreground">
+              <button
+                key={i}
+                type="button"
+                onClick={() => setSelected(i)}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left transition",
+                  selected === i
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-transparent hover:bg-muted/50 text-muted-foreground"
+                )}
+              >
                 <span>
                   Печ. {a.printW}×{a.printH} ← Закуп. {a.purchaseW}×{a.purchaseH}
                 </span>
                 <span className="font-medium text-foreground">
                   {a.itemsPerSheet} шт/лист · {a.itemsPerPurchase} с закуп.
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
