@@ -53,6 +53,36 @@ describe("bestPair", () => {
     expect(r!.pair.print.height).toBe(360);
     expect(r!.pair.purchase.width).toBe(720);
   });
+
+  it("filters out pairs larger than 520×360 when product fits within the limit", () => {
+    const pairs: FormatPair[] = [
+      // в лимите — должен учитываться
+      { print: { width: 460, height: 320 }, purchase: { width: 640, height: 920 } },
+      // вне лимита (640×460 > 520×360) — должен быть отфильтрован
+      { print: { width: 640, height: 460 }, purchase: { width: 640, height: 920 } },
+      // вне лимита (720×520) — должен быть отфильтрован
+      { print: { width: 720, height: 520 }, purchase: { width: 720, height: 1040 } },
+    ];
+    // Визитка 90×50 спокойно влезает в 520×360, фильтр должен сработать
+    const r = bestPair(90, 50, false, pairs);
+    expect(r).toBeTruthy();
+    expect(r!.pair.print.width).toBe(460);
+    expect(r!.pair.print.height).toBe(320);
+  });
+
+  it("lifts the 520×360 limit when product does not fit in it (e.g. A2 poster)", () => {
+    const pairs: FormatPair[] = [
+      // в лимите — но изделие не влезает
+      { print: { width: 460, height: 320 }, purchase: { width: 640, height: 920 } },
+      // вне лимита — единственный, куда влезает плакат
+      { print: { width: 640, height: 460 }, purchase: { width: 640, height: 920 } },
+    ];
+    // Плакат 420×594 (А2) — в 520×360 не помещается, лимит должен сняться
+    const r = bestPair(420, 594, false, pairs);
+    expect(r).toBeTruthy();
+    expect(r!.pair.print.width).toBe(640);
+    expect(r!.pair.print.height).toBe(460);
+  });
 });
 
 describe("turnaround", () => {
