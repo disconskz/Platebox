@@ -434,13 +434,26 @@ export const LayoutPreview = ({
     <TooltipProvider delayDuration={200}>
       <div className="space-y-3">
         {/* === Схема листа === */}
-        <div className="relative rounded-lg border bg-card p-3 shadow-card">
+        <div className="relative rounded-lg border bg-card p-2 sm:p-3 shadow-card">
+          {/* Мобильный заголовок — формат, шт/лист, действия */}
+          <div className="mb-2 flex flex-wrap items-center gap-2 sm:hidden">
+            <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums">
+              {W}×{H} мм
+            </span>
+            <span className="rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
+              {active.itemsPerSheet} шт/лист
+            </span>
+            <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums">
+              {active.cols}×{active.rows}
+            </span>
+            <span className="ml-auto text-[10px] text-muted-foreground">отходы {wastePct}%</span>
+          </div>
           <div className="absolute right-2 top-2 z-10 flex gap-1">
             <Hint text="Скачать схему листа в PNG (3× разрешение, для печатника)">
               <button
                 type="button"
                 onClick={downloadPng}
-                className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+                className="rounded-md border bg-background/80 p-2 text-muted-foreground backdrop-blur transition hover:text-foreground sm:p-1.5"
               >
                 <Download className="h-3.5 w-3.5" />
               </button>
@@ -450,14 +463,14 @@ export const LayoutPreview = ({
                 <Hint text="Открыть в большом размере — для презентации клиенту">
                   <button
                     type="button"
-                    className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+                    className="rounded-md border bg-background/80 p-2 text-muted-foreground backdrop-blur transition hover:text-foreground sm:p-1.5"
                   >
                     <Maximize2 className="h-3.5 w-3.5" />
                   </button>
                 </Hint>
               </DialogTrigger>
-              <DialogContent className="max-w-5xl">
-                <div className="p-2">
+              <DialogContent className="max-w-5xl w-[96vw] sm:w-auto p-3 sm:p-6">
+                <div className="max-h-[80vh] overflow-auto">
                   <SheetSvg
                     layout={active}
                     productW={productW}
@@ -483,6 +496,7 @@ export const LayoutPreview = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
+              className="mx-auto max-w-[640px]"
             >
               <SheetSvg
                 layout={active}
