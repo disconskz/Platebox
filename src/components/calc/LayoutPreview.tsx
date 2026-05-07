@@ -668,12 +668,12 @@ export const LayoutPreview = ({
         {/* === Список альтернатив с мини-превью + сортировка === */}
         {alternatives && alternatives.length > 0 && (
           <div className="rounded-lg border bg-card p-3 shadow-card">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                 Варианты раскладки
                 <HintIcon text="Все рассмотренные пары «закупочный → печатный формат». Нажмите на строку, чтобы увидеть схему этого варианта на превью выше." />
               </div>
-              <div className="flex gap-1 text-[10px]">
+              <div className="flex gap-0.5 rounded-md border bg-muted/40 p-0.5 text-[10px]">
                 {(["items", "price", "waste"] as SortMode[]).map((m) => {
                   const tip =
                     m === "items"
@@ -687,9 +687,9 @@ export const LayoutPreview = ({
                         type="button"
                         onClick={() => setSortMode(m)}
                         className={cn(
-                          "rounded px-1.5 py-0.5 uppercase tracking-wide transition",
+                          "rounded px-2 py-1 uppercase tracking-wide transition",
                           sortMode === m
-                            ? "bg-foreground text-background"
+                            ? "bg-background text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
                         )}
                       >
