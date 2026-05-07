@@ -264,13 +264,14 @@ const Calculator = () => {
   };
 
   // Подбор оптимальной печатной машины: формат + тираж + тип продукции + правила
+  type MachinePick = { machine: PressMachineRow | null; source: "rule" | "filter" | "fallback" | "none" };
   const autoPickMachine = (
     printW: number,
     printH: number,
     productType?: string,
     circulation?: number,
     printSheets?: number
-  ): PressMachineRow | null => {
+  ): MachinePick => {
     const active = pressMachines.filter((pm) => pm.is_active !== false);
 
     // 1) Явное правило для (productType, circulation)
@@ -281,7 +282,7 @@ const Calculator = () => {
         .sort((a, b) => a.sort_order - b.sort_order)[0];
       if (rule?.preferred_machine_id) {
         const pm = active.find((m) => m.id === rule.preferred_machine_id);
-        if (pm && fitsMachine(pm, printW, printH)) return pm;
+        if (pm && fitsMachine(pm, printW, printH)) return { machine: pm, source: "rule" };
       }
     }
 
@@ -308,14 +309,14 @@ const Calculator = () => {
       if (pa !== pb) return pa - pb;
       return a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height;
     });
-    if (candidates.length) return candidates[0];
+    if (candidates.length) return { machine: candidates[0], source: "filter" };
 
     // 3) Fallback: по формату только (старая логика)
     const sorted = [...active].sort(
       (a, b) => a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height
     );
-    for (const pm of sorted) if (fitsMachine(pm, printW, printH)) return pm;
-    return null;
+    for (const pm of sorted) if (fitsMachine(pm, printW, printH)) return { machine: pm, source: "fallback" };
+    return { machine: null, source: "none" };
   };
 
   // Подбор оптимального закупочного формата (минимальный, в который кратно укладывается печатный)
@@ -437,11 +438,24 @@ const Calculator = () => {
   }, [calcInput]);
 
   // Авто-выбранная машина по подобранному печатному формату
-  const autoMachine = useMemo<PressMachineRow | null>(() => {
-    if (!preResult || "error" in preResult) return null;
+  const autoMachinePick = useMemo<MachinePick>(() => {
+    if (!preResult || "error" in preResult) return { machine: null, source: "none" };
     const pf = preResult.layout.printFormat;
     return autoPickMachine(pf.width, pf.height, productType, circulation, preResult.printSheets);
   }, [preResult, pressMachines, circulationRules, productType, circulation]);
+  const autoMachine = autoMachinePick.machine;
+
+  // Toast при смене авто-машины
+  const prevMachineId = useRef<string | null>(null);
+  useEffect(() => {
+    if (advancedMode) return;
+    const id = autoMachine?.id ?? null;
+    if (prevMachineId.current && id && prevMachineId.current !== id) {
+      const t = autoMachine?.machine_type === "digital" ? "цифра" : "офсет";
+      toast.info(`Машина: ${autoMachine?.name} (${t}) — по тиражу ${circulation}`);
+    }
+    prevMachineId.current = id;
+  }, [autoMachine?.id, advancedMode, circulation]);
 
   // Финальный расчёт с подставленной ценой оттиска (либо авто, либо ручной из equipment)
   const baseResult = useMemo(() => {
