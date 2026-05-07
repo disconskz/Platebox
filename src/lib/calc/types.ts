@@ -133,9 +133,9 @@ export interface CalcResult {
 }
 
 export const DEFAULTS = {
-  marginLR: 2,
+  marginLR: 3,
   marginTop: 5,
-  marginBottom: 10,
+  marginBottom: 12,
   bleed: 3,
   maxPrintW: 520,
   maxPrintH: 360,
