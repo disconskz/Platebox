@@ -514,55 +514,79 @@ export const LayoutPreview = ({
         <div className="grid gap-3 sm:grid-cols-2">
           {/* Геометрия */}
           <div className="rounded-lg border bg-card p-4 shadow-card">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Геометрия
+              <HintIcon text="Параметры раскладки изделий на печатном листе и связь с закупочным." />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <div className="text-3xl font-bold leading-none text-foreground">
-                {activeAlt?.itemsPerPurchase ?? "—"}
+            <Hint text="Главный показатель эффективности раскладки — сколько готовых изделий получится из ОДНОГО закупочного листа бумаги. Чем больше, тем выгоднее.">
+              <div className="mt-2 flex cursor-help items-baseline gap-2">
+                <div className="text-3xl font-bold leading-none text-foreground">
+                  {activeAlt?.itemsPerPurchase ?? "—"}
+                </div>
+                <div className="text-xs text-muted-foreground">шт с закупочного</div>
               </div>
-              <div className="text-xs text-muted-foreground">шт с закупочного</div>
-            </div>
+            </Hint>
             <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-              <Row label="Печатный" value={`${W}×${H} мм`} />
+              <Row label="Печатный" value={`${W}×${H} мм`} hint="Размер листа, который идёт в печатную машину." />
               <Row
                 label="Закупочный"
                 value={activeAlt ? `${activeAlt.purchaseW}×${activeAlt.purchaseH}` : "—"}
+                hint="Размер листа, который покупаем у поставщика. Из него нарезается несколько печатных."
               />
-              <Row label="Раскладка" value={`${active.cols}×${active.rows}`} />
-              <Row label="Поворот" value={active.rotated ? "↻ да" : "нет"} />
-              <Row label="Шт/лист" value={`${active.itemsPerSheet}`} />
-              <Row label="Отходы" value={`${wastePct}%`} />
+              <Row
+                label="Раскладка"
+                value={`${active.cols}×${active.rows}`}
+                hint="Колонки × ряды изделий на печатном листе."
+              />
+              <Row
+                label="Поворот"
+                value={active.rotated ? "↻ да" : "нет"}
+                hint="Развёрнуты ли изделия на 90° для лучшего размещения."
+              />
+              <Row
+                label="Шт/лист"
+                value={`${active.itemsPerSheet}`}
+                hint="Сколько изделий помещается на ОДИН печатный лист."
+              />
+              <Row
+                label="Отходы"
+                value={`${wastePct}%`}
+                hint="Доля площади листа, которая уходит в обрезки. Чем меньше — тем лучше."
+              />
             </div>
           </div>
 
           {/* Экономика */}
           <div className="rounded-lg border bg-card p-4 shadow-card">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Экономика
+              <HintIcon text="Упрощённая стоимость варианта: бумага + печать. Без постпечати и логистики — только для сравнения раскладок." />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <div className="text-3xl font-bold leading-none text-foreground">
-                {fmt(activeAlt?.totalCost ?? mainCosts?.totalCost ?? 0)}
+            <Hint text="Себестоимость варианта раскладки (бумага + печать). Полная себестоимость со всеми операциями — в основном расчёте справа.">
+              <div className="mt-2 flex cursor-help items-baseline gap-2">
+                <div className="text-3xl font-bold leading-none text-foreground">
+                  {fmt(activeAlt?.totalCost ?? mainCosts?.totalCost ?? 0)}
+                </div>
+                <div className="text-xs text-muted-foreground">₸ итого</div>
               </div>
-              <div className="text-xs text-muted-foreground">₸ итого</div>
-            </div>
+            </Hint>
             <div className="mt-3 space-y-1.5 text-xs">
               {activeAlt ? (
                 <>
-                  <CostBar label="Печать" value={activeAlt.printCost} max={maxTotal} color="hsl(var(--primary))" />
-                  <CostBar label="Закуп" value={activeAlt.paperCost} max={maxTotal} color="hsl(var(--warning))" />
+                  <CostBar label="Печать" value={activeAlt.printCost} max={maxTotal} color="hsl(var(--primary))" hint="Стоимость оттисков (тираж × цена за оттиск, с учётом приладки и оборота)." />
+                  <CostBar label="Закуп" value={activeAlt.paperCost} max={maxTotal} color="hsl(var(--warning))" hint="Стоимость закупочной бумаги (нужное количество листов × цена за лист)." />
                   <CostBar
                     label="Отходы"
                     value={activeAlt.wasteCost}
                     max={maxTotal}
                     color="hsl(var(--destructive))"
+                    hint="Какая часть стоимости бумаги уходит в обрезки на печатном листе."
                   />
                 </>
               ) : mainCosts ? (
                 <>
-                  <CostBar label="Печать" value={mainCosts.printCost} max={maxTotal} color="hsl(var(--primary))" />
-                  <CostBar label="Закуп" value={mainCosts.paperCost} max={maxTotal} color="hsl(var(--warning))" />
+                  <CostBar label="Печать" value={mainCosts.printCost} max={maxTotal} color="hsl(var(--primary))" hint="Стоимость оттисков (тираж × цена за оттиск, с учётом приладки и оборота)." />
+                  <CostBar label="Закуп" value={mainCosts.paperCost} max={maxTotal} color="hsl(var(--warning))" hint="Стоимость закупочной бумаги (нужное количество листов × цена за лист)." />
                 </>
               ) : (
                 <div className="text-muted-foreground">—</div>
