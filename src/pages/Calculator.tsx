@@ -20,6 +20,7 @@ import MobileTabBar from "@/components/MobileTabBar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ChevronUp } from "lucide-react";
 import { HelpHint } from "@/components/HelpHint";
+import { cn } from "@/lib/utils";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
