@@ -554,9 +554,9 @@ export const LayoutPreview = ({
         )}
 
         {/* === Главная цифра + 2 колонки === */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
           {/* Геометрия */}
-          <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="rounded-lg border bg-card p-3 sm:p-4 shadow-card">
             <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Геометрия
               <HintIcon text="Параметры раскладки изделий на печатном листе и связь с закупочным." />
@@ -600,7 +600,7 @@ export const LayoutPreview = ({
           </div>
 
           {/* Экономика */}
-          <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="rounded-lg border bg-card p-3 sm:p-4 shadow-card">
             <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Экономика
               <HintIcon text="Упрощённая стоимость варианта: бумага + печать. Без постпечати и логистики — только для сравнения раскладок." />
