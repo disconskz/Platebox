@@ -736,26 +736,39 @@ export const LayoutPreview = ({
 
 /* ------------------------- Вспомогательные ------------------------- */
 
-const Row = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between border-b border-border/50 py-0.5 last:border-b-0">
-    <span className="text-muted-foreground">{label}</span>
-    <span className="font-medium text-foreground">{value}</span>
-  </div>
-);
+const Row = ({ label, value, hint }: { label: string; value: string; hint?: string }) => {
+  const content = (
+    <div className="flex items-center justify-between border-b border-border/50 py-0.5 last:border-b-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
+    </div>
+  );
+  if (!hint) return content;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="cursor-help">{content}</div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">{hint}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 const CostBar = ({
   label,
   value,
   max,
   color,
+  hint,
 }: {
   label: string;
   value: number;
   max: number;
   color: string;
+  hint?: string;
 }) => {
   const pct = max > 0 ? (value / max) * 100 : 0;
-  return (
+  const inner = (
     <div className="space-y-0.5">
       <div className="flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">{label}</span>
@@ -771,6 +784,15 @@ const CostBar = ({
         />
       </div>
     </div>
+  );
+  if (!hint) return inner;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="cursor-help">{inner}</div>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-xs text-xs leading-relaxed">{hint}</TooltipContent>
+    </Tooltip>
   );
 };
 
