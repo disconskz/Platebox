@@ -264,13 +264,14 @@ const Calculator = () => {
   };
 
   // Подбор оптимальной печатной машины: формат + тираж + тип продукции + правила
+  type MachinePick = { machine: PressMachineRow | null; source: "rule" | "filter" | "fallback" | "none" };
   const autoPickMachine = (
     printW: number,
     printH: number,
     productType?: string,
     circulation?: number,
     printSheets?: number
-  ): PressMachineRow | null => {
+  ): MachinePick => {
     const active = pressMachines.filter((pm) => pm.is_active !== false);
 
     // 1) Явное правило для (productType, circulation)
@@ -281,7 +282,7 @@ const Calculator = () => {
         .sort((a, b) => a.sort_order - b.sort_order)[0];
       if (rule?.preferred_machine_id) {
         const pm = active.find((m) => m.id === rule.preferred_machine_id);
-        if (pm && fitsMachine(pm, printW, printH)) return pm;
+        if (pm && fitsMachine(pm, printW, printH)) return { machine: pm, source: "rule" };
       }
     }
 
@@ -308,14 +309,14 @@ const Calculator = () => {
       if (pa !== pb) return pa - pb;
       return a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height;
     });
-    if (candidates.length) return candidates[0];
+    if (candidates.length) return { machine: candidates[0], source: "filter" };
 
     // 3) Fallback: по формату только (старая логика)
     const sorted = [...active].sort(
       (a, b) => a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height
     );
-    for (const pm of sorted) if (fitsMachine(pm, printW, printH)) return pm;
-    return null;
+    for (const pm of sorted) if (fitsMachine(pm, printW, printH)) return { machine: pm, source: "fallback" };
+    return { machine: null, source: "none" };
   };
 
   // Подбор оптимального закупочного формата (минимальный, в который кратно укладывается печатный)
@@ -437,11 +438,24 @@ const Calculator = () => {
   }, [calcInput]);
 
   // Авто-выбранная машина по подобранному печатному формату
-  const autoMachine = useMemo<PressMachineRow | null>(() => {
-    if (!preResult || "error" in preResult) return null;
+  const autoMachinePick = useMemo<MachinePick>(() => {
+    if (!preResult || "error" in preResult) return { machine: null, source: "none" };
     const pf = preResult.layout.printFormat;
     return autoPickMachine(pf.width, pf.height, productType, circulation, preResult.printSheets);
   }, [preResult, pressMachines, circulationRules, productType, circulation]);
+  const autoMachine = autoMachinePick.machine;
+
+  // Toast при смене авто-машины
+  const prevMachineId = useRef<string | null>(null);
+  useEffect(() => {
+    if (advancedMode) return;
+    const id = autoMachine?.id ?? null;
+    if (prevMachineId.current && id && prevMachineId.current !== id) {
+      const t = autoMachine?.machine_type === "digital" ? "цифра" : "офсет";
+      toast.info(`Машина: ${autoMachine?.name} (${t}) — по тиражу ${circulation}`);
+    }
+    prevMachineId.current = id;
+  }, [autoMachine?.id, advancedMode, circulation]);
 
   // Финальный расчёт с подставленной ценой оттиска (либо авто, либо ручной из equipment)
   const baseResult = useMemo(() => {
@@ -848,21 +862,37 @@ const Calculator = () => {
                           <div className="text-xs text-muted-foreground">
                             Закупочный формат: {effectiveMaterial.format_width}×{effectiveMaterial.format_height} мм · {fmtMoney(effectiveMaterial.cost_per_sheet)}/лист
                           </div>
-                          {autoMachine && preResult && !("error" in preResult) && (
+                          {preResult && !("error" in preResult) && autoMachine && (
                             <div className="text-xs text-muted-foreground">
                               Авто-машина: <span className="text-foreground font-medium">{autoMachine.name}</span>
                               {autoMachine.machine_type && (
-                                <span className="ml-1 inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                                <span className={`ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${autoMachine.machine_type === "digital" ? "bg-accent/20 text-accent-foreground" : "bg-primary/10 text-primary"}`}>
                                   {autoMachine.machine_type === "digital" ? "цифра" : "офсет"}
                                 </span>
                               )}
                               {" · "}печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
                               {(autoMachine.min_circulation != null || autoMachine.max_circulation != null) && (
                                 <div className="text-[11px] text-muted-foreground/80">
-                                  Диапазон тиражей: {autoMachine.min_circulation ?? 0}
+                                  Подходит для тиража: {autoMachine.min_circulation ?? 0}
                                   {autoMachine.max_circulation != null ? `–${autoMachine.max_circulation}` : "+"}
+                                  {" · "}выбрано: тираж {circulation}
                                 </div>
                               )}
+                              {autoMachinePick.source === "rule" && (
+                                <div className="text-[11px] text-primary">Подбор по правилу справочника</div>
+                              )}
+                              {autoMachinePick.source === "fallback" && (
+                                <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-warning">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Нет правила для тиража {circulation} — выбрана по формату
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {preResult && !("error" in preResult) && !autoMachine && (
+                            <div className="mt-1 inline-flex items-center gap-1 text-xs text-destructive">
+                              <AlertTriangle className="h-3 w-3" />
+                              Не нашли машину под формат {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} и тираж {circulation}
                             </div>
                           )}
                         </div>
