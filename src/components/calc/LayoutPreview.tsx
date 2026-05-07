@@ -626,25 +626,35 @@ export const LayoutPreview = ({
         {alternatives && alternatives.length > 0 && (
           <div className="rounded-lg border bg-card p-3 shadow-card">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                 Варианты раскладки
+                <HintIcon text="Все рассмотренные пары «закупочный → печатный формат». Нажмите на строку, чтобы увидеть схему этого варианта на превью выше." />
               </div>
               <div className="flex gap-1 text-[10px]">
-                {(["items", "price", "waste"] as SortMode[]).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setSortMode(m)}
-                    className={cn(
-                      "rounded px-1.5 py-0.5 uppercase tracking-wide transition",
-                      sortMode === m
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {m === "items" ? "шт" : m === "price" ? "цена" : "отходы"}
-                  </button>
-                ))}
+                {(["items", "price", "waste"] as SortMode[]).map((m) => {
+                  const tip =
+                    m === "items"
+                      ? "Сортировать по количеству изделий с одного закупочного листа (больше — лучше)."
+                      : m === "price"
+                      ? "Сортировать по итоговой стоимости варианта (дешевле — лучше)."
+                      : "Сортировать по доле отходов на печатном листе (меньше — лучше).";
+                  return (
+                    <Hint key={m} text={tip}>
+                      <button
+                        type="button"
+                        onClick={() => setSortMode(m)}
+                        className={cn(
+                          "rounded px-1.5 py-0.5 uppercase tracking-wide transition",
+                          sortMode === m
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {m === "items" ? "шт" : m === "price" ? "цена" : "отходы"}
+                      </button>
+                    </Hint>
+                  );
+                })}
               </div>
             </div>
             <div className="space-y-1.5">
@@ -652,13 +662,17 @@ export const LayoutPreview = ({
                 active={selected === -1}
                 onClick={() => setSelected(-1)}
                 mini={
-                  <MiniSheet layout={layout} printW={layout.printFormat.width} printH={layout.printFormat.height} />
+                  <Hint text="Схематичная раскладка изделий на этом печатном листе.">
+                    <span className="inline-flex"><MiniSheet layout={layout} printW={layout.printFormat.width} printH={layout.printFormat.height} /></span>
+                  </Hint>
                 }
                 title={
                   <>
-                    <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                      ★ Оптимально
-                    </span>{" "}
+                    <Hint text="Этот вариант выбран системой как оптимальный — даёт максимум готовых изделий с одного закупочного листа.">
+                      <span className="cursor-help rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        ★ Оптимально
+                      </span>
+                    </Hint>{" "}
                     Печ. {layout.printFormat.width}×{layout.printFormat.height}
                   </>
                 }
@@ -681,7 +695,11 @@ export const LayoutPreview = ({
                     key={i}
                     active={selected === i}
                     onClick={() => setSelected(i)}
-                    mini={<MiniSheet layout={a.layout} printW={a.printW} printH={a.printH} />}
+                    mini={
+                      <Hint text={`Раскладка ${a.layout.cols}×${a.layout.rows} на печатном листе ${a.printW}×${a.printH} мм.`}>
+                        <span className="inline-flex"><MiniSheet layout={a.layout} printW={a.printW} printH={a.printH} /></span>
+                      </Hint>
+                    }
                     title={
                       <>
                         Печ. {a.printW}×{a.printH}
@@ -695,22 +713,28 @@ export const LayoutPreview = ({
                         </span>
                         <span className="text-muted-foreground">{fmt(a.totalCost)} ₸</span>
                         {priceDelta > 0 && (
-                          <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-                            +{fmt(priceDelta)} ₸
-                          </span>
+                          <Hint text="Насколько этот вариант дороже основного.">
+                            <span className="cursor-help rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                              +{fmt(priceDelta)} ₸
+                            </span>
+                          </Hint>
                         )}
                         {itemDelta !== 0 && (
-                          <span
-                            className={cn(
-                              "rounded px-1.5 py-0.5 text-[10px] font-medium",
-                              itemDelta > 0
-                                ? "bg-success/15 text-success"
-                                : "bg-muted text-muted-foreground"
-                            )}
-                          >
-                            {itemDelta > 0 ? "+" : ""}
-                            {itemDelta} шт
-                          </span>
+                          <Hint text={itemDelta > 0
+                            ? "В этом варианте помещается больше изделий на ОДИН печатный лист (но с закупочного может быть меньше из-за раскроя)."
+                            : "В этом варианте на печатный лист помещается меньше изделий, чем в основном."}>
+                            <span
+                              className={cn(
+                                "cursor-help rounded px-1.5 py-0.5 text-[10px] font-medium",
+                                itemDelta > 0
+                                  ? "bg-success/15 text-success"
+                                  : "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {itemDelta > 0 ? "+" : ""}
+                              {itemDelta} шт
+                            </span>
+                          </Hint>
                         )}
                       </>
                     }
@@ -722,13 +746,23 @@ export const LayoutPreview = ({
         )}
 
         {/* === Техкарточка для печатника === */}
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
-          Печ. {W}×{H} · Бумага {activeAlt?.purchaseW ?? "—"}×{activeAlt?.purchaseH ?? "—"} · Раскладка{" "}
-          {active.cols}×{active.rows}
-          {active.rotated ? " (rot)" : ""} · Bleed 3 · Отступы{" "}
-          {active.margins.left}/{active.margins.right}/{active.margins.top}/{active.margins.bottom} ·{" "}
-          {active.itemsPerSheet} шт/лист
-        </div>
+        <Hint text="Сводка для печатника. Кликните, чтобы скопировать в буфер обмена и вставить в наряд-заказ.">
+          <button
+            type="button"
+            onClick={() => {
+              const text = `Печ. ${W}×${H} · Бумага ${activeAlt?.purchaseW ?? "—"}×${activeAlt?.purchaseH ?? "—"} · Раскладка ${active.cols}×${active.rows}${active.rotated ? " (rot)" : ""} · Bleed 3 · Отступы ${active.margins.left}/${active.margins.right}/${active.margins.top}/${active.margins.bottom} · ${active.itemsPerSheet} шт/лист`;
+              navigator.clipboard.writeText(text);
+              toast({ title: "Скопировано", description: "Техкарточка в буфере обмена" });
+            }}
+            className="w-full rounded-md border border-dashed bg-muted/30 px-3 py-2 text-left font-mono text-[11px] leading-relaxed text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+          >
+            Печ. {W}×{H} · Бумага {activeAlt?.purchaseW ?? "—"}×{activeAlt?.purchaseH ?? "—"} · Раскладка{" "}
+            {active.cols}×{active.rows}
+            {active.rotated ? " (rot)" : ""} · Bleed 3 · Отступы{" "}
+            {active.margins.left}/{active.margins.right}/{active.margins.top}/{active.margins.bottom} ·{" "}
+            {active.itemsPerSheet} шт/лист
+          </button>
+        </Hint>
       </div>
     </TooltipProvider>
   );
