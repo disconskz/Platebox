@@ -274,7 +274,39 @@ const Calculator = () => {
   ): MachinePick => {
     const active = pressMachines.filter((pm) => pm.is_active !== false);
 
-    // 1) Явное правило для (productType, circulation)
+    // 0) Жёсткие бизнес-правила по габаритам печатного листа и числу листов
+    const longSide = Math.max(printW, printH);
+    const shortSide = Math.min(printW, printH);
+    const fitsA3plus = longSide <= 520 && shortSide <= 360;
+    const fitsA2plus = longSide <= 720 && shortSide <= 520;
+    const findByMaxFormat = (w: number, h: number) =>
+      active.find(
+        (pm) =>
+          Math.max(pm.max_format_width, pm.max_format_height) === w &&
+          Math.min(pm.max_format_width, pm.max_format_height) === h
+      );
+    // > 720×520 → A1
+    if (!fitsA2plus) {
+      const a1 = findByMaxFormat(1040, 720);
+      if (a1) return { machine: a1, source: "rule" };
+    }
+    // > 520×360 → A2+
+    if (!fitsA3plus) {
+      const a2 = findByMaxFormat(720, 520);
+      if (a2) return { machine: a2, source: "rule" };
+    }
+    // Помещается в A3+: тираж листов >10000 → A2+, иначе A3+
+    if (fitsA3plus) {
+      if (printSheets != null && printSheets > 10000) {
+        const a2 = findByMaxFormat(720, 520);
+        if (a2) return { machine: a2, source: "rule" };
+      } else {
+        const a3 = findByMaxFormat(520, 360);
+        if (a3) return { machine: a3, source: "rule" };
+      }
+    }
+
+    // 1) Явное правило для (productType, circulation) из справочника
     if (productType && circulation != null) {
       const rule = circulationRules
         .filter((r) => r.product_type === productType)
@@ -393,6 +425,14 @@ const Calculator = () => {
 
   const calcInput: CalcInput | null = useMemo(() => {
     if (!effectiveMaterial) return null;
+    // «Свой оборот»: одинаковое чётное число цветов с обеих сторон, > 0
+    const ownIntent =
+      colorBack > 0 && colorFront === colorBack;
+    // Приоритетные печатные форматы по требованиям бизнеса
+    const priority = [
+      { width: 520, height: 360 },
+      { width: 460, height: 320 },
+    ];
     return {
       productType,
       circulation,
@@ -404,6 +444,8 @@ const Calculator = () => {
       material: effectiveMaterial,
       printFormats: printFormatList.length ? printFormatList : undefined,
       formatPairs: formatPairs.length ? formatPairs : undefined,
+      requireEvenItems: ownIntent,
+      priorityPrintFormats: priority,
       designQty,
       photoOutputUnitCost: 0,
       manualForms: manualForms === "" ? undefined : Number(manualForms),

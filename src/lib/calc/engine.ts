@@ -98,7 +98,8 @@ export function rankPairs(
   productW: number,
   productH: number,
   isSticker: boolean,
-  pairs: FormatPair[]
+  pairs: FormatPair[],
+  options?: { requireEvenItems?: boolean; priorityPrintFormats?: PrintFormat[] }
 ): Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> {
   const out: Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> = [];
   // Лимит максимального печатного формата (по правкам fortress: 520×360).
@@ -124,11 +125,35 @@ export function rankPairs(
     );
     out.push({ layout: l, pair: p, itemsPerPurchase: l.itemsPerSheet * nesting, nesting });
   }
-  out.sort((a, b) => {
+  // Опционально: оставляем только варианты с чётным числом изделий на лист
+  // (для печати «со своим оборотом»). Если ни одного — снимаем требование.
+  let pool = out;
+  if (options?.requireEvenItems) {
+    const even = out.filter((r) => r.layout.itemsPerSheet % 2 === 0);
+    if (even.length) pool = even;
+  }
+  // Приоритетные форматы: помечаем флагом
+  const isPriority = (p: FormatPair) => {
+    const list = options?.priorityPrintFormats;
+    if (!list || !list.length) return false;
+    return list.some(
+      (f) =>
+        (f.width === p.print.width && f.height === p.print.height) ||
+        (f.width === p.print.height && f.height === p.print.width)
+    );
+  };
+  pool.sort((a, b) => {
+    const pa = isPriority(a.pair) ? 0 : 1;
+    const pb = isPriority(b.pair) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
     if (b.itemsPerPurchase !== a.itemsPerPurchase) return b.itemsPerPurchase - a.itemsPerPurchase;
+    // Меньше отходов на изделие лучше
+    const wa = a.layout.wasteArea / Math.max(1, a.layout.itemsPerSheet);
+    const wb = b.layout.wasteArea / Math.max(1, b.layout.itemsPerSheet);
+    if (wa !== wb) return wa - wb;
     return a.pair.print.width * a.pair.print.height - b.pair.print.width * b.pair.print.height;
   });
-  return out;
+  return pool;
 }
 
 export function determineTurnaround(
@@ -195,7 +220,10 @@ export function runCalculation(input: CalcInput): CalcResult {
   let alternatives: CalcResult["alternatives"] = [];
   let rankedPairs: ReturnType<typeof rankPairs> = [];
   if (input.formatPairs && input.formatPairs.length) {
-    const ranked = rankPairs(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
+    const ranked = rankPairs(input.formatWidth, input.formatHeight, isSticker, input.formatPairs, {
+      requireEvenItems: input.requireEvenItems,
+      priorityPrintFormats: input.priorityPrintFormats,
+    });
     if (!ranked.length) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
     layout = ranked[0].layout;
     pickedPurchase = ranked[0].pair.purchase;
