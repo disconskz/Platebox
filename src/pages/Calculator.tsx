@@ -27,7 +27,32 @@ type LamRow = { film_type: string; size_range: string; cost_per_side: number };
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
-type PressMachineRow = { id: string; name: string; max_format_width: number; max_format_height: number; cost_per_impression: number; sort_order: number };
+type PressMachineRow = {
+  id: string;
+  name: string;
+  max_format_width: number;
+  max_format_height: number;
+  cost_per_impression: number;
+  sort_order: number;
+  machine_type?: string | null;
+  min_circulation?: number | null;
+  max_circulation?: number | null;
+  min_sheets?: number | null;
+  max_sheets?: number | null;
+  setup_sheets?: number | null;
+  setup_cost?: number | null;
+  product_types?: string[] | null;
+  priority?: number | null;
+  is_active?: boolean | null;
+};
+type CirculationRuleRow = {
+  id: string;
+  product_type: string;
+  min_circulation: number;
+  max_circulation: number | null;
+  preferred_machine_id: string | null;
+  sort_order: number;
+};
 type OperationRow = { id: string; name: string; category: string; subgroup: string | null; fixed_cost: number; variable_cost: number; unit: string | null };
 
 type ExtraOpState = { qty: number; price: number };
@@ -103,6 +128,7 @@ const Calculator = () => {
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
   const [pressMachines, setPressMachines] = useState<PressMachineRow[]>([]);
+  const [circulationRules, setCirculationRules] = useState<CirculationRuleRow[]>([]);
   const [operations, setOperations] = useState<OperationRow[]>([]);
   // выбранные операции из справочника: id -> { qty, price }
   const [extraOps, setExtraOps] = useState<Record<string, ExtraOpState>>({});
@@ -161,6 +187,7 @@ const Calculator = () => {
       const { data: pf } = await supabase.from("print_formats" as any).select("*").order("sort_order");
       const { data: buyf } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
       const { data: pm } = await supabase.from("press_machines" as any).select("*").order("sort_order");
+      const { data: rules } = await supabase.from("product_circulation_rules" as any).select("*").order("sort_order");
       const { data: ops } = await supabase.from("operations").select("*").order("subgroup").order("name");
       if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
@@ -169,6 +196,7 @@ const Calculator = () => {
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
       setPressMachines(((pm as any) || []) as PressMachineRow[]);
+      setCirculationRules(((rules as any) || []) as CirculationRuleRow[]);
       setOperations(((ops as any) || []) as OperationRow[]);
       if (m && m.length) setMaterialId((m[0] as Material).id);
       if (e && e.length) setEquipmentId((e[0] as Equipment).id);
@@ -226,18 +254,67 @@ const Calculator = () => {
   );
 
 
-  // Подбор оптимальной печатной машины по подобранному печатному формату
-  const autoPickMachine = (printW: number, printH: number): PressMachineRow | null => {
+  // Помещается ли печатный лист в формат машины (с учётом поворота)
+  const fitsMachine = (pm: PressMachineRow, printW: number, printH: number) => {
     const fitW = Math.max(printW, printH);
     const fitH = Math.min(printW, printH);
-    const sorted = [...pressMachines].sort(
+    const mW = Math.max(pm.max_format_width, pm.max_format_height);
+    const mH = Math.min(pm.max_format_width, pm.max_format_height);
+    return fitW <= mW && fitH <= mH;
+  };
+
+  // Подбор оптимальной печатной машины: формат + тираж + тип продукции + правила
+  const autoPickMachine = (
+    printW: number,
+    printH: number,
+    productType?: string,
+    circulation?: number,
+    printSheets?: number
+  ): PressMachineRow | null => {
+    const active = pressMachines.filter((pm) => pm.is_active !== false);
+
+    // 1) Явное правило для (productType, circulation)
+    if (productType && circulation != null) {
+      const rule = circulationRules
+        .filter((r) => r.product_type === productType)
+        .filter((r) => circulation >= (r.min_circulation || 0) && (r.max_circulation == null || circulation <= r.max_circulation))
+        .sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (rule?.preferred_machine_id) {
+        const pm = active.find((m) => m.id === rule.preferred_machine_id);
+        if (pm && fitsMachine(pm, printW, printH)) return pm;
+      }
+    }
+
+    // 2) Фильтруем по всем условиям
+    const candidates = active.filter((pm) => {
+      if (!fitsMachine(pm, printW, printH)) return false;
+      if (circulation != null) {
+        if ((pm.min_circulation ?? 0) > circulation) return false;
+        if (pm.max_circulation != null && pm.max_circulation < circulation) return false;
+      }
+      if (printSheets != null) {
+        if ((pm.min_sheets ?? 0) > printSheets) return false;
+        if (pm.max_sheets != null && pm.max_sheets < printSheets) return false;
+      }
+      if (productType && pm.product_types && pm.product_types.length > 0) {
+        if (!pm.product_types.includes(productType)) return false;
+      }
+      return true;
+    });
+
+    candidates.sort((a, b) => {
+      const pa = a.priority ?? 100;
+      const pb = b.priority ?? 100;
+      if (pa !== pb) return pa - pb;
+      return a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height;
+    });
+    if (candidates.length) return candidates[0];
+
+    // 3) Fallback: по формату только (старая логика)
+    const sorted = [...active].sort(
       (a, b) => a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height
     );
-    for (const pm of sorted) {
-      const mW = Math.max(pm.max_format_width, pm.max_format_height);
-      const mH = Math.min(pm.max_format_width, pm.max_format_height);
-      if (fitW <= mW && fitH <= mH) return pm;
-    }
+    for (const pm of sorted) if (fitsMachine(pm, printW, printH)) return pm;
     return null;
   };
 
@@ -363,8 +440,8 @@ const Calculator = () => {
   const autoMachine = useMemo<PressMachineRow | null>(() => {
     if (!preResult || "error" in preResult) return null;
     const pf = preResult.layout.printFormat;
-    return autoPickMachine(pf.width, pf.height);
-  }, [preResult, pressMachines]);
+    return autoPickMachine(pf.width, pf.height, productType, circulation, preResult.printSheets);
+  }, [preResult, pressMachines, circulationRules, productType, circulation]);
 
   // Финальный расчёт с подставленной ценой оттиска (либо авто, либо ручной из equipment)
   const baseResult = useMemo(() => {
@@ -773,7 +850,19 @@ const Calculator = () => {
                           </div>
                           {autoMachine && preResult && !("error" in preResult) && (
                             <div className="text-xs text-muted-foreground">
-                              Авто-машина: <span className="text-foreground font-medium">{autoMachine.name}</span> · печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
+                              Авто-машина: <span className="text-foreground font-medium">{autoMachine.name}</span>
+                              {autoMachine.machine_type && (
+                                <span className="ml-1 inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                                  {autoMachine.machine_type === "digital" ? "цифра" : "офсет"}
+                                </span>
+                              )}
+                              {" · "}печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
+                              {(autoMachine.min_circulation != null || autoMachine.max_circulation != null) && (
+                                <div className="text-[11px] text-muted-foreground/80">
+                                  Диапазон тиражей: {autoMachine.min_circulation ?? 0}
+                                  {autoMachine.max_circulation != null ? `–${autoMachine.max_circulation}` : "+"}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

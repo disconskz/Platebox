@@ -463,27 +463,57 @@ export type Database = {
           cost_per_impression: number
           created_at: string
           id: string
+          is_active: boolean
+          machine_type: string
+          max_circulation: number | null
           max_format_height: number
           max_format_width: number
+          max_sheets: number | null
+          min_circulation: number
+          min_sheets: number
           name: string
+          priority: number
+          product_types: string[] | null
+          setup_cost: number
+          setup_sheets: number
           sort_order: number
         }
         Insert: {
           cost_per_impression?: number
           created_at?: string
           id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_circulation?: number | null
           max_format_height: number
           max_format_width: number
+          max_sheets?: number | null
+          min_circulation?: number
+          min_sheets?: number
           name: string
+          priority?: number
+          product_types?: string[] | null
+          setup_cost?: number
+          setup_sheets?: number
           sort_order?: number
         }
         Update: {
           cost_per_impression?: number
           created_at?: string
           id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_circulation?: number | null
           max_format_height?: number
           max_format_width?: number
+          max_sheets?: number | null
+          min_circulation?: number
+          min_sheets?: number
           name?: string
+          priority?: number
+          product_types?: string[] | null
+          setup_cost?: number
+          setup_sheets?: number
           sort_order?: number
         }
         Relationships: []
@@ -519,6 +549,44 @@ export type Database = {
             columns: ["purchase_format_id"]
             isOneToOne: false
             referencedRelation: "purchase_formats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_circulation_rules: {
+        Row: {
+          created_at: string
+          id: string
+          max_circulation: number | null
+          min_circulation: number
+          preferred_machine_id: string | null
+          product_type: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_circulation?: number | null
+          min_circulation?: number
+          preferred_machine_id?: string | null
+          product_type: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_circulation?: number | null
+          min_circulation?: number
+          preferred_machine_id?: string | null
+          product_type?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_circulation_rules_preferred_machine_id_fkey"
+            columns: ["preferred_machine_id"]
+            isOneToOne: false
+            referencedRelation: "press_machines"
             referencedColumns: ["id"]
           },
         ]
