@@ -128,6 +128,7 @@ const Calculator = () => {
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
   const [pressMachines, setPressMachines] = useState<PressMachineRow[]>([]);
+  const [circulationRules, setCirculationRules] = useState<CirculationRuleRow[]>([]);
   const [operations, setOperations] = useState<OperationRow[]>([]);
   // выбранные операции из справочника: id -> { qty, price }
   const [extraOps, setExtraOps] = useState<Record<string, ExtraOpState>>({});
