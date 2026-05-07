@@ -87,30 +87,48 @@ export function bestPair(
   isSticker: boolean,
   pairs: FormatPair[]
 ): { layout: LayoutResult; pair: FormatPair } | null {
-  let best: { layout: LayoutResult; pair: FormatPair } | null = null;
-  let bestItemsPerPurchase = -1;
-  let bestPrintArea = Infinity;
-  for (const p of pairs) {
+  const ranked = rankPairs(productW, productH, isSticker, pairs);
+  return ranked[0] ?? null;
+}
+
+/**
+ * Ранжирует все пары: max изделий с закупочного, тай-брейк — меньший печатный формат.
+ */
+export function rankPairs(
+  productW: number,
+  productH: number,
+  isSticker: boolean,
+  pairs: FormatPair[]
+): Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> {
+  const out: Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> = [];
+  // Лимит максимального печатного формата (по правкам fortress: 520×360).
+  // Если изделие физически не помещается в этот лимит — лимит снимается,
+  // чтобы не блокировать большие тиражи (плакаты и т.п.).
+  const maxArea = DEFAULTS.maxPrintW * DEFAULTS.maxPrintH;
+  const productFitsInLimit = (() => {
+    const w = Math.min(productW, productH);
+    const h = Math.max(productW, productH);
+    const lw = Math.min(DEFAULTS.maxPrintW, DEFAULTS.maxPrintH);
+    const lh = Math.max(DEFAULTS.maxPrintW, DEFAULTS.maxPrintH);
+    return w + 2 * DEFAULTS.bleed <= lw && h + 2 * DEFAULTS.bleed <= lh;
+  })();
+  const filtered = productFitsInLimit
+    ? pairs.filter((p) => p.print.width * p.print.height <= maxArea)
+    : pairs;
+  for (const p of (filtered.length ? filtered : pairs)) {
     const l = calculateLayout(productW, productH, p.print.width, p.print.height, isSticker);
     if (!l) continue;
     const nesting = Math.max(
       1,
       nestingPurchaseToPrint(p.purchase.width, p.purchase.height, p.print.width, p.print.height)
     );
-    const itemsPerPurchase = l.itemsPerSheet * nesting;
-    const printArea = p.print.width * p.print.height;
-    // Главный критерий: максимум готовых изделий с одного закупочного листа.
-    // Тай-брейк: меньший печатный формат (А3 в приоритете перед А2).
-    if (
-      itemsPerPurchase > bestItemsPerPurchase ||
-      (itemsPerPurchase === bestItemsPerPurchase && printArea < bestPrintArea)
-    ) {
-      bestItemsPerPurchase = itemsPerPurchase;
-      bestPrintArea = printArea;
-      best = { layout: l, pair: p };
-    }
+    out.push({ layout: l, pair: p, itemsPerPurchase: l.itemsPerSheet * nesting, nesting });
   }
-  return best;
+  out.sort((a, b) => {
+    if (b.itemsPerPurchase !== a.itemsPerPurchase) return b.itemsPerPurchase - a.itemsPerPurchase;
+    return a.pair.print.width * a.pair.print.height - b.pair.print.width * b.pair.print.height;
+  });
+  return out;
 }
 
 export function determineTurnaround(
@@ -174,11 +192,20 @@ export function runCalculation(input: CalcInput): CalcResult {
   // автоматически переопределяем закупочный формат материала.
   let layout: LayoutResult | null;
   let pickedPurchase: PrintFormat | null = null;
+  let alternatives: CalcResult["alternatives"] = [];
   if (input.formatPairs && input.formatPairs.length) {
-    const r = bestPair(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
-    if (!r) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
-    layout = r.layout;
-    pickedPurchase = r.pair.purchase;
+    const ranked = rankPairs(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
+    if (!ranked.length) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
+    layout = ranked[0].layout;
+    pickedPurchase = ranked[0].pair.purchase;
+    alternatives = ranked.slice(1, 4).map((r) => ({
+      printW: r.pair.print.width,
+      printH: r.pair.print.height,
+      purchaseW: r.pair.purchase.width,
+      purchaseH: r.pair.purchase.height,
+      itemsPerSheet: r.layout.itemsPerSheet,
+      itemsPerPurchase: r.itemsPerPurchase,
+    }));
   } else {
     layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);
     if (!layout) throw new Error("Изделие не вмещается в печатный лист. Выберите другой формат.");
@@ -351,6 +378,7 @@ export function runCalculation(input: CalcInput): CalcResult {
     vatAmount,
     totalWithVat,
     warnings,
+    alternatives,
   };
 }
 
