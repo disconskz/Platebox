@@ -178,6 +178,7 @@ export function runCalculation(input: CalcInput): CalcResult {
   // автоматически переопределяем закупочный формат материала.
   let layout: LayoutResult | null;
   let pickedPurchase: PrintFormat | null = null;
+  let alternatives: CalcResult["alternatives"] = [];
   if (input.formatPairs && input.formatPairs.length) {
     const ranked = rankPairs(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
     if (!ranked.length) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
