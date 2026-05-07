@@ -257,9 +257,31 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
         </Select>
       );
     }
-    if (col.t === "select") {
+    if (col.t === "multiselect") {
+      const arr: string[] = Array.isArray(value) ? value : [];
+      const toggle = (opt: string) => {
+        const next = arr.includes(opt) ? arr.filter((x) => x !== opt) : [...arr, opt];
+        onChange(next.length ? next : null);
+      };
       return (
-        <Select value={String(value ?? "")} onValueChange={onChange}>
+        <div className="flex flex-wrap gap-1 max-w-[260px]">
+          {col.opts.map((o: string) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => toggle(o)}
+              className={`text-[10px] px-1.5 py-0.5 rounded border ${arr.includes(o) ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground"}`}
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    if (col.t === "select") {
+      const isBool = col.opts.length === 2 && col.opts[0] === "true" && col.opts[1] === "false";
+      return (
+        <Select value={String(value ?? "")} onValueChange={(v) => onChange(isBool ? v === "true" : v)}>
           <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
           <SelectContent>{col.opts.map((o: string) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
         </Select>
