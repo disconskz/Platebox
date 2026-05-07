@@ -487,6 +487,30 @@ const Calculator = () => {
   }, [preResult, pressMachines, circulationRules, productType, circulation]);
   const autoMachine = autoMachinePick.machine;
 
+  // Является ли подобранный печатный формат приоритетным (520×360 / 460×320)
+  const isPriorityFormat = useMemo(() => {
+    if (!preResult || "error" in preResult) return false;
+    const w = preResult.layout.printFormat.width;
+    const h = preResult.layout.printFormat.height;
+    const key = `${Math.max(w, h)}x${Math.min(w, h)}`;
+    return key === "520x360" || key === "460x320";
+  }, [preResult]);
+
+  // Причина выбора A2+ (габарит изделия / большой тираж листов)
+  const a2Reason = useMemo<null | "size" | "volume">(() => {
+    if (!preResult || "error" in preResult || !autoMachine) return null;
+    const isA2 =
+      Math.max(autoMachine.max_format_width, autoMachine.max_format_height) === 720 &&
+      Math.min(autoMachine.max_format_width, autoMachine.max_format_height) === 520;
+    if (!isA2) return null;
+    const w = preResult.layout.printFormat.width;
+    const h = preResult.layout.printFormat.height;
+    const fitsA3plus = Math.max(w, h) <= 520 && Math.min(w, h) <= 360;
+    if (!fitsA3plus) return "size";
+    if (preResult.printSheets > 10000) return "volume";
+    return null;
+  }, [preResult, autoMachine]);
+
   // Toast при смене авто-машины
   const prevMachineId = useRef<string | null>(null);
   useEffect(() => {
@@ -913,6 +937,16 @@ const Calculator = () => {
                                 </span>
                               )}
                               {" · "}печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
+                              {isPriorityFormat && (
+                                <span className="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-primary/10 text-primary">
+                                  приоритет
+                                </span>
+                              )}
+                              {a2Reason && (
+                                <div className="text-[11px] text-primary">
+                                  Переключено на A2+: {a2Reason === "size" ? "формат изделия > 520×360" : `тираж листов > 10000 (${fmtNum(preResult.printSheets)})`}
+                                </div>
+                              )}
                               {(autoMachine.min_circulation != null || autoMachine.max_circulation != null) && (
                                 <div className="text-[11px] text-muted-foreground/80">
                                   Подходит для тиража: {autoMachine.min_circulation ?? 0}
@@ -1036,7 +1070,17 @@ const Calculator = () => {
                   Раскладка подбирается автоматически из печатных форматов справочника. Превью справа.
                   {result && !("error" in result) && (
                     <div className="mt-4 grid grid-cols-2 gap-3 text-foreground">
-                      <Stat label="Печатный формат" value={`${result.layout.printFormat.width}×${result.layout.printFormat.height}`} />
+                       <div className="rounded-md border bg-card p-2">
+                         <div className="text-xs text-muted-foreground">Печатный формат</div>
+                         <div className="text-sm font-medium flex items-center gap-2">
+                           {result.layout.printFormat.width}×{result.layout.printFormat.height}
+                           {isPriorityFormat && (
+                             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-primary/10 text-primary">
+                               приоритет
+                             </span>
+                           )}
+                         </div>
+                       </div>
                       <Stat label="Тип оборота" value={result.turnaround === "none" ? "Без оборота" : result.turnaround === "own" ? "Свой" : "Чужой"} />
                       <Stat label="Форм" value={String(result.forms)} />
                       <Stat label="Приладка" value={`${result.setupSheets} л.`} />
