@@ -187,6 +187,7 @@ const Calculator = () => {
       const { data: pf } = await supabase.from("print_formats" as any).select("*").order("sort_order");
       const { data: buyf } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
       const { data: pm } = await supabase.from("press_machines" as any).select("*").order("sort_order");
+      const { data: rules } = await supabase.from("product_circulation_rules" as any).select("*").order("sort_order");
       const { data: ops } = await supabase.from("operations").select("*").order("subgroup").order("name");
       if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
@@ -195,6 +196,7 @@ const Calculator = () => {
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
       setPressMachines(((pm as any) || []) as PressMachineRow[]);
+      setCirculationRules(((rules as any) || []) as CirculationRuleRow[]);
       setOperations(((ops as any) || []) as OperationRow[]);
       if (m && m.length) setMaterialId((m[0] as Material).id);
       if (e && e.length) setEquipmentId((e[0] as Equipment).id);
