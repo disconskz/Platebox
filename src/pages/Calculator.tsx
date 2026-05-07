@@ -862,21 +862,37 @@ const Calculator = () => {
                           <div className="text-xs text-muted-foreground">
                             Закупочный формат: {effectiveMaterial.format_width}×{effectiveMaterial.format_height} мм · {fmtMoney(effectiveMaterial.cost_per_sheet)}/лист
                           </div>
-                          {autoMachine && preResult && !("error" in preResult) && (
+                          {preResult && !("error" in preResult) && autoMachine && (
                             <div className="text-xs text-muted-foreground">
                               Авто-машина: <span className="text-foreground font-medium">{autoMachine.name}</span>
                               {autoMachine.machine_type && (
-                                <span className="ml-1 inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                                <span className={`ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${autoMachine.machine_type === "digital" ? "bg-accent/20 text-accent-foreground" : "bg-primary/10 text-primary"}`}>
                                   {autoMachine.machine_type === "digital" ? "цифра" : "офсет"}
                                 </span>
                               )}
                               {" · "}печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
                               {(autoMachine.min_circulation != null || autoMachine.max_circulation != null) && (
                                 <div className="text-[11px] text-muted-foreground/80">
-                                  Диапазон тиражей: {autoMachine.min_circulation ?? 0}
+                                  Подходит для тиража: {autoMachine.min_circulation ?? 0}
                                   {autoMachine.max_circulation != null ? `–${autoMachine.max_circulation}` : "+"}
+                                  {" · "}выбрано: тираж {circulation}
                                 </div>
                               )}
+                              {autoMachinePick.source === "rule" && (
+                                <div className="text-[11px] text-primary">Подбор по правилу справочника</div>
+                              )}
+                              {autoMachinePick.source === "fallback" && (
+                                <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-warning">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Нет правила для тиража {circulation} — выбрана по формату
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {preResult && !("error" in preResult) && !autoMachine && (
+                            <div className="mt-1 inline-flex items-center gap-1 text-xs text-destructive">
+                              <AlertTriangle className="h-3 w-3" />
+                              Не нашли машину под формат {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} и тираж {circulation}
                             </div>
                           )}
                         </div>
