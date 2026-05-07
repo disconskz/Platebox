@@ -393,6 +393,14 @@ const Calculator = () => {
 
   const calcInput: CalcInput | null = useMemo(() => {
     if (!effectiveMaterial) return null;
+    // «Свой оборот»: одинаковое чётное число цветов с обеих сторон, > 0
+    const ownIntent =
+      colorBack > 0 && colorFront === colorBack;
+    // Приоритетные печатные форматы по требованиям бизнеса
+    const priority = [
+      { width: 520, height: 360 },
+      { width: 460, height: 320 },
+    ];
     return {
       productType,
       circulation,
@@ -404,6 +412,8 @@ const Calculator = () => {
       material: effectiveMaterial,
       printFormats: printFormatList.length ? printFormatList : undefined,
       formatPairs: formatPairs.length ? formatPairs : undefined,
+      requireEvenItems: ownIntent,
+      priorityPrintFormats: priority,
       designQty,
       photoOutputUnitCost: 0,
       manualForms: manualForms === "" ? undefined : Number(manualForms),
