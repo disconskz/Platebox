@@ -133,7 +133,7 @@ export interface CalcResult {
 }
 
 export const DEFAULTS = {
-  marginLR: 2,
+  marginLR: 3,
   marginTop: 5,
   marginBottom: 12,
   bleed: 3,
