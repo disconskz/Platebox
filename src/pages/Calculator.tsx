@@ -1010,6 +1010,33 @@ const Calculator = () => {
                 </CardContent>
                 <div className="border-t p-4 space-y-3 bg-gradient-subtle rounded-b-lg">
                   <Row label="Себестоимость" value={fmtMoney(totalCost)} />
+                  {/* Структура себестоимости: бумага / печать / прочее */}
+                  {totalCost > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="bg-primary"
+                          style={{ width: `${Math.min(100, (result.paperCost / totalCost) * 100)}%` }}
+                          title={`Бумага: ${fmtMoney(result.paperCost)}`}
+                        />
+                        <div
+                          className="bg-success/80"
+                          style={{ width: `${Math.min(100, (result.printCost / totalCost) * 100)}%` }}
+                          title={`Печать: ${fmtMoney(result.printCost)}`}
+                        />
+                        <div
+                          className="bg-warning/80"
+                          style={{ width: `${Math.max(0, 100 - ((result.paperCost + result.printCost) / totalCost) * 100)}%` }}
+                          title="Прочее"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" /> Бумага {Math.round((result.paperCost / totalCost) * 100)}%</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success/80" /> Печать {Math.round((result.printCost / totalCost) * 100)}%</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning/80" /> Прочее {Math.max(0, 100 - Math.round(((result.paperCost + result.printCost) / totalCost) * 100))}%</span>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span className="inline-flex items-center">
