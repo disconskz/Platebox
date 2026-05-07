@@ -254,18 +254,67 @@ const Calculator = () => {
   );
 
 
-  // Подбор оптимальной печатной машины по подобранному печатному формату
-  const autoPickMachine = (printW: number, printH: number): PressMachineRow | null => {
+  // Помещается ли печатный лист в формат машины (с учётом поворота)
+  const fitsMachine = (pm: PressMachineRow, printW: number, printH: number) => {
     const fitW = Math.max(printW, printH);
     const fitH = Math.min(printW, printH);
-    const sorted = [...pressMachines].sort(
+    const mW = Math.max(pm.max_format_width, pm.max_format_height);
+    const mH = Math.min(pm.max_format_width, pm.max_format_height);
+    return fitW <= mW && fitH <= mH;
+  };
+
+  // Подбор оптимальной печатной машины: формат + тираж + тип продукции + правила
+  const autoPickMachine = (
+    printW: number,
+    printH: number,
+    productType?: string,
+    circulation?: number,
+    printSheets?: number
+  ): PressMachineRow | null => {
+    const active = pressMachines.filter((pm) => pm.is_active !== false);
+
+    // 1) Явное правило для (productType, circulation)
+    if (productType && circulation != null) {
+      const rule = circulationRules
+        .filter((r) => r.product_type === productType)
+        .filter((r) => circulation >= (r.min_circulation || 0) && (r.max_circulation == null || circulation <= r.max_circulation))
+        .sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (rule?.preferred_machine_id) {
+        const pm = active.find((m) => m.id === rule.preferred_machine_id);
+        if (pm && fitsMachine(pm, printW, printH)) return pm;
+      }
+    }
+
+    // 2) Фильтруем по всем условиям
+    const candidates = active.filter((pm) => {
+      if (!fitsMachine(pm, printW, printH)) return false;
+      if (circulation != null) {
+        if ((pm.min_circulation ?? 0) > circulation) return false;
+        if (pm.max_circulation != null && pm.max_circulation < circulation) return false;
+      }
+      if (printSheets != null) {
+        if ((pm.min_sheets ?? 0) > printSheets) return false;
+        if (pm.max_sheets != null && pm.max_sheets < printSheets) return false;
+      }
+      if (productType && pm.product_types && pm.product_types.length > 0) {
+        if (!pm.product_types.includes(productType)) return false;
+      }
+      return true;
+    });
+
+    candidates.sort((a, b) => {
+      const pa = a.priority ?? 100;
+      const pb = b.priority ?? 100;
+      if (pa !== pb) return pa - pb;
+      return a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height;
+    });
+    if (candidates.length) return candidates[0];
+
+    // 3) Fallback: по формату только (старая логика)
+    const sorted = [...active].sort(
       (a, b) => a.max_format_width * a.max_format_height - b.max_format_width * b.max_format_height
     );
-    for (const pm of sorted) {
-      const mW = Math.max(pm.max_format_width, pm.max_format_height);
-      const mH = Math.min(pm.max_format_width, pm.max_format_height);
-      if (fitW <= mW && fitH <= mH) return pm;
-    }
+    for (const pm of sorted) if (fitsMachine(pm, printW, printH)) return pm;
     return null;
   };
 
