@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -306,6 +306,71 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const fromIdx = rows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const toIdx = Math.min(currentPage * PAGE_SIZE, rows.length);
 
+  // Валидация диапазонов тиражей (для press_machines и product_circulation_rules)
+  const rangeValidation = useMemo(() => {
+    const errors = new Map<string, string[]>();          // блокирующие (min > max)
+    const warnings = new Map<string, string[]>();        // пересечения
+    const push = (map: Map<string, string[]>, id: string, msg: string) => {
+      const cur = map.get(id) || [];
+      if (!cur.includes(msg)) cur.push(msg);
+      map.set(id, cur);
+    };
+    const isRange = spec.key === "press_machines" || spec.key === "product_circulation_rules";
+    if (!isRange) return { errors, warnings };
+
+    const all = rows.filter((r) => spec.key === "press_machines" ? r.is_active !== false : true);
+    for (const r of all) {
+      const min = Number(r.min_circulation ?? 0);
+      const max = r.max_circulation == null ? null : Number(r.max_circulation);
+      if (max != null && min > max) push(errors, r[pk], `«Тираж от» (${min}) больше «до» (${max})`);
+    }
+    // Пересечения попарно
+    const overlap = (aMin: number, aMax: number | null, bMin: number, bMax: number | null) => {
+      const aHi = aMax ?? Infinity;
+      const bHi = bMax ?? Infinity;
+      return aMin <= bHi && bMin <= aHi;
+    };
+    const groupKey = (r: AnyRow) =>
+      spec.key === "product_circulation_rules" ? String(r.product_type || "") : "all";
+    const groups = new Map<string, AnyRow[]>();
+    for (const r of all) {
+      const k = groupKey(r);
+      const list = groups.get(k) || [];
+      list.push(r);
+      groups.set(k, list);
+    }
+    for (const [, list] of groups) {
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          const a = list[i], b = list[j];
+          const aMin = Number(a.min_circulation ?? 0);
+          const aMax = a.max_circulation == null ? null : Number(a.max_circulation);
+          const bMin = Number(b.min_circulation ?? 0);
+          const bMax = b.max_circulation == null ? null : Number(b.max_circulation);
+          if (overlap(aMin, aMax, bMin, bMax)) {
+            const label = (r: AnyRow) =>
+              spec.key === "press_machines" ? (r.name || "—") : `тираж ${r.min_circulation ?? 0}–${r.max_circulation ?? "∞"}`;
+            push(warnings, a[pk], `Пересечение с «${label(b)}»`);
+            push(warnings, b[pk], `Пересечение с «${label(a)}»`);
+          }
+        }
+      }
+    }
+    return { errors, warnings };
+  }, [rows, spec.key, pk]);
+
+  const guardedSave = async (row: AnyRow) => {
+    const errs = rangeValidation.errors.get(row[pk]);
+    if (errs && errs.length) { toast.error(errs.join("; ")); return; }
+    return save(row);
+  };
+  const guardedAdd = async () => {
+    const min = Number(draft.min_circulation ?? 0);
+    const max = draft.max_circulation == null || draft.max_circulation === "" ? null : Number(draft.max_circulation);
+    if (max != null && min > max) { toast.error(`«Тираж от» (${min}) больше «до» (${max})`); return; }
+    return add();
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3"><CardTitle className="text-base">{spec.title}</CardTitle></CardHeader>
@@ -323,21 +388,42 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
                 {spec.cols.map((c: any) => (
                   <td key={c.k} className="p-1.5">{renderField(c, draft[c.k], (v) => setDraft({ ...draft, [c.k]: v }))}</td>
                 ))}
-                <td className="p-1.5 text-right"><Button size="sm" onClick={add}><Plus className="h-3.5 w-3.5" /></Button></td>
+                <td className="p-1.5 text-right"><Button size="sm" onClick={guardedAdd}><Plus className="h-3.5 w-3.5" /></Button></td>
               </tr>
-              {pageRows.map((row) => (
-                <tr key={row[pk]} className="border-t">
-                  {spec.cols.map((c: any) => (
-                    <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
-                  ))}
-                  <td className="p-1.5 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="outline" onClick={() => save(row)}><Save className="h-3.5 w-3.5" /></Button>
-                      <Button size="sm" variant="outline" onClick={() => remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {pageRows.map((row) => {
+                const errs = rangeValidation.errors.get(row[pk]) || [];
+                const warns = rangeValidation.warnings.get(row[pk]) || [];
+                const rowCls = errs.length
+                  ? "border-t bg-destructive/5"
+                  : warns.length
+                    ? "border-t bg-warning/5"
+                    : "border-t";
+                return (
+                  <Fragment key={row[pk]}>
+                    <tr className={rowCls}>
+                      {spec.cols.map((c: any) => (
+                        <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
+                      ))}
+                      <td className="p-1.5 text-right">
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" variant="outline" onClick={() => guardedSave(row)} disabled={errs.length > 0}><Save className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="outline" onClick={() => remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                    {(errs.length > 0 || warns.length > 0) && (
+                      <tr className={errs.length ? "bg-destructive/5" : "bg-warning/5"}>
+                        <td colSpan={spec.cols.length + 1} className="px-3 py-1.5">
+                          <div className={`flex items-start gap-1.5 text-[11px] ${errs.length ? "text-destructive" : "text-warning"}`}>
+                            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <div>{[...errs, ...warns].join(" · ")}</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
               {rows.length === 0 && (
                 <tr className="border-t">
                   <td colSpan={spec.cols.length + 1} className="p-4 text-center text-xs text-muted-foreground">
