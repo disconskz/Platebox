@@ -16,23 +16,34 @@ type AnyRow = Record<string, any>;
 // Динамические опции (загружаются из БД) для select-полей со ссылками на другие таблицы
 type DynamicOptions = {
   purchase_formats?: { value: string; label: string }[];
+  press_machines?: { value: string; label: string }[];
 };
 
 const useDynamicOptions = (): DynamicOptions => {
   const [opts, setOpts] = useState<DynamicOptions>({});
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order");
+      const [{ data: pf }, { data: pm }] = await Promise.all([
+        (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"),
+        (supabase as any).from("press_machines").select("id,name").order("sort_order"),
+      ]);
       setOpts({
-        purchase_formats: ((data as any[]) || []).map((r) => ({
+        purchase_formats: ((pf as any[]) || []).map((r) => ({
           value: r.id,
           label: `${r.width} × ${r.height}`,
         })),
+        press_machines: ((pm as any[]) || []).map((r) => ({ value: r.id, label: r.name })),
       });
     })();
   }, []);
   return opts;
 };
+
+const PRODUCT_TYPE_OPTS = [
+  "leaflet","leaflet_diecut","booklet","sticker","sticker_diecut","bag","businesscard","envelope",
+  "box","blank","selfcopy","folder","poster","notepad","book","magazine","brochure","label",
+  "calendar_wall","calendar_desk","calendar_quarter","wobbler","shelftalker","kubus",
+];
 
 const TABLES = [
   {
@@ -123,12 +134,32 @@ const TABLES = [
     title: "Печатные машины",
     cols: [
       { k: "name", t: "text", label: "Название" },
+      { k: "machine_type", t: "select", label: "Тип", opts: ["digital", "offset"] },
       { k: "max_format_width", t: "number", label: "Макс. шир." },
       { k: "max_format_height", t: "number", label: "Макс. выс." },
       { k: "cost_per_impression", t: "number", label: "₸/оттиск" },
+      { k: "min_circulation", t: "number", label: "Тираж от" },
+      { k: "max_circulation", t: "number", label: "Тираж до" },
+      { k: "setup_sheets", t: "number", label: "Приладка, л." },
+      { k: "setup_cost", t: "number", label: "Приладка, ₸" },
+      { k: "product_types", t: "multiselect", label: "Типы продукции", opts: PRODUCT_TYPE_OPTS },
+      { k: "priority", t: "number", label: "Приоритет" },
+      { k: "is_active", t: "select", label: "Активна", opts: ["true", "false"] },
       { k: "sort_order", t: "number", label: "Порядок" },
     ],
-    defaults: { name: "", max_format_width: 520, max_format_height: 360, cost_per_impression: 3, sort_order: 100 },
+    defaults: { name: "", machine_type: "offset", max_format_width: 520, max_format_height: 360, cost_per_impression: 3, min_circulation: 0, max_circulation: null, setup_sheets: 0, setup_cost: 0, product_types: null, priority: 100, is_active: true, sort_order: 100 },
+  },
+  {
+    key: "product_circulation_rules",
+    title: "Правила тиражей",
+    cols: [
+      { k: "product_type", t: "select", label: "Тип продукта", opts: PRODUCT_TYPE_OPTS },
+      { k: "min_circulation", t: "number", label: "Тираж от" },
+      { k: "max_circulation", t: "number", label: "Тираж до" },
+      { k: "preferred_machine_id", t: "ref", label: "Машина", refKey: "press_machines" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { product_type: "leaflet", min_circulation: 0, max_circulation: null, preferred_machine_id: null, sort_order: 100 },
   },
   {
     key: "envelope_formats",
