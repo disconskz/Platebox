@@ -498,6 +498,35 @@ export const LayoutPreview = ({
               />
             </motion.div>
           </AnimatePresence>
+          {/* Легенда схемы */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-[10px] text-muted-foreground">
+            <Hint text="Зона вылета (bleed) — 3 мм с каждой стороны изделия, обрезается после печати.">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm border border-dashed border-destructive" />
+                bleed
+              </span>
+            </Hint>
+            <Hint text="Технические поля печатной машины — зона, где невозможна печать (захват, отступы под марки).">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm border border-dashed border-muted-foreground" />
+                техполя
+              </span>
+            </Hint>
+            <Hint text="Изделия чередуются по цвету в столбцах для удобства подсчёта.">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-warning/30" />
+                <span className="h-2 w-2 rounded-sm bg-primary/30" />
+                изделия
+              </span>
+            </Hint>
+            <Hint text="Розовая подложка показывает площадь листа, уходящую в отходы.">
+              <span className="inline-flex cursor-help items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-destructive/15" />
+                отходы
+              </span>
+            </Hint>
+            <span className="ml-auto text-muted-foreground/70">наведите на изделие — позиция</span>
+          </div>
         </div>
 
         {/* === Баннер при просмотре альтернативы === */}
