@@ -388,21 +388,42 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
                 {spec.cols.map((c: any) => (
                   <td key={c.k} className="p-1.5">{renderField(c, draft[c.k], (v) => setDraft({ ...draft, [c.k]: v }))}</td>
                 ))}
-                <td className="p-1.5 text-right"><Button size="sm" onClick={add}><Plus className="h-3.5 w-3.5" /></Button></td>
+                <td className="p-1.5 text-right"><Button size="sm" onClick={guardedAdd}><Plus className="h-3.5 w-3.5" /></Button></td>
               </tr>
-              {pageRows.map((row) => (
-                <tr key={row[pk]} className="border-t">
-                  {spec.cols.map((c: any) => (
-                    <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
-                  ))}
-                  <td className="p-1.5 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="outline" onClick={() => save(row)}><Save className="h-3.5 w-3.5" /></Button>
-                      <Button size="sm" variant="outline" onClick={() => remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {pageRows.map((row) => {
+                const errs = rangeValidation.errors.get(row[pk]) || [];
+                const warns = rangeValidation.warnings.get(row[pk]) || [];
+                const rowCls = errs.length
+                  ? "border-t bg-destructive/5"
+                  : warns.length
+                    ? "border-t bg-warning/5"
+                    : "border-t";
+                return (
+                  <Fragment key={row[pk]}>
+                    <tr className={rowCls}>
+                      {spec.cols.map((c: any) => (
+                        <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
+                      ))}
+                      <td className="p-1.5 text-right">
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" variant="outline" onClick={() => guardedSave(row)} disabled={errs.length > 0}><Save className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="outline" onClick={() => remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                    {(errs.length > 0 || warns.length > 0) && (
+                      <tr className={errs.length ? "bg-destructive/5" : "bg-warning/5"}>
+                        <td colSpan={spec.cols.length + 1} className="px-3 py-1.5">
+                          <div className={`flex items-start gap-1.5 text-[11px] ${errs.length ? "text-destructive" : "text-warning"}`}>
+                            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <div>{[...errs, ...warns].join(" · ")}</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
               {rows.length === 0 && (
                 <tr className="border-t">
                   <td colSpan={spec.cols.length + 1} className="p-4 text-center text-xs text-muted-foreground">
