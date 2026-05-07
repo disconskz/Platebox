@@ -434,13 +434,26 @@ export const LayoutPreview = ({
     <TooltipProvider delayDuration={200}>
       <div className="space-y-3">
         {/* === Схема листа === */}
-        <div className="relative rounded-lg border bg-card p-3 shadow-card">
+        <div className="relative rounded-lg border bg-card p-2 sm:p-3 shadow-card">
+          {/* Мобильный заголовок — формат, шт/лист, действия */}
+          <div className="mb-2 flex flex-wrap items-center gap-2 sm:hidden">
+            <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums">
+              {W}×{H} мм
+            </span>
+            <span className="rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
+              {active.itemsPerSheet} шт/лист
+            </span>
+            <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums">
+              {active.cols}×{active.rows}
+            </span>
+            <span className="ml-auto text-[10px] text-muted-foreground">отходы {wastePct}%</span>
+          </div>
           <div className="absolute right-2 top-2 z-10 flex gap-1">
             <Hint text="Скачать схему листа в PNG (3× разрешение, для печатника)">
               <button
                 type="button"
                 onClick={downloadPng}
-                className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+                className="rounded-md border bg-background/80 p-2 text-muted-foreground backdrop-blur transition hover:text-foreground sm:p-1.5"
               >
                 <Download className="h-3.5 w-3.5" />
               </button>
@@ -450,14 +463,14 @@ export const LayoutPreview = ({
                 <Hint text="Открыть в большом размере — для презентации клиенту">
                   <button
                     type="button"
-                    className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+                    className="rounded-md border bg-background/80 p-2 text-muted-foreground backdrop-blur transition hover:text-foreground sm:p-1.5"
                   >
                     <Maximize2 className="h-3.5 w-3.5" />
                   </button>
                 </Hint>
               </DialogTrigger>
-              <DialogContent className="max-w-5xl">
-                <div className="p-2">
+              <DialogContent className="max-w-5xl w-[96vw] sm:w-auto p-3 sm:p-6">
+                <div className="max-h-[80vh] overflow-auto">
                   <SheetSvg
                     layout={active}
                     productW={productW}
@@ -483,6 +496,7 @@ export const LayoutPreview = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
+              className="mx-auto max-w-[640px]"
             >
               <SheetSvg
                 layout={active}
@@ -540,9 +554,9 @@ export const LayoutPreview = ({
         )}
 
         {/* === Главная цифра + 2 колонки === */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
           {/* Геометрия */}
-          <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="rounded-lg border bg-card p-3 sm:p-4 shadow-card">
             <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Геометрия
               <HintIcon text="Параметры раскладки изделий на печатном листе и связь с закупочным." />
@@ -586,7 +600,7 @@ export const LayoutPreview = ({
           </div>
 
           {/* Экономика */}
-          <div className="rounded-lg border bg-card p-4 shadow-card">
+          <div className="rounded-lg border bg-card p-3 sm:p-4 shadow-card">
             <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
               Экономика
               <HintIcon text="Упрощённая стоимость варианта: бумага + печать. Без постпечати и логистики — только для сравнения раскладок." />
@@ -654,12 +668,12 @@ export const LayoutPreview = ({
         {/* === Список альтернатив с мини-превью + сортировка === */}
         {alternatives && alternatives.length > 0 && (
           <div className="rounded-lg border bg-card p-3 shadow-card">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                 Варианты раскладки
                 <HintIcon text="Все рассмотренные пары «закупочный → печатный формат». Нажмите на строку, чтобы увидеть схему этого варианта на превью выше." />
               </div>
-              <div className="flex gap-1 text-[10px]">
+              <div className="flex gap-0.5 rounded-md border bg-muted/40 p-0.5 text-[10px]">
                 {(["items", "price", "waste"] as SortMode[]).map((m) => {
                   const tip =
                     m === "items"
@@ -673,9 +687,9 @@ export const LayoutPreview = ({
                         type="button"
                         onClick={() => setSortMode(m)}
                         className={cn(
-                          "rounded px-1.5 py-0.5 uppercase tracking-wide transition",
+                          "rounded px-2 py-1 uppercase tracking-wide transition",
                           sortMode === m
-                            ? "bg-foreground text-background"
+                            ? "bg-background text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
                         )}
                       >
@@ -876,14 +890,16 @@ const AltRow = ({
     type="button"
     onClick={onClick}
     className={cn(
-      "flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition",
+      "flex w-full items-center gap-2 rounded-md border px-2 py-2 text-left text-xs transition",
       active
         ? "border-primary bg-primary/10"
-        : "border-transparent hover:bg-muted/50"
+        : "border-border/40 hover:bg-muted/50"
     )}
   >
-    {mini}
-    <span className="flex-1 truncate">{title}</span>
-    <span className="flex shrink-0 items-center gap-1.5">{right}</span>
+    <span className="shrink-0">{mini}</span>
+    <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+      <span className="truncate">{title}</span>
+      <span className="flex flex-wrap items-center gap-1.5 text-[11px] sm:ml-auto sm:justify-end">{right}</span>
+    </span>
   </button>
 );
