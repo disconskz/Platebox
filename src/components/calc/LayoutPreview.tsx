@@ -7,9 +7,17 @@ interface Props {
   productW: number;
   productH: number;
   productType?: ProductType;
+  alternatives?: Array<{
+    printW: number;
+    printH: number;
+    purchaseW: number;
+    purchaseH: number;
+    itemsPerSheet: number;
+    itemsPerPurchase: number;
+  }>;
 }
 
-export const LayoutPreview = ({ layout, productW, productH, productType = "leaflet" }: Props) => {
+export const LayoutPreview = ({ layout, productW, productH, productType = "leaflet", alternatives }: Props) => {
   const W = layout.printFormat.width;
   const H = layout.printFormat.height;
   const SCALE = 1.1;
@@ -69,6 +77,25 @@ export const LayoutPreview = ({ layout, productW, productH, productType = "leafl
         <Stat label="Поворот" value={layout.rotated ? "да" : "нет"} />
         <Stat label="Отходы" value={`${wastePct}%`} />
       </div>
+      {alternatives && alternatives.length > 0 && (
+        <div className="rounded-lg border bg-card p-3 shadow-card">
+          <div className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+            Рассмотрено ещё вариантов: {alternatives.length}
+          </div>
+          <div className="space-y-1 text-xs">
+            {alternatives.map((a, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 text-muted-foreground">
+                <span>
+                  Печ. {a.printW}×{a.printH} ← Закуп. {a.purchaseW}×{a.purchaseH}
+                </span>
+                <span className="font-medium text-foreground">
+                  {a.itemsPerSheet} шт/лист · {a.itemsPerPurchase} с закуп.
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
