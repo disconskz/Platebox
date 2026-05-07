@@ -193,20 +193,13 @@ export function runCalculation(input: CalcInput): CalcResult {
   let layout: LayoutResult | null;
   let pickedPurchase: PrintFormat | null = null;
   let alternatives: CalcResult["alternatives"] = [];
+  let rankedPairs: ReturnType<typeof rankPairs> = [];
   if (input.formatPairs && input.formatPairs.length) {
     const ranked = rankPairs(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
     if (!ranked.length) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
     layout = ranked[0].layout;
     pickedPurchase = ranked[0].pair.purchase;
-    alternatives = ranked.slice(1, 4).map((r) => ({
-      printW: r.pair.print.width,
-      printH: r.pair.print.height,
-      purchaseW: r.pair.purchase.width,
-      purchaseH: r.pair.purchase.height,
-      itemsPerSheet: r.layout.itemsPerSheet,
-      itemsPerPurchase: r.itemsPerPurchase,
-      layout: r.layout,
-    }));
+    rankedPairs = ranked;
   } else {
     layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);
     if (!layout) throw new Error("Изделие не вмещается в печатный лист. Выберите другой формат.");
