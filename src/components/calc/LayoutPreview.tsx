@@ -394,6 +394,19 @@ export const LayoutPreview = ({
   const mainItems = layout.itemsPerSheet;
   const altItems = activeAlt?.itemsPerSheet;
 
+  // Приоритетные печатные форматы (бизнес-правило: 520×360, 460×320)
+  const isPriorityFormat = (w: number, h: number) => {
+    const key = `${Math.max(w, h)}x${Math.min(w, h)}`;
+    return key === "520x360" || key === "460x320";
+  };
+  const PriorityBadge = () => (
+    <Hint text="Приоритетный печатный формат (520×360 / 460×320) — выбирается системой первым при равенстве отходов.">
+      <span className="cursor-help rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+        приоритет
+      </span>
+    </Hint>
+  );
+
   // "Почему этот вариант" — формируем текст
   const explanation = useMemo(() => {
     if (!alternatives || alternatives.length === 0) return null;
