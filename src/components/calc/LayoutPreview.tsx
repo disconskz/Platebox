@@ -6,6 +6,23 @@ import { ProductGlyph } from "./ProductGlyph";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+
+/** Универсальная обёртка для подсказки — оборачивает любой элемент */
+const Hint = ({ children, text, side = "top" }: { children: React.ReactNode; text: React.ReactNode; side?: "top" | "bottom" | "left" | "right" }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>{children}</TooltipTrigger>
+    <TooltipContent side={side} className="max-w-xs text-xs leading-relaxed">{text}</TooltipContent>
+  </Tooltip>
+);
+
+/** Маленький "?" рядом с заголовками */
+const HintIcon = ({ text }: { text: React.ReactNode }) => (
+  <Hint text={text}>
+    <HelpCircle className="h-3 w-3 cursor-help text-muted-foreground/60 transition hover:text-muted-foreground" />
+  </Hint>
+);
 
 export interface AlternativeView {
   printW: number;
