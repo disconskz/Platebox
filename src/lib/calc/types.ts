@@ -130,6 +130,14 @@ export interface CalcResult {
   vatAmount: number; // НДС от себестоимости (информативно)
   totalWithVat: number; // себестоимость + НДС
   warnings: string[];
+  alternatives?: Array<{
+    printW: number;
+    printH: number;
+    purchaseW: number;
+    purchaseH: number;
+    itemsPerSheet: number;
+    itemsPerPurchase: number;
+  }>;
 }
 
 export const DEFAULTS = {
