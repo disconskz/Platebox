@@ -927,7 +927,7 @@ const Calculator = () => {
               <Card className="lg:sticky lg:top-20 shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
                 <CardContent>
-                  <LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} productType={productType} alternatives={result.alternatives} />
+                  <LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} productType={productType} alternatives={result.alternatives} mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }} />
                 </CardContent>
                 <div className="border-t p-4 space-y-3 bg-gradient-subtle rounded-b-lg">
                   <Row label="Себестоимость" value={fmtMoney(totalCost)} />
@@ -1002,7 +1002,7 @@ const Calculator = () => {
                 )}
                 <details className="rounded-md border bg-card p-3">
                   <summary className="cursor-pointer text-sm font-medium">Превью раскладки</summary>
-                  <div className="mt-3"><LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} productType={productType} alternatives={result.alternatives} /></div>
+                  <div className="mt-3"><LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} productType={productType} alternatives={result.alternatives} mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }} /></div>
                 </details>
               </div>
             </SheetContent>
