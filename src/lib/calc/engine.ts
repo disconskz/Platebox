@@ -88,13 +88,25 @@ export function bestPair(
   pairs: FormatPair[]
 ): { layout: LayoutResult; pair: FormatPair } | null {
   let best: { layout: LayoutResult; pair: FormatPair } | null = null;
-  let bestScore = Infinity;
+  let bestItemsPerPurchase = -1;
+  let bestPrintArea = Infinity;
   for (const p of pairs) {
     const l = calculateLayout(productW, productH, p.print.width, p.print.height, isSticker);
     if (!l) continue;
-    const wastePerItem = l.wasteArea / Math.max(1, l.itemsPerSheet);
-    if (wastePerItem < bestScore) {
-      bestScore = wastePerItem;
+    const nesting = Math.max(
+      1,
+      nestingPurchaseToPrint(p.purchase.width, p.purchase.height, p.print.width, p.print.height)
+    );
+    const itemsPerPurchase = l.itemsPerSheet * nesting;
+    const printArea = p.print.width * p.print.height;
+    // Главный критерий: максимум готовых изделий с одного закупочного листа.
+    // Тай-брейк: меньший печатный формат (А3 в приоритете перед А2).
+    if (
+      itemsPerPurchase > bestItemsPerPurchase ||
+      (itemsPerPurchase === bestItemsPerPurchase && printArea < bestPrintArea)
+    ) {
+      bestItemsPerPurchase = itemsPerPurchase;
+      bestPrintArea = printArea;
       best = { layout: l, pair: p };
     }
   }
