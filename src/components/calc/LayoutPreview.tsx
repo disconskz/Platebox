@@ -730,6 +730,9 @@ export const LayoutPreview = ({
                       </span>
                     </Hint>{" "}
                     Печ. {layout.printFormat.width}×{layout.printFormat.height}
+                    {isPriorityFormat(layout.printFormat.width, layout.printFormat.height) && (
+                      <> <PriorityBadge /></>
+                    )}
                   </>
                 }
                 right={
@@ -759,6 +762,9 @@ export const LayoutPreview = ({
                     title={
                       <>
                         Печ. {a.printW}×{a.printH}
+                        {isPriorityFormat(a.printW, a.printH) && (
+                          <> <PriorityBadge /></>
+                        )}
                         <span className="text-muted-foreground"> ← Закуп. {a.purchaseW}×{a.purchaseH}</span>
                       </>
                     }
