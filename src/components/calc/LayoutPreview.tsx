@@ -436,23 +436,25 @@ export const LayoutPreview = ({
         {/* === Схема листа === */}
         <div className="relative rounded-lg border bg-card p-3 shadow-card">
           <div className="absolute right-2 top-2 z-10 flex gap-1">
-            <button
-              type="button"
-              onClick={downloadPng}
-              className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
-              title="Скачать PNG"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
+            <Hint text="Скачать схему листа в PNG (3× разрешение, для печатника)">
+              <button
+                type="button"
+                onClick={downloadPng}
+                className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </button>
+            </Hint>
             <Dialog open={fullOpen} onOpenChange={setFullOpen}>
               <DialogTrigger asChild>
-                <button
-                  type="button"
-                  className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
-                  title="Развернуть"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </button>
+                <Hint text="Открыть в большом размере — для презентации клиенту">
+                  <button
+                    type="button"
+                    className="rounded-md border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                </Hint>
               </DialogTrigger>
               <DialogContent className="max-w-5xl">
                 <div className="p-2">
