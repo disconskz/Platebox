@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Save, FileText, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, FileText, Sparkles, AlertTriangle, Check as CheckIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import MobileTabBar from "@/components/MobileTabBar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ChevronUp } from "lucide-react";
 import { HelpHint } from "@/components/HelpHint";
+import { cn } from "@/lib/utils";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -431,6 +432,14 @@ const Calculator = () => {
   const goto = (n: number) => {
     setStep(n);
     setMaxReached((m) => Math.max(m, n));
+    // плавно прокручиваем к началу формы при смене шага
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        const el = document.getElementById("step-anchor");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        else window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
   };
 
   const next = () => goto(Math.min(7, step + 1));
@@ -530,17 +539,44 @@ const Calculator = () => {
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-3 py-3 px-4">
-          <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground shrink-0">
             <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
           </Link>
-          <div className="ml-auto flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Новый расчёт</span>
+          {/* Контекстная сводка: что считаем + текущий итог */}
+          <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground min-w-0 ml-2">
+            <span className="px-2 py-0.5 rounded-full bg-secondary/60 text-foreground font-medium truncate max-w-[180px]">
+              {PRODUCT_OPTIONS.find((p) => p.value === productType)?.label}
+            </span>
+            <span className="opacity-60">·</span>
+            <span className="tabular-nums">{fmtNum(circulation)} шт</span>
+            <span className="opacity-60">·</span>
+            <span>{formatType === "custom" ? `${dims.w}×${dims.h}` : formatType}</span>
+            <span className="opacity-60">·</span>
+            <span>{colorFront}{colorBack ? `+${colorBack}` : ""}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-3">
+            {result && !("error" in result) ? (
+              <div className="hidden sm:flex items-center gap-3 text-right">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">С/с</div>
+                  <div className="text-sm font-semibold tabular-nums">{fmtMoney(totalCost)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Цена</div>
+                  <div className="text-sm font-bold text-primary tabular-nums">{fmtMoney(salePrice)}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Новый расчёт</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto py-3 sm:py-6 px-4">
+      <main id="step-anchor" className="container mx-auto py-3 sm:py-6 px-4 scroll-mt-20">
         <Stepper current={step} maxReached={maxReached} onStepClick={goto} />
 
         <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 lg:grid-cols-5">
@@ -577,6 +613,23 @@ const Calculator = () => {
                       </HelpHint>
                     </Label>
                     <Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(Number(e.target.value) || 0)} />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[100, 500, 1000, 2000, 5000, 10000].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setCirculation(n)}
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-xs border transition-colors",
+                            circulation === n
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                          )}
+                        >
+                          {n >= 1000 ? `${n / 1000}k` : n}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <Label>
@@ -598,23 +651,49 @@ const Calculator = () => {
                       <div><Label>Высота, мм</Label><Input type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} /></div>
                     </div>
                   )}
-                  <div>
+                  <div className="md:col-span-2">
                     <Label>
-                      Цветность фронт
+                      Красочность
                       <HelpHint title="Красочность" learnMore="calc-forms">
-                        Число красок на лицо. CMYK = 4, моно = 1. От этого зависит количество печатных форм.
+                        Сколько красок на лицо/оборот. CMYK = 4, моно = 1. 0 на обороте — печать только с лица.
                       </HelpHint>
                     </Label>
-                    <Input type="number" min={1} max={10} value={colorFront} onChange={(e) => setColorFront(Number(e.target.value))} />
-                  </div>
-                  <div>
-                    <Label>
-                      Цветность оборот (0 = без оборота)
-                      <HelpHint title="Оборот" learnMore="calc-forms">
-                        0 — печать только с лица. Иначе указывает красочность оборотной стороны; влияет на формы и оттиски.
-                      </HelpHint>
-                    </Label>
-                    <Input type="number" min={0} max={10} value={colorBack} onChange={(e) => setColorBack(Number(e.target.value))} />
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {[
+                        { f: 4, b: 4, label: "4+4 CMYK двусторонний" },
+                        { f: 4, b: 0, label: "4+0 CMYK односторонний" },
+                        { f: 4, b: 1, label: "4+1" },
+                        { f: 1, b: 1, label: "1+1 моно" },
+                        { f: 1, b: 0, label: "1+0 моно" },
+                      ].map((p) => {
+                        const active = colorFront === p.f && colorBack === p.b;
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => { setColorFront(p.f); setColorBack(p.b); }}
+                            className={cn(
+                              "px-3 py-1 rounded-full text-xs border transition-colors",
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                            )}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Лицо</Label>
+                        <Input type="number" min={1} max={10} value={colorFront} onChange={(e) => setColorFront(Number(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Оборот (0 = без)</Label>
+                        <Input type="number" min={0} max={10} value={colorBack} onChange={(e) => setColorBack(Number(e.target.value))} />
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -634,32 +713,56 @@ const Calculator = () => {
 
                   {!advancedMode && (
                     <>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div>
-                          <Label>
-                            Тип материала
-                            <HelpHint title="Тип материала" learnMore="calc-material">
-                              Закупочный формат и печатная машина подбираются автоматически.
-                            </HelpHint>
-                          </Label>
-                          <Select value={materialCategory} onValueChange={setMaterialCategory}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {MATERIAL_CATEGORIES.map((c) => (
-                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                      <div>
+                        <Label>
+                          Тип материала
+                          <HelpHint title="Тип материала" learnMore="calc-material">
+                            Закупочный формат и печатная машина подбираются автоматически.
+                          </HelpHint>
+                        </Label>
+                        <div className="mt-1 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                          {MATERIAL_CATEGORIES.map((c) => {
+                            const active = materialCategory === c.value;
+                            return (
+                              <button
+                                key={c.value}
+                                type="button"
+                                onClick={() => setMaterialCategory(c.value)}
+                                className={cn(
+                                  "rounded-lg border px-3 py-2 text-sm transition-all text-left",
+                                  active
+                                    ? "border-primary bg-primary/10 text-foreground shadow-card"
+                                    : "bg-card hover:border-primary/40 hover:bg-muted/40 text-muted-foreground"
+                                )}
+                              >
+                                {active && <CheckIcon className="inline h-3 w-3 mr-1 text-primary" />}
+                                {c.label}
+                              </button>
+                            );
+                          })}
                         </div>
-                        <div>
-                          <Label>Плотность, г/м² (необязательно)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={materialDensity}
-                            onChange={(e) => setMaterialDensity(e.target.value === "" ? "" : Number(e.target.value))}
-                            placeholder="любая"
-                          />
+                      </div>
+                      <div>
+                        <Label>Плотность, г/м²</Label>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {[null, 80, 90, 115, 130, 150, 170, 200, 250, 300, 350].map((d, i) => {
+                            const active = (d === null && materialDensity === "") || materialDensity === d;
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setMaterialDensity(d === null ? "" : d)}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                                  active
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                                )}
+                              >
+                                {d === null ? "Любая" : d}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                       {effectiveMaterial ? (
@@ -931,6 +1034,33 @@ const Calculator = () => {
                 </CardContent>
                 <div className="border-t p-4 space-y-3 bg-gradient-subtle rounded-b-lg">
                   <Row label="Себестоимость" value={fmtMoney(totalCost)} />
+                  {/* Структура себестоимости: бумага / печать / прочее */}
+                  {totalCost > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="bg-primary"
+                          style={{ width: `${Math.min(100, (result.paperCost / totalCost) * 100)}%` }}
+                          title={`Бумага: ${fmtMoney(result.paperCost)}`}
+                        />
+                        <div
+                          className="bg-success/80"
+                          style={{ width: `${Math.min(100, (result.printCost / totalCost) * 100)}%` }}
+                          title={`Печать: ${fmtMoney(result.printCost)}`}
+                        />
+                        <div
+                          className="bg-warning/80"
+                          style={{ width: `${Math.max(0, 100 - ((result.paperCost + result.printCost) / totalCost) * 100)}%` }}
+                          title="Прочее"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" /> Бумага {Math.round((result.paperCost / totalCost) * 100)}%</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success/80" /> Печать {Math.round((result.printCost / totalCost) * 100)}%</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning/80" /> Прочее {Math.max(0, 100 - Math.round(((result.paperCost + result.printCost) / totalCost) * 100))}%</span>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span className="inline-flex items-center">
