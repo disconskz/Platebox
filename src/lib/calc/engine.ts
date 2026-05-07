@@ -364,6 +364,7 @@ export function runCalculation(input: CalcInput): CalcResult {
     vatAmount,
     totalWithVat,
     warnings,
+    alternatives,
   };
 }
 
