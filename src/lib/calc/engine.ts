@@ -87,9 +87,20 @@ export function bestPair(
   isSticker: boolean,
   pairs: FormatPair[]
 ): { layout: LayoutResult; pair: FormatPair } | null {
-  let best: { layout: LayoutResult; pair: FormatPair } | null = null;
-  let bestItemsPerPurchase = -1;
-  let bestPrintArea = Infinity;
+  const ranked = rankPairs(productW, productH, isSticker, pairs);
+  return ranked[0] ?? null;
+}
+
+/**
+ * Ранжирует все пары: max изделий с закупочного, тай-брейк — меньший печатный формат.
+ */
+export function rankPairs(
+  productW: number,
+  productH: number,
+  isSticker: boolean,
+  pairs: FormatPair[]
+): Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> {
+  const out: Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> = [];
   for (const p of pairs) {
     const l = calculateLayout(productW, productH, p.print.width, p.print.height, isSticker);
     if (!l) continue;
@@ -97,20 +108,13 @@ export function bestPair(
       1,
       nestingPurchaseToPrint(p.purchase.width, p.purchase.height, p.print.width, p.print.height)
     );
-    const itemsPerPurchase = l.itemsPerSheet * nesting;
-    const printArea = p.print.width * p.print.height;
-    // Главный критерий: максимум готовых изделий с одного закупочного листа.
-    // Тай-брейк: меньший печатный формат (А3 в приоритете перед А2).
-    if (
-      itemsPerPurchase > bestItemsPerPurchase ||
-      (itemsPerPurchase === bestItemsPerPurchase && printArea < bestPrintArea)
-    ) {
-      bestItemsPerPurchase = itemsPerPurchase;
-      bestPrintArea = printArea;
-      best = { layout: l, pair: p };
-    }
+    out.push({ layout: l, pair: p, itemsPerPurchase: l.itemsPerSheet * nesting, nesting });
   }
-  return best;
+  out.sort((a, b) => {
+    if (b.itemsPerPurchase !== a.itemsPerPurchase) return b.itemsPerPurchase - a.itemsPerPurchase;
+    return a.pair.print.width * a.pair.print.height - b.pair.print.width * b.pair.print.height;
+  });
+  return out;
 }
 
 export function determineTurnaround(
@@ -175,10 +179,18 @@ export function runCalculation(input: CalcInput): CalcResult {
   let layout: LayoutResult | null;
   let pickedPurchase: PrintFormat | null = null;
   if (input.formatPairs && input.formatPairs.length) {
-    const r = bestPair(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
-    if (!r) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
-    layout = r.layout;
-    pickedPurchase = r.pair.purchase;
+    const ranked = rankPairs(input.formatWidth, input.formatHeight, isSticker, input.formatPairs);
+    if (!ranked.length) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
+    layout = ranked[0].layout;
+    pickedPurchase = ranked[0].pair.purchase;
+    alternatives = ranked.slice(1, 4).map((r) => ({
+      printW: r.pair.print.width,
+      printH: r.pair.print.height,
+      purchaseW: r.pair.purchase.width,
+      purchaseH: r.pair.purchase.height,
+      itemsPerSheet: r.layout.itemsPerSheet,
+      itemsPerPurchase: r.itemsPerPurchase,
+    }));
   } else {
     layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);
     if (!layout) throw new Error("Изделие не вмещается в печатный лист. Выберите другой формат.");
