@@ -137,6 +137,7 @@ export interface CalcResult {
     purchaseH: number;
     itemsPerSheet: number;
     itemsPerPurchase: number;
+    layout: LayoutResult;
   }>;
 }
 
