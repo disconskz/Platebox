@@ -346,6 +346,34 @@ export function runCalculation(input: CalcInput): CalcResult {
   const vatAmount = totalCost * (vatPercent / 100);
   const totalWithVat = totalCost + vatAmount;
 
+  // Стоимости по альтернативам — упрощённая модель: бумага + печать + отходы.
+  // Используется только для сравнения вариантов в превью.
+  alternatives = rankedPairs.slice(1, 4).map((r) => {
+    const altNet = Math.ceil(input.circulation / r.layout.itemsPerSheet);
+    const altPrintSheets = altNet + setupSheets;
+    const altPurchaseSheets = Math.ceil(altPrintSheets / Math.max(1, r.nesting));
+    const altPaper = altPurchaseSheets * input.material.cost_per_sheet;
+    const altImpressions = altPrintSheets * (turnaround === "own" ? 2 : 1);
+    const altPrint = altImpressions * printPerImpr;
+    // Стоимость отходов = доля бумаги, ушедшая в обрезки на печатном листе
+    const printArea = r.pair.print.width * r.pair.print.height;
+    const wasteShare = printArea > 0 ? r.layout.wasteArea / printArea : 0;
+    const altWaste = altPaper * wasteShare;
+    return {
+      printW: r.pair.print.width,
+      printH: r.pair.print.height,
+      purchaseW: r.pair.purchase.width,
+      purchaseH: r.pair.purchase.height,
+      itemsPerSheet: r.layout.itemsPerSheet,
+      itemsPerPurchase: r.itemsPerPurchase,
+      layout: r.layout,
+      paperCost: Math.round(altPaper),
+      printCost: Math.round(altPrint),
+      wasteCost: Math.round(altWaste),
+      totalCost: Math.round(altPaper + altPrint),
+    };
+  });
+
   return {
     layout,
     turnaround,
