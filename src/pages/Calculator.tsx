@@ -161,6 +161,12 @@ const Calculator = () => {
   const [manualForms, setManualForms] = useState<number | "">("");
   const [manualSetup, setManualSetup] = useState<number | "">("");
 
+  // Step 4 — ручное переопределение пары (печатный/закупочный). null = авто.
+  const [manualPair, setManualPair] = useState<{
+    print: { width: number; height: number };
+    purchase: { width: number; height: number };
+  } | null>(null);
+
   // Step 5
   const [hasFold, setHasFold] = useState(false);
   const [foldCount, setFoldCount] = useState(1);
