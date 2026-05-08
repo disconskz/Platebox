@@ -136,6 +136,8 @@ export type Database = {
           print_sheets: number | null
           product_type: string
           profit: number | null
+          purchase_format_height: number | null
+          purchase_format_width: number | null
           purchase_sheets: number | null
           sale_price: number | null
           setup_sheets: number | null
@@ -177,6 +179,8 @@ export type Database = {
           print_sheets?: number | null
           product_type: string
           profit?: number | null
+          purchase_format_height?: number | null
+          purchase_format_width?: number | null
           purchase_sheets?: number | null
           sale_price?: number | null
           setup_sheets?: number | null
@@ -218,6 +222,8 @@ export type Database = {
           print_sheets?: number | null
           product_type?: string
           profit?: number | null
+          purchase_format_height?: number | null
+          purchase_format_width?: number | null
           purchase_sheets?: number | null
           sale_price?: number | null
           setup_sheets?: number | null
