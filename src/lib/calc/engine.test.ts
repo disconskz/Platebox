@@ -119,8 +119,12 @@ describe("rankPairs — рабочие форматы (460×320, 520×360) им�
     const top = ranked[0];
     expect([460, 520]).toContain(top.pair.print.width);
     expect(top.layout.itemsPerSheet % 2).toBe(0);
-    // 460×320 эффективнее 520×360 при тех же 4 шт — должен быть первым
-    expect(top.pair.print.width).toBe(460);
+    // 500×350 (раскройный) НЕ должен быть оптимальным
+    expect(top.pair.print.width).not.toBe(500);
+    // На 460×320 А5 умещается только 2 шт из-за тех. полей,
+    // поэтому выигрывает 520×360 с 4 шт. Главное — это рабочий формат.
+    expect(top.pair.print.width).toBe(520);
+    expect(top.layout.itemsPerSheet).toBe(4);
   });
 
   it("А6 (105×148) 4+4 → выбирает рабочий формат с чётным числом, а НЕ 250×700", () => {
