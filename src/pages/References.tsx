@@ -10,8 +10,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
 import { HelpHint } from "@/components/HelpHint";
+import { PRODUCT_LABELS } from "@/lib/calc/products";
 
 type AnyRow = Record<string, any>;
+
+// Русские подписи для значений select-полей. Ключи — реальные значения, хранящиеся в БД.
+const OPT_LABELS: Record<string, string> = {
+  // materials.type
+  coated: "Меловка",
+  offset: "Офсетная",
+  self_adhesive: "Самоклейка",
+  cardboard: "Картон",
+  other: "Другое",
+  // operations.category
+  prepress: "Допечать",
+  print: "Печать",
+  postpress: "Послепечать",
+  logistics: "Логистика",
+  // equipment.type
+  cut: "Резка",
+  fold: "Фальцовка",
+  laminate: "Ламинация",
+  die_cut: "Вырубка",
+  stamp: "Тиснение",
+  // lamination.film_type
+  gloss: "Глянцевая",
+  matte: "Матовая",
+  velvet: "Софт-тач (вельвет)",
+  gold: "Золото",
+  silver: "Серебро",
+  color: "Цветная",
+  // lamination.size_range
+  up_to_a4_plus: "до A4+",
+  a4_plus_to_a3_plus: "A4+ — A3+",
+  a3_plus_to_a2_plus: "A3+ — A2+",
+  a2_plus_to_a1: "A2+ — A1",
+  // press_machines.machine_type
+  digital: "Цифровая",
+  // booleans
+  "true": "Да",
+  "false": "Нет",
+  // продукты — берём из общего справочника
+  ...Object.fromEntries(Object.entries(PRODUCT_LABELS)),
+};
+
+const optLabel = (v: string) => OPT_LABELS[v] ?? v;
 
 // Динамические опции (загружаются из БД) для select-полей со ссылками на другие таблицы
 type DynamicOptions = {
@@ -272,7 +315,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
               onClick={() => toggle(o)}
               className={`text-[10px] px-1.5 py-0.5 rounded border ${arr.includes(o) ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground"}`}
             >
-              {o}
+              {optLabel(o)}
             </button>
           ))}
         </div>
@@ -283,7 +326,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
       return (
         <Select value={String(value ?? "")} onValueChange={(v) => onChange(isBool ? v === "true" : v)}>
           <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-          <SelectContent>{col.opts.map((o: string) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+          <SelectContent>{col.opts.map((o: string) => <SelectItem key={o} value={o}>{optLabel(o)}</SelectItem>)}</SelectContent>
         </Select>
       );
     }
