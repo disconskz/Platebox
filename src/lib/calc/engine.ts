@@ -7,6 +7,25 @@ export function calculateLayout(
   printH: number,
   isSticker: boolean
 ): LayoutResult | null {
+  const variants = layoutVariants(productW, productH, printW, printH, isSticker);
+  if (!variants.length) return null;
+  variants.sort((a, b) => b.itemsPerSheet - a.itemsPerSheet);
+  return variants[0];
+}
+
+/**
+ * Возвращает ВСЕ валидные варианты раскладки (обе ориентации) для данного
+ * печатного листа. Используется ранжированием, чтобы можно было выбирать
+ * подходящий вариант (например, чётное число изделий для «своего оборота»),
+ * а не только тот, что даёт максимум шт/лист.
+ */
+export function layoutVariants(
+  productW: number,
+  productH: number,
+  printW: number,
+  printH: number,
+  isSticker: boolean
+): LayoutResult[] {
   const bleed = DEFAULTS.bleed;
   const margins = { left: DEFAULTS.marginLR, right: DEFAULTS.marginLR, top: DEFAULTS.marginTop, bottom: DEFAULTS.marginBottom };
   const gap = isSticker ? DEFAULTS.stickerGap : 0;
@@ -42,9 +61,7 @@ export function calculateLayout(
       });
     }
   }
-  if (!variants.length) return null;
-  variants.sort((a, b) => b.itemsPerSheet - a.itemsPerSheet);
-  return variants[0];
+  return variants;
 }
 
 export function bestLayout(
@@ -103,8 +120,7 @@ export function rankPairs(
 ): Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> {
   const out: Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> = [];
   // Лимит максимального печатного формата (по правкам fortress: 520×360).
-  // Если изделие физически не помещается в этот лимит — лимит снимается,
-  // чтобы не блокировать большие тиражи (плакаты и т.п.).
+  // Если изделие физически не помещается в этот лимит — лимит снимается.
   const maxArea = DEFAULTS.maxPrintW * DEFAULTS.maxPrintH;
   const productFitsInLimit = (() => {
     const w = Math.min(productW, productH);
@@ -116,23 +132,8 @@ export function rankPairs(
   const filtered = productFitsInLimit
     ? pairs.filter((p) => p.print.width * p.print.height <= maxArea)
     : pairs;
-  for (const p of (filtered.length ? filtered : pairs)) {
-    const l = calculateLayout(productW, productH, p.print.width, p.print.height, isSticker);
-    if (!l) continue;
-    const nesting = Math.max(
-      1,
-      nestingPurchaseToPrint(p.purchase.width, p.purchase.height, p.print.width, p.print.height)
-    );
-    out.push({ layout: l, pair: p, itemsPerPurchase: l.itemsPerSheet * nesting, nesting });
-  }
-  // Опционально: оставляем только варианты с чётным числом изделий на лист
-  // (для печати «со своим оборотом»). Если ни одного — снимаем требование.
-  let pool = out;
-  if (options?.requireEvenItems) {
-    const even = out.filter((r) => r.layout.itemsPerSheet % 2 === 0);
-    if (even.length) pool = even;
-  }
-  // Приоритетные форматы — только как мягкий тай-брейк при равных метриках
+
+  // Приоритетный (рабочий) печатный формат — точное совпадение по габаритам.
   const isPriority = (p: FormatPair) => {
     const list = options?.priorityPrintFormats;
     if (!list || !list.length) return false;
@@ -142,24 +143,81 @@ export function rankPairs(
         (f.width === p.print.height && f.height === p.print.width)
     );
   };
-  // Главный приоритет — максимум изделий на одном печатном листе
-  // (= минимальная себестоимость на изделие при равных прочих).
-  // Затем — больше изделий с закупочного, меньше отходов, и наконец
-  // приоритетный печатный формат / меньший лист как тай-брейк.
-  pool.sort((a, b) => {
+
+  // Перебираем ВСЕ варианты раскладки (обе ориентации) для каждой пары —
+  // чтобы под условие requireEvenItems можно было выбрать подходящий
+  // вариант, а не только тот, что даёт максимум шт/лист.
+  for (const p of (filtered.length ? filtered : pairs)) {
+    const variants = layoutVariants(productW, productH, p.print.width, p.print.height, isSticker);
+    if (!variants.length) continue;
+    const nesting = Math.max(
+      1,
+      nestingPurchaseToPrint(p.purchase.width, p.purchase.height, p.print.width, p.print.height)
+    );
+    for (const l of variants) {
+      out.push({ layout: l, pair: p, itemsPerPurchase: l.itemsPerSheet * nesting, nesting });
+    }
+  }
+
+  // Чётное число изделий на лист (печать «свой оборот»).
+  let pool = out;
+  if (options?.requireEvenItems) {
+    const even = out.filter((r) => r.layout.itemsPerSheet % 2 === 0);
+    if (even.length) pool = even;
+  }
+
+  // ЖЁСТКИЙ приоритет рабочих форматов: если изделие помещается хотя бы в
+  // один приоритетный печатный формат — оптимальный вариант выбирается ТОЛЬКО
+  // среди приоритетных. Раскройные форматы (500×350, 250×700 и т.п.) могут
+  // оставаться лишь как альтернативы, но не как «оптимальные».
+  const priorityPool = pool.filter((r) => isPriority(r.pair));
+  const mainPool = priorityPool.length ? priorityPool : pool;
+
+  // Внутри отфильтрованного пула — финансово-выгодное ранжирование:
+  //   1) больше изделий на печатном листе (меньше с/с на изделие);
+  //   2) меньше отходов на изделие (рациональность);
+  //   3) больше изделий с закупочного (меньше закупаем);
+  //   4) меньший печатный лист (меньше остатков).
+  const sortFn = (
+    a: (typeof out)[number],
+    b: (typeof out)[number]
+  ) => {
     if (b.layout.itemsPerSheet !== a.layout.itemsPerSheet)
       return b.layout.itemsPerSheet - a.layout.itemsPerSheet;
-    if (b.itemsPerPurchase !== a.itemsPerPurchase)
-      return b.itemsPerPurchase - a.itemsPerPurchase;
     const wa = a.layout.wasteArea / Math.max(1, a.layout.itemsPerSheet);
     const wb = b.layout.wasteArea / Math.max(1, b.layout.itemsPerSheet);
     if (wa !== wb) return wa - wb;
-    const pa = isPriority(a.pair) ? 0 : 1;
-    const pb = isPriority(b.pair) ? 0 : 1;
-    if (pa !== pb) return pa - pb;
+    if (b.itemsPerPurchase !== a.itemsPerPurchase)
+      return b.itemsPerPurchase - a.itemsPerPurchase;
     return a.pair.print.width * a.pair.print.height - b.pair.print.width * b.pair.print.height;
-  });
-  return pool;
+  };
+
+  mainPool.sort(sortFn);
+
+  // Альтернативы — все остальные варианты (включая раскройные), отсортированные
+  // тем же правилом, без дублей по (печатный, закупочный, ориентация).
+  const taken = new Set(
+    mainPool.map((r) => `${r.pair.print.width}x${r.pair.print.height}|${r.pair.purchase.width}x${r.pair.purchase.height}|${r.layout.rotated}`)
+  );
+  const alts = pool
+    .filter((r) => !taken.has(`${r.pair.print.width}x${r.pair.print.height}|${r.pair.purchase.width}x${r.pair.purchase.height}|${r.layout.rotated}`))
+    .sort(sortFn);
+
+  // Дедуп по (печатный, закупочный) — оставляем лучший вариант ориентации,
+  // чтобы не плодить дубликаты в превью.
+  const dedup = (arr: typeof out) => {
+    const seen = new Set<string>();
+    const res: typeof out = [];
+    for (const r of arr) {
+      const key = `${r.pair.print.width}x${r.pair.print.height}|${r.pair.purchase.width}x${r.pair.purchase.height}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      res.push(r);
+    }
+    return res;
+  };
+
+  return [...dedup(mainPool), ...dedup(alts)];
 }
 
 export function determineTurnaround(

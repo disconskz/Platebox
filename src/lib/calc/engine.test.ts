@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bestLayout, bestPair, calculateForms, determineTurnaround, runCalculation } from "./engine";
+import { bestLayout, bestPair, calculateForms, determineTurnaround, rankPairs, runCalculation } from "./engine";
 import { CalcInput, FormatPair } from "./types";
 
 const material = { id: "m1", name: "Test 130", format_width: 640, format_height: 920, cost_per_sheet: 80 };
@@ -82,6 +82,88 @@ describe("bestPair", () => {
     expect(r).toBeTruthy();
     expect(r!.pair.print.width).toBe(640);
     expect(r!.pair.print.height).toBe(460);
+  });
+});
+
+describe("rankPairs — рабочие форматы (460×320, 520×360) имеют жёсткий приоритет", () => {
+  // Полный реальный набор пар из справочника (coated)
+  const coatedPairs: FormatPair[] = [
+    { print: { width: 520, height: 360 }, purchase: { width: 720, height: 1040 } },
+    { print: { width: 520, height: 240 }, purchase: { width: 720, height: 1040 } },
+    { print: { width: 360, height: 260 }, purchase: { width: 720, height: 1040 } },
+    { print: { width: 360, height: 345 }, purchase: { width: 720, height: 1040 } },
+    { print: { width: 500, height: 350 }, purchase: { width: 700, height: 1000 } },
+    { print: { width: 500, height: 233 }, purchase: { width: 700, height: 1000 } },
+    { print: { width: 350, height: 250 }, purchase: { width: 700, height: 1000 } },
+    { print: { width: 350, height: 333 }, purchase: { width: 700, height: 1000 } },
+    { print: { width: 460, height: 320 }, purchase: { width: 640, height: 920 } },
+    { print: { width: 320, height: 305 }, purchase: { width: 640, height: 920 } },
+    { print: { width: 320, height: 230 }, purchase: { width: 640, height: 920 } },
+    { print: { width: 460, height: 213 }, purchase: { width: 640, height: 920 } },
+    { print: { width: 250, height: 700 }, purchase: { width: 500, height: 700 } },
+    { print: { width: 500, height: 350 }, purchase: { width: 500, height: 700 } },
+    { print: { width: 500, height: 233 }, purchase: { width: 500, height: 700 } },
+    { print: { width: 350, height: 333 }, purchase: { width: 500, height: 700 } },
+  ];
+  const priority = [
+    { width: 520, height: 360 },
+    { width: 460, height: 320 },
+  ];
+
+  it("А5 (148×210) 4+4 → выбирает 460×320, а НЕ 500×350", () => {
+    const ranked = rankPairs(148, 210, false, coatedPairs, {
+      requireEvenItems: true,
+      priorityPrintFormats: priority,
+    });
+    expect(ranked.length).toBeGreaterThan(0);
+    const top = ranked[0];
+    expect([460, 520]).toContain(top.pair.print.width);
+    expect(top.layout.itemsPerSheet % 2).toBe(0);
+    // 500×350 (раскройный) НЕ должен быть оптимальным
+    expect(top.pair.print.width).not.toBe(500);
+    // На 460×320 А5 умещается только 2 шт из-за тех. полей,
+    // поэтому выигрывает 520×360 с 4 шт. Главное — это рабочий формат.
+    expect(top.pair.print.width).toBe(520);
+    expect(top.layout.itemsPerSheet).toBe(4);
+  });
+
+  it("А6 (105×148) 4+4 → выбирает рабочий формат с чётным числом, а НЕ 250×700", () => {
+    const ranked = rankPairs(105, 148, false, coatedPairs, {
+      requireEvenItems: true,
+      priorityPrintFormats: priority,
+    });
+    expect(ranked.length).toBeGreaterThan(0);
+    const top = ranked[0];
+    // Должен быть один из рабочих форматов
+    const isWorking =
+      (top.pair.print.width === 460 && top.pair.print.height === 320) ||
+      (top.pair.print.width === 520 && top.pair.print.height === 360);
+    expect(isWorking).toBe(true);
+    expect(top.layout.itemsPerSheet % 2).toBe(0);
+    // 250×700 ни в коем случае не должен быть оптимальным
+    expect(top.pair.print.width).not.toBe(250);
+  });
+
+  it("А6 (105×148) без чётного требования → рабочий формат тоже выигрывает (9 шт)", () => {
+    const ranked = rankPairs(105, 148, false, coatedPairs, {
+      priorityPrintFormats: priority,
+    });
+    const top = ranked[0];
+    const isWorking =
+      (top.pair.print.width === 460 && top.pair.print.height === 320) ||
+      (top.pair.print.width === 520 && top.pair.print.height === 360);
+    expect(isWorking).toBe(true);
+    expect(top.layout.itemsPerSheet).toBeGreaterThanOrEqual(8);
+  });
+
+  it("Список альтернатив содержит и рабочие, и раскройные форматы", () => {
+    const ranked = rankPairs(148, 210, false, coatedPairs, {
+      requireEvenItems: true,
+      priorityPrintFormats: priority,
+    });
+    const widths = ranked.map((r) => r.pair.print.width);
+    expect(widths).toContain(460);
+    expect(widths.some((w) => w === 500 || w === 250 || w === 520)).toBe(true);
   });
 });
 
