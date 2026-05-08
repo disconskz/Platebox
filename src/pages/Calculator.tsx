@@ -487,14 +487,26 @@ const Calculator = () => {
   }, [preResult, pressMachines, circulationRules, productType, circulation]);
   const autoMachine = autoMachinePick.machine;
 
-  // Является ли подобранный печатный формат приоритетным (520×360 / 460×320)
-  const isPriorityFormat = useMemo(() => {
-    if (!preResult || "error" in preResult) return false;
-    const w = preResult.layout.printFormat.width;
-    const h = preResult.layout.printFormat.height;
-    const key = `${Math.max(w, h)}x${Math.min(w, h)}`;
-    return key === "520x360" || key === "460x320";
-  }, [preResult]);
+  // Авто-подобранный закупочный формат для текущего печатного листа
+  const autoPickedPurchase = useMemo(() => {
+    if (!preResult || "error" in preResult) return null;
+    const pw = preResult.layout.printFormat.width;
+    const ph = preResult.layout.printFormat.height;
+    const pair = formatPairs.find(
+      (p) => p.print.width === pw && p.print.height === ph
+    );
+    return pair?.purchase ?? null;
+  }, [preResult, formatPairs]);
+
+  // Тираж выходит за рекомендуемый диапазон авто-машины
+  const circulationOutOfRange = useMemo(() => {
+    if (!autoMachine) return false;
+    const min = autoMachine.min_circulation ?? 0;
+    const max = autoMachine.max_circulation;
+    if (circulation < min) return true;
+    if (max != null && circulation > max) return true;
+    return false;
+  }, [autoMachine, circulation]);
 
   // Причина выбора A2+ (габарит изделия / большой тираж листов)
   const a2Reason = useMemo<null | "size" | "volume">(() => {
