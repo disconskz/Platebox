@@ -273,15 +273,42 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const [rows, setRows] = useState<AnyRow[]>([]);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [activeSection, setActiveSection] = useState<string>("__all");
+  const [sectionList, setSectionList] = useState<string[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<{ rows: AnyRow[]; mode: "one" | "many" } | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const hasSubgroup = useMemo(() => {
+    const cols = spec.cols.map((c: any) => c.k);
+    // У этих таблиц мы добавили колонку subgroup миграцией; system_settings — нет.
+    return spec.key !== "system_settings";
+  }, [spec]);
   const PAGE_SIZE = 15;
   const pk = spec.pk || "id";
 
   const load = async () => {
     const { data } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
     setRows((data as any) || []);
+    setSelected(new Set());
   };
 
-  useEffect(() => { load(); setPage(1); /* eslint-disable-next-line */ }, [spec.key]);
+  const loadSections = async () => {
+    if (!hasSubgroup) { setSectionList([]); return; }
+    const { data: rs } = await (supabase as any)
+      .from("reference_sections")
+      .select("name")
+      .eq("table_key", spec.key)
+      .order("sort_order");
+    const fromSections = ((rs as any[]) || []).map((r) => r.name as string);
+    // плюс уникальные значения subgroup в данных
+    const fromRows = Array.from(new Set(rows.map((r) => r.subgroup).filter(Boolean) as string[]));
+    const all = Array.from(new Set([...fromSections, ...fromRows]));
+    setSectionList(all);
+  };
+
+  useEffect(() => { load(); setPage(1); setActiveSection("__all"); setSearch(""); /* eslint-disable-next-line */ }, [spec.key]);
+  useEffect(() => { loadSections(); /* eslint-disable-next-line */ }, [spec.key, rows.length]);
 
   const update = async (row: AnyRow, k: string, v: any) => {
     const next = { ...row, [k]: v };
@@ -297,6 +324,107 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const remove = async (row: AnyRow) => {
     const { error } = await (supabase as any).from(spec.key).delete().eq(pk, row[pk]);
     if (error) toast.error(error.message); else { toast.success("Удалено"); load(); }
+  };
+
+  const removeMany = async (ids: string[]) => {
+    if (!ids.length) return;
+    const { error } = await (supabase as any).from(spec.key).delete().in(pk, ids);
+    if (error) toast.error(error.message);
+    else { toast.success(`Удалено: ${ids.length}`); load(); }
+  };
+
+  const duplicate = async (row: AnyRow) => {
+    const { [pk]: _id, created_at, ...rest } = row;
+    if (typeof rest.name === "string") rest.name = `${rest.name} (копия)`;
+    const { error } = await (supabase as any).from(spec.key).insert(rest);
+    if (error) toast.error(error.message);
+    else { toast.success("Скопировано"); load(); }
+  };
+
+  // ===== CSV =====
+  const exportCsv = () => {
+    const cols = spec.cols.map((c: any) => c.k);
+    const labels = spec.cols.map((c: any) => c.label);
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = Array.isArray(v) ? v.join("|") : String(v);
+      if (/[;"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const lines = [labels.join(";")];
+    for (const r of filteredRows) {
+      lines.push(cols.map((k: string) => escape(r[k])).join(";"));
+    }
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${spec.key}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCsv = (text: string): string[][] => {
+    const out: string[][] = [];
+    let cur: string[] = []; let cell = ""; let inQ = false;
+    const t = text.replace(/^\uFEFF/, "");
+    for (let i = 0; i < t.length; i++) {
+      const ch = t[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (t[i + 1] === '"') { cell += '"'; i++; } else inQ = false;
+        } else cell += ch;
+      } else {
+        if (ch === '"') inQ = true;
+        else if (ch === ";") { cur.push(cell); cell = ""; }
+        else if (ch === "\n") { cur.push(cell); out.push(cur); cur = []; cell = ""; }
+        else if (ch === "\r") { /* skip */ }
+        else cell += ch;
+      }
+    }
+    if (cell.length || cur.length) { cur.push(cell); out.push(cur); }
+    return out.filter((r) => r.length && r.some((c) => c.length));
+  };
+
+  const importCsv = async (file: File) => {
+    const text = await file.text();
+    const grid = parseCsv(text);
+    if (grid.length < 2) { toast.error("CSV пустой"); return; }
+    const header = grid[0];
+    const labelToKey: Record<string, string> = {};
+    for (const c of spec.cols) labelToKey[c.label] = c.k;
+    const numKeys = new Set(spec.cols.filter((c: any) => c.t === "number").map((c: any) => c.k));
+    const multiKeys = new Set(spec.cols.filter((c: any) => c.t === "multiselect").map((c: any) => c.k));
+    const keys = header.map((h) => labelToKey[h] ?? h);
+    const records = grid.slice(1).map((row) => {
+      const obj: AnyRow = {};
+      keys.forEach((k, i) => {
+        let v: any = row[i];
+        if (v === "" || v == null) { obj[k] = null; return; }
+        if (numKeys.has(k)) v = Number(v);
+        else if (multiKeys.has(k)) v = String(v).split("|").filter(Boolean);
+        obj[k] = v;
+      });
+      return obj;
+    });
+    if (!confirm(`Импортировать ${records.length} строк? Существующие данные не удаляются.`)) return;
+    const { error } = await (supabase as any).from(spec.key).insert(records);
+    if (error) toast.error(error.message);
+    else { toast.success(`Импортировано: ${records.length}`); load(); }
+  };
+
+  // ===== Sections =====
+  const addSection = async () => {
+    const name = prompt("Название раздела:")?.trim();
+    if (!name) return;
+    const { error } = await (supabase as any).from("reference_sections").insert({ table_key: spec.key, name });
+    if (error) toast.error(error.message);
+    else { setActiveSection(name); loadSections(); }
+  };
+  const removeSection = async (name: string) => {
+    if (!confirm(`Удалить раздел «${name}»? Записи останутся, но потеряют принадлежность к разделу.`)) return;
+    await (supabase as any).from("reference_sections").delete().eq("table_key", spec.key).eq("name", name);
+    await (supabase as any).from(spec.key).update({ subgroup: null }).eq("subgroup", name);
+    setActiveSection("__all");
+    load(); loadSections();
   };
 
   const add = async () => {
