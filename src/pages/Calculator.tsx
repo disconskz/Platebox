@@ -489,6 +489,45 @@ const Calculator = () => {
     }
   }, [calcInput]);
 
+  // Сброс ручной пары при смене продукта/формата/материала
+  useEffect(() => {
+    setManualPair(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productType, formatType, dims.w, dims.h, materialCategory]);
+
+  // Если выбранная вручную пара исчезла из справочника — сбросить
+  useEffect(() => {
+    if (!manualPair) return;
+    const ok = formatPairs.some(
+      (p) =>
+        p.print.width === manualPair.print.width &&
+        p.print.height === manualPair.print.height &&
+        p.purchase.width === manualPair.purchase.width &&
+        p.purchase.height === manualPair.purchase.height
+    );
+    if (!ok) setManualPair(null);
+  }, [formatPairs, manualPair]);
+
+  // Авто-базовый результат (для расчёта Δ к авто, когда выбран ручной режим)
+  const autoBaseResult = useMemo(() => {
+    if (!calcInput || !manualPair) return null;
+    const ownIntent = colorBack > 0 && colorFront === colorBack;
+    const priority = [
+      { width: 520, height: 360 },
+      { width: 460, height: 320 },
+    ];
+    try {
+      return runCalculation({
+        ...calcInput,
+        formatPairs: formatPairs.length ? formatPairs : undefined,
+        requireEvenItems: ownIntent,
+        priorityPrintFormats: priority,
+      });
+    } catch {
+      return null;
+    }
+  }, [calcInput, manualPair, formatPairs, colorFront, colorBack]);
+
   // Авто-выбранная машина по подобранному печатному формату
   const autoMachinePick = useMemo<MachinePick>(() => {
     if (!preResult || "error" in preResult) return { machine: null, source: "none" };
