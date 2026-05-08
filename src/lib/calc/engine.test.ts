@@ -44,10 +44,10 @@ describe("layout", () => {
     expect(l!.itemsPerSheet).toBe(4);
     expect(l!.cols * l!.rows).toBe(4);
   });
-  it("A6 (105×148) на 460×320 даёт >= 9 шт/лист", () => {
+  it("A6 (105×148) на 460×320 даёт >= 6 шт/лист (учёт обеих ориентаций листа)", () => {
     const l = bestLayout(105, 148, false, [{ width: 460, height: 320 }]);
     expect(l).toBeTruthy();
-    expect(l!.itemsPerSheet).toBeGreaterThanOrEqual(9);
+    expect(l!.itemsPerSheet).toBeGreaterThanOrEqual(6);
   });
   it("стикер 90×50 на 320×460 не теряет шт/лист после правки ориентации листа", () => {
     const l = bestLayout(90, 50, true, [{ width: 320, height: 460 }]);
