@@ -8,7 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -249,22 +248,118 @@ const References = () => {
             Бумага, операции, оборудование, ламинация и системные константы. Изменения видны во всех новых расчётах.
           </HelpHint>
         </div>
-        <Tabs defaultValue="materials">
-          <TabsList className="scroll-x flex w-full overflow-x-auto h-auto justify-start">
-            {TABLES.map((t) => <TabsTrigger key={t.key} value={t.key}>{t.title}</TabsTrigger>)}
-            <TabsTrigger value="__rules">Правила расчёта</TabsTrigger>
-            <TabsTrigger value="__custom">Свои справочники</TabsTrigger>
-          </TabsList>
-          {TABLES.map((t) => (
-            <TabsContent key={t.key} value={t.key} className="mt-4">
-              <RefTable spec={t as any} dynOpts={dynOpts} />
-            </TabsContent>
-          ))}
-          <TabsContent value="__rules" className="mt-4"><CalcRulesEditor /></TabsContent>
-          <TabsContent value="__custom" className="mt-4"><CustomReferences /></TabsContent>
-        </Tabs>
+        <ReferencesNav dynOpts={dynOpts} />
       </main>
       <MobileTabBar />
+    </div>
+  );
+};
+
+// Группированная навигация по справочникам: на десктопе — сайдбар,
+// на мобильных — Select. Заменяет горизонтальную полоску табов,
+// которую неудобно листать при большом числе разделов.
+const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] = [
+  {
+    title: "Материалы и форматы",
+    items: [
+      { key: "materials", title: "Бумага" },
+      { key: "purchase_formats", title: "Закупочные форматы" },
+      { key: "print_formats", title: "Печатные форматы" },
+      { key: "envelope_formats", title: "Конверты" },
+    ],
+  },
+  {
+    title: "Производство",
+    items: [
+      { key: "operations", title: "Операции" },
+      { key: "equipment", title: "Оборудование" },
+      { key: "press_machines", title: "Печатные машины" },
+      { key: "lamination_prices", title: "Ламинация" },
+    ],
+  },
+  {
+    title: "Правила и настройки",
+    items: [
+      { key: "product_circulation_rules", title: "Правила тиражей" },
+      { key: "__rules", title: "Правила расчёта" },
+      { key: "system_settings", title: "Константы" },
+    ],
+  },
+  {
+    title: "Расширения",
+    items: [
+      { key: "__custom", title: "Свои справочники" },
+    ],
+  },
+];
+
+const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
+  const [active, setActive] = useState<string>("materials");
+  const allItems = NAV_GROUPS.flatMap((g) => g.items);
+  const activeTitle = allItems.find((i) => i.key === active)?.title ?? "";
+
+  const renderContent = () => {
+    if (active === "__rules") return <CalcRulesEditor />;
+    if (active === "__custom") return <CustomReferences />;
+    const spec = TABLES.find((t) => t.key === active);
+    if (!spec) return null;
+    return <RefTable spec={spec as any} dynOpts={dynOpts} />;
+  };
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+      {/* Mobile: Select */}
+      <div className="lg:hidden">
+        <Select value={active} onValueChange={setActive}>
+          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {NAV_GROUPS.map((g, gi) => (
+              <Fragment key={g.title}>
+                <div className={`px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground ${gi === 0 ? "" : "mt-1 border-t"}`}>{g.title}</div>
+                {g.items.map((it) => (
+                  <SelectItem key={it.key} value={it.key}>{it.title}</SelectItem>
+                ))}
+              </Fragment>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Desktop: sidebar */}
+      <nav className="hidden lg:block">
+        <div className="sticky top-20 space-y-4 p-2 rounded-lg border bg-card">
+          {NAV_GROUPS.map((g) => (
+            <div key={g.title}>
+              <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {g.title}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {g.items.map((it) => {
+                  const isActive = active === it.key;
+                  return (
+                    <button
+                      key={it.key}
+                      onClick={() => setActive(it.key)}
+                      className={`text-left text-sm px-2.5 py-1.5 rounded-md transition-colors ${
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {it.title}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </nav>
+
+      <div className="min-w-0">
+        <div className="lg:hidden mb-2 text-sm font-medium">{activeTitle}</div>
+        {renderContent()}
+      </div>
     </div>
   );
 };
