@@ -1143,8 +1143,122 @@ const Calculator = () => {
                     </HelpHint>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  Раскладка подбирается автоматически из печатных форматов справочника. Превью справа.
+                <CardContent className="text-sm text-muted-foreground space-y-4">
+                  {/* Переключатель Авто / Вручную */}
+                  <Tabs
+                    value={manualPair ? "manual" : "auto"}
+                    onValueChange={(v) => {
+                      if (v === "auto") setManualPair(null);
+                      else if (!manualPair && formatPairs.length) {
+                        // По умолчанию — текущая авто-пара
+                        const cur = preResult && !("error" in preResult)
+                          ? formatPairs.find(
+                              (p) =>
+                                p.print.width === preResult.layout.printFormat.width &&
+                                p.print.height === preResult.layout.printFormat.height
+                            )
+                          : null;
+                        setManualPair(cur ?? formatPairs[0]);
+                      }
+                    }}
+                  >
+                    <TabsList>
+                      <TabsTrigger value="auto">Авто (рекомендовано)</TabsTrigger>
+                      <TabsTrigger value="manual" disabled={!formatPairs.length}>Вручную</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+
+                  {!manualPair && (
+                    <div className="text-sm text-muted-foreground">
+                      Система выбирает оптимальную пару (печатный + закупочный) исходя из формата изделия, тиража и приоритетных рабочих форматов.
+                    </div>
+                  )}
+
+                  {manualPair && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Печатный формат</Label>
+                        <Select
+                          value={`${manualPair.print.width}x${manualPair.print.height}`}
+                          onValueChange={(v) => {
+                            const [w, h] = v.split("x").map(Number);
+                            const first = formatPairs.find((p) => p.print.width === w && p.print.height === h);
+                            if (first) setManualPair(first);
+                          }}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Array.from(
+                              new Map(formatPairs.map((p) => [`${p.print.width}x${p.print.height}`, p.print])).values()
+                            ).map((p) => {
+                              const isPriority =
+                                (p.width === 520 && p.height === 360) ||
+                                (p.width === 460 && p.height === 320);
+                              return (
+                                <SelectItem key={`${p.width}x${p.height}`} value={`${p.width}x${p.height}`}>
+                                  {p.width}×{p.height} мм {isPriority ? "★ рекомендуемый" : ""}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Закупочный формат</Label>
+                        <Select
+                          value={`${manualPair.purchase.width}x${manualPair.purchase.height}`}
+                          onValueChange={(v) => {
+                            const [w, h] = v.split("x").map(Number);
+                            setManualPair({ ...manualPair, purchase: { width: w, height: h } });
+                          }}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Array.from(
+                              new Map(
+                                formatPairs
+                                  .filter((p) => p.print.width === manualPair.print.width && p.print.height === manualPair.print.height)
+                                  .map((p) => [`${p.purchase.width}x${p.purchase.height}`, p.purchase])
+                              ).values()
+                            ).map((p) => (
+                              <SelectItem key={`${p.width}x${p.height}`} value={`${p.width}x${p.height}`}>
+                                {p.width}×{p.height} мм
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="md:col-span-2 flex items-center justify-between rounded-md border bg-muted/30 p-2">
+                        <div className="text-xs text-muted-foreground">
+                          Ручной режим: фильтр приоритетных форматов и «свой оборот» отключены.
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => setManualPair(null)}>Сбросить к авто</Button>
+                      </div>
+                      {result && !("error" in result) && autoBaseResult && (
+                        <div className="md:col-span-2 rounded-md border bg-card p-2 text-xs text-foreground">
+                          {(() => {
+                            const delta = result.totalCost - autoBaseResult.totalCost;
+                            const sign = delta > 0 ? "+" : "";
+                            const cls = delta > 0 ? "text-destructive" : delta < 0 ? "text-emerald-600" : "text-muted-foreground";
+                            return (
+                              <span>
+                                Δ к авто:&nbsp;
+                                <span className={cls + " font-medium"}>{sign}{fmtMoney(delta)}</span>
+                                &nbsp;(авто: {fmtMoney(autoBaseResult.totalCost)} · {autoBaseResult.layout.printFormat.width}×{autoBaseResult.layout.printFormat.height})
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {result && "error" in result && (
+                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-sm text-destructive">
+                      {result.error}
+                    </div>
+                  )}
+
                   {result && !("error" in result) && (
                     <div className="mt-4 grid grid-cols-2 gap-3 text-foreground">
                        <div className="rounded-md border bg-card p-2">
