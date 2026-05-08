@@ -7,13 +7,16 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { DEFAULTS } from "@/lib/calc/types";
 import { RULE_KEY_MAP } from "@/lib/calc/rules";
+import { HelpHint } from "@/components/HelpHint";
 
-type Section = { title: string; description?: string; fields: { key: string; label: string; unit?: string; hint?: string }[] };
+type Section = { title: string; description?: string; learnMore?: string; help?: string; fields: { key: string; label: string; unit?: string; hint?: string }[] };
 
 const SECTIONS: Section[] = [
   {
     title: "Поля и припуски",
     description: "Размеры захвата и боковых полей на печатном листе. Влияют на максимальное число изделий на лист.",
+    learnMore: "rules-margins",
+    help: "Уменьшите поля — больше изделий на лист и ниже себестоимость. Но не ниже технологического минимума машины (8–12 мм).",
     fields: [
       { key: "rule.layout.marginLR", label: "Боковые поля", unit: "мм" },
       { key: "rule.layout.marginTop", label: "Верхнее поле (захват)", unit: "мм" },
@@ -26,6 +29,8 @@ const SECTIONS: Section[] = [
   {
     title: "Приладка / отходы",
     description: "Сколько листов уходит в приладку при разных типах оборота, и доля доп. отходов от тиража.",
+    learnMore: "rules-setup",
+    help: "setupOwn — приладка для своего оборота, setupForeign — для чужого, setupPercent — доля от тиража (0.01 = 1%).",
     fields: [
       { key: "rule.setup.setupOwn", label: "Приладка «свой оборот»", unit: "листов" },
       { key: "rule.setup.setupForeign", label: "Приладка «чужой оборот»", unit: "листов" },
@@ -36,6 +41,8 @@ const SECTIONS: Section[] = [
   {
     title: "Цены: формы, краска, резка",
     description: "Стоимости пластин, подготовки, резки и нумерации.",
+    learnMore: "rules-prices",
+    help: "Используется в формулах: формы = (краски × стороны × дизайны), резка — отдельной статьёй.",
     fields: [
       { key: "rule.price.formCost", label: "Пластина (форма)", unit: "₸" },
       { key: "rule.price.formPrepCost", label: "Подготовка к печати", unit: "₸/форма" },
@@ -47,6 +54,8 @@ const SECTIONS: Section[] = [
   },
   {
     title: "Тиснение",
+    learnMore: "rules-stamping",
+    help: "Стоимость = приладка + клише + оттиски × тираж. Клише: max(минимум, площадь_см² × ставка).",
     fields: [
       { key: "rule.price.stampingSetup", label: "Приладка тиснения", unit: "₸" },
       { key: "rule.price.stampingClicheMin", label: "Мин. цена клише", unit: "₸" },
@@ -58,6 +67,8 @@ const SECTIONS: Section[] = [
   {
     title: "Лимиты печатного формата",
     description: "Используются как fallback, если в справочнике «Печатные форматы» нет своих записей.",
+    learnMore: "rules-formats",
+    help: "Эти значения используются ТОЛЬКО когда таблица «Печатные форматы» пуста. Заполните её — и эти лимиты не понадобятся.",
     fields: [
       { key: "rule.formats.maxPrintW", label: "Макс. печатный — ширина", unit: "мм" },
       { key: "rule.formats.maxPrintH", label: "Макс. печатный — высота", unit: "мм" },
@@ -114,8 +125,12 @@ export default function CalcRulesEditor() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-md border bg-muted/30">
-        <div className="text-sm">
+        <div className="text-sm flex items-center">
           Правила расчёта применяются ко всем новым расчётам. Изменения не затрагивают уже сохранённые сметы.
+          <HelpHint title="Как работают правила" learnMore="rules-where">
+            <p>Меняете значения здесь — все НОВЫЕ расчёты считаются по новым правилам. Уже сохранённые сметы не пересчитываются (защита истории).</p>
+            <p>Чтобы пересчитать старый заказ — продублируйте его в списке расчётов.</p>
+          </HelpHint>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={resetToDefaults}>Сбросить к заводским</Button>
@@ -126,7 +141,12 @@ export default function CalcRulesEditor() {
       {SECTIONS.map((s) => (
         <Card key={s.title}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{s.title}</CardTitle>
+            <CardTitle className="text-base flex items-center">
+              {s.title}
+              {s.help && (
+                <HelpHint title={s.title} learnMore={s.learnMore}>{s.help}</HelpHint>
+              )}
+            </CardTitle>
             {s.description && <div className="text-xs text-muted-foreground">{s.description}</div>}
           </CardHeader>
           <CardContent>

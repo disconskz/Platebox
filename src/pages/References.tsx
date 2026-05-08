@@ -679,7 +679,18 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
     <Card>
       <CardHeader className="pb-3 gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="text-base">{spec.title}</CardTitle>
+          <CardTitle className="text-base flex items-center">
+            {spec.title}
+            <HelpHint title="Работа с таблицей" learnMore="refs-toolbar">
+              <ul className="list-disc pl-4 space-y-1">
+                <li><b>Поиск</b> — по всем колонкам.</li>
+                <li><b>Разделы</b> группируют записи (поле subgroup).</li>
+                <li><b>CSV</b>: экспорт текущей выборки, импорт добавляет строки.</li>
+                <li><b>«⋯»</b> у строки — дублировать или удалить.</li>
+                <li><b>Чекбоксы</b> — массовое удаление.</li>
+              </ul>
+            </HelpHint>
+          </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
