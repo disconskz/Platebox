@@ -40,7 +40,7 @@ export function layoutVariants(
 ): LayoutResult[] {
   const r = R();
   const bleed = r.bleed;
-  const margins = { left: r.marginLR, right: r.marginLR, top: r.marginTop, bottom: r.marginBottom };
+  const margins = { left: r.marginLeft, right: r.marginRight, top: r.marginTop, bottom: r.marginBottom };
   const gap = isSticker ? r.stickerGap : 0;
   const edgeMargin = isSticker ? r.stickerEdge : 0;
 

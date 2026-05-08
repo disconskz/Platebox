@@ -4,9 +4,10 @@ import { DEFAULTS } from "./types";
 export type CalcRules = typeof DEFAULTS;
 
 const KEY_MAP: Record<string, keyof CalcRules> = {
-  "rule.layout.marginLR": "marginLR",
   "rule.layout.marginTop": "marginTop",
   "rule.layout.marginBottom": "marginBottom",
+  "rule.layout.marginLeft": "marginLeft",
+  "rule.layout.marginRight": "marginRight",
   "rule.layout.bleed": "bleed",
   "rule.layout.stickerGap": "stickerGap",
   "rule.layout.stickerEdge": "stickerEdge",
