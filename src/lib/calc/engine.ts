@@ -376,7 +376,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const impressions = printSheets * (turnaround === "own" ? 2 : 1);
   const printPerImpr = input.printCostPerImpression ?? (turnaround === "foreign" ? 5 : 3);
   const printCost = impressions * printPerImpr;
-  const inkCost = (input.inkCostPerSet ?? 500) * forms;
+  const inkCost = 0;
 
   // Postpress
   const postpress: SpecItem[] = [];
@@ -435,8 +435,6 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   // Prepress
   const prepress: SpecItem[] = [];
-  const designTotal = (input.designQty ?? 2) * rule.designCost;
-  prepress.push({ stage: "prepress", name: "Дизайн / подготовка", quantity: input.designQty ?? 2, unit: "шт", unitPrice: rule.designCost, total: designTotal });
   if (input.photoOutputUnitCost > 0) {
     prepress.push({ stage: "prepress", name: "Фотовывод", quantity: forms, unit: "шт", unitPrice: input.photoOutputUnitCost, total: forms * input.photoOutputUnitCost });
   }
@@ -452,7 +450,6 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   const printItems: SpecItem[] = [
     { stage: "print", name: `Печать офсетная (${turnaround === "foreign" ? "чужой" : turnaround === "own" ? "свой" : "без оборота"})`, quantity: impressions, unit: "оттиск", unitPrice: printPerImpr, total: printCost },
-    { stage: "print", name: "Краска (комплект)", quantity: forms, unit: "комплект", unitPrice: input.inkCostPerSet ?? 500, total: inkCost },
   ];
 
   const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics];

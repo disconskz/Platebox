@@ -706,6 +706,8 @@ const Calculator = () => {
         : (autoMachine?.cost_per_impression ?? null),
       print_format_width: result.layout.printFormat.width,
       print_format_height: result.layout.printFormat.height,
+      purchase_format_width: (manualPair?.purchase ?? autoPickedPurchase ?? { width: effectiveMaterial.format_width }).width,
+      purchase_format_height: (manualPair?.purchase ?? autoPickedPurchase ?? { height: effectiveMaterial.format_height }).height,
       items_per_sheet: result.layout.itemsPerSheet,
       is_rotated: result.layout.rotated,
       turnaround_type: result.turnaround,
@@ -1270,6 +1272,61 @@ const Calculator = () => {
                            {result.layout.printFormat.width}×{result.layout.printFormat.height}
                          </div>
                        </div>
+                       {(() => {
+                         const pw = result.layout.printFormat.width;
+                         const ph = result.layout.printFormat.height;
+                         const options = Array.from(
+                           new Map(
+                             formatPairs
+                               .filter((p) => p.print.width === pw && p.print.height === ph)
+                               .map((p) => [`${p.purchase.width}x${p.purchase.height}`, p.purchase])
+                           ).values()
+                         );
+                         const curPurchase = manualPair?.purchase
+                           ?? autoPickedPurchase
+                           ?? (effectiveMaterial
+                             ? { width: effectiveMaterial.format_width, height: effectiveMaterial.format_height }
+                             : null);
+                         const curKey = curPurchase ? `${curPurchase.width}x${curPurchase.height}` : "";
+                         const hasCurInOptions = options.some((o) => `${o.width}x${o.height}` === curKey);
+                         return (
+                           <div className="rounded-md border bg-card p-2 col-span-2 sm:col-span-1">
+                             <div className="text-xs text-muted-foreground flex items-center justify-between">
+                               <span>Закупочный формат</span>
+                               {!manualPair && <span className="text-[10px] uppercase tracking-wide text-primary">авто</span>}
+                             </div>
+                             {options.length > 0 ? (
+                               <Select
+                                 value={curKey}
+                                 onValueChange={(v) => {
+                                   const [w, h] = v.split("x").map(Number);
+                                   setManualPair({ print: { width: pw, height: ph }, purchase: { width: w, height: h } });
+                                 }}
+                               >
+                                 <SelectTrigger className="h-8 mt-1 text-sm font-medium">
+                                   <SelectValue />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                   {!hasCurInOptions && curPurchase && (
+                                     <SelectItem value={curKey}>
+                                       {curPurchase.width}×{curPurchase.height} мм (текущий)
+                                     </SelectItem>
+                                   )}
+                                   {options.map((o) => (
+                                     <SelectItem key={`${o.width}x${o.height}`} value={`${o.width}x${o.height}`}>
+                                       {o.width}×{o.height} мм
+                                     </SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                             ) : (
+                               <div className="text-sm font-medium mt-1">
+                                 {curPurchase ? `${curPurchase.width}×${curPurchase.height} мм` : "—"}
+                               </div>
+                             )}
+                           </div>
+                         );
+                       })()}
                       <Stat label="Тип оборота" value={result.turnaround === "none" ? "Без оборота" : result.turnaround === "own" ? "Свой" : "Чужой"} />
                       <Stat label="Форм" value={String(result.forms)} />
                       <Stat label="Приладка" value={`${result.setupSheets} л.`} />

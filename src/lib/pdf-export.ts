@@ -52,6 +52,9 @@ function buildHtml(calc: any, items: any[], totals: { cost: number; sale: number
     ["Формат", `${calc.format_type} ${calc.format_width}×${calc.format_height} мм`],
     ["Цветность", `${calc.color_front}+${calc.color_back}`],
     ["Печ. формат", `${calc.print_format_width}×${calc.print_format_height} мм`],
+    ...(calc.purchase_format_width && calc.purchase_format_height
+      ? ([["Закуп. формат", `${calc.purchase_format_width}×${calc.purchase_format_height} мм`]] as [string, string][])
+      : []),
     ["На листе", `${calc.items_per_sheet} шт`],
     ["Оборот", calc.turnaround_type === "none" ? "Без" : calc.turnaround_type === "own" ? "Свой" : "Чужой"],
     ["Форм", String(calc.forms_count ?? "—")],
