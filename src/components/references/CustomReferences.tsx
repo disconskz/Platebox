@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { HelpHint } from "@/components/HelpHint";
 
 type FieldDef = { key: string; label: string; type: "text" | "number" | "select"; opts?: string[] };
 type CustomRef = { id: string; slug: string; name: string; fields: FieldDef[]; sort_order: number };
@@ -67,6 +68,13 @@ export default function CustomReferences() {
 
   return (
     <div className="space-y-4">
+      <div className="text-xs text-muted-foreground inline-flex items-center">
+        Создавайте свои таблицы (поставщики, прайсы, контакты) с произвольной схемой полей.
+        <HelpHint title="Свои справочники" learnMore="custom-create">
+          <p>Произвольные таблицы для ваших процессов. Поля: текст, число или список значений.</p>
+          <p>Эти данные не участвуют в формулах калькулятора напрямую — это ваш «карман» внутри Platebox.</p>
+        </HelpHint>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Select value={active ?? ""} onValueChange={setActive}>
           <SelectTrigger className="w-64 h-9"><SelectValue placeholder="Выберите справочник" /></SelectTrigger>
