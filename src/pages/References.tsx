@@ -1,16 +1,29 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight, AlertTriangle,
+  Copy, Download, Upload, MoreHorizontal, Search, X,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
 import { HelpHint } from "@/components/HelpHint";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
+import CalcRulesEditor from "@/components/references/CalcRulesEditor";
+import CustomReferences from "@/components/references/CustomReferences";
 
 type AnyRow = Record<string, any>;
 
