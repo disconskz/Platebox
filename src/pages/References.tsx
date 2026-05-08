@@ -485,14 +485,35 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
     );
   };
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  // Фильтрация по разделу + поиску
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (hasSubgroup && activeSection !== "__all") {
+        if ((r.subgroup || "") !== activeSection) return false;
+      }
+      if (!q) return true;
+      for (const c of spec.cols) {
+        const v = r[c.k];
+        if (v == null) continue;
+        const text = Array.isArray(v) ? v.map(optLabel).join(" ") : optLabel(String(v));
+        if (text.toLowerCase().includes(q)) return true;
+      }
+      return false;
+    });
+  }, [rows, search, activeSection, hasSubgroup, spec.cols]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(Math.max(1, page), totalPages);
   const pageRows = useMemo(
-    () => rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [rows, currentPage]
+    () => filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredRows, currentPage]
   );
-  const fromIdx = rows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const toIdx = Math.min(currentPage * PAGE_SIZE, rows.length);
+  const fromIdx = filteredRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const toIdx = Math.min(currentPage * PAGE_SIZE, filteredRows.length);
+
+  // При смене раздела — сбросить страницу
+  useEffect(() => { setPage(1); }, [search, activeSection]);
 
   // Валидация диапазонов тиражей (для press_machines и product_circulation_rules)
   const rangeValidation = useMemo(() => {
