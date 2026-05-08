@@ -376,7 +376,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const impressions = printSheets * (turnaround === "own" ? 2 : 1);
   const printPerImpr = input.printCostPerImpression ?? (turnaround === "foreign" ? 5 : 3);
   const printCost = impressions * printPerImpr;
-  const inkCost = (input.inkCostPerSet ?? 500) * forms;
+  const inkCost = 0;
 
   // Postpress
   const postpress: SpecItem[] = [];
