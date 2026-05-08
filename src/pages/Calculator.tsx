@@ -188,6 +188,8 @@ const Calculator = () => {
 
   useEffect(() => {
     (async () => {
+      const calcRules = await loadCalcRules();
+      setCalcRules(calcRules);
       const { data: m } = await supabase.from("materials").select("*").order("name");
       const { data: l } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
       const { data: e } = await supabase.from("equipment").select("*").eq("type", "print").order("name");
