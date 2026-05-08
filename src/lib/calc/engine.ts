@@ -7,6 +7,25 @@ export function calculateLayout(
   printH: number,
   isSticker: boolean
 ): LayoutResult | null {
+  const variants = layoutVariants(productW, productH, printW, printH, isSticker);
+  if (!variants.length) return null;
+  variants.sort((a, b) => b.itemsPerSheet - a.itemsPerSheet);
+  return variants[0];
+}
+
+/**
+ * Возвращает ВСЕ валидные варианты раскладки (обе ориентации) для данного
+ * печатного листа. Используется ранжированием, чтобы можно было выбирать
+ * подходящий вариант (например, чётное число изделий для «своего оборота»),
+ * а не только тот, что даёт максимум шт/лист.
+ */
+export function layoutVariants(
+  productW: number,
+  productH: number,
+  printW: number,
+  printH: number,
+  isSticker: boolean
+): LayoutResult[] {
   const bleed = DEFAULTS.bleed;
   const margins = { left: DEFAULTS.marginLR, right: DEFAULTS.marginLR, top: DEFAULTS.marginTop, bottom: DEFAULTS.marginBottom };
   const gap = isSticker ? DEFAULTS.stickerGap : 0;
@@ -42,9 +61,7 @@ export function calculateLayout(
       });
     }
   }
-  if (!variants.length) return null;
-  variants.sort((a, b) => b.itemsPerSheet - a.itemsPerSheet);
-  return variants[0];
+  return variants;
 }
 
 export function bestLayout(
