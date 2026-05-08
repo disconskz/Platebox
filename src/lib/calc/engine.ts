@@ -132,7 +132,7 @@ export function rankPairs(
     const even = out.filter((r) => r.layout.itemsPerSheet % 2 === 0);
     if (even.length) pool = even;
   }
-  // Приоритетные форматы: помечаем флагом
+  // Приоритетные форматы — только как мягкий тай-брейк при равных метриках
   const isPriority = (p: FormatPair) => {
     const list = options?.priorityPrintFormats;
     if (!list || !list.length) return false;
@@ -142,15 +142,21 @@ export function rankPairs(
         (f.width === p.print.height && f.height === p.print.width)
     );
   };
+  // Главный приоритет — максимум изделий на одном печатном листе
+  // (= минимальная себестоимость на изделие при равных прочих).
+  // Затем — больше изделий с закупочного, меньше отходов, и наконец
+  // приоритетный печатный формат / меньший лист как тай-брейк.
   pool.sort((a, b) => {
-    const pa = isPriority(a.pair) ? 0 : 1;
-    const pb = isPriority(b.pair) ? 0 : 1;
-    if (pa !== pb) return pa - pb;
-    if (b.itemsPerPurchase !== a.itemsPerPurchase) return b.itemsPerPurchase - a.itemsPerPurchase;
-    // Меньше отходов на изделие лучше
+    if (b.layout.itemsPerSheet !== a.layout.itemsPerSheet)
+      return b.layout.itemsPerSheet - a.layout.itemsPerSheet;
+    if (b.itemsPerPurchase !== a.itemsPerPurchase)
+      return b.itemsPerPurchase - a.itemsPerPurchase;
     const wa = a.layout.wasteArea / Math.max(1, a.layout.itemsPerSheet);
     const wb = b.layout.wasteArea / Math.max(1, b.layout.itemsPerSheet);
     if (wa !== wb) return wa - wb;
+    const pa = isPriority(a.pair) ? 0 : 1;
+    const pb = isPriority(b.pair) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
     return a.pair.print.width * a.pair.print.height - b.pair.print.width * b.pair.print.height;
   });
   return pool;
