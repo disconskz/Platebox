@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stepper } from "@/components/calc/Stepper";
 import { LayoutPreview } from "@/components/calc/LayoutPreview";
 import { FORMAT_PRESETS, runCalculation } from "@/lib/calc/engine";
