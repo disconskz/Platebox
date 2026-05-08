@@ -315,7 +315,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
               onClick={() => toggle(o)}
               className={`text-[10px] px-1.5 py-0.5 rounded border ${arr.includes(o) ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground"}`}
             >
-              {o}
+              {optLabel(o)}
             </button>
           ))}
         </div>
@@ -326,7 +326,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
       return (
         <Select value={String(value ?? "")} onValueChange={(v) => onChange(isBool ? v === "true" : v)}>
           <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-          <SelectContent>{col.opts.map((o: string) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+          <SelectContent>{col.opts.map((o: string) => <SelectItem key={o} value={o}>{optLabel(o)}</SelectItem>)}</SelectContent>
         </Select>
       );
     }
