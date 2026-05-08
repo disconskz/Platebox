@@ -938,7 +938,12 @@ const Calculator = () => {
                         <div className="rounded-md border bg-card p-3 text-sm space-y-1">
                           <div className="font-medium">{effectiveMaterial.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            Закупочный формат: {effectiveMaterial.format_width}×{effectiveMaterial.format_height} мм · {fmtMoney(effectiveMaterial.cost_per_sheet)}/лист
+                            Закупочный формат:{" "}
+                            {autoPickedPurchase
+                              ? `${autoPickedPurchase.width}×${autoPickedPurchase.height}`
+                              : `${effectiveMaterial.format_width}×${effectiveMaterial.format_height}`}{" "}
+                            мм · {fmtMoney(effectiveMaterial.cost_per_sheet)}/лист
+                            <span className="ml-1 text-[10px] uppercase tracking-wide text-primary">авто</span>
                           </div>
                           {preResult && !("error" in preResult) && autoMachine && (
                             <div className="text-xs text-muted-foreground">
@@ -949,21 +954,32 @@ const Calculator = () => {
                                 </span>
                               )}
                               {" · "}печатный лист {preResult.layout.printFormat.width}×{preResult.layout.printFormat.height} · {fmtMoney(autoMachine.cost_per_impression)}/оттиск
-                              {isPriorityFormat && (
-                                <span className="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-primary/10 text-primary">
-                                  приоритет
-                                </span>
-                              )}
                               {a2Reason && (
                                 <div className="text-[11px] text-primary">
                                   Переключено на A2+: {a2Reason === "size" ? "формат изделия > 520×360" : `тираж листов > 10000 (${fmtNum(preResult.printSheets)})`}
                                 </div>
                               )}
                               {(autoMachine.min_circulation != null || autoMachine.max_circulation != null) && (
-                                <div className="text-[11px] text-muted-foreground/80">
-                                  Подходит для тиража: {autoMachine.min_circulation ?? 0}
-                                  {autoMachine.max_circulation != null ? `–${autoMachine.max_circulation}` : "+"}
-                                  {" · "}выбрано: тираж {circulation}
+                                <div
+                                  className={cn(
+                                    "text-[11px]",
+                                    circulationOutOfRange
+                                      ? "mt-1 inline-flex items-start gap-1 rounded border border-warning/40 bg-warning/10 px-2 py-1 text-warning"
+                                      : "text-muted-foreground/80"
+                                  )}
+                                >
+                                  {circulationOutOfRange && <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />}
+                                  <span>
+                                    Подходит для тиража: {autoMachine.min_circulation ?? 0}
+                                    {autoMachine.max_circulation != null ? `–${autoMachine.max_circulation}` : "+"}
+                                    {" · "}выбрано: тираж {circulation}
+                                    {circulationOutOfRange && (
+                                      <>
+                                        . Тираж {circulation} выходит за рекомендуемый диапазон —
+                                        согласуйте с производством или выберите другую машину.
+                                      </>
+                                    )}
+                                  </span>
                                 </div>
                               )}
                               {autoMachinePick.source === "rule" && (
@@ -1086,11 +1102,6 @@ const Calculator = () => {
                          <div className="text-xs text-muted-foreground">Печатный формат</div>
                          <div className="text-sm font-medium flex items-center gap-2">
                            {result.layout.printFormat.width}×{result.layout.printFormat.height}
-                           {isPriorityFormat && (
-                             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-primary/10 text-primary">
-                               приоритет
-                             </span>
-                           )}
                          </div>
                        </div>
                       <Stat label="Тип оборота" value={result.turnaround === "none" ? "Без оборота" : result.turnaround === "own" ? "Свой" : "Чужой"} />
