@@ -128,6 +128,9 @@ const CalculationView = () => {
               <Stat label="Формат" value={`${calc.format_type} ${calc.format_width}×${calc.format_height}`} />
               <Stat label="Цветность" value={`${calc.color_front}+${calc.color_back}`} />
               <Stat label="Печ. формат" value={`${calc.print_format_width}×${calc.print_format_height}`} />
+              {calc.purchase_format_width && calc.purchase_format_height && (
+                <Stat label="Закуп. формат" value={`${calc.purchase_format_width}×${calc.purchase_format_height}`} />
+              )}
               <Stat label="На листе" value={`${calc.items_per_sheet} шт`} />
               <Stat label="Оборот" value={calc.turnaround_type === "none" ? "Без" : calc.turnaround_type === "own" ? "Свой" : "Чужой"} />
               <Stat label="Форм" value={String(calc.forms_count)} />
