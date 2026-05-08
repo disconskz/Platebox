@@ -456,12 +456,12 @@ export function runCalculation(input: CalcInput): CalcResult {
     const altImpressions = altPrintSheets * (turnaround === "own" ? 2 : 1);
     const altPrint = altImpressions * printPerImpr;
     // Стоимость отходов = доля бумаги, ушедшая в обрезки на печатном листе
-    const printArea = r.pair.print.width * r.pair.print.height;
+    const printArea = r.layout.printFormat.width * r.layout.printFormat.height;
     const wasteShare = printArea > 0 ? r.layout.wasteArea / printArea : 0;
     const altWaste = altPaper * wasteShare;
     return {
-      printW: r.pair.print.width,
-      printH: r.pair.print.height,
+      printW: r.layout.printFormat.width,
+      printH: r.layout.printFormat.height,
       purchaseW: r.pair.purchase.width,
       purchaseH: r.pair.purchase.height,
       itemsPerSheet: r.layout.itemsPerSheet,
