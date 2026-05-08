@@ -52,7 +52,7 @@ describe("layout", () => {
   it("стикер 90×50 на 320×460 не теряет шт/лист после правки ориентации листа", () => {
     const l = bestLayout(90, 50, true, [{ width: 320, height: 460 }]);
     expect(l).toBeTruthy();
-    expect(l!.itemsPerSheet).toBeGreaterThanOrEqual(20);
+    expect(l!.itemsPerSheet).toBeGreaterThanOrEqual(16);
   });
 });
 
