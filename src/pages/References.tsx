@@ -252,12 +252,16 @@ const References = () => {
         <Tabs defaultValue="materials">
           <TabsList className="scroll-x flex w-full overflow-x-auto h-auto justify-start">
             {TABLES.map((t) => <TabsTrigger key={t.key} value={t.key}>{t.title}</TabsTrigger>)}
+            <TabsTrigger value="__rules">Правила расчёта</TabsTrigger>
+            <TabsTrigger value="__custom">Свои справочники</TabsTrigger>
           </TabsList>
           {TABLES.map((t) => (
             <TabsContent key={t.key} value={t.key} className="mt-4">
               <RefTable spec={t as any} dynOpts={dynOpts} />
             </TabsContent>
           ))}
+          <TabsContent value="__rules" className="mt-4"><CalcRulesEditor /></TabsContent>
+          <TabsContent value="__custom" className="mt-4"><CustomReferences /></TabsContent>
         </Tabs>
       </main>
       <MobileTabBar />
