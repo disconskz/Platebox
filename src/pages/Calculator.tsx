@@ -706,6 +706,8 @@ const Calculator = () => {
         : (autoMachine?.cost_per_impression ?? null),
       print_format_width: result.layout.printFormat.width,
       print_format_height: result.layout.printFormat.height,
+      purchase_format_width: (manualPair?.purchase ?? autoPickedPurchase ?? { width: effectiveMaterial.format_width }).width,
+      purchase_format_height: (manualPair?.purchase ?? autoPickedPurchase ?? { height: effectiveMaterial.format_height }).height,
       items_per_sheet: result.layout.itemsPerSheet,
       is_rotated: result.layout.rotated,
       turnaround_type: result.turnaround,
