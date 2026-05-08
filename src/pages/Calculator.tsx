@@ -12,7 +12,8 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stepper } from "@/components/calc/Stepper";
 import { LayoutPreview } from "@/components/calc/LayoutPreview";
-import { FORMAT_PRESETS, runCalculation } from "@/lib/calc/engine";
+import { FORMAT_PRESETS, runCalculation, setCalcRules } from "@/lib/calc/engine";
+import { loadCalcRules } from "@/lib/calc/rules";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
@@ -187,6 +188,8 @@ const Calculator = () => {
 
   useEffect(() => {
     (async () => {
+      const calcRules = await loadCalcRules();
+      setCalcRules(calcRules);
       const { data: m } = await supabase.from("materials").select("*").order("name");
       const { data: l } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
       const { data: e } = await supabase.from("equipment").select("*").eq("type", "print").order("name");

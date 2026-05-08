@@ -1,4 +1,16 @@
 import { CalcInput, CalcResult, DEFAULTS, FormatPair, LayoutResult, PrintFormat, SpecItem, Turnaround } from "./types";
+import type { CalcRules } from "./rules";
+
+// Глобально настраиваемые правила. Калькулятор грузит их из БД и вызывает
+// setCalcRules(rules) перед run/layout. Если не задано — используем DEFAULTS.
+let CURRENT_RULES: CalcRules = { ...DEFAULTS };
+export function setCalcRules(r: CalcRules) {
+  CURRENT_RULES = { ...DEFAULTS, ...r };
+}
+export function getCalcRules(): CalcRules {
+  return CURRENT_RULES;
+}
+const R = () => CURRENT_RULES;
 
 export function calculateLayout(
   productW: number,
@@ -26,10 +38,11 @@ export function layoutVariants(
   printH: number,
   isSticker: boolean
 ): LayoutResult[] {
-  const bleed = DEFAULTS.bleed;
-  const margins = { left: DEFAULTS.marginLR, right: DEFAULTS.marginLR, top: DEFAULTS.marginTop, bottom: DEFAULTS.marginBottom };
-  const gap = isSticker ? DEFAULTS.stickerGap : 0;
-  const edgeMargin = isSticker ? DEFAULTS.stickerEdge : 0;
+  const r = R();
+  const bleed = r.bleed;
+  const margins = { left: r.marginLR, right: r.marginLR, top: r.marginTop, bottom: r.marginBottom };
+  const gap = isSticker ? r.stickerGap : 0;
+  const edgeMargin = isSticker ? r.stickerEdge : 0;
 
   const effW = productW + bleed * 2 + gap;
   const effH = productH + bleed * 2 + gap;
@@ -82,8 +95,8 @@ export function bestLayout(
     formats && formats.length
       ? formats
       : [
-          { width: DEFAULTS.maxPrintW, height: DEFAULTS.maxPrintH },
-          { width: DEFAULTS.altPrintW, height: DEFAULTS.altPrintH },
+          { width: R().maxPrintW, height: R().maxPrintH },
+          { width: R().altPrintW, height: R().altPrintH },
         ];
   // Сортировка по возрастанию площади — выбираем САМЫЙ МАЛЕНЬКИЙ лист,
   // в который помещается нужное количество (минимизируем отходы).
@@ -129,13 +142,14 @@ export function rankPairs(
   const out: Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> = [];
   // Лимит максимального печатного формата (по правкам fortress: 520×360).
   // Если изделие физически не помещается в этот лимит — лимит снимается.
-  const maxArea = DEFAULTS.maxPrintW * DEFAULTS.maxPrintH;
+  const r = R();
+  const maxArea = r.maxPrintW * r.maxPrintH;
   const productFitsInLimit = (() => {
     const w = Math.min(productW, productH);
     const h = Math.max(productW, productH);
-    const lw = Math.min(DEFAULTS.maxPrintW, DEFAULTS.maxPrintH);
-    const lh = Math.max(DEFAULTS.maxPrintW, DEFAULTS.maxPrintH);
-    return w + 2 * DEFAULTS.bleed <= lw && h + 2 * DEFAULTS.bleed <= lh;
+    const lw = Math.min(r.maxPrintW, r.maxPrintH);
+    const lh = Math.max(r.maxPrintW, r.maxPrintH);
+    return w + 2 * r.bleed <= lw && h + 2 * r.bleed <= lh;
   })();
   const filtered = productFitsInLimit
     ? pairs.filter((p) => p.print.width * p.print.height <= maxArea)
@@ -278,7 +292,9 @@ function laminationKey(productW: number, productH: number): "up_to_a4_plus" | "a
   return "a2_plus_to_a1";
 }
 
-export function runCalculation(input: CalcInput): CalcResult {
+export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): CalcResult {
+  if (rulesOverride) setCalcRules(rulesOverride);
+  const rule = R();
   const warnings: string[] = [];
   const isSticker = input.productType === "sticker" || input.productType === "sticker_diecut";
   const isDieCut = input.productType === "leaflet_diecut" || input.productType === "sticker_diecut" || input.productType === "bag";
@@ -323,9 +339,9 @@ export function runCalculation(input: CalcInput): CalcResult {
   // Setup sheets
   let setupSheets =
     input.manualSetupSheets ??
-    Math.ceil((turnaround === "foreign" ? DEFAULTS.setupForeign : DEFAULTS.setupOwn) + netPrintSheets * DEFAULTS.setupPercent);
-  if (isBag) setupSheets = Math.max(DEFAULTS.bagMinSetup, setupSheets);
-  else setupSheets = Math.max(DEFAULTS.setupOwn, setupSheets);
+    Math.ceil((turnaround === "foreign" ? rule.setupForeign : rule.setupOwn) + netPrintSheets * rule.setupPercent);
+  if (isBag) setupSheets = Math.max(rule.bagMinSetup, setupSheets);
+  else setupSheets = Math.max(rule.setupOwn, setupSheets);
   if (turnaround === "foreign" && !input.manualSetupSheets) {
     warnings.push("Чужой оборот: приладка увеличена до " + setupSheets + " листов.");
   }
@@ -351,10 +367,10 @@ export function runCalculation(input: CalcInput): CalcResult {
   if (purchaseNesting === 2) cutsPerSheet = 1;
   else if (purchaseNesting >= 3) cutsPerSheet = 2;
   else if (purchaseNesting === 4) cutsPerSheet = 2;
-  const paperCutCost = cutsPerSheet * purchaseSheets * DEFAULTS.cutCostPerSheet;
+  const paperCutCost = cutsPerSheet * purchaseSheets * rule.cutCostPerSheet;
 
-  const formsCost = forms * DEFAULTS.formCost;
-  const formsPrepCost = forms * DEFAULTS.formPrepCost;
+  const formsCost = forms * rule.formCost;
+  const formsPrepCost = forms * rule.formPrepCost;
 
   // Print
   const impressions = printSheets * (turnaround === "own" ? 2 : 1);
@@ -367,7 +383,7 @@ export function runCalculation(input: CalcInput): CalcResult {
 
   // Резка готовых: листы × изделий × 4 × 1 тг
   const finishCutQty = printSheets * layout.itemsPerSheet * 4;
-  postpress.push({ stage: "postpress", name: "Резка готовых листов", quantity: finishCutQty, unit: "рез", unitPrice: DEFAULTS.finishCutCost, total: finishCutQty * DEFAULTS.finishCutCost });
+  postpress.push({ stage: "postpress", name: "Резка готовых листов", quantity: finishCutQty, unit: "рез", unitPrice: rule.finishCutCost, total: finishCutQty * rule.finishCutCost });
 
   if (isBooklet && input.hasFold) {
     const folds = (input.foldCount ?? 1) * input.circulation;
@@ -396,15 +412,15 @@ export function runCalculation(input: CalcInput): CalcResult {
 
   if (input.hasNumbering && input.numbersPerSheet) {
     const qty = input.numbersPerSheet * input.circulation;
-    postpress.push({ stage: "postpress", name: "Нумерация", quantity: qty, unit: "номер", unitPrice: DEFAULTS.numberingCost, total: qty * DEFAULTS.numberingCost });
+    postpress.push({ stage: "postpress", name: "Нумерация", quantity: qty, unit: "номер", unitPrice: rule.numberingCost, total: qty * rule.numberingCost });
   }
 
   if (input.hasStamping && input.stampingClicheW && input.stampingClicheH) {
     const area = input.stampingClicheW * input.stampingClicheH;
-    const cliche = Math.max(DEFAULTS.stampingClicheMin, area * DEFAULTS.stampingClichePerCm2);
-    const impr = input.stampingNotebook ? DEFAULTS.stampingImprNotebook : DEFAULTS.stampingImpr;
-    postpress.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: DEFAULTS.stampingSetup, total: DEFAULTS.stampingSetup });
-    postpress.push({ stage: "postpress", name: "Тиснение (клише)", quantity: area, unit: "см²", unitPrice: DEFAULTS.stampingClichePerCm2, total: cliche });
+    const cliche = Math.max(rule.stampingClicheMin, area * rule.stampingClichePerCm2);
+    const impr = input.stampingNotebook ? rule.stampingImprNotebook : rule.stampingImpr;
+    postpress.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
+    postpress.push({ stage: "postpress", name: "Тиснение (клише)", quantity: area, unit: "см²", unitPrice: rule.stampingClichePerCm2, total: cliche });
     postpress.push({ stage: "postpress", name: "Тиснение (оттиски)", quantity: input.circulation, unit: "оттиск", unitPrice: impr, total: input.circulation * impr });
   }
 
@@ -419,15 +435,15 @@ export function runCalculation(input: CalcInput): CalcResult {
 
   // Prepress
   const prepress: SpecItem[] = [];
-  const designTotal = (input.designQty ?? 2) * DEFAULTS.designCost;
-  prepress.push({ stage: "prepress", name: "Дизайн / подготовка", quantity: input.designQty ?? 2, unit: "шт", unitPrice: DEFAULTS.designCost, total: designTotal });
+  const designTotal = (input.designQty ?? 2) * rule.designCost;
+  prepress.push({ stage: "prepress", name: "Дизайн / подготовка", quantity: input.designQty ?? 2, unit: "шт", unitPrice: rule.designCost, total: designTotal });
   if (input.photoOutputUnitCost > 0) {
     prepress.push({ stage: "prepress", name: "Фотовывод", quantity: forms, unit: "шт", unitPrice: input.photoOutputUnitCost, total: forms * input.photoOutputUnitCost });
   }
-  prepress.push({ stage: "prepress", name: "Пластины (формы)", quantity: forms, unit: "шт", unitPrice: DEFAULTS.formCost, total: formsCost });
-  prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: forms, unit: "форма", unitPrice: DEFAULTS.formPrepCost, total: formsPrepCost });
+  prepress.push({ stage: "prepress", name: "Пластины (формы)", quantity: forms, unit: "шт", unitPrice: rule.formCost, total: formsCost });
+  prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: forms, unit: "форма", unitPrice: rule.formPrepCost, total: formsPrepCost });
   if (paperCutCost > 0) {
-    prepress.push({ stage: "prepress", name: "Резка закупочного формата", quantity: cutsPerSheet * purchaseSheets, unit: "рез", unitPrice: DEFAULTS.cutCostPerSheet, total: paperCutCost });
+    prepress.push({ stage: "prepress", name: "Резка закупочного формата", quantity: cutsPerSheet * purchaseSheets, unit: "рез", unitPrice: rule.cutCostPerSheet, total: paperCutCost });
   }
 
   const materials: SpecItem[] = [
