@@ -394,15 +394,12 @@ export const LayoutPreview = ({
   const mainItems = layout.itemsPerSheet;
   const altItems = activeAlt?.itemsPerSheet;
 
-  // Приоритетные печатные форматы (бизнес-правило: 520×360, 460×320)
-  const isPriorityFormat = (w: number, h: number) => {
-    const key = `${Math.max(w, h)}x${Math.min(w, h)}`;
-    return key === "520x360" || key === "460x320";
-  };
-  const PriorityBadge = () => (
-    <Hint text="Приоритетный печатный формат (520×360 / 460×320) — выбирается системой первым при равенстве отходов.">
-      <span className="cursor-help rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-        приоритет
+  // Высокие отходы — помечаем вариант как «неэффективный» (>40% площади листа)
+  const isInefficient = (waste: number, area: number) => area > 0 && waste / area > 0.4;
+  const InefficientBadge = () => (
+    <Hint text="Больше 40% площади листа уходит в отходы — раскладка неэффективна.">
+      <span className="cursor-help rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+        неэффективно
       </span>
     </Hint>
   );
@@ -574,12 +571,12 @@ export const LayoutPreview = ({
               Геометрия
               <HintIcon text="Параметры раскладки изделий на печатном листе и связь с закупочным." />
             </div>
-            <Hint text="Главный показатель эффективности раскладки — сколько готовых изделий получится из ОДНОГО закупочного листа бумаги. Чем больше, тем выгоднее.">
+            <Hint text="Главный показатель эффективности раскладки — сколько готовых изделий помещается на ОДНОМ печатном листе. Чем больше, тем выгоднее.">
               <div className="mt-2 flex cursor-help items-baseline gap-2">
                 <div className="text-3xl font-bold leading-none text-foreground">
-                  {activeAlt?.itemsPerPurchase ?? "—"}
+                  {active.itemsPerSheet}
                 </div>
-                <div className="text-xs text-muted-foreground">шт с закупочного</div>
+                <div className="text-xs text-muted-foreground">шт/лист</div>
               </div>
             </Hint>
             <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
@@ -730,8 +727,8 @@ export const LayoutPreview = ({
                       </span>
                     </Hint>{" "}
                     Печ. {layout.printFormat.width}×{layout.printFormat.height}
-                    {isPriorityFormat(layout.printFormat.width, layout.printFormat.height) && (
-                      <> <PriorityBadge /></>
+                    {isInefficient(layout.wasteArea, layout.printFormat.width * layout.printFormat.height) && (
+                      <> <InefficientBadge /></>
                     )}
                   </>
                 }
@@ -762,16 +759,16 @@ export const LayoutPreview = ({
                     title={
                       <>
                         Печ. {a.printW}×{a.printH}
-                        {isPriorityFormat(a.printW, a.printH) && (
-                          <> <PriorityBadge /></>
+                        {isInefficient(a.layout.wasteArea, a.printW * a.printH) && (
+                          <> <InefficientBadge /></>
                         )}
-                        <span className="text-muted-foreground"> ← Закуп. {a.purchaseW}×{a.purchaseH}</span>
+                        <span className="text-muted-foreground"> ← закупочный {a.purchaseW}×{a.purchaseH}</span>
                       </>
                     }
                     right={
                       <>
                         <span className="font-semibold text-foreground">
-                          {a.itemsPerPurchase} с закуп.
+                          {a.itemsPerSheet} шт/лист
                         </span>
                         <span className="text-muted-foreground">{fmt(a.totalCost)} ₸</span>
                         {priceDelta > 0 && (
