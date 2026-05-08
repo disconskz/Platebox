@@ -34,31 +34,39 @@ export function layoutVariants(
   const effW = productW + bleed * 2 + gap;
   const effH = productH + bleed * 2 + gap;
 
-  const availW = printW - margins.left - margins.right - edgeMargin * 2;
-  const availH = printH - margins.top - margins.bottom - edgeMargin * 2;
-
   const variants: LayoutResult[] = [];
-  for (const rotated of [false, true]) {
-    const w = rotated ? effH : effW;
-    const h = rotated ? effW : effH;
-    const cols = Math.floor(availW / w);
-    const rows = Math.floor(availH / h);
-    if (cols > 0 && rows > 0) {
-      const used = cols * rows * w * h;
-      const total = printW * printH;
-      variants.push({
-        itemsPerSheet: cols * rows,
-        rotated,
-        cols,
-        rows,
-        printFormat: { width: printW, height: printH },
-        wasteArea: total - used,
-        effectiveItemW: w,
-        effectiveItemH: h,
-        margins,
-        edgeMargin,
-        gap,
-      });
+  // Перебираем 4 комбинации: ориентация изделия × ориентация листа.
+  // Лист физически один и тот же — захват можно расположить по любой
+  // стороне. Из-за асимметрии полей (top vs bottom — захват) ориентация
+  // листа влияет на число изделий.
+  for (const sheetRotated of [false, true]) {
+    const sw = sheetRotated ? printH : printW;
+    const sh = sheetRotated ? printW : printH;
+    const availW = sw - margins.left - margins.right - edgeMargin * 2;
+    const availH = sh - margins.top - margins.bottom - edgeMargin * 2;
+    if (availW <= 0 || availH <= 0) continue;
+    for (const rotated of [false, true]) {
+      const w = rotated ? effH : effW;
+      const h = rotated ? effW : effH;
+      const cols = Math.floor(availW / w);
+      const rows = Math.floor(availH / h);
+      if (cols > 0 && rows > 0) {
+        const used = cols * rows * w * h;
+        const total = sw * sh;
+        variants.push({
+          itemsPerSheet: cols * rows,
+          rotated,
+          cols,
+          rows,
+          printFormat: { width: sw, height: sh },
+          wasteArea: total - used,
+          effectiveItemW: w,
+          effectiveItemH: h,
+          margins,
+          edgeMargin,
+          gap,
+        });
+      }
     }
   }
   return variants;
@@ -448,12 +456,12 @@ export function runCalculation(input: CalcInput): CalcResult {
     const altImpressions = altPrintSheets * (turnaround === "own" ? 2 : 1);
     const altPrint = altImpressions * printPerImpr;
     // Стоимость отходов = доля бумаги, ушедшая в обрезки на печатном листе
-    const printArea = r.pair.print.width * r.pair.print.height;
+    const printArea = r.layout.printFormat.width * r.layout.printFormat.height;
     const wasteShare = printArea > 0 ? r.layout.wasteArea / printArea : 0;
     const altWaste = altPaper * wasteShare;
     return {
-      printW: r.pair.print.width,
-      printH: r.pair.print.height,
+      printW: r.layout.printFormat.width,
+      printH: r.layout.printFormat.height,
       purchaseW: r.pair.purchase.width,
       purchaseH: r.pair.purchase.height,
       itemsPerSheet: r.layout.itemsPerSheet,

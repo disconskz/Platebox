@@ -38,6 +38,22 @@ describe("layout", () => {
     expect(l).toBeTruthy();
     expect([460, 720]).toContain(l!.printFormat.width);
   });
+  it("A5 (148×210) на 460×320 раскладывается 2×2 = 4 шт/лист (учёт обеих ориентаций листа)", () => {
+    const l = bestLayout(148, 210, false, [{ width: 460, height: 320 }]);
+    expect(l).toBeTruthy();
+    expect(l!.itemsPerSheet).toBe(4);
+    expect(l!.cols * l!.rows).toBe(4);
+  });
+  it("A6 (105×148) на 460×320 даёт >= 6 шт/лист (учёт обеих ориентаций листа)", () => {
+    const l = bestLayout(105, 148, false, [{ width: 460, height: 320 }]);
+    expect(l).toBeTruthy();
+    expect(l!.itemsPerSheet).toBeGreaterThanOrEqual(6);
+  });
+  it("стикер 90×50 на 320×460 не теряет шт/лист после правки ориентации листа", () => {
+    const l = bestLayout(90, 50, true, [{ width: 320, height: 460 }]);
+    expect(l).toBeTruthy();
+    expect(l!.itemsPerSheet).toBeGreaterThanOrEqual(16);
+  });
 });
 
 describe("bestPair", () => {
@@ -121,9 +137,9 @@ describe("rankPairs — рабочие форматы (460×320, 520×360) им�
     expect(top.layout.itemsPerSheet % 2).toBe(0);
     // 500×350 (раскройный) НЕ должен быть оптимальным
     expect(top.pair.print.width).not.toBe(500);
-    // На 460×320 А5 умещается только 2 шт из-за тех. полей,
-    // поэтому выигрывает 520×360 с 4 шт. Главное — это рабочий формат.
-    expect(top.pair.print.width).toBe(520);
+    // А5 умещается 4 шт и на 460×320, и на 520×360. Меньший рабочий
+    // печатный формат предпочтительнее (минимум остатков на закупочном).
+    expect(top.pair.print.width).toBe(460);
     expect(top.layout.itemsPerSheet).toBe(4);
   });
 
