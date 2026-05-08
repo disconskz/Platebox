@@ -440,6 +440,9 @@ const Calculator = () => {
       { width: 520, height: 360 },
       { width: 460, height: 320 },
     ];
+    // Ручной выбор пары: используем ровно её, без приоритетов и без чётности.
+    const pairsToUse = manualPair ? [manualPair] : (formatPairs.length ? formatPairs : undefined);
+    const useManual = !!manualPair;
     return {
       productType,
       circulation,
@@ -450,9 +453,9 @@ const Calculator = () => {
       colorBack,
       material: effectiveMaterial,
       printFormats: printFormatList.length ? printFormatList : undefined,
-      formatPairs: formatPairs.length ? formatPairs : undefined,
-      requireEvenItems: ownIntent,
-      priorityPrintFormats: priority,
+      formatPairs: pairsToUse,
+      requireEvenItems: useManual ? false : ownIntent,
+      priorityPrintFormats: useManual ? undefined : priority,
       designQty,
       photoOutputUnitCost: 0,
       manualForms: manualForms === "" ? undefined : Number(manualForms),
@@ -474,7 +477,7 @@ const Calculator = () => {
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, designQty, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, designQty, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
