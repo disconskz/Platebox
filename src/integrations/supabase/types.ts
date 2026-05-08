@@ -264,6 +264,68 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_reference_rows: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          reference_id: string
+          sort_order: number
+          subgroup: string | null
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          reference_id: string
+          sort_order?: number
+          subgroup?: string | null
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          reference_id?: string
+          sort_order?: number
+          subgroup?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_reference_rows_reference_id_fkey"
+            columns: ["reference_id"]
+            isOneToOne: false
+            referencedRelation: "custom_references"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_references: {
+        Row: {
+          created_at: string
+          fields: Json
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          fields?: Json
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          fields?: Json
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       envelope_formats: {
         Row: {
           created_at: string
@@ -271,6 +333,7 @@ export type Database = {
           id: string
           name: string
           sort_order: number
+          subgroup: string | null
           width: number
         }
         Insert: {
@@ -279,6 +342,7 @@ export type Database = {
           id?: string
           name: string
           sort_order?: number
+          subgroup?: string | null
           width: number
         }
         Update: {
@@ -287,6 +351,7 @@ export type Database = {
           id?: string
           name?: string
           sort_order?: number
+          subgroup?: string | null
           width?: number
         }
         Relationships: []
@@ -300,6 +365,7 @@ export type Database = {
           max_format_width: number | null
           name: string
           notes: string | null
+          subgroup: string | null
           type: string
         }
         Insert: {
@@ -310,6 +376,7 @@ export type Database = {
           max_format_width?: number | null
           name: string
           notes?: string | null
+          subgroup?: string | null
           type: string
         }
         Update: {
@@ -320,6 +387,7 @@ export type Database = {
           max_format_width?: number | null
           name?: string
           notes?: string | null
+          subgroup?: string | null
           type?: string
         }
         Relationships: []
@@ -357,18 +425,21 @@ export type Database = {
           film_type: string
           id: string
           size_range: string
+          subgroup: string | null
         }
         Insert: {
           cost_per_side: number
           film_type: string
           id?: string
           size_range: string
+          subgroup?: string | null
         }
         Update: {
           cost_per_side?: number
           film_type?: string
           id?: string
           size_range?: string
+          subgroup?: string | null
         }
         Relationships: []
       }
@@ -383,6 +454,7 @@ export type Database = {
           is_fortress_sync: boolean | null
           name: string
           purchase_format_id: string | null
+          subgroup: string | null
           type: string
         }
         Insert: {
@@ -395,6 +467,7 @@ export type Database = {
           is_fortress_sync?: boolean | null
           name: string
           purchase_format_id?: string | null
+          subgroup?: string | null
           type: string
         }
         Update: {
@@ -407,6 +480,7 @@ export type Database = {
           is_fortress_sync?: boolean | null
           name?: string
           purchase_format_id?: string | null
+          subgroup?: string | null
           type?: string
         }
         Relationships: [
@@ -477,6 +551,7 @@ export type Database = {
           setup_cost: number
           setup_sheets: number
           sort_order: number
+          subgroup: string | null
         }
         Insert: {
           cost_per_impression?: number
@@ -496,6 +571,7 @@ export type Database = {
           setup_cost?: number
           setup_sheets?: number
           sort_order?: number
+          subgroup?: string | null
         }
         Update: {
           cost_per_impression?: number
@@ -515,6 +591,7 @@ export type Database = {
           setup_cost?: number
           setup_sheets?: number
           sort_order?: number
+          subgroup?: string | null
         }
         Relationships: []
       }
@@ -525,6 +602,7 @@ export type Database = {
           id: string
           purchase_format_id: string | null
           sort_order: number
+          subgroup: string | null
           width: number
         }
         Insert: {
@@ -533,6 +611,7 @@ export type Database = {
           id?: string
           purchase_format_id?: string | null
           sort_order?: number
+          subgroup?: string | null
           width: number
         }
         Update: {
@@ -541,6 +620,7 @@ export type Database = {
           id?: string
           purchase_format_id?: string | null
           sort_order?: number
+          subgroup?: string | null
           width?: number
         }
         Relationships: [
@@ -562,6 +642,7 @@ export type Database = {
           preferred_machine_id: string | null
           product_type: string
           sort_order: number
+          subgroup: string | null
         }
         Insert: {
           created_at?: string
@@ -571,6 +652,7 @@ export type Database = {
           preferred_machine_id?: string | null
           product_type: string
           sort_order?: number
+          subgroup?: string | null
         }
         Update: {
           created_at?: string
@@ -580,6 +662,7 @@ export type Database = {
           preferred_machine_id?: string | null
           product_type?: string
           sort_order?: number
+          subgroup?: string | null
         }
         Relationships: [
           {
@@ -622,6 +705,7 @@ export type Database = {
           id: string
           material_category: string
           sort_order: number
+          subgroup: string | null
           width: number
         }
         Insert: {
@@ -630,6 +714,7 @@ export type Database = {
           id?: string
           material_category: string
           sort_order?: number
+          subgroup?: string | null
           width: number
         }
         Update: {
@@ -638,7 +723,32 @@ export type Database = {
           id?: string
           material_category?: string
           sort_order?: number
+          subgroup?: string | null
           width?: number
+        }
+        Relationships: []
+      }
+      reference_sections: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          table_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          table_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          table_key?: string
         }
         Relationships: []
       }
