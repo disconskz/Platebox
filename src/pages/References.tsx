@@ -582,18 +582,108 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="text-base">{spec.title}</CardTitle></CardHeader>
+      <CardHeader className="pb-3 gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">{spec.title}</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Поиск…"
+                className="h-8 pl-7 w-44"
+              />
+              {search && (
+                <button
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearch("")}
+                  aria-label="Очистить"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={exportCsv} title="Экспорт CSV">
+              <Download className="h-3.5 w-3.5 mr-1" /> CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} title="Импорт CSV">
+              <Upload className="h-3.5 w-3.5 mr-1" /> Импорт
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = ""; }}
+            />
+          </div>
+        </div>
+        {hasSubgroup && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setActiveSection("__all")}
+              className={`text-xs px-2 py-1 rounded-md border ${activeSection === "__all" ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+            >Все</button>
+            {sectionList.map((name) => (
+              <span key={name} className="inline-flex items-center gap-0.5">
+                <button
+                  onClick={() => setActiveSection(name)}
+                  className={`text-xs pl-2 pr-1 py-1 rounded-l-md border-y border-l ${activeSection === name ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+                >{name}</button>
+                <button
+                  onClick={() => removeSection(name)}
+                  className={`text-xs px-1 py-1 rounded-r-md border-y border-r ${activeSection === name ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground hover:text-destructive"}`}
+                  title="Удалить раздел"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={addSection}>
+              <Plus className="h-3 w-3 mr-1" /> Раздел
+            </Button>
+          </div>
+        )}
+        {selected.size > 0 && (
+          <div className="flex items-center justify-between gap-2 p-2 rounded-md border bg-muted/40">
+            <div className="text-sm">Выбрано: <span className="font-medium">{selected.size}</span></div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Снять выбор</Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setConfirmDelete({ rows: rows.filter((r) => selected.has(r[pk])), mode: "many" })}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Удалить выбранные
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardHeader>
       <CardContent>
         <div className="scroll-x overflow-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                <th className="w-8 p-2">
+                  <Checkbox
+                    checked={pageRows.length > 0 && pageRows.every((r) => selected.has(r[pk]))}
+                    onCheckedChange={(v) => {
+                      const next = new Set(selected);
+                      if (v) pageRows.forEach((r) => next.add(r[pk]));
+                      else pageRows.forEach((r) => next.delete(r[pk]));
+                      setSelected(next);
+                    }}
+                  />
+                </th>
                 {spec.cols.map((c: any) => <th key={c.k} className="text-left p-2">{c.label}</th>)}
                 <th className="w-24"></th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t bg-primary/5">
+                <td className="p-1.5"></td>
                 {spec.cols.map((c: any) => (
                   <td key={c.k} className="p-1.5">{renderField(c, draft[c.k], (v) => setDraft({ ...draft, [c.k]: v }))}</td>
                 ))}
@@ -610,19 +700,44 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
                 return (
                   <Fragment key={row[pk]}>
                     <tr className={rowCls}>
+                      <td className="p-1.5">
+                        <Checkbox
+                          checked={selected.has(row[pk])}
+                          onCheckedChange={(v) => {
+                            const next = new Set(selected);
+                            if (v) next.add(row[pk]); else next.delete(row[pk]);
+                            setSelected(next);
+                          }}
+                        />
+                      </td>
                       {spec.cols.map((c: any) => (
                         <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
                       ))}
                       <td className="p-1.5 text-right">
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="outline" onClick={() => guardedSave(row)} disabled={errs.length > 0}><Save className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="outline" onClick={() => remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="outline"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => duplicate(row)}>
+                                <Copy className="h-3.5 w-3.5 mr-2" /> Дублировать
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setConfirmDelete({ rows: [row], mode: "one" })}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" /> Удалить
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>
                     {(errs.length > 0 || warns.length > 0) && (
                       <tr className={errs.length ? "bg-destructive/5" : "bg-warning/5"}>
-                        <td colSpan={spec.cols.length + 1} className="px-3 py-1.5">
+                        <td colSpan={spec.cols.length + 2} className="px-3 py-1.5">
                           <div className={`flex items-start gap-1.5 text-[11px] ${errs.length ? "text-destructive" : "text-warning"}`}>
                             <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
                             <div>{[...errs, ...warns].join(" · ")}</div>
@@ -633,10 +748,10 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
                   </Fragment>
                 );
               })}
-              {rows.length === 0 && (
+              {filteredRows.length === 0 && (
                 <tr className="border-t">
-                  <td colSpan={spec.cols.length + 1} className="p-4 text-center text-xs text-muted-foreground">
-                    Нет записей
+                  <td colSpan={spec.cols.length + 2} className="p-4 text-center text-xs text-muted-foreground">
+                    {rows.length === 0 ? "Нет записей" : "Ничего не найдено"}
                   </td>
                 </tr>
               )}
@@ -645,8 +760,8 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <div>
-            {rows.length > 0 ? (
-              <>Показаны <span className="font-medium text-foreground">{fromIdx}–{toIdx}</span> из <span className="font-medium text-foreground">{rows.length}</span></>
+            {filteredRows.length > 0 ? (
+              <>Показаны <span className="font-medium text-foreground">{fromIdx}–{toIdx}</span> из <span className="font-medium text-foreground">{filteredRows.length}</span>{filteredRows.length !== rows.length && <> (всего {rows.length})</>}</>
             ) : (
               <>0 записей</>
             )}
@@ -678,6 +793,32 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
           </div>
         </div>
       </CardContent>
+      <AlertDialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтвердите удаление</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.mode === "many"
+                ? `Будут удалены ${confirmDelete.rows.length} записей. Действие необратимо.`
+                : "Запись будет удалена. Действие необратимо."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!confirmDelete) return;
+                if (confirmDelete.mode === "many") {
+                  await removeMany(confirmDelete.rows.map((r) => r[pk]));
+                } else {
+                  await remove(confirmDelete.rows[0]);
+                }
+                setConfirmDelete(null);
+              }}
+            >Удалить</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
