@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ChevronUp } from "lucide-react";
 import { HelpHint } from "@/components/HelpHint";
 import { cn } from "@/lib/utils";
+import { useProductGlossary, GlossaryItem, CATEGORY_LABELS, GlossaryCategory } from "@/lib/glossary";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -123,6 +124,8 @@ const Calculator = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
+  const { items: glossary } = useProductGlossary();
+  const [glossarySlug, setGlossarySlug] = useState<string>("leaflet");
   const [maxReached, setMaxReached] = useState(1);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
@@ -139,6 +142,14 @@ const Calculator = () => {
 
   // Step 1
   const [productType, setProductType] = useState<ProductType>("leaflet");
+
+  // Glossary slug → base productType mapping for engine
+  useEffect(() => {
+    const item = glossary.find((g) => g.slug === glossarySlug);
+    if (item?.base_product_type) {
+      setProductType(item.base_product_type as ProductType);
+    }
+  }, [glossarySlug, glossary]);
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);
   const [formatType, setFormatType] = useState<FormatType>("A4");
@@ -676,6 +687,8 @@ const Calculator = () => {
   const stepError = useMemo(() => {
     if (step >= 1 && (!circulation || circulation < 1)) return "Укажите тираж больше 0";
     if (step >= 1 && (!dims.w || !dims.h || dims.w < 10 || dims.h < 10)) return "Укажите корректный формат";
+    const gItem = glossary.find((g) => g.slug === glossarySlug);
+    if (step >= 1 && gItem && !gItem.is_calculable) return `«${gItem.name}» — расчёт по запросу. Свяжитесь с менеджером.`;
     if (step >= 2 && advancedMode && !materialId) return "Выберите материал";
     if (step >= 2 && !advancedMode && !effectiveMaterial) return "Не найден материал. Добавьте бумагу нужной категории/плотности в справочник.";
     if (selectedEquipment && selectedEquipment.max_format_width && selectedEquipment.max_format_height) {
@@ -819,14 +832,38 @@ const Calculator = () => {
                         Определяет автопресет постпечати и геометрию плитки в превью раскладки. Выберите ближайший по типу.
                       </HelpHint>
                     </Label>
-                    <Select value={productType} onValueChange={(v) => setProductType(v as ProductType)}>
+                    <Select value={glossarySlug} onValueChange={setGlossarySlug}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PRODUCT_OPTIONS.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                        ))}
+                      <SelectContent className="max-h-[400px]">
+                        {(Object.keys(CATEGORY_LABELS) as GlossaryCategory[]).map((cat) => {
+                          const its = glossary.filter((g) => g.category === cat);
+                          if (!its.length) return null;
+                          return (
+                            <Fragment key={cat}>
+                              <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                {CATEGORY_LABELS[cat]}
+                              </div>
+                              {its.map((g) => (
+                                <SelectItem key={g.slug} value={g.slug}>
+                                  <span>{g.name}</span>
+                                  {!g.is_calculable && <span className="ml-2 text-[10px] text-muted-foreground">(по запросу)</span>}
+                                </SelectItem>
+                              ))}
+                            </Fragment>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
+                    {(() => {
+                      const it = glossary.find((g) => g.slug === glossarySlug);
+                      if (!it) return null;
+                      return (
+                        <div className="mt-1.5 text-xs text-muted-foreground flex items-start gap-1.5">
+                          <span className="flex-1">{it.description}</span>
+                          <HelpHint title={it.name}>{it.description}</HelpHint>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <Label>

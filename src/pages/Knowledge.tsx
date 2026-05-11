@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import MobileTabBar from "@/components/MobileTabBar";
+import { useProductGlossary, CATEGORY_LABELS, GlossaryCategory } from "@/lib/glossary";
 
 type Section = { id: string; q: string; a: React.ReactNode };
 type Topic = { key: string; title: string; intro?: string; sections: Section[] };
@@ -708,6 +709,7 @@ const Knowledge = () => {
             </TabsContent>
           ))}
         </Tabs>
+        <GlossarySection />
       </main>
 
       <MobileTabBar />
@@ -716,3 +718,44 @@ const Knowledge = () => {
 };
 
 export default Knowledge;
+
+function GlossarySection() {
+  const { items } = useProductGlossary();
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return items;
+    return items.filter((i) => i.name.toLowerCase().includes(s) || i.description.toLowerCase().includes(s));
+  }, [items, q]);
+  const cats = (Object.keys(CATEGORY_LABELS) as GlossaryCategory[]).filter((c) => filtered.some((i) => i.category === c));
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Глоссарий продукции</CardTitle>
+        <p className="text-sm text-muted-foreground pt-1">~100 видов печатной продукции с краткими описаниями. Используется в калькуляторе при выборе вида изделия.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по глоссарию…" className="pl-9" />
+        </div>
+        {cats.map((c) => (
+          <div key={c}>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{CATEGORY_LABELS[c]}</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {filtered.filter((i) => i.category === c).map((i) => (
+                <div key={i.id} className="rounded-md border p-2.5">
+                  <div className="text-sm font-medium flex items-center gap-2">
+                    {i.name}
+                    {!i.is_calculable && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">по запросу</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{i.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
