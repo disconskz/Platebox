@@ -20,7 +20,13 @@ const BASE_TYPE_OPTS = Object.keys(PRODUCT_LABELS);
 
 export default function ProductGlossary() {
   const { items, reload } = useProductGlossary();
-  const { isAdmin } = useAuth() as any;
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    (supabase as any).from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }: any) => setIsAdmin(!!data));
+  }, [user]);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<Partial<GlossaryItem>>({
     slug: "", name: "", description: "", category: "other",
