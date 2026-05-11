@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 const STEPS = [
   "Продукция",
   "Материал",
-  "Допечатные",
   "Раскладка",
   "Послепечатные",
   "Расчёт",
@@ -28,7 +27,7 @@ export const Stepper = ({ current, onStepClick, maxReached }: Props) => {
         <div className="text-xs text-muted-foreground">Шаг {current} из {total}</div>
         <div className="text-sm font-semibold text-foreground">{label}</div>
       </div>
-      <div className="mt-2 grid grid-cols-7 gap-1">
+      <div className="mt-2 grid grid-cols-6 gap-1">
         {STEPS.map((_, i) => {
           const idx = i + 1;
           const reachable = idx <= maxReached;

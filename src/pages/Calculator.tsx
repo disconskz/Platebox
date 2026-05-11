@@ -169,9 +169,6 @@ const Calculator = () => {
   const [equipmentId, setEquipmentId] = useState<string>("");
 
   // Step 3
-  const [designQty, setDesignQty] = useState(2);
-  const [manualForms, setManualForms] = useState<number | "">("");
-  const [manualSetup, setManualSetup] = useState<number | "">("");
 
   // Step 4 — ручное переопределение пары (печатный/закупочный). null = авто.
   const [manualPair, setManualPair] = useState<{
@@ -470,10 +467,8 @@ const Calculator = () => {
       formatPairs: pairsToUse,
       requireEvenItems: useManual ? false : ownIntent,
       priorityPrintFormats: useManual ? undefined : priority,
-      designQty,
+      designQty: 2,
       photoOutputUnitCost: 0,
-      manualForms: manualForms === "" ? undefined : Number(manualForms),
-      manualSetupSheets: manualSetup === "" ? undefined : Number(manualSetup),
       hasFold: productType === "booklet" ? hasFold : false,
       foldCount,
       hasDieCut,
@@ -491,7 +486,7 @@ const Calculator = () => {
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, designQty, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
@@ -674,7 +669,7 @@ const Calculator = () => {
     }
   };
 
-  const next = () => goto(Math.min(7, step + 1));
+  const next = () => goto(Math.min(6, step + 1));
   const prev = () => goto(Math.max(1, step - 1));
 
   const totalCost = result && !("error" in result) ? result.totalCost : 0;
@@ -1147,39 +1142,9 @@ const Calculator = () => {
 
             {step === 3 && (
               <Card>
-                <CardHeader><CardTitle>3. Допечатные операции</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-end gap-3">
-                    <div className="flex-1">
-                      <Label>Дизайн / подготовка макета (кол-во × 500 ₸)</Label>
-                      <Input type="number" min={0} value={designQty} onChange={(e) => setDesignQty(Number(e.target.value))} />
-                    </div>
-                    <div className="text-right text-sm text-muted-foreground pb-2">= {fmtMoney(designQty * 500)}</div>
-                  </div>
-                  <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-                    Допечатные операции считаются автоматически: <span className="text-foreground font-medium">формы × 500 ₸</span>.
-                  </div>
-                  {(productType === "sticker" || productType === "sticker_diecut") && (
-                    <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3">
-                      <div>
-                        <Label>Кол-во пластин (вручную)</Label>
-                        <Input type="number" value={manualForms} onChange={(e) => setManualForms(e.target.value === "" ? "" : Number(e.target.value))} placeholder="авто" />
-                      </div>
-                      <div>
-                        <Label>Приладка, листов (вручную)</Label>
-                        <Input type="number" value={manualSetup} onChange={(e) => setManualSetup(e.target.value === "" ? "" : Number(e.target.value))} placeholder="авто" />
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {step === 4 && (
-              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    4. Раскладка
+                    3. Раскладка
                     <HelpHint title="Раскладка" learnMore="calc-layout">
                       Автоматически подбирается оптимальное число изделий на печатном листе с учётом поворота и полей.
                     </HelpHint>
@@ -1375,11 +1340,11 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 5 && (
+            {step === 4 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    5. Послепечатные операции
+                    4. Послепечатные операции
                     <HelpHint title="Постпечать" learnMore="calc-postpress">
                       Ламинация, фальцовка, высечка, нумерация, тиснение. Цены берутся из справочников.
                     </HelpHint>
@@ -1468,18 +1433,18 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 6 && result && !("error" in result) && (
+            {step === 5 && result && !("error" in result) && (
               <Card>
-                <CardHeader><CardTitle>6. Спецификация</CardTitle></CardHeader>
+                <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
                 <CardContent>
                   <SpecTable result={result} />
                 </CardContent>
               </Card>
             )}
 
-            {step === 7 && (
+            {step === 6 && (
               <Card>
-                <CardHeader><CardTitle>7. Сохранение</CardTitle></CardHeader>
+                <CardHeader><CardTitle>6. Сохранение</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <Label>Название</Label>
@@ -1508,7 +1473,7 @@ const Calculator = () => {
             {/* Desktop nav buttons */}
             <div className="hidden sm:flex justify-between pt-2">
               <Button variant="outline" onClick={prev} disabled={step === 1}><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
-              <Button onClick={next} disabled={step === 7 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <Button onClick={next} disabled={step === 6 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
             </div>
           </div>
 
@@ -1628,7 +1593,7 @@ const Calculator = () => {
         )}
         <div className="bg-background border-t border-border grid grid-cols-2 gap-2 px-4 py-2">
           <Button variant="outline" onClick={prev} disabled={step === 1} className="h-11"><ArrowLeft className="mr-1 h-4 w-4" /> Назад</Button>
-          <Button onClick={next} disabled={step === 7 || !!stepError} className="h-11">Далее <ArrowRight className="ml-1 h-4 w-4" /></Button>
+          <Button onClick={next} disabled={step === 6 || !!stepError} className="h-11">Далее <ArrowRight className="ml-1 h-4 w-4" /></Button>
         </div>
       </div>
 
