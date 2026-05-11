@@ -25,6 +25,7 @@ const CalculationView = () => {
   const { id } = useParams();
   const [calc, setCalc] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [skus, setSkus] = useState<any[]>([]);
   const [adjustments, setAdjustments] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -36,9 +37,11 @@ const CalculationView = () => {
     const { data: c } = await supabase.from("calculations").select("*").eq("id", id).single();
     const { data: it } = await supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order");
     const { data: adj } = await supabase.from("calculation_adjustments").select("*").eq("calculation_id", id).order("created_at", { ascending: false });
+    const { data: sk } = await supabase.from("calculation_skus" as any).select("*").eq("calculation_id", id).order("sort_order");
     setCalc(c);
     setItems(it || []);
     setAdjustments(adj || []);
+    setSkus((sk as any[]) || []);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
@@ -134,8 +137,52 @@ const CalculationView = () => {
               <Stat label="На листе" value={`${calc.items_per_sheet} шт`} />
               <Stat label="Оборот" value={calc.turnaround_type === "none" ? "Без" : calc.turnaround_type === "own" ? "Свой" : "Чужой"} />
               <Stat label="Форм" value={String(calc.forms_count)} />
+              {calc.is_multi_sku && (
+                <>
+                  <Stat label="Спусков" value={String(calc.impositions_count ?? "—")} />
+                  <Stat label="Видов" value={String(calc.sku_count ?? skus.length)} />
+                  {calc.empty_slots > 0 && <Stat label="Пустых позиций" value={String(calc.empty_slots)} />}
+                </>
+              )}
             </CardContent>
           </Card>
+
+          {calc.is_multi_sku && skus.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center">
+                  Состав спуска
+                  <HelpHint title="Виды на спуске" learnMore="multi-sku">
+                    Список дизайнов, которые печатаются вместе на одном печатном листе.
+                  </HelpHint>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="text-left p-2">№</th>
+                        <th className="text-left p-2">Имя</th>
+                        <th className="text-right p-2">Размер, мм</th>
+                        <th className="text-right p-2">Тираж</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {skus.map((s, i) => (
+                        <tr key={s.id} className="border-t">
+                          <td className="p-2 text-muted-foreground">{i + 1}</td>
+                          <td className="p-2">{s.name}</td>
+                          <td className="p-2 text-right tabular-nums">{s.width}×{s.height}</td>
+                          <td className="p-2 text-right tabular-nums">{fmtNum(s.circulation)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-2">
