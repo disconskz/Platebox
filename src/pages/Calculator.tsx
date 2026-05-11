@@ -1340,11 +1340,11 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 5 && (
+            {step === 4 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    5. Послепечатные операции
+                    4. Послепечатные операции
                     <HelpHint title="Постпечать" learnMore="calc-postpress">
                       Ламинация, фальцовка, высечка, нумерация, тиснение. Цены берутся из справочников.
                     </HelpHint>
@@ -1433,18 +1433,18 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 6 && result && !("error" in result) && (
+            {step === 5 && result && !("error" in result) && (
               <Card>
-                <CardHeader><CardTitle>6. Спецификация</CardTitle></CardHeader>
+                <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
                 <CardContent>
                   <SpecTable result={result} />
                 </CardContent>
               </Card>
             )}
 
-            {step === 7 && (
+            {step === 6 && (
               <Card>
-                <CardHeader><CardTitle>7. Сохранение</CardTitle></CardHeader>
+                <CardHeader><CardTitle>6. Сохранение</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <Label>Название</Label>
