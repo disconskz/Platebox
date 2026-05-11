@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Calculator from "./pages/Calculator.tsx";
+import MultiSkuCalculator from "./pages/MultiSkuCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalculationView from "./pages/CalculationView.tsx";
 import Quote from "./pages/Quote.tsx";
@@ -47,6 +48,7 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/app" element={<Index />} />
               <Route path="/calculator" element={<Calculator />} />
+              <Route path="/calculator/multi-sku" element={<MultiSkuCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/knowledge" element={<Knowledge />} />
