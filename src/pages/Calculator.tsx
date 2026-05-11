@@ -467,10 +467,8 @@ const Calculator = () => {
       formatPairs: pairsToUse,
       requireEvenItems: useManual ? false : ownIntent,
       priorityPrintFormats: useManual ? undefined : priority,
-      designQty,
+      designQty: 2,
       photoOutputUnitCost: 0,
-      manualForms: manualForms === "" ? undefined : Number(manualForms),
-      manualSetupSheets: manualSetup === "" ? undefined : Number(manualSetup),
       hasFold: productType === "booklet" ? hasFold : false,
       foldCount,
       hasDieCut,
@@ -488,7 +486,7 @@ const Calculator = () => {
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, designQty, manualForms, manualSetup, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
