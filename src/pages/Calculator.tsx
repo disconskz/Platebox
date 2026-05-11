@@ -142,6 +142,14 @@ const Calculator = () => {
 
   // Step 1
   const [productType, setProductType] = useState<ProductType>("leaflet");
+
+  // Glossary slug → base productType mapping for engine
+  useEffect(() => {
+    const item = glossary.find((g) => g.slug === glossarySlug);
+    if (item?.base_product_type) {
+      setProductType(item.base_product_type as ProductType);
+    }
+  }, [glossarySlug, glossary]);
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);
   const [formatType, setFormatType] = useState<FormatType>("A4");
