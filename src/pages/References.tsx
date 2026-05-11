@@ -23,6 +23,7 @@ import { HelpHint } from "@/components/HelpHint";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
 import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
+import ProductGlossary from "@/components/references/ProductGlossary";
 
 type AnyRow = Record<string, any>;
 
@@ -288,6 +289,7 @@ const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] =
   {
     title: "Расширения",
     items: [
+      { key: "__glossary", title: "Глоссарий продукции" },
       { key: "__custom", title: "Свои справочники" },
     ],
   },
@@ -301,6 +303,7 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
   const renderContent = () => {
     if (active === "__rules") return <CalcRulesEditor />;
     if (active === "__custom") return <CustomReferences />;
+    if (active === "__glossary") return <ProductGlossary />;
     const spec = TABLES.find((t) => t.key === active);
     if (!spec) return null;
     return <RefTable spec={spec as any} dynOpts={dynOpts} />;
