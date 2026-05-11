@@ -169,9 +169,6 @@ const Calculator = () => {
   const [equipmentId, setEquipmentId] = useState<string>("");
 
   // Step 3
-  const [designQty, setDesignQty] = useState(2);
-  const [manualForms, setManualForms] = useState<number | "">("");
-  const [manualSetup, setManualSetup] = useState<number | "">("");
 
   // Step 4 — ручное переопределение пары (печатный/закупочный). null = авто.
   const [manualPair, setManualPair] = useState<{
