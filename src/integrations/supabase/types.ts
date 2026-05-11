@@ -733,6 +733,45 @@ export type Database = {
           },
         ]
       }
+      product_glossary: {
+        Row: {
+          base_product_type: string | null
+          category: string
+          created_at: string
+          description: string
+          id: string
+          is_calculable: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          base_product_type?: string | null
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_calculable?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          base_product_type?: string | null
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_calculable?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
