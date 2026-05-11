@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ChevronUp } from "lucide-react";
 import { HelpHint } from "@/components/HelpHint";
 import { cn } from "@/lib/utils";
+import { useProductGlossary, GlossaryItem, CATEGORY_LABELS, GlossaryCategory } from "@/lib/glossary";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -123,6 +124,8 @@ const Calculator = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
+  const { items: glossary } = useProductGlossary();
+  const [glossarySlug, setGlossarySlug] = useState<string>("leaflet");
   const [maxReached, setMaxReached] = useState(1);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
@@ -676,6 +679,8 @@ const Calculator = () => {
   const stepError = useMemo(() => {
     if (step >= 1 && (!circulation || circulation < 1)) return "Укажите тираж больше 0";
     if (step >= 1 && (!dims.w || !dims.h || dims.w < 10 || dims.h < 10)) return "Укажите корректный формат";
+    const gItem = glossary.find((g) => g.slug === glossarySlug);
+    if (step >= 1 && gItem && !gItem.is_calculable) return `«${gItem.name}» — расчёт по запросу. Свяжитесь с менеджером.`;
     if (step >= 2 && advancedMode && !materialId) return "Выберите материал";
     if (step >= 2 && !advancedMode && !effectiveMaterial) return "Не найден материал. Добавьте бумагу нужной категории/плотности в справочник.";
     if (selectedEquipment && selectedEquipment.max_format_width && selectedEquipment.max_format_height) {
