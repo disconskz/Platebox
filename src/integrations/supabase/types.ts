@@ -102,6 +102,47 @@ export type Database = {
           },
         ]
       }
+      calculation_skus: {
+        Row: {
+          calculation_id: string
+          circulation: number
+          created_at: string
+          height: number
+          id: string
+          name: string
+          sort_order: number
+          width: number
+        }
+        Insert: {
+          calculation_id: string
+          circulation: number
+          created_at?: string
+          height: number
+          id?: string
+          name: string
+          sort_order?: number
+          width: number
+        }
+        Update: {
+          calculation_id?: string
+          circulation?: number
+          created_at?: string
+          height?: number
+          id?: string
+          name?: string
+          sort_order?: number
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calculation_skus_calculation_id_fkey"
+            columns: ["calculation_id"]
+            isOneToOne: false
+            referencedRelation: "calculations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calculations: {
         Row: {
           category: string
@@ -110,6 +151,7 @@ export type Database = {
           color_back: number
           color_front: number
           created_at: string | null
+          empty_slots: number | null
           equipment_id: string | null
           format_height: number | null
           format_type: string
@@ -119,7 +161,9 @@ export type Database = {
           forms_prep_cost: number | null
           fortress_order_id: string | null
           id: string
+          impositions_count: number | null
           ink_cost: number | null
+          is_multi_sku: boolean
           is_rotated: boolean | null
           is_template: boolean | null
           items_per_sheet: number | null
@@ -141,6 +185,7 @@ export type Database = {
           purchase_sheets: number | null
           sale_price: number | null
           setup_sheets: number | null
+          sku_count: number | null
           total_cost: number | null
           turnaround_type: string | null
           updated_at: string | null
@@ -153,6 +198,7 @@ export type Database = {
           color_back?: number
           color_front?: number
           created_at?: string | null
+          empty_slots?: number | null
           equipment_id?: string | null
           format_height?: number | null
           format_type: string
@@ -162,7 +208,9 @@ export type Database = {
           forms_prep_cost?: number | null
           fortress_order_id?: string | null
           id?: string
+          impositions_count?: number | null
           ink_cost?: number | null
+          is_multi_sku?: boolean
           is_rotated?: boolean | null
           is_template?: boolean | null
           items_per_sheet?: number | null
@@ -184,6 +232,7 @@ export type Database = {
           purchase_sheets?: number | null
           sale_price?: number | null
           setup_sheets?: number | null
+          sku_count?: number | null
           total_cost?: number | null
           turnaround_type?: string | null
           updated_at?: string | null
@@ -196,6 +245,7 @@ export type Database = {
           color_back?: number
           color_front?: number
           created_at?: string | null
+          empty_slots?: number | null
           equipment_id?: string | null
           format_height?: number | null
           format_type?: string
@@ -205,7 +255,9 @@ export type Database = {
           forms_prep_cost?: number | null
           fortress_order_id?: string | null
           id?: string
+          impositions_count?: number | null
           ink_cost?: number | null
+          is_multi_sku?: boolean
           is_rotated?: boolean | null
           is_template?: boolean | null
           items_per_sheet?: number | null
@@ -227,6 +279,7 @@ export type Database = {
           purchase_sheets?: number | null
           sale_price?: number | null
           setup_sheets?: number | null
+          sku_count?: number | null
           total_cost?: number | null
           turnaround_type?: string | null
           updated_at?: string | null
