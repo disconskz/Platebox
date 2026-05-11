@@ -832,14 +832,38 @@ const Calculator = () => {
                         Определяет автопресет постпечати и геометрию плитки в превью раскладки. Выберите ближайший по типу.
                       </HelpHint>
                     </Label>
-                    <Select value={productType} onValueChange={(v) => setProductType(v as ProductType)}>
+                    <Select value={glossarySlug} onValueChange={setGlossarySlug}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PRODUCT_OPTIONS.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                        ))}
+                      <SelectContent className="max-h-[400px]">
+                        {(Object.keys(CATEGORY_LABELS) as GlossaryCategory[]).map((cat) => {
+                          const its = glossary.filter((g) => g.category === cat);
+                          if (!its.length) return null;
+                          return (
+                            <Fragment key={cat}>
+                              <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                {CATEGORY_LABELS[cat]}
+                              </div>
+                              {its.map((g) => (
+                                <SelectItem key={g.slug} value={g.slug}>
+                                  <span>{g.name}</span>
+                                  {!g.is_calculable && <span className="ml-2 text-[10px] text-muted-foreground">(по запросу)</span>}
+                                </SelectItem>
+                              ))}
+                            </Fragment>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
+                    {(() => {
+                      const it = glossary.find((g) => g.slug === glossarySlug);
+                      if (!it) return null;
+                      return (
+                        <div className="mt-1.5 text-xs text-muted-foreground flex items-start gap-1.5">
+                          <span className="flex-1">{it.description}</span>
+                          <HelpHint title={it.name}>{it.description}</HelpHint>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <Label>
