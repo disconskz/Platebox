@@ -669,7 +669,7 @@ const Calculator = () => {
     }
   };
 
-  const next = () => goto(Math.min(7, step + 1));
+  const next = () => goto(Math.min(6, step + 1));
   const prev = () => goto(Math.max(1, step - 1));
 
   const totalCost = result && !("error" in result) ? result.totalCost : 0;
