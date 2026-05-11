@@ -1142,39 +1142,9 @@ const Calculator = () => {
 
             {step === 3 && (
               <Card>
-                <CardHeader><CardTitle>3. Допечатные операции</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-end gap-3">
-                    <div className="flex-1">
-                      <Label>Дизайн / подготовка макета (кол-во × 500 ₸)</Label>
-                      <Input type="number" min={0} value={designQty} onChange={(e) => setDesignQty(Number(e.target.value))} />
-                    </div>
-                    <div className="text-right text-sm text-muted-foreground pb-2">= {fmtMoney(designQty * 500)}</div>
-                  </div>
-                  <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-                    Допечатные операции считаются автоматически: <span className="text-foreground font-medium">формы × 500 ₸</span>.
-                  </div>
-                  {(productType === "sticker" || productType === "sticker_diecut") && (
-                    <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3">
-                      <div>
-                        <Label>Кол-во пластин (вручную)</Label>
-                        <Input type="number" value={manualForms} onChange={(e) => setManualForms(e.target.value === "" ? "" : Number(e.target.value))} placeholder="авто" />
-                      </div>
-                      <div>
-                        <Label>Приладка, листов (вручную)</Label>
-                        <Input type="number" value={manualSetup} onChange={(e) => setManualSetup(e.target.value === "" ? "" : Number(e.target.value))} placeholder="авто" />
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {step === 4 && (
-              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    4. Раскладка
+                    3. Раскладка
                     <HelpHint title="Раскладка" learnMore="calc-layout">
                       Автоматически подбирается оптимальное число изделий на печатном листе с учётом поворота и полей.
                     </HelpHint>
