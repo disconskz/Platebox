@@ -1473,7 +1473,7 @@ const Calculator = () => {
             {/* Desktop nav buttons */}
             <div className="hidden sm:flex justify-between pt-2">
               <Button variant="outline" onClick={prev} disabled={step === 1}><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
-              <Button onClick={next} disabled={step === 7 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <Button onClick={next} disabled={step === 6 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
             </div>
           </div>
 
@@ -1593,7 +1593,7 @@ const Calculator = () => {
         )}
         <div className="bg-background border-t border-border grid grid-cols-2 gap-2 px-4 py-2">
           <Button variant="outline" onClick={prev} disabled={step === 1} className="h-11"><ArrowLeft className="mr-1 h-4 w-4" /> Назад</Button>
-          <Button onClick={next} disabled={step === 7 || !!stepError} className="h-11">Далее <ArrowRight className="ml-1 h-4 w-4" /></Button>
+          <Button onClick={next} disabled={step === 6 || !!stepError} className="h-11">Далее <ArrowRight className="ml-1 h-4 w-4" /></Button>
         </div>
       </div>
 
