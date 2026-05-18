@@ -335,7 +335,7 @@ const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] =
   },
 ];
 
-const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
+const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authReady: boolean }) => {
   const [active, setActive] = useState<string>("materials");
   const allItems = NAV_GROUPS.flatMap((g) => g.items);
   const activeTitle = allItems.find((i) => i.key === active)?.title ?? "";
@@ -347,7 +347,7 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
     if (active === "__calc_constants") return <CalcConstants />;
     const spec = TABLES.find((t) => t.key === active);
     if (!spec) return null;
-    return <RefTable spec={spec as any} dynOpts={dynOpts} />;
+    return <RefTable spec={spec as any} dynOpts={dynOpts} authReady={authReady} />;
   };
 
   return (
