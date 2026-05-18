@@ -1,10 +1,13 @@
 // Lovable AI Gateway helper for: order parsing + formula generation.
-// Public: no auth required.
+// Требует валидный JWT пользователя (Authorization: Bearer ...).
+
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
 };
 
 const MODEL = "google/gemini-3-flash-preview";
@@ -64,6 +67,22 @@ function jsonResp(body: unknown, status = 200) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    // --- AuthN: требуем валидный JWT ---
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return jsonResp({ error: "unauthorized" }, 401);
+    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims?.sub) {
+      return jsonResp({ error: "unauthorized" }, 401);
+    }
+
     const { mode, ...payload } = await req.json();
 
     if (mode === "parse-order") {

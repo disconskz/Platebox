@@ -34,14 +34,21 @@ const CalculationView = () => {
 
   const load = async () => {
     if (!id) return;
-    const { data: c } = await supabase.from("calculations").select("*").eq("id", id).single();
-    const { data: it } = await supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order");
-    const { data: adj } = await supabase.from("calculation_adjustments").select("*").eq("calculation_id", id).order("created_at", { ascending: false });
-    const { data: sk } = await supabase.from("calculation_skus" as any).select("*").eq("calculation_id", id).order("sort_order");
-    setCalc(c);
-    setItems(it || []);
-    setAdjustments(adj || []);
-    setSkus((sk as any[]) || []);
+    const [cRes, itRes, adjRes, skRes] = await Promise.all([
+      supabase.from("calculations").select("*").eq("id", id).single(),
+      supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order"),
+      supabase.from("calculation_adjustments").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
+      supabase.from("calculation_skus" as any).select("*").eq("calculation_id", id).order("sort_order"),
+    ]);
+    const firstErr = cRes.error || itRes.error || adjRes.error || skRes.error;
+    if (firstErr) {
+      toast.error("Не удалось загрузить расчёт: " + firstErr.message);
+      return;
+    }
+    setCalc(cRes.data);
+    setItems(itRes.data || []);
+    setAdjustments(adjRes.data || []);
+    setSkus((skRes.data as any[]) || []);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
@@ -59,29 +66,47 @@ const CalculationView = () => {
 
   const saveEdit = async (item: any) => {
     const newPrice = Number(editValue);
+    if (!Number.isFinite(newPrice) || newPrice < 0 || newPrice > 1e9) {
+      toast.error("Введите корректную цену (0 – 1 000 000 000)");
+      return;
+    }
     const newTotal = newPrice * Number(item.quantity);
     const original = Number(item.unit_price);
-    await supabase.from("calculation_items").update({ unit_price: newPrice, manual_price: newPrice, total_price: newTotal }).eq("id", item.id);
+    const { error: updErr } = await supabase
+      .from("calculation_items")
+      .update({ unit_price: newPrice, manual_price: newPrice, total_price: newTotal })
+      .eq("id", item.id);
+    if (updErr) { toast.error("Ошибка обновления: " + updErr.message); return; }
     if (newPrice !== original) {
-      await supabase.from("calculation_adjustments").insert({
+      const { error: adjErr } = await supabase.from("calculation_adjustments").insert({
         calculation_id: id, item_name: item.name,
         original_price: original, adjusted_price: newPrice, reason: editReason || null,
       });
+      if (adjErr) { toast.error("Ошибка журнала: " + adjErr.message); return; }
     }
     // recompute totals
     const newTotalCost = items.reduce((s, i) => s + (i.id === item.id ? newTotal : Number(i.total_price || 0)), 0);
     const newSale = newTotalCost * (1 + margin / 100);
-    await supabase.from("calculations").update({
+    const { error: totErr } = await supabase.from("calculations").update({
       total_cost: newTotalCost, sale_price: newSale, profit: newSale - newTotalCost,
     }).eq("id", id);
+    if (totErr) { toast.error("Ошибка пересчёта итогов: " + totErr.message); return; }
     setEditing(null);
     toast.success("Цена обновлена");
     load();
   };
 
   const updateMargin = async (m: number) => {
+    if (!Number.isFinite(m) || m < 0 || m > 1000) {
+      toast.error("Наценка должна быть от 0 до 1000%");
+      return;
+    }
     const newSale = totalCost * (1 + m / 100);
-    await supabase.from("calculations").update({ margin_percent: m, sale_price: newSale, profit: newSale - totalCost }).eq("id", id);
+    const { error } = await supabase
+      .from("calculations")
+      .update({ margin_percent: m, sale_price: newSale, profit: newSale - totalCost })
+      .eq("id", id);
+    if (error) { toast.error("Не удалось обновить наценку: " + error.message); return; }
     setCalc({ ...calc, margin_percent: m, sale_price: newSale, profit: newSale - totalCost });
   };
 
