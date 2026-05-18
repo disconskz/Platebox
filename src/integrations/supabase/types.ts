@@ -14,6 +14,159 @@ export type Database = {
   }
   public: {
     Tables: {
+      calc_constants: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+          unit: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      calc_stage_library: {
+        Row: {
+          category: string
+          created_at: string
+          formula: Json
+          id: string
+          name: string
+          sort_order: number
+          unit: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          formula: Json
+          id?: string
+          name: string
+          sort_order?: number
+          unit?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          formula?: Json
+          id?: string
+          name?: string
+          sort_order?: number
+          unit?: string
+        }
+        Relationships: []
+      }
+      calc_variant_stages: {
+        Row: {
+          created_at: string
+          formula: Json
+          id: string
+          material_formula: Json | null
+          material_id: string | null
+          name: string
+          sort_order: number
+          unit: string
+          variant_id: string
+        }
+        Insert: {
+          created_at?: string
+          formula?: Json
+          id?: string
+          material_formula?: Json | null
+          material_id?: string | null
+          name: string
+          sort_order?: number
+          unit?: string
+          variant_id: string
+        }
+        Update: {
+          created_at?: string
+          formula?: Json
+          id?: string
+          material_formula?: Json | null
+          material_id?: string | null
+          name?: string
+          sort_order?: number
+          unit?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calc_variant_stages_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calc_variant_stages_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "calc_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calc_variants: {
+        Row: {
+          base_product_type: string
+          category: string
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          base_product_type?: string
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          base_product_type?: string
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calculation_adjustments: {
         Row: {
           adjusted_price: number | null
