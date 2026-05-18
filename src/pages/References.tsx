@@ -73,11 +73,8 @@ const OPT_LABELS: Record<string, string> = {
 const optLabel = (v: string) => OPT_LABELS[v] ?? v;
 
 const withAuthHeader = <T,>(query: T, accessToken: string | null): T => {
-  if (accessToken) {
-    (query as any).headers = {
-      ...((query as any).headers || {}),
-      Authorization: `Bearer ${accessToken}`,
-    };
+  if (accessToken && typeof (query as any).setHeader === "function") {
+    (query as any).setHeader("Authorization", `Bearer ${accessToken}`);
   }
   return query;
 };
