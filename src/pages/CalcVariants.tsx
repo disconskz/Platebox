@@ -54,17 +54,21 @@ export default function CalcVariants() {
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
-        <div className="container mx-auto flex items-center gap-3 py-3 px-4">
-          <Link to="/references" className="text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="inline h-4 w-4 mr-1" /> Справочники
+        <div className="container mx-auto flex flex-wrap items-center gap-2 sm:gap-3 py-3 px-4">
+          <Link to="/references" className="text-sm text-muted-foreground hover:text-foreground shrink-0">
+            <ArrowLeft className="inline h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">Справочники</span>
           </Link>
-          <h1 className="ml-2 text-lg font-semibold">Варианты просчёта</h1>
+          <h1 className="text-base sm:text-lg font-semibold min-w-0 truncate">Варианты просчёта</h1>
           <div className="ml-auto">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Новый вариант</Button>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Новый вариант</span>
+                </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md w-[calc(100vw-2rem)] sm:w-full">
                 <DialogHeader><DialogTitle>Новый вариант просчёта</DialogTitle></DialogHeader>
                 <div className="space-y-3">
                   <div>
@@ -95,7 +99,7 @@ export default function CalcVariants() {
       <main className="container mx-auto py-4 sm:py-6 px-4">
         <Card>
           <CardHeader><CardTitle className="text-base">Список вариантов</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6">
             {loading ? (
               <div className="text-sm text-muted-foreground">Загрузка…</div>
             ) : rows.length === 0 ? (
@@ -103,7 +107,9 @@ export default function CalcVariants() {
                 Пока нет ни одного варианта. Нажмите «Новый вариант», чтобы создать первый.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground border-b">
@@ -126,9 +132,9 @@ export default function CalcVariants() {
                         <td className="py-2 pr-2 text-xs text-muted-foreground">{(r as any).created_at ? new Date((r as any).created_at).toLocaleDateString("ru-RU") : ""}</td>
                         <td className="py-2 pr-2 text-right">
                           <div className="inline-flex gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => nav(`/references/variants/${r.id}`)}><Pencil className="h-3.5 w-3.5" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => dup(r.id)}><Copy className="h-3.5 w-3.5" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => setDelId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                            <Button size="sm" variant="ghost" aria-label="Редактировать" onClick={() => nav(`/references/variants/${r.id}`)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="ghost" aria-label="Дублировать" onClick={() => dup(r.id)}><Copy className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" variant="ghost" aria-label="Удалить" onClick={() => setDelId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                           </div>
                         </td>
                       </tr>
@@ -136,6 +142,31 @@ export default function CalcVariants() {
                   </tbody>
                 </table>
               </div>
+              {/* Mobile cards */}
+              <div className="sm:hidden grid gap-2">
+                {rows.map((r) => (
+                  <div key={r.id} className="rounded-lg border bg-card p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <Link to={`/references/variants/${r.id}`} className="font-medium text-sm hover:underline min-w-0 truncate">{r.name}</Link>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {(r as any).created_at ? new Date((r as any).created_at).toLocaleDateString("ru-RU") : ""}
+                      </span>
+                    </div>
+                    {r.description && <div className="mt-1 text-xs text-muted-foreground">{r.description}</div>}
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        {PRODUCT_LABELS[r.base_product_type as keyof typeof PRODUCT_LABELS] || r.base_product_type} · этапов {r.stage_count}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label="Редактировать" onClick={() => nav(`/references/variants/${r.id}`)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label="Дублировать" onClick={() => dup(r.id)}><Copy className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 hover:text-destructive" aria-label="Удалить" onClick={() => setDelId(r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
