@@ -17,17 +17,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Subscribe FIRST to avoid races
+    let cancelled = false;
+
+    // Subscribe FIRST to avoid races. Любой event снимает loading.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-    });
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (cancelled) return;
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
     });
-    return () => sub.subscription.unsubscribe();
+
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        if (cancelled) return;
+        setSession(s);
+        setUser(s?.user ?? null);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    // Страховка: если за 5с ни getSession, ни onAuthStateChange не ответили —
+    // снимаем loading, чтобы UI не залипал в «Загрузка…».
+    const safety = setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(safety);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
