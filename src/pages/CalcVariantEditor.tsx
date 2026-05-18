@@ -238,9 +238,36 @@ export default function CalcVariantEditor() {
                     </div>
                   )}
                   {validation.unknownConsts.length > 0 && (
-                    <div className="text-destructive">
-                      Неизвестные константы: <span className="font-mono">{validation.unknownConsts.map((s) => "@" + s).join(", ")}</span>.
-                      Добавьте их в справочнике «Константы формул».
+                    <div className="space-y-2">
+                      <div className="text-destructive">
+                        Неизвестные константы — заполните и создайте прямо здесь:
+                      </div>
+                      <div className="space-y-2">
+                        {validation.unknownConsts.map((slug) => {
+                          const d = constDrafts[slug] ?? { name: "", value: 0, unit: "₸" };
+                          return (
+                            <div key={slug} className="rounded-md border bg-muted/30 p-2 space-y-1.5">
+                              <div className="font-mono text-[11px] text-primary">@{slug}</div>
+                              <div className="grid grid-cols-[1fr_70px_50px_auto] gap-1.5">
+                                <Input className="h-7 text-xs" placeholder="Название" value={d.name}
+                                  onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, name: e.target.value } })} />
+                                <Input className="h-7 text-xs text-right tabular-nums" type="number" value={d.value}
+                                  onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, value: Number(e.target.value) || 0 } })} />
+                                <Input className="h-7 text-xs" value={d.unit}
+                                  onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, unit: e.target.value } })} />
+                                <Button size="sm" className="h-7 px-2" onClick={() => createMissingConstant(slug)}>
+                                  <Sparkles className="h-3 w-3 mr-1" /> Создать
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {validation.unknownConsts.length > 1 && (
+                          <Button size="sm" variant="outline" className="w-full h-7" onClick={createAllMissingConstants}>
+                            <Sparkles className="h-3 w-3 mr-1" /> Создать все ({validation.unknownConsts.length})
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </>
