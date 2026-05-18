@@ -214,6 +214,7 @@ export default function CalcVariantEditor() {
                     constants={constants}
                     testVars={testVars}
                     testConsts={constMap}
+                    onConstantsChanged={async () => { const fresh = await listConstants(); setConstants(fresh); }}
                   />
                 </div>
               ))}

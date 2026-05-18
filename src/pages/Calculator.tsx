@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stepper } from "@/components/calc/Stepper";
 import { LayoutPreview } from "@/components/calc/LayoutPreview";
+import AiOrderAssistant, { type ParsedOrder } from "@/components/calc/AiOrderAssistant";
 import { FORMAT_PRESETS, runCalculation, setCalcRules } from "@/lib/calc/engine";
 import { loadCalcRules } from "@/lib/calc/rules";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
@@ -766,8 +767,42 @@ const Calculator = () => {
     navigate("/");
   };
 
+  const applyAiOrder = (o: ParsedOrder) => {
+    const ptMap: Record<string, ProductType> = {
+      leaflet: "leaflet",
+      flyer: "leaflet",
+      booklet: "booklet",
+      business_card: "businesscard",
+      poster: "poster",
+      brochure: "brochure",
+    };
+    if (o.product_type && ptMap[o.product_type]) setProductType(ptMap[o.product_type]);
+    if (o.name) setName(o.name);
+    if (typeof o.circulation === "number" && o.circulation > 0) setCirculation(o.circulation);
+    if (o.format) {
+      const allowed = ["A3", "A4", "A5", "A6", "custom"] as const;
+      if ((allowed as readonly string[]).includes(o.format)) setFormatType(o.format as FormatType);
+    }
+    if (typeof o.custom_width_mm === "number") setCustomW(o.custom_width_mm);
+    if (typeof o.custom_height_mm === "number") setCustomH(o.custom_height_mm);
+    if (typeof o.color_front === "number") setColorFront(o.color_front);
+    if (typeof o.color_back === "number") setColorBack(o.color_back);
+    if (o.material_category) setMaterialCategory(o.material_category);
+    if (typeof o.material_density === "number") setMaterialDensity(o.material_density);
+    if (typeof o.has_fold === "boolean") setHasFold(o.has_fold);
+    if (typeof o.fold_count === "number") setFoldCount(o.fold_count);
+    if (typeof o.has_die_cut === "boolean") setHasDieCut(o.has_die_cut);
+    if (typeof o.has_lamination === "boolean") setHasLamination(o.has_lamination);
+    if (o.lamination_film === "gloss" || o.lamination_film === "matte" || o.lamination_film === "velvet") setLaminationFilm(o.lamination_film);
+    if (o.lamination_sides === 1 || o.lamination_sides === 2) setLaminationSides(o.lamination_sides);
+    if (typeof o.has_numbering === "boolean") setHasNumbering(o.has_numbering);
+    if (typeof o.has_stamping === "boolean") setHasStamping(o.has_stamping);
+    if (typeof o.margin_percent === "number") setMargin(o.margin_percent);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
+      <AiOrderAssistant onApply={applyAiOrder} />
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-3 py-3 px-4">
           <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground shrink-0">

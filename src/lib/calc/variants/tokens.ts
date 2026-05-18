@@ -104,3 +104,53 @@ export function astToTokens(node: FormulaNode | null | undefined): Token[] {
 }
 
 const precOf = (op: string) => PREC[op] ?? 0;
+
+/** Парсер строкового выражения → токены. Поддерживает имена переменных (буквы/цифры/_),
+ *  константы вида @slug, числа, операторы + - * /, скобки, запятую и функции min/max/ceil/floor/round/abs.
+ *  Бросает Error на нераспознаваемый символ. */
+export function parseExpression(input: string): Token[] {
+  const src = input.trim();
+  const out: Token[] = [];
+  const FNS = new Set(["min", "max", "ceil", "floor", "round", "abs"]);
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (c === "(") { out.push({ kind: "lparen" }); i++; continue; }
+    if (c === ")") { out.push({ kind: "rparen" }); i++; continue; }
+    if (c === ",") { out.push({ kind: "comma" }); i++; continue; }
+    if (c === "+" || c === "-" || c === "*" || c === "/") {
+      out.push({ kind: "op", value: c as any }); i++; continue;
+    }
+    if (c === "@") {
+      let j = i + 1;
+      while (j < src.length && /[\w-]/.test(src[j])) j++;
+      const slug = src.slice(i + 1, j);
+      if (!slug) throw new Error("Пустой slug константы");
+      out.push({ kind: "const", value: slug });
+      i = j;
+      continue;
+    }
+    if (/[0-9.]/.test(c)) {
+      let j = i;
+      while (j < src.length && /[0-9.]/.test(src[j])) j++;
+      const n = Number(src.slice(i, j));
+      if (!Number.isFinite(n)) throw new Error("Некорректное число: " + src.slice(i, j));
+      out.push({ kind: "num", value: n });
+      i = j;
+      continue;
+    }
+    // identifier: letter (latin/cyrillic) followed by word chars
+    if (/[A-Za-zА-Яа-яЁё_]/.test(c)) {
+      let j = i;
+      while (j < src.length && /[\wА-Яа-яЁё]/.test(src[j])) j++;
+      const name = src.slice(i, j);
+      if (FNS.has(name)) out.push({ kind: "fn", value: name as any });
+      else out.push({ kind: "var", value: name });
+      i = j;
+      continue;
+    }
+    throw new Error("Неизвестный символ: '" + c + "'");
+  }
+  return out;
+}

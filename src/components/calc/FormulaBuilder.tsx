@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Token, tokensToAst, astToTokens } from "@/lib/calc/variants/tokens";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Token, tokensToAst, astToTokens, parseExpression } from "@/lib/calc/variants/tokens";
 import { FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, CalcConstant } from "@/lib/calc/variants/types";
 import { evalFormula, collectRefs } from "@/lib/calc/variants/engine";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { upsertConstant } from "@/lib/calc/variants/api";
 
 interface Props {
   value: FormulaNode;
@@ -14,6 +19,8 @@ interface Props {
   constants: CalcConstant[];
   testVars?: Record<string, number>;
   testConsts?: Record<string, number>;
+  /** Колбэк после автосоздания констант — родитель может перезагрузить список. */
+  onConstantsChanged?: () => void;
 }
 
 const OPS: Array<{ value: "+" | "-" | "*" | "/"; label: string }> = [
@@ -24,10 +31,14 @@ const OPS: Array<{ value: "+" | "-" | "*" | "/"; label: string }> = [
 ];
 const FNS: Array<"min" | "max" | "ceil" | "floor" | "round" | "abs"> = ["min", "max", "ceil", "floor", "round", "abs"];
 
-export default function FormulaBuilder({ value, onChange, constants, testVars = {}, testConsts = {} }: Props) {
+export default function FormulaBuilder({ value, onChange, constants, testVars = {}, testConsts = {}, onConstantsChanged }: Props) {
   const [tokens, setTokens] = useState<Token[]>(() => astToTokens(value));
   const [error, setError] = useState<string | null>(null);
   const [numDraft, setNumDraft] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<{ expression: string; explanation?: string; new_constants?: Array<{ slug: string; name: string; value: number; unit?: string }> } | null>(null);
 
   // sync upstream
   useEffect(() => {
@@ -54,6 +65,52 @@ export default function FormulaBuilder({ value, onChange, constants, testVars = 
   const removeAt = (i: number) => setTokens((arr) => arr.filter((_, idx) => idx !== i));
 
   const constsBySlug = useMemo(() => Object.fromEntries(constants.map((c) => [c.slug, c])), [constants]);
+
+  const runAi = async () => {
+    if (!aiPrompt.trim()) return;
+    setAiLoading(true);
+    setAiResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: {
+          mode: "generate-formula",
+          description: aiPrompt,
+          variables: VARIABLE_LIST.map((v) => v.key),
+          constants: constants.map((c) => ({ slug: c.slug, name: c.name })),
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Ошибка ИИ");
+      setAiResult({ expression: data.expression, explanation: data.explanation, new_constants: data.new_constants });
+    } catch (e: any) {
+      toast.error(e?.message || "Не удалось сгенерировать формулу");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyAi = async () => {
+    if (!aiResult) return;
+    try {
+      // создать недостающие константы
+      for (const c of aiResult.new_constants || []) {
+        if (!c?.slug) continue;
+        if (constsBySlug[c.slug]) continue;
+        await upsertConstant({ slug: c.slug, name: c.name || c.slug, value: Number(c.value) || 0, unit: c.unit || "₸", description: "", sort_order: 0 });
+      }
+      const newTokens = parseExpression(aiResult.expression);
+      // sanity: формула должна собираться
+      tokensToAst(newTokens);
+      setTokens(newTokens);
+      onConstantsChanged?.();
+      setAiOpen(false);
+      setAiPrompt("");
+      setAiResult(null);
+      toast.success("Формула применена");
+    } catch (e: any) {
+      toast.error("Не удалось применить: " + (e?.message || e));
+    }
+  };
 
   // Валидация переменных и констант: ищем ссылки на неизвестные имена.
   const issues = useMemo(() => {
@@ -157,6 +214,9 @@ export default function FormulaBuilder({ value, onChange, constants, testVars = 
         </Popover>
 
         <Button type="button" size="sm" variant="ghost" className="h-8 ml-auto" onClick={() => setTokens([])}><X className="h-3.5 w-3.5" /> Очистить</Button>
+        <Button type="button" size="sm" variant="outline" className="h-8 gap-1" onClick={() => setAiOpen(true)}>
+          <Sparkles className="h-3.5 w-3.5" /> ИИ
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -172,6 +232,55 @@ export default function FormulaBuilder({ value, onChange, constants, testVars = 
           </span>
         )}
       </div>
+
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4" /> Сгенерировать формулу</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea
+              autoFocus
+              rows={4}
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Например: резка стоит 500 ₸ за рез, количество резов = тираж / приладка"
+            />
+            <div className="text-[11px] text-muted-foreground">
+              Доступные переменные: {VARIABLE_LIST.map((v) => v.key).join(", ")}.
+            </div>
+            {aiResult && (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="text-xs text-muted-foreground">Выражение:</div>
+                <code className="block text-sm font-mono break-all">{aiResult.expression}</code>
+                {aiResult.explanation && <div className="text-xs text-muted-foreground">{aiResult.explanation}</div>}
+                {aiResult.new_constants && aiResult.new_constants.length > 0 && (
+                  <div className="text-xs">
+                    <div className="text-muted-foreground mb-1">Будут созданы константы:</div>
+                    <ul className="space-y-0.5">
+                      {aiResult.new_constants.map((c) => (
+                        <li key={c.slug}>• @{c.slug} — {c.name} = {c.value} {c.unit || "₸"}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            {!aiResult ? (
+              <Button type="button" onClick={runAi} disabled={aiLoading || !aiPrompt.trim()}>
+                {aiLoading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Генерация…</> : <><Sparkles className="h-4 w-4 mr-1" /> Сгенерировать</>}
+              </Button>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={() => setAiResult(null)}>Переделать</Button>
+                <Button type="button" onClick={applyAi}>Применить</Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
