@@ -1047,6 +1047,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_calculation_margin: {
+        Args: { _calculation_id: string; _margin: number }
+        Returns: {
+          margin_percent: number
+          profit: number
+          sale_price: number
+          total_cost: number
+        }[]
+      }
+      apply_item_price_change: {
+        Args: { _item_id: string; _new_price: number; _reason?: string }
+        Returns: {
+          profit: number
+          sale_price: number
+          total_cost: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
