@@ -408,7 +408,7 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
   );
 };
 
-const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => {
+const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOptions; authReady: boolean }) => {
   const [rows, setRows] = useState<AnyRow[]>([]);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
   const [page, setPage] = useState(1);
@@ -427,6 +427,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const pk = spec.pk || "id";
 
   const load = async () => {
+    if (!authReady) return;
     // Гарантируем, что Supabase-клиент восстановил сессию из localStorage —
     // иначе REST-запрос уйдёт как anon и RLS вернёт пустой массив.
     const { data: { session } } = await supabase.auth.getSession();
@@ -444,6 +445,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   };
 
   const loadSections = async () => {
+    if (!authReady) { setSectionList([]); return; }
     if (!hasSubgroup) { setSectionList([]); return; }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return;
@@ -460,6 +462,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   };
 
   useEffect(() => {
+    if (!authReady) return;
     load(); setPage(1); setActiveSection("__all"); setSearch("");
     // Если сессия обновится (логин или рефреш токена) — перезагрузить.
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -467,7 +470,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
     });
     return () => sub.subscription.unsubscribe();
     /* eslint-disable-next-line */
-  }, [spec.key]);
+  }, [spec.key, authReady]);
   useEffect(() => { loadSections(); /* eslint-disable-next-line */ }, [spec.key, rows.length]);
 
   const update = async (row: AnyRow, k: string, v: any) => {
