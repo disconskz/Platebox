@@ -6,53 +6,53 @@
 
 @layer base {
   :root {
-    /* App canvas — warm off-white, editorial */
-    --background: 36 24% 96%;
-    --foreground: 30 10% 9%;
+    /* Slate & Steel — engineered, off-white canvas, slate ink */
+    --background: 40 14% 96%;
+    --foreground: 218 25% 21%;        /* #2d3748 */
 
     --card: 0 0% 100%;
-    --card-foreground: 30 10% 9%;
+    --card-foreground: 218 25% 21%;
     --glass: 0 0% 100% / 0.7;
-    --glass-stroke: 30 10% 9% / 0.08;
+    --glass-stroke: 218 25% 21% / 0.10;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 30 10% 9%;
+    --popover-foreground: 218 25% 21%;
 
-    /* Ink primary */
-    --primary: 30 10% 9%;
-    --primary-foreground: 36 24% 96%;
-    --primary-glow: 30 10% 18%;
+    /* Slate primary */
+    --primary: 218 25% 21%;            /* #2d3748 */
+    --primary-foreground: 40 14% 96%;
+    --primary-glow: 218 19% 31%;       /* #4a5568 */
 
-    --secondary: 36 16% 91%;
-    --secondary-foreground: 30 10% 9%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 218 25% 21%;
 
-    --muted: 36 16% 92%;
-    --muted-foreground: 30 6% 38%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 218 11% 44%;   /* #718096 */
 
-    /* Accent — burnished copper/terracotta */
-    --accent: 18 62% 48%;
-    --accent-foreground: 36 24% 96%;
+    /* Accent — steel (no warm hues, keeps engineering vibe) */
+    --accent: 218 19% 31%;             /* #4a5568 */
+    --accent-foreground: 40 14% 96%;
 
     --success: 150 36% 32%;
-    --success-foreground: 36 24% 96%;
+    --success-foreground: 40 14% 96%;
     --warning: 32 78% 46%;
     --warning-foreground: 0 0% 100%;
     --destructive: 4 70% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 12% 86%;
-    --input: 30 12% 86%;
-    --ring: 18 62% 48%;
+    --border: 220 14% 86%;             /* steel border */
+    --input: 220 14% 86%;
+    --ring: 218 25% 21%;
 
     --radius: 0.625rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-subtle: radial-gradient(900px 500px at 100% 0%, hsl(18 62% 48% / 0.06), transparent 60%),
-                       linear-gradient(180deg, hsl(36 24% 97%), hsl(36 20% 94%));
-    --shadow-card: inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 1px 2px hsl(30 10% 9% / 0.05), 0 10px 26px -18px hsl(30 30% 14% / 0.22);
-    --shadow-elevated: inset 0 1px 0 hsl(0 0% 100% / 0.7), 0 2px 6px hsl(30 20% 12% / 0.06), 0 30px 50px -24px hsl(30 30% 14% / 0.34);
-    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.7), 0 1px 2px hsl(30 10% 9% / 0.05), 0 18px 40px -22px hsl(30 30% 14% / 0.28);
-    --shadow-ring: 0 0 0 1px hsl(30 12% 86% / 0.9), 0 1px 2px hsl(30 10% 9% / 0.04);
+    --gradient-primary: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    /* Flat editorial canvas — no aurora glow */
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+    --shadow-card: 0 1px 0 hsl(218 25% 21% / 0.04), 0 1px 2px hsl(218 25% 21% / 0.06);
+    --shadow-elevated: 0 1px 0 hsl(218 25% 21% / 0.05), 0 6px 18px -10px hsl(218 25% 21% / 0.18);
+    --shadow-glass: 0 1px 0 hsl(218 25% 21% / 0.05), 0 10px 24px -14px hsl(218 25% 21% / 0.22);
+    --shadow-ring: 0 0 0 1px hsl(220 14% 86% / 0.9), 0 1px 2px hsl(218 25% 21% / 0.04);
 
     --sidebar-background: 0 0% 98%;
 
@@ -72,29 +72,29 @@
   }
 
   .dark {
-    --background: 30 8% 6%;
-    --foreground: 36 22% 94%;
-    --card: 30 8% 9%;
-    --card-foreground: 36 22% 94%;
-    --glass: 30 8% 11% / 0.6;
-    --glass-stroke: 36 20% 90% / 0.08;
-    --popover: 30 8% 9%;
-    --popover-foreground: 36 22% 94%;
-    --primary: 36 22% 94%;
-    --primary-foreground: 30 10% 9%;
-    --primary-glow: 36 22% 84%;
-    --secondary: 30 6% 14%;
-    --secondary-foreground: 36 22% 94%;
-    --muted: 30 6% 13%;
-    --muted-foreground: 36 8% 64%;
-    --accent: 18 70% 56%;
-    --accent-foreground: 30 10% 9%;
+    --background: 218 25% 9%;
+    --foreground: 220 14% 90%;
+    --card: 218 22% 12%;
+    --card-foreground: 220 14% 90%;
+    --glass: 218 22% 14% / 0.6;
+    --glass-stroke: 220 14% 70% / 0.10;
+    --popover: 218 22% 12%;
+    --popover-foreground: 220 14% 90%;
+    --primary: 220 14% 90%;
+    --primary-foreground: 218 25% 12%;
+    --primary-glow: 220 14% 78%;
+    --secondary: 218 18% 18%;
+    --secondary-foreground: 220 14% 90%;
+    --muted: 218 18% 16%;
+    --muted-foreground: 218 11% 64%;
+    --accent: 218 11% 64%;
+    --accent-foreground: 218 25% 12%;
     --success: 150 40% 50%;
     --warning: 32 86% 56%;
     --destructive: 4 76% 56%;
-    --border: 30 6% 18%;
-    --input: 30 6% 18%;
-    --ring: 18 70% 56%;
+    --border: 218 18% 22%;
+    --input: 218 18% 22%;
+    --ring: 220 14% 90%;
     --shadow-card: inset 0 1px 0 hsl(0 0% 100% / 0.04), 0 1px 2px hsl(0 0% 0% / 0.4), 0 14px 30px -16px hsl(0 0% 0% / 0.6);
     --shadow-elevated: inset 0 1px 0 hsl(0 0% 100% / 0.05), 0 2px 6px hsl(0 0% 0% / 0.4), 0 34px 56px -22px hsl(0 0% 0% / 0.7);
     --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 18px 40px -18px hsl(0 0% 0% / 0.65);
@@ -116,11 +116,11 @@
   }
 
   html {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
-    font-feature-settings: "ss01", "cv11", "tnum";
+    font-family: "Work Sans", "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
+    font-feature-settings: "tnum", "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.012em;
+    letter-spacing: -0.005em;
   }
 
   body {
@@ -129,7 +129,7 @@
     background-attachment: fixed;
   }
 
-  h1, h2, h3, h4 { letter-spacing: -0.028em; }
+  h1, h2, h3, h4 { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -0.04em; font-weight: 500; }
 
   .font-serif { font-family: "Instrument Serif", "Times New Roman", serif; letter-spacing: -0.01em; }
   .font-mono  { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
