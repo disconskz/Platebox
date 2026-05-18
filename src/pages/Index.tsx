@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database, TrendingUp, Copy, Trash2, Search, Sparkles, LogOut, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,11 @@ const Index = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { user, session, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
 
   const load = async () => {
     if (!session?.access_token) {
@@ -126,7 +131,7 @@ const Index = () => {
             <Link to="/analytics"><Button variant="outline"><TrendingUp className="mr-2 h-4 w-4" /> Аналитика</Button></Link>
             <Link to="/references"><Button variant="outline"><Database className="mr-2 h-4 w-4" /> Справочники</Button></Link>
             <Link to="/calculator"><Button className="shadow-elevated"><Plus className="mr-2 h-4 w-4" /> Новый</Button></Link>
-            <Button variant="outline" onClick={() => signOut()} title={user?.email || ""}>
+            <Button variant="outline" onClick={handleSignOut} title={user?.email || ""}>
               <LogOut className="mr-2 h-4 w-4" /> Выйти
             </Button>
           </div>
