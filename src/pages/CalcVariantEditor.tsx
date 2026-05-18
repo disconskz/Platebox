@@ -13,6 +13,7 @@ import { CalcConstant, CalcVariant, FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, V
 import FormulaBuilder from "@/components/calc/FormulaBuilder";
 import { runVariant, collectStageRefs } from "@/lib/calc/variants/engine";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const TEST_DEFAULTS: Record<string, number> = {
   тираж: 5000, кол_форм: 4, кол_красок: 4, сторон: 2, печ_листов: 700,
