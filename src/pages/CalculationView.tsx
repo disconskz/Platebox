@@ -12,6 +12,8 @@ import { exportCalculationToPdf } from "@/lib/pdf-export";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
 import { HelpHint } from "@/components/HelpHint";
+import { useAuth } from "@/hooks/useAuth";
+import { createSupabaseTimeout, isAbortError } from "@/lib/supabase-timeout";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",
@@ -31,27 +33,66 @@ const CalculationView = () => {
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [editReason, setEditReason] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { user, session, loading: authLoading } = useAuth();
 
   const load = async () => {
     if (!id) return;
-    const [cRes, itRes, adjRes, skRes] = await Promise.all([
-      supabase.from("calculations").select("*").eq("id", id).single(),
-      supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order"),
-      supabase.from("calculation_adjustments").select("*").eq("calculation_id", id).order("created_at", { ascending: false }),
-      supabase.from("calculation_skus" as any).select("*").eq("calculation_id", id).order("sort_order"),
-    ]);
-    const firstErr = cRes.error || itRes.error || adjRes.error || skRes.error;
-    if (firstErr) {
-      toast.error("Не удалось загрузить расчёт: " + firstErr.message);
+    if (!session?.access_token) {
+      setLoadError("Сессия входа не восстановлена. Выйдите и войдите снова.");
+      setLoading(false);
       return;
     }
-    setCalc(cRes.data);
-    setItems(itRes.data || []);
-    setAdjustments(adjRes.data || []);
-    setSkus((skRes.data as any[]) || []);
+
+    setLoading(true);
+    setLoadError(null);
+    const timeout = createSupabaseTimeout();
+
+    try {
+      const base = import.meta.env.VITE_SUPABASE_URL;
+      const calcId = encodeURIComponent(id);
+      const headers = {
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${session.access_token}`,
+      };
+      const requestJson = async <T,>(path: string): Promise<T> => {
+        const res = await fetch(`${base}${path}`, { signal: timeout.signal, headers });
+        if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+        return res.json();
+      };
+
+      const [calcRows, itemRows, adjustmentRows, skuRows] = await Promise.all([
+        requestJson<any[]>(`/rest/v1/calculations?select=*&id=eq.${calcId}&limit=1`),
+        requestJson<any[]>(`/rest/v1/calculation_items?select=*&calculation_id=eq.${calcId}&order=sort_order.asc`),
+        requestJson<any[]>(`/rest/v1/calculation_adjustments?select=*&calculation_id=eq.${calcId}&order=created_at.desc`),
+        requestJson<any[]>(`/rest/v1/calculation_skus?select=*&calculation_id=eq.${calcId}&order=sort_order.asc`),
+      ]);
+      if (!calcRows[0]) throw new Error("Расчёт не найден или у вас нет доступа к нему.");
+
+      setCalc(calcRows[0]);
+      setItems(itemRows || []);
+      setAdjustments(adjustmentRows || []);
+      setSkus(skuRows || []);
+    } catch (e: unknown) {
+      const message = isAbortError(e)
+        ? "Сервер не ответил за 12 секунд. Попробуйте открыть расчёт ещё раз."
+        : e instanceof Error ? e.message : "Неизвестная ошибка";
+      console.error("[CalculationView.load] calculation error:", e);
+      setLoadError(message);
+      toast.error("Не удалось загрузить расчёт: " + message);
+    } finally {
+      timeout.cancel();
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { setLoading(false); return; }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id, session?.access_token, id]);
 
   const totalCost = useMemo(() => items.reduce((s, i) => s + Number(i.total_price || 0), 0), [items]);
   const margin = Number(calc?.margin_percent || 30);
@@ -102,7 +143,26 @@ const CalculationView = () => {
     });
   };
 
-  if (!calc) return <div className="p-8 text-center text-muted-foreground">Загрузка…</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Загрузка…</div>;
+
+  if (loadError || !calc) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle has-tabbar">
+        <main className="container mx-auto flex min-h-[60vh] items-center justify-center px-4 py-8">
+          <Card className="w-full max-w-lg">
+            <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+              <p className="text-sm text-muted-foreground">{loadError || "Расчёт не найден."}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button variant="outline" onClick={load}>Повторить загрузку</Button>
+                <Link to="/app"><Button>Все расчёты</Button></Link>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+        <MobileTabBar />
+      </div>
+    );
+  }
 
   const grouped = items.reduce((acc: Record<string, any[]>, it) => {
     (acc[it.stage] ||= []).push(it);
