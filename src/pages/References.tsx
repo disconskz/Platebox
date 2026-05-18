@@ -25,6 +25,7 @@ import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
+import { useAuth } from "@/hooks/useAuth";
 
 type AnyRow = Record<string, any>;
 
@@ -375,6 +376,7 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
 };
 
 const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => {
+  const { session, loading: authLoading } = useAuth();
   const [rows, setRows] = useState<AnyRow[]>([]);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
   const [page, setPage] = useState(1);
@@ -393,6 +395,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const pk = spec.pk || "id";
 
   const load = async () => {
+    if (!session?.access_token) return;
     const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
     if (error) {
       console.error(`[References.load:${spec.key}]`, error);
@@ -416,8 +419,8 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
     setSectionList(all);
   };
 
-  useEffect(() => { load(); setPage(1); setActiveSection("__all"); setSearch(""); /* eslint-disable-next-line */ }, [spec.key]);
-  useEffect(() => { loadSections(); /* eslint-disable-next-line */ }, [spec.key, rows.length]);
+  useEffect(() => { load(); setPage(1); setActiveSection("__all"); setSearch(""); /* eslint-disable-next-line */ }, [spec.key, session?.access_token]);
+  useEffect(() => { loadSections(); /* eslint-disable-next-line */ }, [spec.key, rows.length, session?.access_token]);
 
   const update = async (row: AnyRow, k: string, v: any) => {
     const next = { ...row, [k]: v };
