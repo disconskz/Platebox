@@ -343,6 +343,7 @@ export type Database = {
           turnaround_type: string | null
           updated_at: string | null
           user_id: string | null
+          version: number
         }
         Insert: {
           category: string
@@ -390,6 +391,7 @@ export type Database = {
           turnaround_type?: string | null
           updated_at?: string | null
           user_id?: string | null
+          version?: number
         }
         Update: {
           category?: string
@@ -437,6 +439,7 @@ export type Database = {
           turnaround_type?: string | null
           updated_at?: string | null
           user_id?: string | null
+          version?: number
         }
         Relationships: [
           {
@@ -454,6 +457,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_logs: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          stack: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       clients: {
         Row: {
@@ -1056,14 +1089,29 @@ export type Database = {
           total_cost: number
         }[]
       }
-      apply_item_price_change: {
-        Args: { _item_id: string; _new_price: number; _reason?: string }
-        Returns: {
-          profit: number
-          sale_price: number
-          total_cost: number
-        }[]
-      }
+      apply_item_price_change:
+        | {
+            Args: { _item_id: string; _new_price: number; _reason?: string }
+            Returns: {
+              profit: number
+              sale_price: number
+              total_cost: number
+            }[]
+          }
+        | {
+            Args: {
+              _expected_version?: number
+              _item_id: string
+              _new_price: number
+              _reason?: string
+            }
+            Returns: {
+              profit: number
+              sale_price: number
+              total_cost: number
+              version: number
+            }[]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -5,12 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { fmtMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
 import { createSupabaseTimeout, isAbortError } from "@/lib/supabase-timeout";
+import { handleSupabaseError } from "@/lib/supabase-error";
 
 type Calc = {
   id: string;
@@ -28,6 +34,8 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { user, session, loading: authLoading, signOut } = useAuth();
 
   const load = async () => {
@@ -83,13 +91,21 @@ const Index = () => {
   const recent = filtered.filter((c) => !c.is_template);
   const templates = filtered.filter((c) => c.is_template);
 
-  const remove = async (id: string) => {
-    if (!confirm("Удалить расчёт?")) return;
-    await supabase.from("calculation_items").delete().eq("calculation_id", id);
-    await supabase.from("calculation_adjustments").delete().eq("calculation_id", id);
-    const { error } = await supabase.from("calculations").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("Удалено"); load(); }
+  const remove = (id: string) => setDeleteId(id);
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    const { error: itemsErr } = await supabase.from("calculation_items").delete().eq("calculation_id", deleteId);
+    if (handleSupabaseError(itemsErr, "удаление позиций")) { setDeleting(false); return; }
+    const { error: adjErr } = await supabase.from("calculation_adjustments").delete().eq("calculation_id", deleteId);
+    if (handleSupabaseError(adjErr, "удаление истории")) { setDeleting(false); return; }
+    const { error } = await supabase.from("calculations").delete().eq("id", deleteId);
+    setDeleting(false);
+    if (handleSupabaseError(error, "удаление расчёта")) return;
+    toast.success("Удалено");
+    setDeleteId(null);
+    load();
   };
 
   return (
@@ -139,7 +155,16 @@ const Index = () => {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Последние расчёты</h2>
           </div>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Загрузка…</p>
+            <div className="overflow-hidden rounded-2xl border border-border/60 bg-card p-3 space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-1">
+                  <Skeleton className="h-5 flex-1" />
+                  <Skeleton className="h-5 w-24 hidden sm:block" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              ))}
+            </div>
           ) : loadError ? (
             <Card className="lift">
               <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -166,6 +191,23 @@ const Index = () => {
         <Plus className="h-5 w-5" /> Новый
       </Link>
       <MobileTabBar />
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить расчёт?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие нельзя отменить. Будут удалены позиции расчёта и история правок.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? "Удаление…" : "Удалить"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

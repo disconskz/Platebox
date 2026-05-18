@@ -20,6 +20,8 @@ import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
+import { handleSupabaseError } from "@/lib/supabase-error";
+import { z } from "zod";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ChevronUp } from "lucide-react";
 import { HelpHint } from "@/components/HelpHint";
@@ -121,6 +123,11 @@ const PRODUCT_OPTIONS: { value: ProductType; label: string; category: "sheet" | 
 
 const FORMAT_OPTIONS: FormatType[] = ["A6", "A5", "A4", "A4+", "A3", "A3+", "A2", "A1", "custom"];
 
+// --- Zod-валидаторы для ключевых числовых полей ---
+const circulationSchema = z.number().int().positive().max(10_000_000);
+const colorSchema = z.number().int().min(0).max(8);
+const formatDimSchema = z.number().int().positive().max(2000);
+
 const Calculator = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -197,17 +204,30 @@ const Calculator = () => {
 
   useEffect(() => {
     (async () => {
-      const calcRules = await loadCalcRules();
-      setCalcRules(calcRules);
-      const { data: m } = await supabase.from("materials").select("*").order("name");
-      const { data: l } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
-      const { data: e } = await supabase.from("equipment").select("*").eq("type", "print").order("name");
-      const { data: s } = await supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle();
-      const { data: pf } = await supabase.from("print_formats" as any).select("*").order("sort_order");
-      const { data: buyf } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
-      const { data: pm } = await supabase.from("press_machines" as any).select("*").order("sort_order");
-      const { data: rules } = await supabase.from("product_circulation_rules" as any).select("*").order("sort_order");
-      const { data: ops } = await supabase.from("operations").select("*").order("subgroup").order("name");
+      try {
+        const calcRules = await loadCalcRules();
+        setCalcRules(calcRules);
+      } catch (e: any) {
+        toast.error("Не удалось загрузить правила расчёта: " + (e?.message || ""));
+      }
+      const { data: m, error: mErr } = await supabase.from("materials").select("*").order("name");
+      handleSupabaseError(mErr, "материалы");
+      const { data: l, error: lErr } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
+      handleSupabaseError(lErr, "ламинация");
+      const { data: e, error: eErr } = await supabase.from("equipment").select("*").eq("type", "print").order("name");
+      handleSupabaseError(eErr, "оборудование");
+      const { data: s, error: sErr } = await supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle();
+      handleSupabaseError(sErr, "настройки");
+      const { data: pf, error: pfErr } = await supabase.from("print_formats" as any).select("*").order("sort_order");
+      handleSupabaseError(pfErr, "печатные форматы");
+      const { data: buyf, error: buyErr } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
+      handleSupabaseError(buyErr, "закупочные форматы");
+      const { data: pm, error: pmErr } = await supabase.from("press_machines" as any).select("*").order("sort_order");
+      handleSupabaseError(pmErr, "печатные машины");
+      const { data: rules, error: rulesErr } = await supabase.from("product_circulation_rules" as any).select("*").order("sort_order");
+      handleSupabaseError(rulesErr, "правила тиражей");
+      const { data: ops, error: opsErr } = await supabase.from("operations").select("*").order("subgroup").order("name");
+      handleSupabaseError(opsErr, "операции");
       if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
@@ -697,6 +717,17 @@ const Calculator = () => {
 
   const save = async (asTemplate = false) => {
     if (!result || "error" in result || !calcInput || !effectiveMaterial) return;
+    // --- Валидация ключевых числовых полей перед сохранением ---
+    const checks: Array<[ReturnType<typeof circulationSchema.safeParse>, string]> = [
+      [circulationSchema.safeParse(circulation), "Тираж: 1 – 10 000 000"],
+      [colorSchema.safeParse(colorFront), "Цветность лицо: 0 – 8"],
+      [colorSchema.safeParse(colorBack), "Цветность оборот: 0 – 8"],
+      [formatDimSchema.safeParse(dims.w), "Ширина формата: 1 – 2000 мм"],
+      [formatDimSchema.safeParse(dims.h), "Высота формата: 1 – 2000 мм"],
+    ];
+    for (const [check, msg] of checks) {
+      if (!check.success) { toast.error(msg); return; }
+    }
     setSaving(true);
     const payload = {
       name: name || `${PRODUCT_OPTIONS.find((p) => p.value === productType)?.label} ${formatType} ${colorFront}+${colorBack}, тираж ${circulation}`,
