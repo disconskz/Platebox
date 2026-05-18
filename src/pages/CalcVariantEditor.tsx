@@ -144,18 +144,22 @@ export default function CalcVariantEditor() {
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
-        <div className="container mx-auto flex items-center gap-3 py-3 px-4">
-          <Link to="/references/variants" className="text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="inline h-4 w-4 mr-1" /> К списку
+        <div className="container mx-auto flex flex-wrap items-center gap-2 sm:gap-3 py-3 px-4">
+          <Link to="/references/variants" className="text-sm text-muted-foreground hover:text-foreground shrink-0">
+            <ArrowLeft className="inline h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">К списку</span>
           </Link>
-          <h1 className="ml-2 text-lg font-semibold truncate">{variant.name}</h1>
-          <div className="ml-auto">
-            <Button onClick={save} disabled={saving || !canSave} size="sm"><Save className="h-4 w-4 mr-1" /> Сохранить</Button>
+          <h1 className="text-base sm:text-lg font-semibold truncate min-w-0 flex-1">{variant.name}</h1>
+          <div className="ml-auto shrink-0">
+            <Button onClick={save} disabled={saving || !canSave} size="sm">
+              <Save className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Сохранить</span>
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto py-4 sm:py-6 px-4 grid gap-4 lg:grid-cols-3">
+      <main className="container mx-auto py-4 sm:py-6 px-3 sm:px-4 grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Общие</CardTitle></CardHeader>
@@ -172,14 +176,17 @@ export default function CalcVariantEditor() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex flex-wrap flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="text-base">Этапы работы</CardTitle>
-              <div className="flex gap-2">
+              <div className="flex gap-2 ml-auto">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button size="sm" variant="outline"><Library className="h-4 w-4 mr-1" /> Из библиотеки</Button>
+                    <Button size="sm" variant="outline">
+                      <Library className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Из библиотеки</span>
+                    </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 p-2" align="end">
+                  <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] p-2" align="end">
                     <div className="max-h-72 overflow-y-auto">
                       {library.map((l) => (
                         <button key={l.id} type="button"
@@ -192,20 +199,23 @@ export default function CalcVariantEditor() {
                     </div>
                   </PopoverContent>
                 </Popover>
-                <Button size="sm" onClick={() => addStage()}><Plus className="h-4 w-4 mr-1" /> Этап</Button>
+                <Button size="sm" onClick={() => addStage()}>
+                  <Plus className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Этап</span>
+                </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 px-3 sm:px-6">
               {stages.length === 0 && <div className="text-sm text-muted-foreground py-4 text-center">Нет ни одного этапа. Добавьте из библиотеки или с нуля.</div>}
               {stages.map((s, i) => (
                 <div key={i} className="rounded-md border bg-card p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input className="h-8 max-w-xs" value={s.name} onChange={(e) => updateStage(i, { name: e.target.value })} />
-                    <Input className="h-8 w-20" value={s.unit} onChange={(e) => updateStage(i, { unit: e.target.value })} placeholder="ед." />
-                    <div className="ml-auto flex gap-1">
-                      <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)}>↑</Button>
-                      <Button size="sm" variant="ghost" disabled={i === stages.length - 1} onClick={() => move(i, 1)}>↓</Button>
-                      <Button size="sm" variant="ghost" onClick={() => removeStage(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input className="h-8 min-w-0 flex-1 sm:max-w-xs" value={s.name} onChange={(e) => updateStage(i, { name: e.target.value })} />
+                    <Input className="h-8 w-16 sm:w-20 shrink-0" value={s.unit} onChange={(e) => updateStage(i, { unit: e.target.value })} placeholder="ед." />
+                    <div className="ml-auto flex gap-1 shrink-0">
+                      <Button size="sm" variant="ghost" aria-label="Вверх" disabled={i === 0} onClick={() => move(i, -1)}>↑</Button>
+                      <Button size="sm" variant="ghost" aria-label="Вниз" disabled={i === stages.length - 1} onClick={() => move(i, 1)}>↓</Button>
+                      <Button size="sm" variant="ghost" aria-label="Удалить этап" onClick={() => removeStage(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   </div>
                   <FormulaBuilder
@@ -249,14 +259,14 @@ export default function CalcVariantEditor() {
                           return (
                             <div key={slug} className="rounded-md border bg-muted/30 p-2 space-y-1.5">
                               <div className="font-mono text-[11px] text-primary">@{slug}</div>
-                              <div className="grid grid-cols-[1fr_70px_50px_auto] gap-1.5">
-                                <Input className="h-7 text-xs" placeholder="Название" value={d.name}
+                              <div className="grid grid-cols-2 sm:grid-cols-[1fr_70px_50px_auto] gap-1.5">
+                                <Input className="h-7 text-xs col-span-2 sm:col-span-1" placeholder="Название" value={d.name}
                                   onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, name: e.target.value } })} />
                                 <Input className="h-7 text-xs text-right tabular-nums" type="number" value={d.value}
                                   onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, value: Number(e.target.value) || 0 } })} />
                                 <Input className="h-7 text-xs" value={d.unit}
                                   onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, unit: e.target.value } })} />
-                                <Button size="sm" className="h-7 px-2" onClick={() => createMissingConstant(slug)}>
+                                <Button size="sm" className="h-7 px-2 col-span-2 sm:col-span-1" onClick={() => createMissingConstant(slug)}>
                                   <Sparkles className="h-3 w-3 mr-1" /> Создать
                                 </Button>
                               </div>
