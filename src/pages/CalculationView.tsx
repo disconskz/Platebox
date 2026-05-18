@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, Check, X, FileText, Download, Copy, History, FileDown } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, FileText, Download, Copy, History, FileDown, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { z } from "zod";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import { exportSpecToExcel } from "@/lib/export";
@@ -23,6 +25,9 @@ const STAGE_LABELS: Record<string, string> = {
   logistics: "Логистика",
 };
 
+const priceSchema = z.number().positive("Цена должна быть больше 0").finite().max(999_999_999, "Слишком большое значение");
+const marginSchema = z.number().min(0, "Не меньше 0%").max(500, "Не больше 500%").finite();
+
 const CalculationView = () => {
   const { id } = useParams();
   const [calc, setCalc] = useState<any>(null);
@@ -33,6 +38,9 @@ const CalculationView = () => {
   const [editing, setEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [editReason, setEditReason] = useState<string>("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [marginError, setMarginError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { user, session, loading: authLoading } = useAuth();
@@ -103,36 +111,58 @@ const CalculationView = () => {
     setEditing(item.id);
     setEditValue(String(item.unit_price));
     setEditReason("");
+    setEditError(null);
   };
 
   const saveEdit = async (item: any) => {
-    const newPrice = Number(editValue);
-    if (!Number.isFinite(newPrice) || newPrice < 0 || newPrice > 1e9) {
-      toast.error("Введите корректную цену (0 – 1 000 000 000)");
+    const parsed = priceSchema.safeParse(Number(editValue));
+    if (!parsed.success) {
+      setEditError(parsed.error.issues[0].message);
       return;
     }
+    setEditError(null);
+    const prevItems = items;
+    // Optimistic update
+    setItems((cur) => cur.map((x) => x.id === item.id ? { ...x, unit_price: parsed.data, total_price: parsed.data * Number(x.quantity || 0), manual_price: parsed.data } : x));
     const { error } = await supabase.rpc("apply_item_price_change" as any, {
       _item_id: item.id,
-      _new_price: newPrice,
+      _new_price: parsed.data,
       _reason: editReason || null,
+      _expected_version: calc?.version ?? 0,
     });
-    if (error) { toast.error("Не удалось сохранить: " + error.message); return; }
+    if (error) {
+      setItems(prevItems); // rollback
+      if (/version_conflict/i.test(error.message)) {
+        toast.warning("Данные устарели — расчёт перезагружен");
+        load();
+      } else {
+        toast.error("Не удалось сохранить: " + error.message);
+      }
+      return;
+    }
     setEditing(null);
     toast.success("Цена обновлена");
     load();
   };
 
   const updateMargin = async (m: number) => {
-    if (!Number.isFinite(m) || m < 0 || m > 1000) {
-      toast.error("Наценка должна быть от 0 до 1000%");
+    const parsed = marginSchema.safeParse(m);
+    if (!parsed.success) {
+      setMarginError(parsed.error.issues[0].message);
       return;
     }
+    setMarginError(null);
     if (!id) return;
+    const prevCalc = calc;
     const { data, error } = await supabase.rpc("apply_calculation_margin" as any, {
       _calculation_id: id,
-      _margin: m,
+      _margin: parsed.data,
     });
-    if (error) { toast.error("Не удалось обновить наценку: " + error.message); return; }
+    if (error) {
+      setCalc(prevCalc);
+      toast.error("Не удалось обновить наценку: " + error.message);
+      return;
+    }
     const row = Array.isArray(data) ? data[0] : data;
     setCalc({
       ...calc,
@@ -143,7 +173,27 @@ const CalculationView = () => {
     });
   };
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Загрузка…</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gradient-subtle has-tabbar">
+      <main className="container mx-auto px-4 py-6 grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-4">
+          <Card><CardContent className="p-4 space-y-3">
+            <Skeleton className="h-6 w-1/3" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
+            </div>
+          </CardContent></Card>
+          <Card><CardContent className="p-4 space-y-2">
+            {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-8" />)}
+          </CardContent></Card>
+        </div>
+        <Card className="h-fit"><CardContent className="p-4 space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8" />)}
+        </CardContent></Card>
+      </main>
+      <MobileTabBar />
+    </div>
+  );
 
   if (loadError || !calc) {
     return (
@@ -177,17 +227,31 @@ const CalculationView = () => {
             <ArrowLeft className="inline h-4 w-4 mr-1" /> <span className="hidden sm:inline">Все расчёты</span>
           </Link>
           <div className="ml-auto flex flex-wrap justify-end gap-1.5 sm:gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportSpecToExcel(calc?.name || "calc", items, { cost: totalCost, sale: salePrice, margin })}>
-              <Download className="sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Excel</span>
+            <Button variant="outline" size="sm" disabled={exporting !== null} onClick={async () => {
+              setExporting("excel");
+              try {
+                await Promise.resolve(exportSpecToExcel(calc?.name || "calc", items, { cost: totalCost, sale: salePrice, margin }));
+              } catch (e: any) {
+                toast.error("Не удалось создать Excel: " + (e?.message || ""));
+              } finally {
+                setExporting(null);
+              }
+            }}>
+              {exporting === "excel" ? <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" /> : <Download className="sm:mr-2 h-4 w-4" />}
+              <span className="hidden sm:inline">{exporting === "excel" ? "Формирование…" : "Excel"}</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={async () => {
+            <Button variant="outline" size="sm" disabled={exporting !== null} onClick={async () => {
+              setExporting("pdf");
               try {
                 await exportCalculationToPdf(calc, items, { cost: totalCost, sale: salePrice, margin, profit });
               } catch (e: any) {
                 toast.error("Не удалось создать PDF: " + (e?.message || ""));
+              } finally {
+                setExporting(null);
               }
             }}>
-              <FileDown className="sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">PDF</span>
+              {exporting === "pdf" ? <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" /> : <FileDown className="sm:mr-2 h-4 w-4" />}
+              <span className="hidden sm:inline">{exporting === "pdf" ? "Формирование…" : "PDF"}</span>
             </Button>
             <Link to={`/calculator?from=${id}`}>
               <Button variant="outline" size="sm"><Copy className="sm:mr-2 h-4 w-4" /><span className="hidden sm:inline">Дублировать</span></Button>
@@ -300,7 +364,12 @@ const CalculationView = () => {
                             <td className="p-2 text-right tabular-nums">
                               {editing === it.id ? (
                                 <div className="flex flex-col gap-1">
-                                  <Input className="h-7 text-right" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
+                                  <Input
+                                    className={`h-7 text-right ${editError ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                                    value={editValue}
+                                    onChange={(e) => { setEditValue(e.target.value); if (editError) setEditError(null); }}
+                                  />
+                                  {editError && <p className="text-[10px] text-destructive text-right">{editError}</p>}
                                   <Input className="h-7 text-xs" placeholder="Причина" value={editReason} onChange={(e) => setEditReason(e.target.value)} />
                                 </div>
                               ) : fmtMoney(Number(it.unit_price))}
@@ -386,7 +455,15 @@ const CalculationView = () => {
             <Row label="Себестоимость" value={fmtMoney(totalCost)} />
             <div>
               <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка, %</span></div>
-              <Input type="number" value={margin} onChange={(e) => updateMargin(Number(e.target.value))} />
+              <Input
+                type="number"
+                min={0}
+                max={500}
+                value={margin}
+                className={marginError ? "border-destructive focus-visible:ring-destructive" : ""}
+                onChange={(e) => updateMargin(Number(e.target.value))}
+              />
+              {marginError && <p className="text-xs text-destructive mt-1">{marginError}</p>}
             </div>
             <Row label="Цена продажи" value={fmtMoney(salePrice)} bold />
             <Row label="Прибыль" value={fmtMoney(profit)} className="text-success" />
