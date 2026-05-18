@@ -78,8 +78,10 @@ type DynamicOptions = {
 };
 
 const useDynamicOptions = (): DynamicOptions => {
+  const { session } = useAuth();
   const [opts, setOpts] = useState<DynamicOptions>({});
   useEffect(() => {
+    if (!session?.access_token) return;
     (async () => {
       const [pfRes, pmRes] = await Promise.all([
         (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"),
@@ -97,7 +99,7 @@ const useDynamicOptions = (): DynamicOptions => {
         press_machines: ((pm as any[]) || []).map((r) => ({ value: r.id, label: r.name })),
       });
     })();
-  }, []);
+  }, [session?.access_token]);
   return opts;
 };
 
