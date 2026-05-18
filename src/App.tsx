@@ -24,14 +24,10 @@ const queryClient = new QueryClient();
 
 const HomeRoute = () => {
   const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
-        Загрузка…
-      </div>
-    );
-  }
-  return user ? <Navigate to="/app" replace /> : <Landing />;
+  // Render Landing immediately — don't block on auth.
+  // If a session resolves later and the user is signed in, redirect to /app.
+  if (!loading && user) return <Navigate to="/app" replace />;
+  return <Landing />;
 };
 
 const App = () => (
