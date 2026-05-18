@@ -25,7 +25,6 @@ import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
-import { useAuth } from "@/hooks/useAuth";
 
 type AnyRow = Record<string, any>;
 
@@ -78,11 +77,14 @@ type DynamicOptions = {
 };
 
 const useDynamicOptions = (): DynamicOptions => {
-  const { session } = useAuth();
   const [opts, setOpts] = useState<DynamicOptions>({});
   useEffect(() => {
-    if (!session?.access_token) return;
+    let cancelled = false;
     (async () => {
+      // Дождаться, пока Supabase восстановит сессию из localStorage.
+      // Без этого на холодной загрузке запрос может уйти как anon → RLS вернёт [].
+      await supabase.auth.getSession();
+      if (cancelled) return;
       const [pfRes, pmRes] = await Promise.all([
         (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"),
         (supabase as any).from("press_machines").select("id,name").order("sort_order"),
@@ -91,6 +93,7 @@ const useDynamicOptions = (): DynamicOptions => {
       if (pmRes.error) console.error("[useDynamicOptions] press_machines:", pmRes.error);
       const pf = pfRes.data;
       const pm = pmRes.data;
+      if (cancelled) return;
       setOpts({
         purchase_formats: ((pf as any[]) || []).map((r) => ({
           value: r.id,
@@ -99,7 +102,22 @@ const useDynamicOptions = (): DynamicOptions => {
         press_machines: ((pm as any[]) || []).map((r) => ({ value: r.id, label: r.name })),
       });
     })();
-  }, [session?.access_token]);
+    // Перезагрузить опции, если сессия обновилась (логин/рефреш токена).
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (s?.access_token && !cancelled) {
+        (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order").then((pfRes: any) => {
+          (supabase as any).from("press_machines").select("id,name").order("sort_order").then((pmRes: any) => {
+            if (cancelled) return;
+            setOpts({
+              purchase_formats: ((pfRes.data as any[]) || []).map((r) => ({ value: r.id, label: `${r.width} × ${r.height}` })),
+              press_machines: ((pmRes.data as any[]) || []).map((r) => ({ value: r.id, label: r.name })),
+            });
+          });
+        });
+      }
+    });
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+  }, []);
   return opts;
 };
 
@@ -378,7 +396,6 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
 };
 
 const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => {
-  const { session, loading: authLoading } = useAuth();
   const [rows, setRows] = useState<AnyRow[]>([]);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
   const [page, setPage] = useState(1);
@@ -397,7 +414,13 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const pk = spec.pk || "id";
 
   const load = async () => {
-    if (!session?.access_token) return;
+    // Гарантируем, что Supabase-клиент восстановил сессию из localStorage —
+    // иначе REST-запрос уйдёт как anon и RLS вернёт пустой массив.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      console.warn(`[References.load:${spec.key}] нет сессии — пропускаю запрос`);
+      return;
+    }
     const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
     if (error) {
       console.error(`[References.load:${spec.key}]`, error);
@@ -409,6 +432,8 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
 
   const loadSections = async () => {
     if (!hasSubgroup) { setSectionList([]); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
     const { data: rs } = await (supabase as any)
       .from("reference_sections")
       .select("name")
@@ -421,8 +446,16 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
     setSectionList(all);
   };
 
-  useEffect(() => { load(); setPage(1); setActiveSection("__all"); setSearch(""); /* eslint-disable-next-line */ }, [spec.key, session?.access_token]);
-  useEffect(() => { loadSections(); /* eslint-disable-next-line */ }, [spec.key, rows.length, session?.access_token]);
+  useEffect(() => {
+    load(); setPage(1); setActiveSection("__all"); setSearch("");
+    // Если сессия обновится (логин или рефреш токена) — перезагрузить.
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (s?.access_token) load();
+    });
+    return () => sub.subscription.unsubscribe();
+    /* eslint-disable-next-line */
+  }, [spec.key]);
+  useEffect(() => { loadSections(); /* eslint-disable-next-line */ }, [spec.key, rows.length]);
 
   const update = async (row: AnyRow, k: string, v: any) => {
     const next = { ...row, [k]: v };
