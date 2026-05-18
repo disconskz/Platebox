@@ -9,9 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
 import { getVariant, updateVariant, replaceStages, listConstants, listStageLibrary } from "@/lib/calc/variants/api";
-import { CalcConstant, CalcVariant, FormulaNode, VARIABLE_LIST, VariantStage } from "@/lib/calc/variants/types";
+import { CalcConstant, CalcVariant, FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, VariantStage } from "@/lib/calc/variants/types";
 import FormulaBuilder from "@/components/calc/FormulaBuilder";
-import { runVariant } from "@/lib/calc/variants/engine";
+import { runVariant, collectStageRefs } from "@/lib/calc/variants/engine";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const TEST_DEFAULTS: Record<string, number> = {
   тираж: 5000, кол_форм: 4, кол_красок: 4, сторон: 2, печ_листов: 700,
@@ -37,6 +39,14 @@ export default function CalcVariantEditor() {
   }, [id, nav]);
 
   const constMap = useMemo(() => Object.fromEntries(constants.map((c) => [c.slug, c.value])), [constants]);
+  const validation = useMemo(() => {
+    const refs = collectStageRefs(stages);
+    const knownConsts = new Set(constants.map((c) => c.slug));
+    const unknownVars = [...refs.vars].filter((v) => !VARIABLE_KEYS.has(v));
+    const unknownConsts = [...refs.consts].filter((s) => !knownConsts.has(s));
+    return { usedVars: refs.vars, usedConsts: refs.consts, unknownVars, unknownConsts };
+  }, [stages, constants]);
+  const canSave = validation.unknownVars.length === 0 && validation.unknownConsts.length === 0;
   const result = useMemo(() => {
     if (!variant) return null;
     return runVariant({ ...variant, stages }, { vars: testVars, consts: constMap });
@@ -68,6 +78,10 @@ export default function CalcVariantEditor() {
 
   const save = async () => {
     if (!variant) return;
+    if (!canSave) {
+      toast.error("Есть неизвестные переменные или константы — исправьте перед сохранением");
+      return;
+    }
     setSaving(true);
     try {
       await updateVariant(variant.id, {
@@ -91,7 +105,7 @@ export default function CalcVariantEditor() {
           </Link>
           <h1 className="ml-2 text-lg font-semibold truncate">{variant.name}</h1>
           <div className="ml-auto">
-            <Button onClick={save} disabled={saving} size="sm"><Save className="h-4 w-4 mr-1" /> Сохранить</Button>
+            <Button onClick={save} disabled={saving || !canSave} size="sm"><Save className="h-4 w-4 mr-1" /> Сохранить</Button>
           </div>
         </div>
       </header>
@@ -164,16 +178,50 @@ export default function CalcVariantEditor() {
 
         <div className="space-y-4">
           <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2">
+              {canSave ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4 text-destructive" />}
+              Валидация
+            </CardTitle></CardHeader>
+            <CardContent className="text-xs space-y-2">
+              {canSave ? (
+                <div className="text-muted-foreground">Все переменные и константы известны.</div>
+              ) : (
+                <>
+                  {validation.unknownVars.length > 0 && (
+                    <div className="text-destructive">
+                      Неизвестные переменные: <span className="font-mono">{validation.unknownVars.join(", ")}</span>
+                    </div>
+                  )}
+                  {validation.unknownConsts.length > 0 && (
+                    <div className="text-destructive">
+                      Неизвестные константы: <span className="font-mono">{validation.unknownConsts.map((s) => "@" + s).join(", ")}</span>.
+                      Добавьте их в справочнике «Константы формул».
+                    </div>
+                  )}
+                </>
+              )}
+              <div className="pt-1 border-t text-muted-foreground">
+                Используется переменных: <b>{validation.usedVars.size}</b> · констант: <b>{validation.usedConsts.size}</b>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
             <CardHeader><CardTitle className="text-base">Тестовый прогон</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {VARIABLE_LIST.map((v) => (
-                <div key={v.key} className="grid grid-cols-[1fr_100px] items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">{v.label}</Label>
-                  <Input className="h-8 text-right tabular-nums" type="number"
-                    value={testVars[v.key] ?? 0}
-                    onChange={(e) => setTestVars({ ...testVars, [v.key]: Number(e.target.value) || 0 })} />
-                </div>
-              ))}
+              {VARIABLE_LIST.map((v) => {
+                const used = validation.usedVars.has(v.key);
+                return (
+                  <div key={v.key} className={cn("grid grid-cols-[1fr_100px] items-center gap-2", !used && "opacity-50")}>
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                      {v.label}
+                      {used && <span className="text-[9px] text-primary font-medium">●</span>}
+                    </Label>
+                    <Input className="h-8 text-right tabular-nums" type="number"
+                      value={testVars[v.key] ?? 0}
+                      onChange={(e) => setTestVars({ ...testVars, [v.key]: Number(e.target.value) || 0 })} />
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
           {result && (
