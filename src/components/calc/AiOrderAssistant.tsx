@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Sparkles, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +31,7 @@ export type ParsedOrder = {
 
 interface Props {
   onApply: (order: ParsedOrder) => void;
+  trigger?: ReactNode;
 }
 
 const FIELD_LABELS: Record<keyof ParsedOrder, string> = {
@@ -61,7 +62,7 @@ function formatValue(v: any): string {
   return String(v);
 }
 
-export default function AiOrderAssistant({ onApply }: Props) {
+export default function AiOrderAssistant({ onApply, trigger }: Props) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -97,16 +98,18 @@ export default function AiOrderAssistant({ onApply }: Props) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button
-          type="button"
-          className="fixed right-4 sm:right-6 bottom-[calc(env(safe-area-inset-bottom)+88px)] md:bottom-6 z-40 shadow-lg gap-2 rounded-full h-12 px-4 sm:px-5"
-          size="lg"
-          aria-label="ИИ-ассистент"
-        >
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">ИИ-ассистент</span>
-          <span className="sm:hidden">ИИ</span>
-        </Button>
+        {trigger ?? (
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1.5 rounded-full h-9 px-3 sm:px-4"
+            aria-label="ИИ-ассистент"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">ИИ-ассистент</span>
+            <span className="sm:hidden">ИИ</span>
+          </Button>
+        )}
       </SheetTrigger>
       <SheetContent
         side="right"

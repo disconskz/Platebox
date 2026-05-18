@@ -802,7 +802,6 @@ const Calculator = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
-      <AiOrderAssistant onApply={applyAiOrder} />
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-3 py-3 px-4">
           <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground shrink-0">
@@ -820,7 +819,8 @@ const Calculator = () => {
             <span className="opacity-60">·</span>
             <span>{colorFront}{colorBack ? `+${colorBack}` : ""}</span>
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <AiOrderAssistant onApply={applyAiOrder} />
             {result && !("error" in result) ? (
               <div className="hidden sm:flex items-center gap-3 text-right">
                 <div>
