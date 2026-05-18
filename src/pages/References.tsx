@@ -24,6 +24,7 @@ import { PRODUCT_LABELS } from "@/lib/calc/products";
 import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
+import CalcConstants from "@/components/references/CalcConstants";
 
 type AnyRow = Record<string, any>;
 
@@ -284,6 +285,7 @@ const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] =
       { key: "product_circulation_rules", title: "Правила тиражей" },
       { key: "__rules", title: "Правила расчёта" },
       { key: "system_settings", title: "Константы" },
+      { key: "__calc_constants", title: "Константы формул" },
     ],
   },
   {
@@ -304,6 +306,7 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
     if (active === "__rules") return <CalcRulesEditor />;
     if (active === "__custom") return <CustomReferences />;
     if (active === "__glossary") return <ProductGlossary />;
+    if (active === "__calc_constants") return <CalcConstants />;
     const spec = TABLES.find((t) => t.key === active);
     if (!spec) return null;
     return <RefTable spec={spec as any} dynOpts={dynOpts} />;
