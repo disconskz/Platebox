@@ -12,6 +12,8 @@ import AppLayout from "@/components/AppLayout";
 import Calculator from "./pages/Calculator.tsx";
 import MultiSkuCalculator from "./pages/MultiSkuCalculator.tsx";
 import References from "./pages/References.tsx";
+import CalcVariants from "./pages/CalcVariants.tsx";
+import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
 import CalculationView from "./pages/CalculationView.tsx";
 import Quote from "./pages/Quote.tsx";
 import Analytics from "./pages/Analytics.tsx";
@@ -50,6 +52,8 @@ const App = () => (
               <Route path="/calculator" element={<Calculator />} />
               <Route path="/calculator/multi-sku" element={<MultiSkuCalculator />} />
               <Route path="/references" element={<References />} />
+              <Route path="/references/variants" element={<CalcVariants />} />
+              <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/knowledge" element={<Knowledge />} />
               <Route path="/calculation/:id" element={<CalculationView />} />
