@@ -24,7 +24,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (cancelled) return;
       setSession(s);
       setUser(s?.user ?? null);
-      setLoading(false);
+      // loading снимаем только из getSession() — иначе можем отрисовать
+      // защищённый UI до того, как клиент прикрепит токен к запросам.
     });
 
     supabase.auth
