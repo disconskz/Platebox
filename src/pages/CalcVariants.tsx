@@ -123,7 +123,7 @@ export default function CalcVariants() {
                         </td>
                         <td className="py-2 pr-2 text-muted-foreground">{PRODUCT_LABELS[r.base_product_type as keyof typeof PRODUCT_LABELS] || r.base_product_type}</td>
                         <td className="py-2 pr-2 tabular-nums">{r.stage_count}</td>
-                        <td className="py-2 pr-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ru-RU")}</td>
+                        <td className="py-2 pr-2 text-xs text-muted-foreground">{(r as any).created_at ? new Date((r as any).created_at).toLocaleDateString("ru-RU") : ""}</td>
                         <td className="py-2 pr-2 text-right">
                           <div className="inline-flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => nav(`/references/variants/${r.id}`)}><Pencil className="h-3.5 w-3.5" /></Button>
