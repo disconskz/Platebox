@@ -15,6 +15,7 @@ import { loadCalcRules } from "@/lib/calc/rules";
 import { setCalcRules } from "@/lib/calc/engine";
 import { runMultiSkuCalculation, type SkuItem, type MultiSkuResult } from "@/lib/calc/multi-sku";
 import { fmtMoney } from "@/lib/format";
+import MobileTabBar from "@/components/MobileTabBar";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
@@ -210,17 +211,19 @@ export default function MultiSkuCalculator() {
   const best = result ? result.variants[result.bestIndex] : null;
 
   return (
-    <div className="container max-w-6xl py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-gradient-subtle has-tabbar">
+    <div className="container max-w-6xl py-4 sm:py-6 px-3 sm:px-4 space-y-4 sm:space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
           <Button asChild variant="ghost" size="sm">
             <Link to="/calculator">
-              <ArrowLeft className="h-4 w-4 mr-1" /> Обычный калькулятор
+              <ArrowLeft className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Обычный калькулятор</span>
             </Link>
           </Button>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Групповой спуск (много SKU)
+          <h1 className="text-base sm:text-xl font-semibold flex items-center gap-2 min-w-0">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+            <span className="truncate">Групповой спуск</span>
             <HelpHint title="Что это" learnMore="multi-sku">
               Расчёт тиража из нескольких разных видов изделий, печатающихся вместе на одном печатном листе.
               Один лист = один спуск. Система покажет два варианта: минимум форм vs без пустот на листе.
