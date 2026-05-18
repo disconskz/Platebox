@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { DEFAULTS } from "@/lib/calc/types";
 import { RULE_KEY_MAP } from "@/lib/calc/rules";
 import { HelpHint } from "@/components/HelpHint";
+import { getCachedAccessToken } from "@/lib/auth-session";
 
 type Section = { title: string; description?: string; learnMore?: string; help?: string; fields: { key: string; label: string; unit?: string; hint?: string }[] };
 
@@ -85,17 +86,17 @@ export default function CalcRulesEditor() {
 
   const load = async () => {
     try {
-      // Дождаться восстановления сессии — иначе запрос уйдёт как anon
-      // и RLS вернёт пустой массив, а UI застрянет на «Загрузка правил…».
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      const token = getCachedAccessToken();
+      if (!token) {
         setLoading(false);
         return;
       }
-      const { data, error } = await (supabase as any)
+      const query = (supabase as any)
         .from("system_settings")
         .select("key,value")
         .like("key", "rule.%");
+      if (typeof query.setHeader === "function") query.setHeader("Authorization", `Bearer ${token}`);
+      const { data, error } = await query;
       if (error) {
         console.error("[CalcRulesEditor.load]", error);
         toast.error(`Не удалось загрузить правила: ${error.message}`);
