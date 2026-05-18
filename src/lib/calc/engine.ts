@@ -1,5 +1,6 @@
 import { CalcInput, CalcResult, DEFAULTS, FormatPair, LayoutResult, PrintFormat, SpecItem, Turnaround } from "./types";
 import type { CalcRules } from "./rules";
+import { validateCalcInput, cutsForNesting, finishCutsPerItem } from "./validation";
 
 // Глобально настраиваемые правила. Калькулятор грузит их из БД и вызывает
 // setCalcRules(rules) перед run/layout. Если не задано — используем DEFAULTS.
@@ -293,6 +294,7 @@ function laminationKey(productW: number, productH: number): "up_to_a4_plus" | "a
 }
 
 export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): CalcResult {
+  validateCalcInput(input);
   if (rulesOverride) setCalcRules(rulesOverride);
   const rule = R();
   const warnings: string[] = [];
@@ -362,11 +364,8 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     warnings.push("Стоимость бумаги = 0. Проверьте выбор закупочного формата.");
   }
 
-  // Cuts purchase -> print
-  let cutsPerSheet = 0;
-  if (purchaseNesting === 2) cutsPerSheet = 1;
-  else if (purchaseNesting >= 3) cutsPerSheet = 2;
-  else if (purchaseNesting === 4) cutsPerSheet = 2;
+  // Cuts purchase -> print (бинарная гильотина, см. cutsForNesting)
+  const cutsPerSheet = cutsForNesting(purchaseNesting);
   const paperCutCost = cutsPerSheet * purchaseSheets * rule.cutCostPerSheet;
 
   const formsCost = forms * rule.formCost;
@@ -381,9 +380,23 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   // Postpress
   const postpress: SpecItem[] = [];
 
-  // Резка готовых: листы × изделий × 4 × 1 тг
-  const finishCutQty = printSheets * layout.itemsPerSheet * 4;
-  postpress.push({ stage: "postpress", name: "Резка готовых листов", quantity: finishCutQty, unit: "рез", unitPrice: rule.finishCutCost, total: finishCutQty * rule.finishCutCost });
+  // Резка готовых: листы × изделий × cutsPerItem × ставка.
+  // Число резов на изделие параметризуется (rule.finishCutsPerItem или
+  // профиль по типу продукции; явный input.finishCutsPerItem имеет приоритет).
+  const cutsPerItem = finishCutsPerItem(
+    input.productType,
+    input.finishCutsPerItem,
+    (rule as any).finishCutsPerItem ?? 4
+  );
+  const finishCutQty = Math.ceil(printSheets * layout.itemsPerSheet * cutsPerItem);
+  postpress.push({
+    stage: "postpress",
+    name: `Резка готовых листов (×${cutsPerItem})`,
+    quantity: finishCutQty,
+    unit: "рез",
+    unitPrice: rule.finishCutCost,
+    total: finishCutQty * rule.finishCutCost,
+  });
 
   if (isBooklet && input.hasFold) {
     const folds = (input.foldCount ?? 1) * input.circulation;

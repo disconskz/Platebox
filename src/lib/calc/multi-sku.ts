@@ -1,6 +1,7 @@
 import { bestPair, calculateForms, determineTurnaround, getCalcRules, rankPairs, setCalcRules } from "./engine";
 import { CalcInput, CalcResult, FormatPair, LayoutResult, PrintFormat, ProductType, SpecItem, Turnaround } from "./types";
 import type { CalcRules } from "./rules";
+import { cutsForNesting, finishCutsPerItem, validateMultiSkuInput } from "./validation";
 
 export interface SkuItem {
   /** Произвольное имя дизайна/SKU. */
@@ -28,6 +29,10 @@ export interface MultiSkuInput {
   vatPercent?: number;
   /** Сколько дополнительных спусков перебирать сверх минимального. */
   maxExtraImpositions?: number;
+  /** Цена упаковки за единицу (по умолчанию 5). */
+  packagingPerUnit?: number;
+  /** Переопределение числа финишных резов на изделие. */
+  finishCutsPerItem?: number;
 }
 
 export interface MultiSkuVariant {
@@ -167,10 +172,8 @@ function buildVariant(
   const purchaseSheetsTotal = Math.ceil(printSheetsTotal / Math.max(1, purchaseNesting));
   const paperCost = purchaseSheetsTotal * input.material.cost_per_sheet;
 
-  // Резка закупочного → печатного
-  let cutsPerSheet = 0;
-  if (purchaseNesting === 2) cutsPerSheet = 1;
-  else if (purchaseNesting >= 3) cutsPerSheet = 2;
+  // Резка закупочного → печатного (единая модель с runCalculation).
+  const cutsPerSheet = cutsForNesting(purchaseNesting);
   const paperCutCost = cutsPerSheet * purchaseSheetsTotal * rule.cutCostPerSheet;
 
   const formsCost = formsTotal * rule.formCost;
@@ -194,16 +197,37 @@ function buildVariant(
     { stage: "print", name: `Печать офсетная (${turnaround === "foreign" ? "чужой" : turnaround === "own" ? "свой" : "без оборота"}) · ${impositions} спуск(а)`, quantity: impressions, unit: "оттиск", unitPrice: printPerImpr, total: printCost },
   ];
 
-  // Постпечать MVP: только финишная резка пропорционально общему тиражу всех SKU
+  // Постпечать MVP: финишная резка по той же модели, что и в runCalculation
+  // (параметризованный множитель cutsPerItem по типу продукции / правилам).
   const totalCirculation = skus.reduce((s, x) => s + x.circulation, 0);
-  const finishCutQty = printSheetsTotal * layout.itemsPerSheet * 4;
+  const cutsPerItem = finishCutsPerItem(
+    input.productType,
+    input.finishCutsPerItem,
+    (rule as any).finishCutsPerItem ?? 4
+  );
+  const finishCutQty = Math.ceil(printSheetsTotal * layout.itemsPerSheet * cutsPerItem);
   const postpress: SpecItem[] = [
-    { stage: "postpress", name: "Резка готовых листов", quantity: finishCutQty, unit: "рез", unitPrice: rule.finishCutCost, total: finishCutQty * rule.finishCutCost },
+    {
+      stage: "postpress",
+      name: `Резка готовых листов (×${cutsPerItem})`,
+      quantity: finishCutQty,
+      unit: "рез",
+      unitPrice: rule.finishCutCost,
+      total: finishCutQty * rule.finishCutCost,
+    },
   ];
 
-  // Логистика: упаковка по общему тиражу
+  // Логистика: упаковка по общему тиражу (цена за единицу — параметризована).
+  const packUnit = input.packagingPerUnit ?? 5;
   const logistics: SpecItem[] = [
-    { stage: "logistics", name: "Упаковка", quantity: totalCirculation, unit: "шт", unitPrice: 5, total: totalCirculation * 5 },
+    {
+      stage: "logistics",
+      name: "Упаковка",
+      quantity: totalCirculation,
+      unit: "шт",
+      unitPrice: packUnit,
+      total: totalCirculation * packUnit,
+    },
   ];
 
   const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics];
@@ -242,6 +266,7 @@ function buildVariant(
 }
 
 export function runMultiSkuCalculation(input: MultiSkuInput, rulesOverride?: CalcRules): MultiSkuResult {
+  validateMultiSkuInput(input);
   if (rulesOverride) setCalcRules(rulesOverride);
   const rule = getCalcRules();
   if (!input.skus.length) throw new Error("Список SKU пуст.");
