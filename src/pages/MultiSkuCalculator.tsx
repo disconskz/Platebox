@@ -320,6 +320,8 @@ export default function MultiSkuCalculator() {
         </div>
       )}
     </div>
+    <MobileTabBar />
+    </div>
   );
 }
 
