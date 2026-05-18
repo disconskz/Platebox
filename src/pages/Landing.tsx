@@ -307,7 +307,7 @@ const Landing = () => {
             {stats.map((s, i) => (
               <div key={s.l} className="border-r border-b border-border bg-background p-5 sm:p-10">
                 <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground tabular-nums">№ {String(i + 1).padStart(2, "0")}</div>
-                <div className="mt-3 font-mono text-[34px] sm:text-[56px] font-medium tracking-tight tabular-nums">{s.v}</div>
+                <div className="mt-3 font-mono text-[26px] sm:text-[44px] font-medium tracking-tight tabular-nums whitespace-nowrap">{s.v}</div>
                 <div className="mt-2 text-[13px] text-muted-foreground">{s.l}</div>
               </div>
             ))}
