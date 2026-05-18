@@ -70,27 +70,12 @@ const CalculationView = () => {
       toast.error("Введите корректную цену (0 – 1 000 000 000)");
       return;
     }
-    const newTotal = newPrice * Number(item.quantity);
-    const original = Number(item.unit_price);
-    const { error: updErr } = await supabase
-      .from("calculation_items")
-      .update({ unit_price: newPrice, manual_price: newPrice, total_price: newTotal })
-      .eq("id", item.id);
-    if (updErr) { toast.error("Ошибка обновления: " + updErr.message); return; }
-    if (newPrice !== original) {
-      const { error: adjErr } = await supabase.from("calculation_adjustments").insert({
-        calculation_id: id, item_name: item.name,
-        original_price: original, adjusted_price: newPrice, reason: editReason || null,
-      });
-      if (adjErr) { toast.error("Ошибка журнала: " + adjErr.message); return; }
-    }
-    // recompute totals
-    const newTotalCost = items.reduce((s, i) => s + (i.id === item.id ? newTotal : Number(i.total_price || 0)), 0);
-    const newSale = newTotalCost * (1 + margin / 100);
-    const { error: totErr } = await supabase.from("calculations").update({
-      total_cost: newTotalCost, sale_price: newSale, profit: newSale - newTotalCost,
-    }).eq("id", id);
-    if (totErr) { toast.error("Ошибка пересчёта итогов: " + totErr.message); return; }
+    const { error } = await supabase.rpc("apply_item_price_change" as any, {
+      _item_id: item.id,
+      _new_price: newPrice,
+      _reason: editReason || null,
+    });
+    if (error) { toast.error("Не удалось сохранить: " + error.message); return; }
     setEditing(null);
     toast.success("Цена обновлена");
     load();
@@ -101,13 +86,20 @@ const CalculationView = () => {
       toast.error("Наценка должна быть от 0 до 1000%");
       return;
     }
-    const newSale = totalCost * (1 + m / 100);
-    const { error } = await supabase
-      .from("calculations")
-      .update({ margin_percent: m, sale_price: newSale, profit: newSale - totalCost })
-      .eq("id", id);
+    if (!id) return;
+    const { data, error } = await supabase.rpc("apply_calculation_margin" as any, {
+      _calculation_id: id,
+      _margin: m,
+    });
     if (error) { toast.error("Не удалось обновить наценку: " + error.message); return; }
-    setCalc({ ...calc, margin_percent: m, sale_price: newSale, profit: newSale - totalCost });
+    const row = Array.isArray(data) ? data[0] : data;
+    setCalc({
+      ...calc,
+      margin_percent: row?.margin_percent ?? m,
+      total_cost: row?.total_cost ?? totalCost,
+      sale_price: row?.sale_price ?? totalCost * (1 + m / 100),
+      profit: row?.profit ?? (totalCost * (1 + m / 100) - totalCost),
+    });
   };
 
   if (!calc) return <div className="p-8 text-center text-muted-foreground">Загрузка…</div>;
