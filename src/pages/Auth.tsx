@@ -53,6 +53,9 @@ const AuthPage = () => {
   const [suEmail, setSuEmail] = useState("");
   const [suPassword, setSuPassword] = useState("");
 
+  const [siErrors, setSiErrors] = useState<Record<string, string>>({});
+  const [suErrors, setSuErrors] = useState<Record<string, string>>({});
+
   useEffect(() => {
     document.title = tab === "signup" ? "Регистрация — Platebox" : "Вход — Platebox";
   }, [tab]);
@@ -61,9 +64,12 @@ const AuthPage = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSiErrors({});
     const parsed = signInSchema.safeParse({ email: siEmail, password: siPassword });
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
+      const errs: Record<string, string> = {};
+      for (const issue of parsed.error.issues) errs[String(issue.path[0])] = issue.message;
+      setSiErrors(errs);
       return;
     }
     setBusy(true);
@@ -73,7 +79,9 @@ const AuthPage = () => {
     });
     setBusy(false);
     if (error) {
-      toast.error(error.message === "Invalid login credentials" ? "Неверный email или пароль" : error.message);
+      const msg = error.message === "Invalid login credentials" ? "Неверный email или пароль" : error.message;
+      setSiErrors({ form: msg });
+      toast.error(msg);
       return;
     }
     await refreshSession();
@@ -83,6 +91,7 @@ const AuthPage = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSuErrors({});
     const parsed = signUpSchema.safeParse({
       full_name: suName,
       company: suCompany,
@@ -90,7 +99,9 @@ const AuthPage = () => {
       password: suPassword,
     });
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
+      const errs: Record<string, string> = {};
+      for (const issue of parsed.error.issues) errs[String(issue.path[0])] = issue.message;
+      setSuErrors(errs);
       return;
     }
     setBusy(true);
@@ -105,9 +116,9 @@ const AuthPage = () => {
     });
     setBusy(false);
     if (error) {
-      toast.error(
-        error.message.includes("already") ? "Этот email уже зарегистрирован" : error.message
-      );
+      const msg = error.message.includes("already") ? "Этот email уже зарегистрирован" : error.message;
+      setSuErrors({ form: msg });
+      toast.error(msg);
       return;
     }
     toast.success("Аккаунт создан!");
@@ -222,16 +233,19 @@ const AuthPage = () => {
                     <FieldWithIcon icon={Mail} label="Email" htmlFor="si-email">
                       <Input id="si-email" type="email" autoComplete="email" required
                         placeholder="you@company.com"
-                        className="pl-10 h-11"
+                        className={`pl-10 h-11 ${siErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={siEmail} onChange={(e) => setSiEmail(e.target.value)} />
+                      {siErrors.email && <p className="text-xs text-destructive mt-1">{siErrors.email}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Lock} label="Пароль" htmlFor="si-password">
                       <Input id="si-password" type={showSiPwd ? "text" : "password"} autoComplete="current-password" required
                         placeholder="••••••••"
-                        className="pl-10 pr-10 h-11"
+                        className={`pl-10 pr-10 h-11 ${siErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={siPassword} onChange={(e) => setSiPassword(e.target.value)} />
                       <PwdToggle shown={showSiPwd} onToggle={() => setShowSiPwd((s) => !s)} />
+                      {siErrors.password && <p className="text-xs text-destructive mt-1">{siErrors.password}</p>}
                     </FieldWithIcon>
+                    {siErrors.form && <p className="text-xs text-destructive">{siErrors.form}</p>}
                     <Button type="submit" className="w-full h-11 text-base" disabled={busy}>
                       {busy ? "Входим…" : "Войти"}
                     </Button>
@@ -248,27 +262,32 @@ const AuthPage = () => {
                   <form onSubmit={handleSignUp} className="space-y-4 pt-5">
                     <FieldWithIcon icon={UserIcon} label="Имя" htmlFor="su-name">
                       <Input id="su-name" required placeholder="Айгерим"
-                        className="pl-10 h-11"
+                        className={`pl-10 h-11 ${suErrors.full_name ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suName} onChange={(e) => setSuName(e.target.value)} />
+                      {suErrors.full_name && <p className="text-xs text-destructive mt-1">{suErrors.full_name}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Building2} label="Компания" htmlFor="su-company" hint="необязательно">
                       <Input id="su-company" placeholder="Platebox"
-                        className="pl-10 h-11"
+                        className={`pl-10 h-11 ${suErrors.company ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suCompany} onChange={(e) => setSuCompany(e.target.value)} />
+                      {suErrors.company && <p className="text-xs text-destructive mt-1">{suErrors.company}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Mail} label="Email" htmlFor="su-email">
                       <Input id="su-email" type="email" autoComplete="email" required
                         placeholder="you@company.com"
-                        className="pl-10 h-11"
+                        className={`pl-10 h-11 ${suErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suEmail} onChange={(e) => setSuEmail(e.target.value)} />
+                      {suErrors.email && <p className="text-xs text-destructive mt-1">{suErrors.email}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Lock} label="Пароль" htmlFor="su-password" hint="мин. 6 символов">
                       <Input id="su-password" type={showSuPwd ? "text" : "password"} autoComplete="new-password" required minLength={6}
                         placeholder="••••••••"
-                        className="pl-10 pr-10 h-11"
+                        className={`pl-10 pr-10 h-11 ${suErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suPassword} onChange={(e) => setSuPassword(e.target.value)} />
                       <PwdToggle shown={showSuPwd} onToggle={() => setShowSuPwd((s) => !s)} />
+                      {suErrors.password && <p className="text-xs text-destructive mt-1">{suErrors.password}</p>}
                     </FieldWithIcon>
+                    {suErrors.form && <p className="text-xs text-destructive">{suErrors.form}</p>}
                     <Button type="submit" className="w-full h-11 text-base" disabled={busy}>
                       <Sparkles className="mr-2 h-4 w-4" />
                       {busy ? "Создаём…" : "Создать аккаунт"}
