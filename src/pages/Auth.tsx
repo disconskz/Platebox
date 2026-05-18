@@ -36,7 +36,7 @@ const signUpSchema = z.object({
 });
 
 const AuthPage = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshSession } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rawRedirect = searchParams.get("redirect") || "/app";
@@ -76,6 +76,7 @@ const AuthPage = () => {
       toast.error(error.message === "Invalid login credentials" ? "Неверный email или пароль" : error.message);
       return;
     }
+    await refreshSession();
     toast.success("Добро пожаловать!");
     navigate(redirectTo, { replace: true });
   };

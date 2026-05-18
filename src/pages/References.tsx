@@ -25,6 +25,7 @@ import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
+import { useAuth } from "@/hooks/useAuth";
 
 type AnyRow = Record<string, any>;
 
@@ -76,9 +77,10 @@ type DynamicOptions = {
   press_machines?: { value: string; label: string }[];
 };
 
-const useDynamicOptions = (): DynamicOptions => {
+const useDynamicOptions = (enabled: boolean): DynamicOptions => {
   const [opts, setOpts] = useState<DynamicOptions>({});
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     (async () => {
       // Дождаться, пока Supabase восстановит сессию из localStorage.
@@ -117,7 +119,7 @@ const useDynamicOptions = (): DynamicOptions => {
       }
     });
     return () => { cancelled = true; sub.subscription.unsubscribe(); };
-  }, []);
+  }, [enabled]);
   return opts;
 };
 
@@ -257,7 +259,18 @@ const TABLES = [
 ] as const;
 
 const References = () => {
-  const dynOpts = useDynamicOptions();
+  const { loading, user } = useAuth();
+  const authReady = !loading && !!user;
+  const dynOpts = useDynamicOptions(authReady);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle has-tabbar flex items-center justify-center text-sm text-muted-foreground">
+        Восстанавливаем сессию…
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
@@ -275,7 +288,7 @@ const References = () => {
             Бумага, операции, оборудование, ламинация и системные константы. Изменения видны во всех новых расчётах.
           </HelpHint>
         </div>
-        <ReferencesNav dynOpts={dynOpts} />
+        <ReferencesNav dynOpts={dynOpts} authReady={authReady} />
       </main>
       <MobileTabBar />
     </div>
@@ -322,7 +335,7 @@ const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] =
   },
 ];
 
-const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
+const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authReady: boolean }) => {
   const [active, setActive] = useState<string>("materials");
   const allItems = NAV_GROUPS.flatMap((g) => g.items);
   const activeTitle = allItems.find((i) => i.key === active)?.title ?? "";
@@ -334,7 +347,7 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
     if (active === "__calc_constants") return <CalcConstants />;
     const spec = TABLES.find((t) => t.key === active);
     if (!spec) return null;
-    return <RefTable spec={spec as any} dynOpts={dynOpts} />;
+    return <RefTable spec={spec as any} dynOpts={dynOpts} authReady={authReady} />;
   };
 
   return (
@@ -395,7 +408,7 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
   );
 };
 
-const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => {
+const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOptions; authReady: boolean }) => {
   const [rows, setRows] = useState<AnyRow[]>([]);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
   const [page, setPage] = useState(1);
@@ -414,6 +427,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const pk = spec.pk || "id";
 
   const load = async () => {
+    if (!authReady) return;
     // Гарантируем, что Supabase-клиент восстановил сессию из localStorage —
     // иначе REST-запрос уйдёт как anon и RLS вернёт пустой массив.
     const { data: { session } } = await supabase.auth.getSession();
@@ -431,6 +445,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   };
 
   const loadSections = async () => {
+    if (!authReady) { setSectionList([]); return; }
     if (!hasSubgroup) { setSectionList([]); return; }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return;
@@ -447,6 +462,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   };
 
   useEffect(() => {
+    if (!authReady) return;
     load(); setPage(1); setActiveSection("__all"); setSearch("");
     // Если сессия обновится (логин или рефреш токена) — перезагрузить.
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -454,7 +470,7 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
     });
     return () => sub.subscription.unsubscribe();
     /* eslint-disable-next-line */
-  }, [spec.key]);
+  }, [spec.key, authReady]);
   useEffect(() => { loadSections(); /* eslint-disable-next-line */ }, [spec.key, rows.length]);
 
   const update = async (row: AnyRow, k: string, v: any) => {
