@@ -6,16 +6,18 @@ type AuthCtx = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  error: string | null;
   refreshSession: () => Promise<Session | null>;
   signOut: () => Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, refreshSession: async () => null, signOut: async () => {} });
+const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, error: null, refreshSession: async () => null, signOut: async () => {} });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .catch((e) => {
         console.error("[useAuth] getSession error:", e);
         initialSessionResolved = true;
+        setError(e instanceof Error ? e.message : String(e));
         applySession(null);
       });
 
@@ -66,18 +69,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshSession = async () => {
-    const { data: { session: s } } = await supabase.auth.getSession();
-    setSession(s);
-    setUser(s?.user ?? null);
-    setLoading(false);
-    return s;
+    try {
+      const { data: { session: s }, error: err } = await supabase.auth.getSession();
+      if (err) throw err;
+      setError(null);
+      setSession(s);
+      setUser(s?.user ?? null);
+      setLoading(false);
+      return s;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setLoading(false);
+      return null;
+    }
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  return <Ctx.Provider value={{ user, session, loading, refreshSession, signOut }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, session, loading, error, refreshSession, signOut }}>{children}</Ctx.Provider>;
 };
 
 export const useAuth = () => useContext(Ctx);
