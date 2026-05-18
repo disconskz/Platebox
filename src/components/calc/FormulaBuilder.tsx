@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Token, tokensToAst, astToTokens } from "@/lib/calc/variants/tokens";
-import { FormulaNode, VARIABLE_LIST, CalcConstant } from "@/lib/calc/variants/types";
-import { evalFormula } from "@/lib/calc/variants/engine";
+import { FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, CalcConstant } from "@/lib/calc/variants/types";
+import { evalFormula, collectRefs } from "@/lib/calc/variants/engine";
 
 interface Props {
   value: FormulaNode;
@@ -54,6 +54,20 @@ export default function FormulaBuilder({ value, onChange, constants, testVars = 
   const removeAt = (i: number) => setTokens((arr) => arr.filter((_, idx) => idx !== i));
 
   const constsBySlug = useMemo(() => Object.fromEntries(constants.map((c) => [c.slug, c])), [constants]);
+
+  // Валидация переменных и констант: ищем ссылки на неизвестные имена.
+  const issues = useMemo(() => {
+    try {
+      const ast = tokensToAst(tokens);
+      const refs = collectRefs(ast);
+      const unknownVars = [...refs.vars].filter((v) => !VARIABLE_KEYS.has(v));
+      const unknownConsts = [...refs.consts].filter((s) => !constsBySlug[s]);
+      return { unknownVars, unknownConsts };
+    } catch {
+      return { unknownVars: [], unknownConsts: [] };
+    }
+  }, [tokens, constsBySlug]);
+  const hasIssues = issues.unknownVars.length > 0 || issues.unknownConsts.length > 0;
 
   return (
     <div className="space-y-2">
@@ -150,6 +164,12 @@ export default function FormulaBuilder({ value, onChange, constants, testVars = 
           <span className="text-destructive">{error}</span>
         ) : (
           <span className="text-muted-foreground">Предпросмотр: <span className="text-foreground font-medium tabular-nums">{preview === null ? "—" : preview.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</span></span>
+        )}
+        {!error && hasIssues && (
+          <span className="text-destructive">
+            {issues.unknownVars.length > 0 && <>Неизвестные переменные: {issues.unknownVars.join(", ")}. </>}
+            {issues.unknownConsts.length > 0 && <>Неизвестные константы: {issues.unknownConsts.map((s) => "@" + s).join(", ")}.</>}
+          </span>
         )}
       </div>
     </div>
