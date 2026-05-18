@@ -286,7 +286,6 @@ const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] =
       { key: "__rules", title: "Правила расчёта" },
       { key: "system_settings", title: "Константы" },
       { key: "__calc_constants", title: "Константы формул" },
-      { key: "__variants", title: "Варианты просчёта" },
     ],
   },
   {
@@ -308,7 +307,6 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
     if (active === "__custom") return <CustomReferences />;
     if (active === "__glossary") return <ProductGlossary />;
     if (active === "__calc_constants") return <CalcConstants />;
-    if (active === "__variants") return <CalcConstants />;
     const spec = TABLES.find((t) => t.key === active);
     if (!spec) return null;
     return <RefTable spec={spec as any} dynOpts={dynOpts} />;
