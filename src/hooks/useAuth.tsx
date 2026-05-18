@@ -85,7 +85,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Гарантированно очищаем локальное состояние, даже если запрос на сервер
+    // упал (например, токен уже невалиден / нет сети). Иначе UI может остаться
+    // в полузалогиненном состоянии.
+    try {
+      const { error: err } = await supabase.auth.signOut();
+      if (err && !/session/i.test(err.message)) {
+        console.warn("[useAuth] signOut error:", err.message);
+      }
+    } catch (e) {
+      console.warn("[useAuth] signOut threw:", e);
+    } finally {
+      setSession(null);
+      setUser(null);
+      setError(null);
+      setLoading(false);
+    }
   };
 
   return <Ctx.Provider value={{ user, session, loading, error, refreshSession, signOut }}>{children}</Ctx.Provider>;
