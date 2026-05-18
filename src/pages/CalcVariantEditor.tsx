@@ -8,11 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
-import { getVariant, updateVariant, replaceStages, listConstants, listStageLibrary } from "@/lib/calc/variants/api";
+import { getVariant, updateVariant, replaceStages, listConstants, listStageLibrary, upsertConstant } from "@/lib/calc/variants/api";
 import { CalcConstant, CalcVariant, FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, VariantStage } from "@/lib/calc/variants/types";
 import FormulaBuilder from "@/components/calc/FormulaBuilder";
 import { runVariant, collectStageRefs } from "@/lib/calc/variants/engine";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TEST_DEFAULTS: Record<string, number> = {
@@ -47,6 +47,51 @@ export default function CalcVariantEditor() {
     return { usedVars: refs.vars, usedConsts: refs.consts, unknownVars, unknownConsts };
   }, [stages, constants]);
   const canSave = validation.unknownVars.length === 0 && validation.unknownConsts.length === 0;
+
+  // Черновики автосоздания для неизвестных констант: slug → { name, value, unit }
+  const [constDrafts, setConstDrafts] = useState<Record<string, { name: string; value: number; unit: string }>>({});
+  useEffect(() => {
+    setConstDrafts((prev) => {
+      const next = { ...prev };
+      validation.unknownConsts.forEach((slug) => {
+        if (!next[slug]) {
+          // Автоимя из slug: "form_cost" → "Form cost"
+          const name = slug.replace(/[_-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+          next[slug] = { name, value: 0, unit: "₸" };
+        }
+      });
+      // удаляем черновики тех, что уже стали известны
+      Object.keys(next).forEach((slug) => {
+        if (!validation.unknownConsts.includes(slug)) delete next[slug];
+      });
+      return next;
+    });
+  }, [validation.unknownConsts.join("|")]);
+
+  const createMissingConstant = async (slug: string) => {
+    const d = constDrafts[slug];
+    if (!d || !d.name.trim()) { toast.error("Укажите название"); return; }
+    try {
+      await upsertConstant({ slug, name: d.name.trim(), value: Number(d.value) || 0, unit: d.unit || "₸" });
+      const fresh = await listConstants();
+      setConstants(fresh);
+      toast.success(`Константа @${slug} создана`);
+    } catch (e: any) { toast.error(e.message || "Ошибка"); }
+  };
+
+  const createAllMissingConstants = async () => {
+    const slugs = validation.unknownConsts.filter((s) => constDrafts[s]?.name?.trim());
+    if (!slugs.length) { toast.error("Заполните названия"); return; }
+    try {
+      for (const slug of slugs) {
+        const d = constDrafts[slug];
+        await upsertConstant({ slug, name: d.name.trim(), value: Number(d.value) || 0, unit: d.unit || "₸" });
+      }
+      const fresh = await listConstants();
+      setConstants(fresh);
+      toast.success(`Создано констант: ${slugs.length}`);
+    } catch (e: any) { toast.error(e.message || "Ошибка"); }
+  };
   const result = useMemo(() => {
     if (!variant) return null;
     return runVariant({ ...variant, stages }, { vars: testVars, consts: constMap });
@@ -193,9 +238,36 @@ export default function CalcVariantEditor() {
                     </div>
                   )}
                   {validation.unknownConsts.length > 0 && (
-                    <div className="text-destructive">
-                      Неизвестные константы: <span className="font-mono">{validation.unknownConsts.map((s) => "@" + s).join(", ")}</span>.
-                      Добавьте их в справочнике «Константы формул».
+                    <div className="space-y-2">
+                      <div className="text-destructive">
+                        Неизвестные константы — заполните и создайте прямо здесь:
+                      </div>
+                      <div className="space-y-2">
+                        {validation.unknownConsts.map((slug) => {
+                          const d = constDrafts[slug] ?? { name: "", value: 0, unit: "₸" };
+                          return (
+                            <div key={slug} className="rounded-md border bg-muted/30 p-2 space-y-1.5">
+                              <div className="font-mono text-[11px] text-primary">@{slug}</div>
+                              <div className="grid grid-cols-[1fr_70px_50px_auto] gap-1.5">
+                                <Input className="h-7 text-xs" placeholder="Название" value={d.name}
+                                  onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, name: e.target.value } })} />
+                                <Input className="h-7 text-xs text-right tabular-nums" type="number" value={d.value}
+                                  onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, value: Number(e.target.value) || 0 } })} />
+                                <Input className="h-7 text-xs" value={d.unit}
+                                  onChange={(e) => setConstDrafts({ ...constDrafts, [slug]: { ...d, unit: e.target.value } })} />
+                                <Button size="sm" className="h-7 px-2" onClick={() => createMissingConstant(slug)}>
+                                  <Sparkles className="h-3 w-3 mr-1" /> Создать
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {validation.unknownConsts.length > 1 && (
+                          <Button size="sm" variant="outline" className="w-full h-7" onClick={createAllMissingConstants}>
+                            <Sparkles className="h-3 w-3 mr-1" /> Создать все ({validation.unknownConsts.length})
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </>
