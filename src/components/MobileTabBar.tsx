@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutGrid, Calculator as CalcIcon, BarChart3, Database, LogOut, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,11 @@ const items = [
 export const MobileTabBar = () => {
   const { pathname } = useLocation();
   const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
   return (
     <nav className="fixed-bottom md:hidden" aria-label="Основная навигация">
       <ul className="grid grid-cols-6 px-0.5 pt-1">
@@ -41,7 +46,7 @@ export const MobileTabBar = () => {
         <li>
           <button
             type="button"
-            onClick={() => signOut()}
+            onClick={handleSignOut}
             aria-label="Выйти"
             className="flex w-full flex-col items-center justify-center gap-0.5 py-2 px-0.5 tap-target rounded-md text-muted-foreground"
           >
