@@ -50,20 +50,30 @@ const CalculationView = () => {
     const timeout = createSupabaseTimeout();
 
     try {
-      const [cRes, itRes, adjRes, skRes] = await Promise.all([
-        supabase.from("calculations").select("*").eq("id", id).maybeSingle().abortSignal(timeout.signal),
-        supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order").abortSignal(timeout.signal),
-        supabase.from("calculation_adjustments").select("*").eq("calculation_id", id).order("created_at", { ascending: false }).abortSignal(timeout.signal),
-        supabase.from("calculation_skus" as any).select("*").eq("calculation_id", id).order("sort_order").abortSignal(timeout.signal),
-      ]);
-      const firstErr = cRes.error || itRes.error || adjRes.error || skRes.error;
-      if (firstErr) throw firstErr;
-      if (!cRes.data) throw new Error("Расчёт не найден или у вас нет доступа к нему.");
+      const base = import.meta.env.VITE_SUPABASE_URL;
+      const calcId = encodeURIComponent(id);
+      const headers = {
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${session.access_token}`,
+      };
+      const requestJson = async <T,>(path: string): Promise<T> => {
+        const res = await fetch(`${base}${path}`, { signal: timeout.signal, headers });
+        if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+        return res.json();
+      };
 
-      setCalc(cRes.data);
-      setItems(itRes.data || []);
-      setAdjustments(adjRes.data || []);
-      setSkus((skRes.data as any[]) || []);
+      const [calcRows, itemRows, adjustmentRows, skuRows] = await Promise.all([
+        requestJson<any[]>(`/rest/v1/calculations?select=*&id=eq.${calcId}&limit=1`),
+        requestJson<any[]>(`/rest/v1/calculation_items?select=*&calculation_id=eq.${calcId}&order=sort_order.asc`),
+        requestJson<any[]>(`/rest/v1/calculation_adjustments?select=*&calculation_id=eq.${calcId}&order=created_at.desc`),
+        requestJson<any[]>(`/rest/v1/calculation_skus?select=*&calculation_id=eq.${calcId}&order=sort_order.asc`),
+      ]);
+      if (!calcRows[0]) throw new Error("Расчёт не найден или у вас нет доступа к нему.");
+
+      setCalc(calcRows[0]);
+      setItems(itemRows || []);
+      setAdjustments(adjustmentRows || []);
+      setSkus(skuRows || []);
     } catch (e: unknown) {
       const message = isAbortError(e)
         ? "Сервер не ответил за 12 секунд. Попробуйте открыть расчёт ещё раз."
