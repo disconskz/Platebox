@@ -18,36 +18,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let cancelled = false;
+    let initialSessionResolved = false;
 
-    // Subscribe FIRST to avoid races. Любое событие (включая INITIAL_SESSION
-    // и SIGNED_IN после логина) снимает loading. Supabase обновляет внутренний
-    // токен синхронно ДО вызова колбэка, поэтому последующие запросы уже
-    // будут с авторизацией.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const applySession = (s: Session | null) => {
       if (cancelled) return;
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
+    };
+
+    // Subscribe first, but do not treat an early empty INITIAL_SESSION as final:
+    // on cold refresh it can arrive before storage is fully restored, which
+    // previously sent users back to /auth and made RLS queries return [].
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (cancelled) return;
+      if (event === "INITIAL_SESSION" && !s && !initialSessionResolved) return;
+      applySession(s);
     });
 
     supabase.auth
       .getSession()
       .then(({ data: { session: s } }) => {
-        if (cancelled) return;
-        setSession(s);
-        setUser(s?.user ?? null);
-        setLoading(false);
+        initialSessionResolved = true;
+        applySession(s);
       })
       .catch((e) => {
         console.error("[useAuth] getSession error:", e);
-        if (!cancelled) setLoading(false);
+        initialSessionResolved = true;
+        applySession(null);
       });
 
-    // Страховка: если ни getSession, ни onAuthStateChange не ответили —
-    // снимаем loading, чтобы UI не залипал в «Загрузка…».
+    // Страховка от вечной загрузки, но даём storage restore достаточно времени.
     const safety = setTimeout(() => {
-      if (!cancelled) setLoading(false);
-    }, 3000);
+      if (!cancelled && !initialSessionResolved) {
+        console.warn("[useAuth] session restore timeout");
+        initialSessionResolved = true;
+        applySession(null);
+      }
+    }, 8000);
 
     return () => {
       cancelled = true;
