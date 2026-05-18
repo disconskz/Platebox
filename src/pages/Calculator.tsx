@@ -717,6 +717,17 @@ const Calculator = () => {
 
   const save = async (asTemplate = false) => {
     if (!result || "error" in result || !calcInput || !effectiveMaterial) return;
+    // --- Валидация ключевых числовых полей перед сохранением ---
+    const checks: Array<[ReturnType<typeof circulationSchema.safeParse>, string]> = [
+      [circulationSchema.safeParse(circulation), "Тираж: 1 – 10 000 000"],
+      [colorSchema.safeParse(colorFront), "Цветность лицо: 0 – 8"],
+      [colorSchema.safeParse(colorBack), "Цветность оборот: 0 – 8"],
+      [formatDimSchema.safeParse(dims.w), "Ширина формата: 1 – 2000 мм"],
+      [formatDimSchema.safeParse(dims.h), "Высота формата: 1 – 2000 мм"],
+    ];
+    for (const [check, msg] of checks) {
+      if (!check.success) { toast.error(msg); return; }
+    }
     setSaving(true);
     const payload = {
       name: name || `${PRODUCT_OPTIONS.find((p) => p.value === productType)?.label} ${formatType} ${colorFront}+${colorBack}, тираж ${circulation}`,
