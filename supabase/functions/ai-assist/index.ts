@@ -3,12 +3,42 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Vary": "Origin",
-};
+const ALLOWED_ORIGINS = new Set([
+  "https://platebox.kz",
+  "https://www.platebox.kz",
+  "https://printpal-calculus.lovable.app",
+  "https://id-preview--749d8514-bdc7-4f32-957d-16692d3b0bb0.lovable.app",
+  "http://localhost:5173",
+  "http://localhost:8080",
+]);
+
+function buildCorsHeaders(origin: string | null): Record<string, string> {
+  const allowed = origin && ALLOWED_ORIGINS.has(origin) ? origin : "";
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
+// --- Простой in-memory rate limiter: 10 запросов / минуту на user_id ---
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 10;
+const rateBuckets = new Map<string, number[]>();
+
+function rateLimit(key: string): { ok: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  const arr = (rateBuckets.get(key) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (arr.length >= RATE_LIMIT_MAX) {
+    const retryAfterSec = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - arr[0])) / 1000);
+    rateBuckets.set(key, arr);
+    return { ok: false, retryAfterSec: Math.max(1, retryAfterSec) };
+  }
+  arr.push(now);
+  rateBuckets.set(key, arr);
+  return { ok: true, retryAfterSec: 0 };
+}
 
 const MODEL = "google/gemini-3-flash-preview";
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
@@ -57,20 +87,22 @@ async function callGateway(messages: any[], response_format?: any) {
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-function jsonResp(body: unknown, status = 200) {
+function jsonResp(corsHeaders: Record<string, string>, body: unknown, status = 200, extra: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extra },
   });
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const corsHeaders = buildCorsHeaders(origin);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     // --- AuthN: требуем валидный JWT ---
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
-      return jsonResp({ error: "unauthorized" }, 401);
+      return jsonResp(corsHeaders, { error: "unauthorized" }, 401);
     }
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -80,14 +112,26 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
     if (claimsErr || !claimsData?.claims?.sub) {
-      return jsonResp({ error: "unauthorized" }, 401);
+      return jsonResp(corsHeaders, { error: "unauthorized" }, 401);
+    }
+
+    // --- Rate limiting: 10 запросов/мин на user_id ---
+    const userKey = String(claimsData.claims.sub);
+    const rl = rateLimit(userKey);
+    if (!rl.ok) {
+      return jsonResp(
+        corsHeaders,
+        { error: "rate_limit", retry_after: rl.retryAfterSec },
+        429,
+        { "Retry-After": String(rl.retryAfterSec) },
+      );
     }
 
     const { mode, ...payload } = await req.json();
 
     if (mode === "parse-order") {
       const text: string = (payload.text || "").trim();
-      if (!text) return jsonResp({ error: "empty" }, 400);
+      if (!text) return jsonResp(corsHeaders, { error: "empty" }, 400);
       const system = `Ты — ассистент типографского калькулятора. Извлеки из описания заказа поля для расчёта стоимости.
 Верни ТОЛЬКО валидный JSON по схеме (без markdown, без комментариев).
 Поля:
@@ -114,14 +158,14 @@ Deno.serve(async (req) => {
       );
       let parsed: OrderSchema = {};
       try { parsed = JSON.parse(content); } catch { parsed = { notes: "не удалось распарсить ответ ИИ" }; }
-      return jsonResp({ ok: true, order: parsed });
+      return jsonResp(corsHeaders, { ok: true, order: parsed });
     }
 
     if (mode === "generate-formula") {
       const description: string = (payload.description || "").trim();
       const variables: string[] = payload.variables || [];
       const constants: { slug: string; name: string }[] = payload.constants || [];
-      if (!description) return jsonResp({ error: "empty" }, 400);
+      if (!description) return jsonResp(corsHeaders, { error: "empty" }, 400);
       const system = `Ты — генератор формул для калькулятора типографии.
 На вход — описание этапа на естественном языке. На выход — арифметическое выражение.
 Доступные переменные (используй ровно эти ключи без кавычек): ${variables.join(", ")}.
@@ -137,14 +181,14 @@ Deno.serve(async (req) => {
         { type: "json_object" },
       );
       let parsed: any = {};
-      try { parsed = JSON.parse(content); } catch { return jsonResp({ error: "parse_failed", raw: content }, 500); }
-      return jsonResp({ ok: true, ...parsed });
+      try { parsed = JSON.parse(content); } catch { return jsonResp(corsHeaders, { error: "parse_failed", raw: content }, 500); }
+      return jsonResp(corsHeaders, { ok: true, ...parsed });
     }
 
-    return jsonResp({ error: "unknown mode" }, 400);
+    return jsonResp(corsHeaders, { error: "unknown mode" }, 400);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const status = msg === "rate_limit" ? 429 : msg === "credits_exhausted" ? 402 : 500;
-    return jsonResp({ error: msg }, status);
+    return jsonResp(corsHeaders, { error: msg }, status);
   }
 });
