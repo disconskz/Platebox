@@ -397,7 +397,6 @@ const ReferencesNav = ({ dynOpts }: { dynOpts: DynamicOptions }) => {
 
 const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => {
   const [rows, setRows] = useState<AnyRow[]>([]);
-  const [loadingRows, setLoadingRows] = useState(true);
   const [draft, setDraft] = useState<AnyRow>({ ...spec.defaults });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -415,12 +414,10 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const pk = spec.pk || "id";
 
   const load = async () => {
-    setLoadingRows(true);
     // Гарантируем, что Supabase-клиент восстановил сессию из localStorage —
     // иначе REST-запрос уйдёт как anon и RLS вернёт пустой массив.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
-      setLoadingRows(false);
       console.warn(`[References.load:${spec.key}] нет сессии — пропускаю запрос`);
       return;
     }
@@ -431,7 +428,6 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
     }
     setRows((data as any) || []);
     setSelected(new Set());
-    setLoadingRows(false);
   };
 
   const loadSections = async () => {
