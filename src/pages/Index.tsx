@@ -26,19 +26,28 @@ const Index = () => {
   const [calcs, setCalcs] = useState<Calc[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
 
   const load = async () => {
-    const { data } = await supabase.from("calculations").select("*").order("created_at", { ascending: false }).limit(200);
+    const { data, error } = await supabase
+      .from("calculations")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      console.error("[Index.load] calculations error:", error);
+      toast.error("Не удалось загрузить расчёты: " + error.message);
+    }
     setCalcs((data as Calc[]) || []);
     setLoading(false);
   };
 
   useEffect(() => {
-    (async () => {
-      await load();
-    })();
-  }, []);
+    if (authLoading) return;
+    if (!user) { setLoading(false); return; }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

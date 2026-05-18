@@ -80,10 +80,14 @@ const useDynamicOptions = (): DynamicOptions => {
   const [opts, setOpts] = useState<DynamicOptions>({});
   useEffect(() => {
     (async () => {
-      const [{ data: pf }, { data: pm }] = await Promise.all([
+      const [pfRes, pmRes] = await Promise.all([
         (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"),
         (supabase as any).from("press_machines").select("id,name").order("sort_order"),
       ]);
+      if (pfRes.error) console.error("[useDynamicOptions] purchase_formats:", pfRes.error);
+      if (pmRes.error) console.error("[useDynamicOptions] press_machines:", pmRes.error);
+      const pf = pfRes.data;
+      const pm = pmRes.data;
       setOpts({
         purchase_formats: ((pf as any[]) || []).map((r) => ({
           value: r.id,
@@ -389,7 +393,11 @@ const RefTable = ({ spec, dynOpts }: { spec: any; dynOpts: DynamicOptions }) => 
   const pk = spec.pk || "id";
 
   const load = async () => {
-    const { data } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
+    const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
+    if (error) {
+      console.error(`[References.load:${spec.key}]`, error);
+      toast.error(`Не удалось загрузить «${spec.title || spec.key}»: ${error.message}`);
+    }
     setRows((data as any) || []);
     setSelected(new Set());
   };
