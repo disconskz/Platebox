@@ -55,6 +55,8 @@ const AuthPage = () => {
 
   const [siErrors, setSiErrors] = useState<Record<string, string>>({});
   const [suErrors, setSuErrors] = useState<Record<string, string>>({});
+  const [showSiPwd, setShowSiPwd] = useState(false);
+  const [showSuPwd, setShowSuPwd] = useState(false);
 
   useEffect(() => {
     document.title = tab === "signup" ? "Регистрация — Platebox" : "Вход — Platebox";
@@ -134,9 +136,6 @@ const AuthPage = () => {
     toast.success("Аккаунт создан!");
     navigate(redirectTo, { replace: true });
   };
-
-  const [showSiPwd, setShowSiPwd] = useState(false);
-  const [showSuPwd, setShowSuPwd] = useState(false);
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
