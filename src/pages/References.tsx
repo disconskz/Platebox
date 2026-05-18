@@ -25,7 +25,6 @@ import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
-import { useAuth } from "@/hooks/useAuth";
 
 type AnyRow = Record<string, any>;
 
