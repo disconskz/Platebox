@@ -19,13 +19,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let cancelled = false;
 
-    // Subscribe FIRST to avoid races. Любой event снимает loading.
+    // Subscribe FIRST to avoid races. Любое событие (включая INITIAL_SESSION
+    // и SIGNED_IN после логина) снимает loading. Supabase обновляет внутренний
+    // токен синхронно ДО вызова колбэка, поэтому последующие запросы уже
+    // будут с авторизацией.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       if (cancelled) return;
       setSession(s);
       setUser(s?.user ?? null);
-      // loading снимаем только из getSession() — иначе можем отрисовать
-      // защищённый UI до того, как клиент прикрепит токен к запросам.
+      setLoading(false);
     });
 
     supabase.auth
@@ -36,15 +38,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(s?.user ?? null);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((e) => {
+        console.error("[useAuth] getSession error:", e);
         if (!cancelled) setLoading(false);
       });
 
-    // Страховка: если за 5с ни getSession, ни onAuthStateChange не ответили —
+    // Страховка: если ни getSession, ни onAuthStateChange не ответили —
     // снимаем loading, чтобы UI не залипал в «Загрузка…».
     const safety = setTimeout(() => {
       if (!cancelled) setLoading(false);
-    }, 5000);
+    }, 3000);
 
     return () => {
       cancelled = true;
