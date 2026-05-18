@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
+import { createSupabaseTimeout, isAbortError } from "@/lib/supabase-timeout";
 
 type Calc = {
   id: string;
@@ -25,21 +26,45 @@ type Calc = {
 const Index = () => {
   const [calcs, setCalcs] = useState<Calc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, session, loading: authLoading, signOut } = useAuth();
 
   const load = async () => {
-    const { data, error } = await supabase
-      .from("calculations")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) {
-      console.error("[Index.load] calculations error:", error);
-      toast.error("Не удалось загрузить расчёты: " + error.message);
+    if (!session?.access_token) {
+      setLoadError("Сессия входа не восстановлена. Выйдите и войдите снова.");
+      setLoading(false);
+      return;
     }
-    setCalcs((data as Calc[]) || []);
-    setLoading(false);
+    setLoading(true);
+    setLoadError(null);
+    const timeout = createSupabaseTimeout();
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/calculations?select=*&order=created_at.desc&limit=200`;
+      const res = await fetch(url, {
+        signal: timeout.signal,
+        headers: {
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(body || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setCalcs((data as Calc[]) || []);
+    } catch (e: unknown) {
+      const message = isAbortError(e)
+        ? "Сервер не ответил за 12 секунд. Попробуйте обновить список."
+        : e instanceof Error ? e.message : "Неизвестная ошибка";
+      console.error("[Index.load] calculations error:", e);
+      setLoadError(message);
+      toast.error("Не удалось загрузить расчёты: " + message);
+    } finally {
+      timeout.cancel();
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -47,7 +72,7 @@ const Index = () => {
     if (!user) { setLoading(false); return; }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user?.id]);
+  }, [authLoading, user?.id, session?.access_token]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -115,6 +140,13 @@ const Index = () => {
           </div>
           {loading ? (
             <p className="text-sm text-muted-foreground">Загрузка…</p>
+          ) : loadError ? (
+            <Card className="lift">
+              <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+                <p className="text-sm text-muted-foreground max-w-md">{loadError}</p>
+                <Button variant="outline" onClick={load}>Повторить загрузку</Button>
+              </CardContent>
+            </Card>
           ) : recent.length === 0 ? (
             <Card className="lift">
               <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
