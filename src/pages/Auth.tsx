@@ -106,7 +106,7 @@ const AuthPage = () => {
     }
     setBusy(true);
     const redirectUrl = `${window.location.origin}${redirectTo}`;
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
@@ -121,6 +121,16 @@ const AuthPage = () => {
       toast.error(msg);
       return;
     }
+    // Если включено email-подтверждение, сессии в ответе не будет —
+    // в этом случае не редиректим в защищённую зону, а просим подтвердить email.
+    if (!data.session) {
+      toast.success("Аккаунт создан. Подтвердите email — мы отправили письмо.");
+      setTab("signin");
+      setSiEmail(parsed.data.email);
+      setSuPassword("");
+      return;
+    }
+    await refreshSession();
     toast.success("Аккаунт создан!");
     navigate(redirectTo, { replace: true });
   };
