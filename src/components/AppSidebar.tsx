@@ -1,5 +1,5 @@
 import { LayoutGrid, Calculator, BarChart3, Database, Plus, LogOut, BookOpen, Layers } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +30,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
 
   const isActive = (url: string, exact?: boolean) =>
     exact ? pathname === url : pathname === url || pathname.startsWith(url + "/");
@@ -91,7 +97,7 @@ export function AppSidebar() {
         )}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => signOut()} tooltip="Выйти">
+            <SidebarMenuButton onClick={handleSignOut} tooltip="Выйти">
               <LogOut className="h-4 w-4" />
               {!collapsed && <span>Выйти</span>}
             </SidebarMenuButton>
