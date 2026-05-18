@@ -54,10 +54,10 @@ const Index = () => {
       }
       const data = await res.json();
       setCalcs((data as Calc[]) || []);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const message = isAbortError(e)
         ? "Сервер не ответил за 12 секунд. Попробуйте обновить список."
-        : e?.message || "Неизвестная ошибка";
+        : e instanceof Error ? e.message : "Неизвестная ошибка";
       console.error("[Index.load] calculations error:", e);
       setLoadError(message);
       toast.error("Не удалось загрузить расчёты: " + message);
