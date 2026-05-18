@@ -25,6 +25,7 @@ import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
+import { useAuth } from "@/hooks/useAuth";
 
 type AnyRow = Record<string, any>;
 
@@ -76,9 +77,10 @@ type DynamicOptions = {
   press_machines?: { value: string; label: string }[];
 };
 
-const useDynamicOptions = (): DynamicOptions => {
+const useDynamicOptions = (enabled: boolean): DynamicOptions => {
   const [opts, setOpts] = useState<DynamicOptions>({});
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     (async () => {
       // Дождаться, пока Supabase восстановит сессию из localStorage.
@@ -117,7 +119,7 @@ const useDynamicOptions = (): DynamicOptions => {
       }
     });
     return () => { cancelled = true; sub.subscription.unsubscribe(); };
-  }, []);
+  }, [enabled]);
   return opts;
 };
 
@@ -257,7 +259,18 @@ const TABLES = [
 ] as const;
 
 const References = () => {
-  const dynOpts = useDynamicOptions();
+  const { loading, user } = useAuth();
+  const authReady = !loading && !!user;
+  const dynOpts = useDynamicOptions(authReady);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle has-tabbar flex items-center justify-center text-sm text-muted-foreground">
+        Восстанавливаем сессию…
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
@@ -275,7 +288,7 @@ const References = () => {
             Бумага, операции, оборудование, ламинация и системные константы. Изменения видны во всех новых расчётах.
           </HelpHint>
         </div>
-        <ReferencesNav dynOpts={dynOpts} />
+        <ReferencesNav dynOpts={dynOpts} authReady={authReady} />
       </main>
       <MobileTabBar />
     </div>
