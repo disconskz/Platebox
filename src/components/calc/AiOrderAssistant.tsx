@@ -99,39 +99,46 @@ export default function AiOrderAssistant({ onApply }: Props) {
       <SheetTrigger asChild>
         <Button
           type="button"
-          className="fixed bottom-6 right-6 z-50 shadow-lg gap-2 rounded-full h-12 px-5"
+          className="fixed right-4 sm:right-6 bottom-[calc(env(safe-area-inset-bottom)+88px)] md:bottom-6 z-40 shadow-lg gap-2 rounded-full h-12 px-4 sm:px-5"
           size="lg"
+          aria-label="ИИ-ассистент"
         >
-          <Sparkles className="h-4 w-4" /> ИИ-ассистент
+          <Sparkles className="h-4 w-4" />
+          <span className="hidden sm:inline">ИИ-ассистент</span>
+          <span className="sm:hidden">ИИ</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md flex flex-col">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-md flex flex-col p-4 sm:p-6 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+      >
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4" /> Опишите заказ</SheetTitle>
-          <SheetDescription>
+          <SheetTitle className="flex items-center gap-2 text-base sm:text-lg"><Sparkles className="h-4 w-4" /> Опишите заказ</SheetTitle>
+          <SheetDescription className="text-xs sm:text-sm">
             Напишите параметры словами — ИИ заполнит форму калькулятора.
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto py-3 sm:py-4 space-y-3 -mx-1 px-1">
           <Textarea
             autoFocus
-            rows={5}
+            rows={4}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            className="text-sm sm:text-base resize-none"
             placeholder="Например: листовка А5, 4+4, 3000 шт, мелованная 130 г, матовая ламинация с одной стороны, биговка"
           />
 
           {result && (
-            <div className="rounded-md border bg-muted/30 p-3">
+            <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3">
               <div className="text-xs text-muted-foreground mb-2">Распознано:</div>
-              <ul className="text-sm space-y-1">
+              <ul className="text-xs sm:text-sm space-y-1">
                 {Object.entries(result)
                   .filter(([k, v]) => k !== "notes" && v !== undefined && v !== null && v !== "")
                   .map(([k, v]) => (
-                    <li key={k} className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">{FIELD_LABELS[k as keyof ParsedOrder] || k}</span>
-                      <span className="font-medium tabular-nums text-right">{formatValue(v)}</span>
+                    <li key={k} className="flex justify-between gap-2">
+                      <span className="text-muted-foreground truncate">{FIELD_LABELS[k as keyof ParsedOrder] || k}</span>
+                      <span className="font-medium tabular-nums text-right shrink-0">{formatValue(v)}</span>
                     </li>
                   ))}
               </ul>
@@ -141,13 +148,13 @@ export default function AiOrderAssistant({ onApply }: Props) {
 
           <div className="text-[11px] text-muted-foreground space-y-1">
             <div>Примеры:</div>
-            <button type="button" className="block text-left underline-offset-2 hover:underline" onClick={() => setText("Визитки 90×50, 4+0, 1000 шт, дизайнерская 300 г")}>Визитки 90×50, 4+0, 1000 шт, дизайнерская 300 г</button>
-            <button type="button" className="block text-left underline-offset-2 hover:underline" onClick={() => setText("Флаер А6, 4+4, 5000 шт, мелованная 130 г, наценка 25%")}>Флаер А6, 4+4, 5000 шт, мелованная 130 г, наценка 25%</button>
-            <button type="button" className="block text-left underline-offset-2 hover:underline" onClick={() => setText("Постер А3, цвет 4+0, 200 шт, плотность 200, ламинация глянец")}>Постер А3, 4+0, 200 шт, плотность 200, глянцевая ламинация</button>
+            <button type="button" className="block text-left leading-snug underline-offset-2 hover:underline w-full" onClick={() => setText("Визитки 90×50, 4+0, 1000 шт, дизайнерская 300 г")}>Визитки 90×50, 4+0, 1000 шт, дизайнерская 300 г</button>
+            <button type="button" className="block text-left leading-snug underline-offset-2 hover:underline w-full" onClick={() => setText("Флаер А6, 4+4, 5000 шт, мелованная 130 г, наценка 25%")}>Флаер А6, 4+4, 5000 шт, мелованная 130 г, наценка 25%</button>
+            <button type="button" className="block text-left leading-snug underline-offset-2 hover:underline w-full" onClick={() => setText("Постер А3, 4+0, 200 шт, плотность 200, глянцевая ламинация")}>Постер А3, 4+0, 200 шт, плотность 200, глянцевая ламинация</button>
           </div>
         </div>
 
-        <div className="flex gap-2 pt-3 border-t">
+        <div className="flex gap-2 pt-3 border-t shrink-0">
           {!result ? (
             <Button className="w-full gap-2" onClick={run} disabled={loading || !text.trim()}>
               {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Разбор…</> : <><Send className="h-4 w-4" /> Разобрать</>}

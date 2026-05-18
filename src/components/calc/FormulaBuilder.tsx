@@ -234,30 +234,31 @@ export default function FormulaBuilder({ value, onChange, constants, testVars = 
       </div>
 
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4" /> Сгенерировать формулу</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg"><Sparkles className="h-4 w-4" /> Сгенерировать формулу</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Textarea
               autoFocus
-              rows={4}
+              rows={3}
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
+              className="text-sm sm:text-base resize-none"
               placeholder="Например: резка стоит 500 ₸ за рез, количество резов = тираж / приладка"
             />
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-[11px] text-muted-foreground leading-snug">
               Доступные переменные: {VARIABLE_LIST.map((v) => v.key).join(", ")}.
             </div>
             {aiResult && (
-              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <div className="rounded-md border bg-muted/30 p-2.5 sm:p-3 space-y-2">
                 <div className="text-xs text-muted-foreground">Выражение:</div>
-                <code className="block text-sm font-mono break-all">{aiResult.expression}</code>
+                <code className="block text-xs sm:text-sm font-mono break-all">{aiResult.expression}</code>
                 {aiResult.explanation && <div className="text-xs text-muted-foreground">{aiResult.explanation}</div>}
                 {aiResult.new_constants && aiResult.new_constants.length > 0 && (
                   <div className="text-xs">
                     <div className="text-muted-foreground mb-1">Будут созданы константы:</div>
-                    <ul className="space-y-0.5">
+                    <ul className="space-y-0.5 break-words">
                       {aiResult.new_constants.map((c) => (
                         <li key={c.slug}>• @{c.slug} — {c.name} = {c.value} {c.unit || "₸"}</li>
                       ))}
@@ -267,15 +268,15 @@ export default function FormulaBuilder({ value, onChange, constants, testVars = 
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             {!aiResult ? (
-              <Button type="button" onClick={runAi} disabled={aiLoading || !aiPrompt.trim()}>
+              <Button type="button" onClick={runAi} disabled={aiLoading || !aiPrompt.trim()} className="w-full sm:w-auto">
                 {aiLoading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Генерация…</> : <><Sparkles className="h-4 w-4 mr-1" /> Сгенерировать</>}
               </Button>
             ) : (
               <>
-                <Button type="button" variant="outline" onClick={() => setAiResult(null)}>Переделать</Button>
-                <Button type="button" onClick={applyAi}>Применить</Button>
+                <Button type="button" variant="outline" onClick={() => setAiResult(null)} className="w-full sm:w-auto">Переделать</Button>
+                <Button type="button" onClick={applyAi} className="w-full sm:w-auto">Применить</Button>
               </>
             )}
           </DialogFooter>
