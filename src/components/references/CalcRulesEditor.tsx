@@ -84,17 +84,36 @@ export default function CalcRulesEditor() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    setLoading(true);
-    const { data } = await (supabase as any)
-      .from("system_settings")
-      .select("key,value")
-      .like("key", "rule.%");
-    const map: Record<string, string> = {};
-    for (const r of (data as any[]) || []) map[r.key] = String(r.value);
-    setValues(map);
-    setLoading(false);
+    try {
+      // Дождаться восстановления сессии — иначе запрос уйдёт как anon
+      // и RLS вернёт пустой массив, а UI застрянет на «Загрузка правил…».
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await (supabase as any)
+        .from("system_settings")
+        .select("key,value")
+        .like("key", "rule.%");
+      if (error) {
+        console.error("[CalcRulesEditor.load]", error);
+        toast.error(`Не удалось загрузить правила: ${error.message}`);
+      }
+      const map: Record<string, string> = {};
+      for (const r of (data as any[]) || []) map[r.key] = String(r.value);
+      setValues(map);
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (s?.access_token) load();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const saveOne = async (key: string) => {
     const value = values[key] ?? "";
