@@ -6,10 +6,11 @@ type AuthCtx = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  refreshSession: () => Promise<Session | null>;
   signOut: () => Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, signOut: async () => {} });
+const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, refreshSession: async () => null, signOut: async () => {} });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -64,11 +65,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  const refreshSession = async () => {
+    const { data: { session: s } } = await supabase.auth.getSession();
+    setSession(s);
+    setUser(s?.user ?? null);
+    setLoading(false);
+    return s;
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  return <Ctx.Provider value={{ user, session, loading, signOut }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, session, loading, refreshSession, signOut }}>{children}</Ctx.Provider>;
 };
 
 export const useAuth = () => useContext(Ctx);
