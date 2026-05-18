@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные", material: "Материалы", print: "Печать", postpress: "Послепечатные", logistics: "Логистика",
@@ -14,18 +16,37 @@ const Quote = () => {
   const { id } = useParams();
   const [calc, setCalc] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!id) return;
+    if (authLoading) return;
+    if (!user || !id) { setLoading(false); return; }
     (async () => {
-      const { data: c } = await supabase.from("calculations").select("*").eq("id", id).single();
-      const { data: it } = await supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order");
-      setCalc(c);
-      setItems(it || []);
+      setLoading(true);
+      setLoadError(null);
+      const [{ data: c, error: cError }, { data: it, error: itError }] = await Promise.all([
+        supabase.from("calculations").select("*").eq("id", id).maybeSingle(),
+        supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order"),
+      ]);
+      const error = cError || itError;
+      if (error) {
+        console.error("[Quote.load] calculation error:", error);
+        setLoadError(error.message);
+        toast.error("Не удалось загрузить КП: " + error.message);
+      } else if (!c) {
+        setLoadError("Расчёт не найден или у вас нет доступа к нему.");
+      } else {
+        setCalc(c);
+        setItems(it || []);
+      }
+      setLoading(false);
     })();
-  }, [id]);
+  }, [authLoading, user?.id, id]);
 
-  if (!calc) return <div className="p-8 text-center text-muted-foreground">Загрузка…</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Загрузка…</div>;
+  if (loadError || !calc) return <div className="p-8 text-center text-muted-foreground">{loadError || "Расчёт не найден."}</div>;
 
   const grouped = items.reduce((acc: Record<string, any[]>, it) => {
     (acc[it.stage] ||= []).push(it);
