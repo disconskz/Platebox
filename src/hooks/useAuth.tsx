@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { readStoredAuthSession } from "@/lib/auth-session";
 
 type AuthCtx = {
   user: User | null;
@@ -16,7 +17,7 @@ const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, e
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !!readStoredAuthSession(true));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +56,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Страховка от вечной загрузки, но даём storage restore достаточно времени.
     const safety = setTimeout(() => {
       if (!cancelled && !initialSessionResolved) {
+        const stored = readStoredAuthSession();
+        if (stored) {
+          console.warn("[useAuth] session restore timeout; using cached session");
+          initialSessionResolved = true;
+          applySession(stored);
+          return;
+        }
         console.warn("[useAuth] session restore timeout");
         initialSessionResolved = true;
         applySession(null);

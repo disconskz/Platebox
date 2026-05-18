@@ -26,6 +26,7 @@ import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
 import { useAuth } from "@/hooks/useAuth";
+import { getCachedAccessToken } from "@/lib/auth-session";
 
 type AnyRow = Record<string, any>;
 
@@ -71,6 +72,13 @@ const OPT_LABELS: Record<string, string> = {
 
 const optLabel = (v: string) => OPT_LABELS[v] ?? v;
 
+const withAuthHeader = <T,>(query: T, accessToken: string | null): T => {
+  if (accessToken && typeof (query as any).setHeader === "function") {
+    (query as any).setHeader("Authorization", `Bearer ${accessToken}`);
+  }
+  return query;
+};
+
 // Динамические опции (загружаются из БД) для select-полей со ссылками на другие таблицы
 type DynamicOptions = {
   purchase_formats?: { value: string; label: string }[];
@@ -83,13 +91,11 @@ const useDynamicOptions = (enabled: boolean): DynamicOptions => {
     if (!enabled) return;
     let cancelled = false;
     (async () => {
-      // Дождаться, пока Supabase восстановит сессию из localStorage.
-      // Без этого на холодной загрузке запрос может уйти как anon → RLS вернёт [].
-      await supabase.auth.getSession();
+      const token = getCachedAccessToken();
       if (cancelled) return;
       const [pfRes, pmRes] = await Promise.all([
-        (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"),
-        (supabase as any).from("press_machines").select("id,name").order("sort_order"),
+        withAuthHeader((supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"), token),
+        withAuthHeader((supabase as any).from("press_machines").select("id,name").order("sort_order"), token),
       ]);
       if (pfRes.error) console.error("[useDynamicOptions] purchase_formats:", pfRes.error);
       if (pmRes.error) console.error("[useDynamicOptions] press_machines:", pmRes.error);
@@ -106,9 +112,10 @@ const useDynamicOptions = (enabled: boolean): DynamicOptions => {
     })();
     // Перезагрузить опции, если сессия обновилась (логин/рефреш токена).
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (s?.access_token && !cancelled) {
-        (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order").then((pfRes: any) => {
-          (supabase as any).from("press_machines").select("id,name").order("sort_order").then((pmRes: any) => {
+      const token = getCachedAccessToken(s);
+      if (token && !cancelled) {
+        withAuthHeader((supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"), token).then((pfRes: any) => {
+          withAuthHeader((supabase as any).from("press_machines").select("id,name").order("sort_order"), token).then((pmRes: any) => {
             if (cancelled) return;
             setOpts({
               purchase_formats: ((pfRes.data as any[]) || []).map((r) => ({ value: r.id, label: `${r.width} × ${r.height}` })),
@@ -428,14 +435,15 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
 
   const load = async () => {
     if (!authReady) return;
-    // Гарантируем, что Supabase-клиент восстановил сессию из localStorage —
-    // иначе REST-запрос уйдёт как anon и RLS вернёт пустой массив.
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
+    const token = getCachedAccessToken();
+    if (!token) {
       console.warn(`[References.load:${spec.key}] нет сессии — пропускаю запрос`);
       return;
     }
-    const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
+    const { data, error } = await withAuthHeader(
+      (supabase as any).from(spec.key).select("*").order(spec.cols[0].k),
+      token
+    );
     if (error) {
       console.error(`[References.load:${spec.key}]`, error);
       toast.error(`Не удалось загрузить «${spec.title || spec.key}»: ${error.message}`);
@@ -447,13 +455,13 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
   const loadSections = async () => {
     if (!authReady) { setSectionList([]); return; }
     if (!hasSubgroup) { setSectionList([]); return; }
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return;
-    const { data: rs } = await (supabase as any)
+    const token = getCachedAccessToken();
+    if (!token) return;
+    const { data: rs } = await withAuthHeader((supabase as any)
       .from("reference_sections")
       .select("name")
       .eq("table_key", spec.key)
-      .order("sort_order");
+      .order("sort_order"), token);
     const fromSections = ((rs as any[]) || []).map((r) => r.name as string);
     // плюс уникальные значения subgroup в данных
     const fromRows = Array.from(new Set(rows.map((r) => r.subgroup).filter(Boolean) as string[]));
