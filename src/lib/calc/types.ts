@@ -97,6 +97,12 @@ export interface CalcInput {
   requireEvenItems?: boolean;
   /** Приоритетные печатные форматы (при равенстве отходов выигрывают эти). */
   priorityPrintFormats?: PrintFormat[];
+  /**
+   * Число резов на одно готовое изделие (финишная резка).
+   * Если не задано — берётся `rule.finishCutsPerItem` (DEFAULTS = 4 для обратной
+   * совместимости). Для маршрутов, где режут стопу, имеет смысл понижать.
+   */
+  finishCutsPerItem?: number;
 }
 
 export interface SpecItem {
@@ -169,6 +175,8 @@ export const DEFAULTS = {
   formPrepCost: 500,
   cutCostPerSheet: 1,
   finishCutCost: 1,
+  /** Базовое число финишных резов на одно готовое изделие. */
+  finishCutsPerItem: 4,
   numberingCost: 2,
   stampingSetup: 5000,
   stampingClicheMin: 5000,
