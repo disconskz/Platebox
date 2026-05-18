@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stepper } from "@/components/calc/Stepper";
 import { LayoutPreview } from "@/components/calc/LayoutPreview";
+import AiOrderAssistant, { type ParsedOrder } from "@/components/calc/AiOrderAssistant";
 import { FORMAT_PRESETS, runCalculation, setCalcRules } from "@/lib/calc/engine";
 import { loadCalcRules } from "@/lib/calc/rules";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
