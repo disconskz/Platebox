@@ -424,20 +424,26 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
     try {
       const session = await ensureSupabaseSession();
       if (!session?.access_token) {
-        setLoadError("Сессия входа не восстановлена. Обновите страницу или войдите снова.");
+        const issue = noSessionIssue(`References.load:${spec.key}`);
+        setLoadError(issue.userMessage);
         return;
       }
       const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
       if (error) {
-        console.error(`[References.load:${spec.key}]`, error);
-        setLoadError(`Не удалось загрузить «${spec.title || spec.key}»: ${error.message}`);
+        const issue = logDataIssue(`References.load:${spec.key}`, error);
+        setLoadError(`«${spec.title || spec.key}»: ${issue.userMessage}`);
         return;
       }
-      setRows((data as any) || []);
+      const list = (data as any[]) || [];
+      if (list.length === 0) {
+        // запрос прошёл, но строк нет — может быть RLS-фильтр либо просто пусто.
+        logDataIssue(`References.load:${spec.key}`, null, { emptyResult: true });
+      }
+      setRows(list);
       setSelected(new Set());
     } catch (e: any) {
-      console.error(`[References.load:${spec.key}]`, e);
-      setLoadError(e?.message || "Неизвестная ошибка при загрузке");
+      const issue = logDataIssue(`References.load:${spec.key}`, e);
+      setLoadError(issue.userMessage);
     } finally {
       setLoading(false);
     }
