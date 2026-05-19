@@ -57,7 +57,7 @@ export const ensureSupabaseSession = async (): Promise<Session | null> => {
     if (error) throw error;
     if (data.session?.access_token) return data.session;
 
-    const stored = readStoredAuthSession();
+    const stored = readStoredAuthSession(true);
     if (!stored) return null;
     return hydrateStoredSession(stored);
   })().finally(() => {
