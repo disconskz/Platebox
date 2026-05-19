@@ -18,6 +18,8 @@ import CalculationView from "./pages/CalculationView.tsx";
 import Quote from "./pages/Quote.tsx";
 import Analytics from "./pages/Analytics.tsx";
 import Knowledge from "./pages/Knowledge.tsx";
+import AiCalc from "./pages/AiCalc.tsx";
+import AiCalcThread from "./pages/AiCalcThread.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -52,6 +54,8 @@ const App = () => (
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/knowledge" element={<Knowledge />} />
+              <Route path="/ai-calc" element={<AiCalc />} />
+              <Route path="/ai-calc/:threadId" element={<AiCalcThread />} />
               <Route path="/calculation/:id" element={<CalculationView />} />
               <Route path="/calculation/:id/quote" element={<Quote />} />
             </Route>
