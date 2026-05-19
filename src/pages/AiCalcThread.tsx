@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import aiLogo from "@/assets/ai-calc-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
@@ -64,6 +65,7 @@ export default function AiCalcThread() {
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">К разговорам</span>
           </Link>
+          <img src={aiLogo} alt="" width={24} height={24} className="h-6 w-6 shrink-0" />
           <h1 className="text-sm sm:text-base font-medium truncate">{title}</h1>
         </div>
       </header>
