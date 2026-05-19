@@ -6,32 +6,32 @@
 
 @layer base {
   :root {
-    /* Slate & Steel — engineered, off-white canvas, slate ink */
-    --background: 40 14% 96%;
-    --foreground: 218 25% 21%;        /* #2d3748 */
+    /* Midnight Indigo — premium dark AI workspace.
+       Base #0a0a1a, surface #141432, accent surface #1e1e5a, primary #4f46e5. */
+    --background: 240 45% 6%;          /* #0a0a1a */
+    --foreground: 240 30% 92%;         /* #e2e2f0 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 218 25% 21%;
-    --glass: 0 0% 100% / 0.7;
-    --glass-stroke: 218 25% 21% / 0.10;
+    --card: 240 50% 14%;               /* #141432 */
+    --card-foreground: 240 30% 92%;
+    --glass: 240 50% 14% / 0.6;
+    --glass-stroke: 244 76% 59% / 0.25;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 218 25% 21%;
+    --popover: 240 50% 14%;
+    --popover-foreground: 240 30% 92%;
 
-    /* Slate primary */
-    --primary: 218 25% 21%;            /* #2d3748 */
-    --primary-foreground: 40 14% 96%;
-    --primary-glow: 218 19% 31%;       /* #4a5568 */
+    /* Indigo primary */
+    --primary: 244 76% 59%;            /* #4f46e5 */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 252 80% 68%;
 
-    --secondary: 220 14% 92%;
-    --secondary-foreground: 218 25% 21%;
+    --secondary: 240 51% 24%;          /* #1e1e5a */
+    --secondary-foreground: 240 30% 92%;
 
-    --muted: 220 14% 93%;
-    --muted-foreground: 218 11% 44%;   /* #718096 */
+    --muted: 240 40% 18%;
+    --muted-foreground: 240 20% 65%;
 
-    /* Accent — steel (no warm hues, keeps engineering vibe) */
-    --accent: 218 19% 31%;             /* #4a5568 */
-    --accent-foreground: 40 14% 96%;
+    --accent: 244 76% 59%;             /* indigo accent */
+    --accent-foreground: 0 0% 100%;
 
     --success: 150 36% 32%;
     --success-foreground: 40 14% 96%;
@@ -40,35 +40,29 @@
     --destructive: 4 70% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 86%;             /* steel border */
-    --input: 220 14% 86%;
-    --ring: 218 25% 21%;
+    --border: 240 40% 22%;
+    --input: 240 40% 22%;
+    --ring: 244 76% 59%;
 
     --radius: 0.625rem;
 
-    --gradient-primary: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    /* Flat editorial canvas — no aurora glow */
-    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
-    --shadow-card: 0 1px 0 hsl(218 25% 21% / 0.04), 0 1px 2px hsl(218 25% 21% / 0.06);
-    --shadow-elevated: 0 1px 0 hsl(218 25% 21% / 0.05), 0 6px 18px -10px hsl(218 25% 21% / 0.18);
-    --shadow-glass: 0 1px 0 hsl(218 25% 21% / 0.05), 0 10px 24px -14px hsl(218 25% 21% / 0.22);
-    --shadow-ring: 0 0 0 1px hsl(220 14% 86% / 0.9), 0 1px 2px hsl(218 25% 21% / 0.04);
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-subtle: radial-gradient(60rem 30rem at 100% 0%, hsl(244 76% 59% / 0.10), transparent 60%),
+                        radial-gradient(40rem 24rem at 0% 100%, hsl(280 70% 60% / 0.07), transparent 55%),
+                        linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+    --shadow-card: 0 1px 0 hsl(0 0% 100% / 0.04), 0 1px 2px hsl(0 0% 0% / 0.4), 0 14px 30px -16px hsl(0 0% 0% / 0.6);
+    --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.05), 0 2px 6px hsl(0 0% 0% / 0.4), 0 34px 56px -22px hsl(0 0% 0% / 0.7);
+    --shadow-glass: inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 18px 40px -18px hsl(0 0% 0% / 0.65);
+    --shadow-ring: 0 0 0 1px hsl(244 76% 59% / 0.4), 0 1px 2px hsl(0 0% 0% / 0.4);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 240 50% 11%;
+    --sidebar-foreground: 240 25% 80%;
+    --sidebar-primary: 244 76% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 244 76% 59% / 0.15;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 50% 18%;
+    --sidebar-ring: 244 76% 59%;
   }
 
   .dark {
@@ -116,7 +110,7 @@
   }
 
   html {
-    font-family: "Work Sans", "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
+    font-family: "DM Sans", "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
     font-feature-settings: "tnum", "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -129,7 +123,7 @@
     background-attachment: fixed;
   }
 
-  h1, h2, h3, h4 { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -0.04em; font-weight: 500; }
+  h1, h2, h3, h4 { font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif; letter-spacing: -0.02em; font-weight: 600; }
 
   .font-serif { font-family: "Instrument Serif", "Times New Roman", serif; letter-spacing: -0.01em; }
   .font-mono  { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -176,8 +170,9 @@
 
   .bg-aurora {
     background:
-      radial-gradient(60rem 30rem at 110% -10%, hsl(var(--accent) / 0.18), transparent 60%),
-      radial-gradient(40rem 24rem at -10% 10%, hsl(var(--primary) / 0.12), transparent 55%),
+      radial-gradient(60rem 30rem at 110% -10%, hsl(244 76% 59% / 0.15), transparent 60%),
+      radial-gradient(40rem 24rem at -10% 10%, hsl(280 70% 60% / 0.10), transparent 55%),
+      radial-gradient(50rem 30rem at 50% 110%, hsl(252 80% 68% / 0.08), transparent 60%),
       linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 100%);
   }
 
