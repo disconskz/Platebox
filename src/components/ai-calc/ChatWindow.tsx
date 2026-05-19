@@ -192,12 +192,18 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
       cost: order.form_cost_total,
     });
   }
-  for (const op of order.postpress_breakdown ?? []) {
-    if (!op || typeof op.cost !== "number") continue;
-    const detail = op.qty
-      ? `${num(op.qty)}${op.unit ? " " + op.unit : ""}${op.unit_cost ? " × " + fmtMoney(op.unit_cost) : ""}`
-      : undefined;
-    costRows.push({ name: op.name, detail, cost: op.cost });
+  const postpressOps = (order.postpress_breakdown ?? []).filter(
+    (op): op is NonNullable<typeof op> => !!op && typeof op.cost === "number",
+  );
+  const postpressTotal = postpressOps.reduce((s, op) => s + (op.cost || 0), 0);
+  if (postpressTotal > 0) {
+    costRows.push({
+      name: "Постпечать",
+      detail: postpressOps.length ? `${postpressOps.length} операц.` : undefined,
+      cost: postpressTotal,
+    });
+  } else if (typeof est?.postpress === "number" && est.postpress > 0) {
+    costRows.push({ name: "Постпечать", cost: est.postpress });
   }
 
   const prodRows: Array<{ label: string; value: string }> = [];
@@ -287,6 +293,40 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
               </div>
             ))}
           </dl>
+        </div>
+      )}
+
+      {/* Postpress details */}
+      {postpressOps.length > 0 && (
+        <div className="p-5 rounded-2xl border border-border bg-card shadow-card">
+          <div className="flex items-baseline justify-between mb-3">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">Постпечать</h4>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              итого {fmtMoney(postpressTotal)}
+            </span>
+          </div>
+          <ul className="space-y-1.5 text-[12px]">
+            {postpressOps.map((op, i) => (
+              <li
+                key={i}
+                className="flex items-baseline justify-between gap-3 py-1 border-b border-border/30 last:border-0"
+              >
+                <div className="min-w-0">
+                  <span className="text-foreground font-medium">{op.name}</span>
+                  {(op.qty || op.unit_cost) && (
+                    <span className="text-muted-foreground ml-2 text-[11px]">
+                      {op.qty ? `${num(op.qty)}${op.unit ? " " + op.unit : ""}` : ""}
+                      {op.qty && op.unit_cost ? " × " : ""}
+                      {op.unit_cost ? fmtMoney(op.unit_cost) : ""}
+                    </span>
+                  )}
+                </div>
+                <span className="text-foreground font-semibold tabular-nums whitespace-nowrap">
+                  {fmtMoney(op.cost)}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
