@@ -17,6 +17,7 @@ import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
 import { createSupabaseTimeout, isAbortError } from "@/lib/supabase-timeout";
 import { handleSupabaseError } from "@/lib/supabase-error";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 
 type Calc = {
   id: string;
@@ -44,7 +45,9 @@ const Index = () => {
   };
 
   const load = async () => {
-    if (!session?.access_token) {
+    const restored = await ensureSupabaseSession();
+    const token = restored?.access_token ?? session?.access_token;
+    if (!token) {
       setLoadError("Сессия входа не восстановлена. Выйдите и войдите снова.");
       setLoading(false);
       return;
@@ -58,7 +61,7 @@ const Index = () => {
         signal: timeout.signal,
         headers: {
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!res.ok) {
