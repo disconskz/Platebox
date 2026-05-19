@@ -974,6 +974,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
             </Button>
           </div>
         </div>
+        </DataState>
       </CardContent>
       <AlertDialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
         <AlertDialogContent>
