@@ -143,7 +143,16 @@ export function logDataIssue(
 
 /** Удобный шорткат: ручное сообщение «нет сессии». */
 export function noSessionIssue(context: string): DataIssue {
-  return logDataIssue(context, { message: "no session" } as any);
+  const issue: DataIssue = {
+    kind: "no_session",
+    userMessage: MESSAGES.no_session,
+    technical: "ensureSupabaseSession() returned null",
+  };
+  // eslint-disable-next-line no-console
+  console.warn(`[data-issue:no_session] ${context}`);
+  void persist(context, issue);
+  return issue;
+}
 }
 
 export const DATA_ISSUE_MESSAGES = MESSAGES;
