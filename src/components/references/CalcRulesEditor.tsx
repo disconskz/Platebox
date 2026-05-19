@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { DEFAULTS } from "@/lib/calc/types";
 import { RULE_KEY_MAP } from "@/lib/calc/rules";
 import { HelpHint } from "@/components/HelpHint";
-import { getCachedAccessToken } from "@/lib/auth-session";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 
 type Section = { title: string; description?: string; learnMore?: string; help?: string; fields: { key: string; label: string; unit?: string; hint?: string }[] };
 
@@ -86,17 +86,15 @@ export default function CalcRulesEditor() {
 
   const load = async () => {
     try {
-      const token = getCachedAccessToken();
-      if (!token) {
+      const session = await ensureSupabaseSession();
+      if (!session?.access_token) {
         setLoading(false);
         return;
       }
-      const query = (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("system_settings")
         .select("key,value")
         .like("key", "rule.%");
-      if (typeof query.setHeader === "function") query.setHeader("Authorization", `Bearer ${token}`);
-      const { data, error } = await query;
       if (error) {
         console.error("[CalcRulesEditor.load]", error);
         toast.error(`Не удалось загрузить правила: ${error.message}`);
