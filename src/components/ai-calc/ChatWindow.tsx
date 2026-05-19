@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, Wand2 } from "lucide-react";
+import { ArrowRight, Download, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,7 @@ import {
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import aiLogo from "@/assets/ai-calc-logo.png";
 import { fmtMoney } from "@/lib/format";
+import { exportProposedOrderToPdf } from "@/lib/proposed-order-pdf";
 
 export type ProposedOrder = {
   product_type?: string;
@@ -157,6 +158,19 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
   const openInCalculator = () => {
     try { sessionStorage.setItem("ai-calc-prefill", JSON.stringify(order)); } catch { /* ignore */ }
     navigate("/calculator");
+  };
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const downloadPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await exportProposedOrderToPdf(order, materialName);
+    } catch (e) {
+      console.error("[ai-calc] pdf export failed", e);
+      toast.error("Не удалось сохранить PDF");
+    } finally {
+      setPdfBusy(false);
+    }
   };
   const est = order.estimated_cost;
   const colors = Math.max(order.color_front ?? 0, order.color_back ?? 0);
