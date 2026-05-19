@@ -842,6 +842,9 @@ const Calculator = () => {
     if (typeof o.color_back === "number") setColorBack(o.color_back);
     if (o.material_category) setMaterialCategory(o.material_category);
     if (typeof o.material_density === "number") setMaterialDensity(o.material_density);
+    if (o.material_id && materials.some((m) => m.id === o.material_id)) {
+      setMaterialId(o.material_id);
+    }
     if (typeof o.has_fold === "boolean") setHasFold(o.has_fold);
     if (typeof o.fold_count === "number") setFoldCount(o.fold_count);
     if (typeof o.has_die_cut === "boolean") setHasDieCut(o.has_die_cut);
@@ -858,12 +861,16 @@ const Calculator = () => {
     try {
       const raw = sessionStorage.getItem("ai-calc-prefill");
       if (!raw) return;
-      sessionStorage.removeItem("ai-calc-prefill");
       const parsed = JSON.parse(raw) as ParsedOrder;
+      // Если префилл содержит material_id, но материалы ещё не загружены — ждём
+      if (parsed.material_id && !materials.some((m) => m.id === parsed.material_id)) {
+        if (materials.length === 0) return; // повторим, когда materials появятся
+      }
+      sessionStorage.removeItem("ai-calc-prefill");
       applyAiOrder(parsed);
     } catch { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [materials]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">

@@ -17,6 +17,20 @@ export type ParsedOrder = {
   color_back?: number;
   material_category?: string;
   material_density?: number;
+  material_id?: string | null;
+  material_alternatives?: string[];
+  press_machine_id?: string | null;
+  print_format_id?: string | null;
+  estimated_cost?: {
+    paper?: number;
+    print?: number;
+    postpress?: number;
+    total?: number;
+    with_vat?: number;
+    sale_price?: number;
+    currency?: string;
+  };
+  cost_breakdown?: string[];
   has_lamination?: boolean;
   lamination_film?: string;
   lamination_sides?: number;
@@ -34,7 +48,7 @@ interface Props {
   trigger?: ReactNode;
 }
 
-const FIELD_LABELS: Record<keyof ParsedOrder, string> = {
+const FIELD_LABELS: Partial<Record<keyof ParsedOrder, string>> = {
   product_type: "Тип продукции",
   name: "Название",
   circulation: "Тираж",
