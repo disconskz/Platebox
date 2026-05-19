@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { readStoredAuthSession } from "@/lib/auth-session";
+import { ensureSupabaseSession, readStoredAuthSession } from "@/lib/auth-session";
 
 type AuthCtx = {
   user: User | null;
@@ -40,9 +40,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       applySession(s);
     });
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session: s } }) => {
+    ensureSupabaseSession()
+      .then((s) => {
         initialSessionResolved = true;
         applySession(s);
       })
@@ -78,8 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshSession = async () => {
     try {
-      const { data: { session: s }, error: err } = await supabase.auth.getSession();
-      if (err) throw err;
+      const s = await ensureSupabaseSession();
       setError(null);
       setSession(s);
       setUser(s?.user ?? null);

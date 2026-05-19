@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProductType } from "@/lib/calc/types";
+import { PRODUCT_LABELS } from "@/lib/calc/products";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 
 export type GlossaryCategory =
   | "print_small" | "multipage" | "calendar" | "large_format"
@@ -32,17 +34,33 @@ export interface GlossaryItem {
   sort_order: number;
 }
 
+const FALLBACK_ITEMS: GlossaryItem[] = Object.entries(PRODUCT_LABELS).map(([slug, name], index) => ({
+  id: slug,
+  slug,
+  name,
+  description: "",
+  category: "other" as GlossaryCategory,
+  base_product_type: slug as ProductType,
+  is_calculable: true,
+  sort_order: index + 1,
+}));
+
 export function useProductGlossary() {
-  const [items, setItems] = useState<GlossaryItem[]>([]);
+  const [items, setItems] = useState<GlossaryItem[]>(FALLBACK_ITEMS);
   const [loading, setLoading] = useState(true);
   const reload = async () => {
     setLoading(true);
-    const { data } = await (supabase as any)
-      .from("product_glossary")
-      .select("*")
-      .order("sort_order");
-    setItems(((data as any[]) || []) as GlossaryItem[]);
-    setLoading(false);
+    try {
+      await ensureSupabaseSession();
+      const { data } = await (supabase as any)
+        .from("product_glossary")
+        .select("*")
+        .order("sort_order");
+      const rows = ((data as any[]) || []) as GlossaryItem[];
+      setItems(rows.length ? rows : FALLBACK_ITEMS);
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { reload(); }, []);
   return { items, loading, reload };

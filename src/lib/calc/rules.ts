@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 import { DEFAULTS } from "./types";
 
 export type CalcRules = typeof DEFAULTS;
@@ -35,6 +36,7 @@ const KEY_MAP: Record<string, keyof CalcRules> = {
 export const RULE_KEY_MAP = KEY_MAP;
 
 export async function loadCalcRules(): Promise<CalcRules> {
+  await ensureSupabaseSession();
   const { data } = await (supabase as any)
     .from("system_settings")
     .select("key,value")

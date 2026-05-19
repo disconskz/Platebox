@@ -16,6 +16,8 @@ import { setCalcRules } from "@/lib/calc/engine";
 import { runMultiSkuCalculation, type SkuItem, type MultiSkuResult } from "@/lib/calc/multi-sku";
 import { fmtMoney } from "@/lib/format";
 import MobileTabBar from "@/components/MobileTabBar";
+import { useAuth } from "@/hooks/useAuth";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
@@ -32,6 +34,7 @@ function inferCategory(type: string): string {
 
 export default function MultiSkuCalculator() {
   const navigate = useNavigate();
+  const { loading: authLoading, user } = useAuth();
 
   const [materials, setMaterials] = useState<Material[]>([]);
   const [materialId, setMaterialId] = useState<string>("");
@@ -52,7 +55,9 @@ export default function MultiSkuCalculator() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (authLoading || !user) return;
     (async () => {
+      await ensureSupabaseSession();
       const rules = await loadCalcRules();
       setCalcRules(rules);
       const { data: m } = await supabase.from("materials").select("*").order("name");
@@ -65,7 +70,7 @@ export default function MultiSkuCalculator() {
       if (s?.value) setVatPercent(Number(s.value) || 0);
       if (m && m.length) setMaterialId((m[0] as Material).id);
     })();
-  }, []);
+  }, [authLoading, user?.id]);
 
   const material = materials.find((m) => m.id === materialId);
 
