@@ -160,7 +160,12 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
     if (!user) return null;
     const { data, error } = await supabase
       .from("ai_messages")
-      .insert({ thread_id: threadId, user_id: user.id, role: msg.role, parts: msg.parts as unknown as object[] })
+      .insert({
+        thread_id: threadId,
+        user_id: user.id,
+        role: msg.role,
+        parts: msg.parts as unknown as never,
+      })
       .select("id, created_at")
       .single();
     if (error || !data) {
