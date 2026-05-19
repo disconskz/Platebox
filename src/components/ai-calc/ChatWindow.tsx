@@ -158,8 +158,73 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
     try { sessionStorage.setItem("ai-calc-prefill", JSON.stringify(order)); } catch { /* ignore */ }
     navigate("/calculator");
   };
-  const fmtKzt = (n: number) => `${Math.round(n).toLocaleString("ru-RU")} ₸`;
   const est = order.estimated_cost;
+  const colors = Math.max(order.color_front ?? 0, order.color_back ?? 0);
+  const num = (n: number) => new Intl.NumberFormat("ru-RU").format(Math.round(n));
+
+  type Row = { name: string; detail?: string; cost: number };
+  const costRows: Row[] = [];
+  if (typeof est?.paper === "number") {
+    costRows.push({
+      name: "Бумага",
+      detail: order.sheets_total && order.material_price_per_sheet
+        ? `${num(order.sheets_total)} л × ${fmtMoney(order.material_price_per_sheet)}`
+        : undefined,
+      cost: est.paper,
+    });
+  }
+  if (typeof est?.print === "number") {
+    costRows.push({
+      name: "Печать",
+      detail: order.impressions && order.cost_per_impression
+        ? `${num(order.impressions)} оттисков × ${fmtMoney(order.cost_per_impression)}`
+        : undefined,
+      cost: est.print,
+    });
+  }
+  if (typeof order.setup_cost === "number" && order.setup_cost > 0) {
+    costRows.push({ name: "Приладка машины", cost: order.setup_cost });
+  }
+  if (typeof order.form_cost_total === "number" && order.form_cost_total > 0) {
+    costRows.push({
+      name: "Формы",
+      detail: order.forms_count ? `${order.forms_count} шт` : undefined,
+      cost: order.form_cost_total,
+    });
+  }
+  for (const op of order.postpress_breakdown ?? []) {
+    if (!op || typeof op.cost !== "number") continue;
+    const detail = op.qty
+      ? `${num(op.qty)}${op.unit ? " " + op.unit : ""}${op.unit_cost ? " × " + fmtMoney(op.unit_cost) : ""}`
+      : undefined;
+    costRows.push({ name: op.name, detail, cost: op.cost });
+  }
+
+  const prodRows: Array<{ label: string; value: string }> = [];
+  if (order.press_machine_name) prodRows.push({ label: "Машина", value: order.press_machine_name });
+  if (order.print_format_label) prodRows.push({ label: "Печатный лист", value: order.print_format_label });
+  if (order.purchase_format_label) {
+    const mat = materialName ? `, ${materialName}` : "";
+    prodRows.push({ label: "Закупочный лист", value: order.purchase_format_label + mat });
+  } else if (materialName) {
+    prodRows.push({ label: "Из справочника", value: materialName });
+  }
+  if (order.items_per_sheet) prodRows.push({ label: "Раскладка", value: `${order.items_per_sheet} шт / лист` });
+  if (order.sheets_total) {
+    const parts: string[] = [];
+    if (order.sheets_useful) parts.push(`${num(order.sheets_useful)} полезных`);
+    if (order.sheets_setup) parts.push(`${num(order.sheets_setup)} приладка`);
+    const sum = parts.length ? `${parts.join(" + ")} = ${num(order.sheets_total)}` : num(order.sheets_total);
+    prodRows.push({ label: "Листы", value: sum });
+  }
+  if (order.impressions) {
+    prodRows.push({
+      label: "Оттиски",
+      value: order.sheets_total && colors
+        ? `${num(order.sheets_total)} × ${colors} = ${num(order.impressions)}`
+        : num(order.impressions),
+    });
+  }
 
   return (
     <div className="mt-3 space-y-3 max-w-2xl">
@@ -181,12 +246,6 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
                   <p className="text-sm font-semibold text-foreground truncate" title={l.value}>{l.value}</p>
                 </div>
               ))}
-              {materialName && (
-                <div className="min-w-0 col-span-2">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mb-0.5">Из справочника</p>
-                  <p className="text-sm font-semibold text-foreground truncate" title={materialName}>{materialName}</p>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -216,29 +275,60 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
         </div>
       </div>
 
-      {/* Cost breakdown chips */}
-      {est && (
-        <div className="flex flex-wrap gap-2">
-          {typeof est.paper === "number" && (
-            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
-              <span className="text-primary font-bold">Бумага:</span> {fmtKzt(est.paper)}
-            </span>
-          )}
-          {typeof est.print === "number" && (
-            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
-              <span className="text-primary font-bold">Печать:</span> {fmtKzt(est.print)}
-            </span>
-          )}
-          {typeof est.postpress === "number" && est.postpress > 0 && (
-            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
-              <span className="text-primary font-bold">Постпечать:</span> {fmtKzt(est.postpress)}
-            </span>
-          )}
-          {typeof est.total === "number" && (
-            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
-              <span className="text-primary font-bold">Себестоимость:</span> {fmtKzt(est.total)}
-            </span>
-          )}
+      {/* Production details */}
+      {prodRows.length > 0 && (
+        <div className="p-5 rounded-2xl border border-border bg-card shadow-card">
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3">Производство</h4>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
+            {prodRows.map((r) => (
+              <div key={r.label} className="flex justify-between gap-3 text-[12px] border-b border-border/40 pb-2 sm:border-0 sm:pb-0">
+                <dt className="text-muted-foreground">{r.label}</dt>
+                <dd className="text-foreground font-medium text-right tabular-nums">{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+
+      {/* Cost breakdown table */}
+      {(costRows.length > 0 || typeof est?.total === "number") && (
+        <div className="p-5 rounded-2xl border border-border bg-card shadow-card">
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3">Себестоимость</h4>
+          <div className="space-y-1.5 text-[12px]">
+            {costRows.map((r, i) => (
+              <div key={i} className="flex items-baseline justify-between gap-3 py-1 border-b border-border/30 last:border-0">
+                <div className="min-w-0">
+                  <span className="text-foreground font-medium">{r.name}</span>
+                  {r.detail && <span className="text-muted-foreground ml-2 text-[11px]">{r.detail}</span>}
+                </div>
+                <span className="text-foreground font-semibold tabular-nums whitespace-nowrap">{fmtMoney(r.cost)}</span>
+              </div>
+            ))}
+            {typeof est?.total === "number" && (
+              <div className="flex justify-between pt-2 mt-1 border-t border-border text-[12px] font-semibold">
+                <span>Себестоимость</span>
+                <span className="tabular-nums">{fmtMoney(est.total)}</span>
+              </div>
+            )}
+            {typeof order.vat_amount === "number" && order.vat_amount > 0 && (
+              <div className="flex justify-between text-[12px] text-muted-foreground">
+                <span>НДС {order.vat_percent ?? ""}%</span>
+                <span className="tabular-nums">{fmtMoney(order.vat_amount)}</span>
+              </div>
+            )}
+            {typeof order.margin_amount === "number" && order.margin_amount > 0 && (
+              <div className="flex justify-between text-[12px] text-muted-foreground">
+                <span>Наценка {order.margin_percent ?? ""}%</span>
+                <span className="tabular-nums">{fmtMoney(order.margin_amount)}</span>
+              </div>
+            )}
+            {typeof est?.sale_price === "number" && (
+              <div className="flex justify-between pt-2 mt-1 border-t border-primary/30 text-[13px] font-bold text-primary">
+                <span>Итого к продаже</span>
+                <span className="tabular-nums">{fmtMoney(est.sale_price)}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
