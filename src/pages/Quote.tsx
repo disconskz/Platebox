@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 import { Button } from "@/components/ui/button";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
@@ -26,6 +27,7 @@ const Quote = () => {
     (async () => {
       setLoading(true);
       setLoadError(null);
+      await ensureSupabaseSession();
       const [{ data: c, error: cError }, { data: it, error: itError }] = await Promise.all([
         supabase.from("calculations").select("*").eq("id", id).maybeSingle(),
         supabase.from("calculation_items").select("*").eq("calculation_id", id).order("sort_order"),
