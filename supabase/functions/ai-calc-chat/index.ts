@@ -239,6 +239,8 @@ const BASE_SYSTEM_PROMPT = `Ты — помощник менеджера тип�
 - Если подходящего материала нет в справочнике — поставь material_id = null, объясни в notes и предложи ближайший.
 - Считай ориентировочно: items_per_sheet = floor(print_format площадь / item площадь × 0.85); sheets_useful = ceil(тираж / items_per_sheet); sheets_setup = press_machines.setup_sheets × max(color_front,color_back); sheets_total = sheets_useful + sheets_setup; бумага = sheets_total × material_price_per_sheet; печать = sheets_total × cost_per_impression × max(color_front, color_back); добавь setup_cost машины и form_cost × forms_count, постпечать по operations и lamination. Округляй до 100 ₸.
 - ОБЯЗАТЕЛЬНО заполняй press_machine_id, print_format_id, items_per_sheet, sheets_useful, sheets_setup, sheets_total, material_price_per_sheet, impressions, cost_per_impression, setup_cost, postpress_breakdown, vat_percent, vat_amount, margin_amount — менеджеру нужна полная расшифровка.
+- postpress_breakdown ОБЯЗАТЕЛЬНО детализируй: каждая постпечатная операция = отдельный объект с полями name (название операции человеческим языком, напр. "Ламинация матовая 1+0", "Фальцовка 1 биг", "Высечка контура", "Нумерация", "Тиснение фольгой", "Финишная резка"), qty (количество — листов / штук / м²), unit ("лист"|"шт"|"м²"), unit_cost (цена за единицу из operations/lamination), cost (итог = qty × unit_cost). Не сворачивай всё в одну строку "постпечать".
+- Если постпечати нет — верни postpress_breakdown: [].
 - Если не можешь оценить число шт_на_листе — прикинь по площади (purchase_w*h / item_w*h * 0.85).
 - Поля, которых не знаешь — пропускай.
 - 4+4 = color_front 4, color_back 4. 4+0 = front 4, back 0.
