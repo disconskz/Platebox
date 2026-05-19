@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Wand2 } from "lucide-react";
+import { ArrowRight, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -143,60 +143,95 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
   const est = order.estimated_cost;
 
   return (
-    <div className="mt-3 rounded-xl border bg-card shadow-sm overflow-hidden max-w-md">
-      <div className="px-3.5 py-2 border-b bg-muted/30 flex items-center gap-2">
-        <Wand2 className="h-3.5 w-3.5 text-primary" />
-        <span className="text-xs font-medium">Распознанный заказ</span>
-        {order.name && <span className="text-xs text-muted-foreground truncate">· {order.name}</span>}
+    <div className="mt-3 space-y-3 max-w-2xl">
+      {/* Bento header — specs (4) + total (2) */}
+      <div className="grid grid-cols-6 gap-3">
+        <div className="col-span-6 md:col-span-4 p-5 rounded-2xl border border-primary/20 bg-card/60 backdrop-blur-md relative overflow-hidden">
+          <div className="absolute top-0 right-0 h-32 w-32 -mr-16 -mt-16 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+          <div className="flex items-center gap-2 mb-4">
+            <Wand2 className="h-3.5 w-3.5 text-primary" />
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">Распознанный заказ</h4>
+            {order.name && <span className="text-[11px] text-muted-foreground truncate">· {order.name}</span>}
+          </div>
+          {lines.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Нет распознанных полей</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+              {lines.map((l) => (
+                <div key={l.label} className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mb-0.5">{l.label}</p>
+                  <p className="text-sm font-semibold text-foreground truncate" title={l.value}>{l.value}</p>
+                </div>
+              ))}
+              {materialName && (
+                <div className="min-w-0 col-span-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mb-0.5">Из справочника</p>
+                  <p className="text-sm font-semibold text-foreground truncate" title={materialName}>{materialName}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="col-span-6 md:col-span-2 p-5 rounded-2xl border border-primary/30 bg-primary/10 backdrop-blur-md flex flex-col justify-between gap-3">
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary/90">Итого, ₸</h4>
+            <p
+              className="text-2xl font-bold text-foreground mt-1 tabular-nums"
+              style={{ fontFamily: '"Space Grotesk", "DM Sans", sans-serif' }}
+            >
+              {typeof est?.sale_price === "number"
+                ? Math.round(est.sale_price).toLocaleString("ru-RU")
+                : typeof est?.total === "number"
+                ? Math.round(est.total).toLocaleString("ru-RU")
+                : "—"}
+            </p>
+            {typeof est?.sale_price === "number" && order.circulation ? (
+              <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                ~ {Math.round(est.sale_price / order.circulation).toLocaleString("ru-RU")} ₸ / шт
+              </p>
+            ) : null}
+          </div>
+          <Button size="sm" className="w-full gap-1.5 shadow-lg shadow-primary/30" onClick={openInCalculator}>
+            Открыть расчёт <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
-      <ul className="px-3.5 py-2.5 text-xs sm:text-sm space-y-1">
-        {lines.length === 0 && <li className="text-muted-foreground">Нет распознанных полей</li>}
-        {lines.map((l) => (
-          <li key={l.label} className="flex justify-between gap-3">
-            <span className="text-muted-foreground">{l.label}</span>
-            <span className="font-medium text-right">{l.value}</span>
-          </li>
-        ))}
-        {materialName && (
-          <li className="flex justify-between gap-3">
-            <span className="text-muted-foreground">Из справочника</span>
-            <span className="font-medium text-right">{materialName}</span>
-          </li>
-        )}
-      </ul>
-      {est && (typeof est.total === "number" || typeof est.sale_price === "number") && (
-        <div className="px-3.5 py-2.5 border-t bg-muted/10 space-y-1 text-xs sm:text-sm">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Ориентир по справочнику</div>
+
+      {/* Cost breakdown chips */}
+      {est && (
+        <div className="flex flex-wrap gap-2">
           {typeof est.paper === "number" && (
-            <div className="flex justify-between"><span className="text-muted-foreground">Бумага</span><span className="tabular-nums">{fmtKzt(est.paper)}</span></div>
+            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
+              <span className="text-primary font-bold">Бумага:</span> {fmtKzt(est.paper)}
+            </span>
           )}
           {typeof est.print === "number" && (
-            <div className="flex justify-between"><span className="text-muted-foreground">Печать</span><span className="tabular-nums">{fmtKzt(est.print)}</span></div>
+            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
+              <span className="text-primary font-bold">Печать:</span> {fmtKzt(est.print)}
+            </span>
           )}
           {typeof est.postpress === "number" && est.postpress > 0 && (
-            <div className="flex justify-between"><span className="text-muted-foreground">Постпечать</span><span className="tabular-nums">{fmtKzt(est.postpress)}</span></div>
+            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
+              <span className="text-primary font-bold">Постпечать:</span> {fmtKzt(est.postpress)}
+            </span>
           )}
           {typeof est.total === "number" && (
-            <div className="flex justify-between font-medium border-t pt-1 mt-1"><span>Себестоимость</span><span className="tabular-nums">{fmtKzt(est.total)}</span></div>
-          )}
-          {typeof est.sale_price === "number" && (
-            <div className="flex justify-between font-semibold text-primary"><span>Продажа</span><span className="tabular-nums">{fmtKzt(est.sale_price)}</span></div>
+            <span className="px-3 py-1.5 rounded-xl border border-border/60 bg-card/40 text-[11px] tabular-nums">
+              <span className="text-primary font-bold">Себестоимость:</span> {fmtKzt(est.total)}
+            </span>
           )}
         </div>
       )}
+
       {order.cost_breakdown && order.cost_breakdown.length > 0 && (
-        <ul className="px-3.5 pb-2 text-[11px] text-muted-foreground space-y-0.5">
+        <ul className="text-[11px] text-muted-foreground space-y-0.5 pl-1">
           {order.cost_breakdown.slice(0, 4).map((s, i) => <li key={i}>• {s}</li>)}
         </ul>
       )}
       {order.notes && (
-        <div className="px-3.5 pb-2 text-[11px] italic text-muted-foreground">{order.notes}</div>
+        <p className="text-[11px] italic text-muted-foreground pl-1">{order.notes}</p>
       )}
-      <div className="px-3.5 py-2 border-t bg-muted/20">
-        <Button size="sm" className="w-full gap-1.5" onClick={openInCalculator}>
-          Открыть в калькуляторе <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
-      </div>
     </div>
   );
 }
@@ -368,17 +403,25 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100dvh-5rem)] bg-background">
+    <div className="relative flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100dvh-5rem)] bg-aurora">
       <Conversation className="flex-1">
-        <ConversationContent className="max-w-3xl mx-auto w-full">
+        <ConversationContent className="max-w-3xl mx-auto w-full pb-44">
           {messages.length === 0 ? (
             <ConversationEmptyState
               className="py-12"
-              icon={<img src={aiLogo} alt="" width={64} height={64} className="opacity-90" />}
+              icon={
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-2xl" />
+                  <img src={aiLogo} alt="" width={72} height={72} className="relative opacity-95" />
+                </div>
+              }
               title="Опишите заказ словами"
               description="ИИ задаст уточнения, подберёт материал из справочника и сразу прикинет стоимость."
             >
-              <img src={aiLogo} alt="" width={64} height={64} className="opacity-90" />
+              <div className="relative">
+                <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-2xl" />
+                <img src={aiLogo} alt="" width={72} height={72} className="relative opacity-95" />
+              </div>
               <div className="space-y-1 max-w-md">
                 <h3 className="font-medium text-sm">Опишите заказ словами</h3>
                 <p className="text-muted-foreground text-sm">
@@ -391,7 +434,7 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                     key={ex}
                     type="button"
                     onClick={() => void send(ex)}
-                    className="text-left text-xs px-3 py-2.5 rounded-lg border bg-card hover:bg-muted/40 transition-colors"
+                    className="text-left text-xs px-3 py-2.5 rounded-xl border border-border/60 bg-card/60 backdrop-blur hover:border-primary/40 hover:bg-primary/5 transition-all"
                   >
                     {ex}
                   </button>
@@ -400,8 +443,22 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
             </ConversationEmptyState>
           ) : (
             messages.map((m) => (
-              <Message key={m.id} from={m.role}>
-                <MessageContent>
+              <Message key={m.id} from={m.role} className="animate-fade-in">
+                {m.role === "assistant" && (
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="h-7 w-7 rounded-lg border border-primary/30 bg-primary/10 flex items-center justify-center">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AI Ассистент</span>
+                  </div>
+                )}
+                <MessageContent
+                  className={
+                    m.role === "user"
+                      ? "group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground group-[.is-user]:rounded-2xl group-[.is-user]:rounded-tr-sm group-[.is-user]:shadow-[0_0_24px_hsl(var(--primary)/0.35)]"
+                      : undefined
+                  }
+                >
                   {m.parts.map((p, i) =>
                     p.type === "text" ? (
                       m.role === "assistant" ? (
@@ -420,8 +477,19 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
 
           {status === "submitted" && (
             <Message from="assistant">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-7 w-7 rounded-lg border border-primary/30 bg-primary/10 flex items-center justify-center">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AI Ассистент</span>
+              </div>
               <MessageContent>
-                <Shimmer>ИИ думает…</Shimmer>
+                <div className="flex items-center gap-3">
+                  <Shimmer>ИИ думает…</Shimmer>
+                  <div className="relative h-1.5 w-32 overflow-hidden rounded-full bg-primary/10">
+                    <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-primary/60 to-transparent animate-shimmer-bar" />
+                  </div>
+                </div>
               </MessageContent>
             </Message>
           )}
@@ -429,19 +497,33 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
         <ConversationScrollButton />
       </Conversation>
 
-      <div className="border-t bg-card/80 backdrop-blur safe-bottom">
-        <div className="max-w-3xl mx-auto w-full p-3">
-          <PromptInput onSubmit={handlePromptSubmit}>
-            <PromptInputTextarea
-              ref={textareaRef as never}
-              placeholder="Опишите заказ или задайте уточняющий вопрос…"
-              autoFocus
+      {/* Floating composer */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 safe-bottom">
+        <div className="pointer-events-auto mx-auto max-w-2xl w-full px-3 sm:px-6 pb-4 pt-10 bg-gradient-to-t from-background via-background/90 to-transparent">
+          <div className="relative group">
+            <div
+              className="absolute -inset-1 rounded-[22px] blur-xl opacity-25 group-focus-within:opacity-50 transition-opacity duration-500 animate-gradient-sweep"
+              style={{
+                background:
+                  "linear-gradient(90deg, hsl(var(--primary)), hsl(280 70% 60%), hsl(var(--primary)))",
+                backgroundSize: "200% auto",
+              }}
             />
-            <PromptInputFooter className="justify-end">
-              <PromptInputSubmit status={status} onStop={stop} />
-            </PromptInputFooter>
-          </PromptInput>
-          <p className="text-[10px] text-muted-foreground text-center mt-1.5">
+            <div className="relative rounded-[18px] border border-primary/30 bg-card/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
+              <PromptInput onSubmit={handlePromptSubmit} className="border-0 bg-transparent">
+                <PromptInputTextarea
+                  ref={textareaRef as never}
+                  placeholder="Опишите заказ или задайте уточняющий вопрос…"
+                  autoFocus
+                  className="bg-transparent"
+                />
+                <PromptInputFooter className="justify-end">
+                  <PromptInputSubmit status={status} onStop={stop} className="shadow-lg shadow-primary/30" />
+                </PromptInputFooter>
+              </PromptInput>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground text-center mt-2">
             ИИ использует справочник Platebox. Точный расчёт всегда выполняется в калькуляторе.
           </p>
         </div>
