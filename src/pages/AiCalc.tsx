@@ -26,7 +26,7 @@ export default function AiCalc() {
       .order("updated_at", { ascending: false })
       .limit(100);
     if (error) {
-      logDataIssue(error, { context: "ai-calc:list" });
+      logDataIssue("ai-calc:list", error);
       toast.error("Не удалось загрузить разговоры");
     } else {
       setThreads(data ?? []);
@@ -46,7 +46,7 @@ export default function AiCalc() {
       .single();
     setCreating(false);
     if (error || !data) {
-      logDataIssue(error, { context: "ai-calc:create" });
+      logDataIssue("ai-calc:create", error);
       toast.error("Не удалось создать разговор");
       return;
     }
@@ -57,7 +57,7 @@ export default function AiCalc() {
     if (!confirm("Удалить этот разговор?")) return;
     const { error } = await supabase.from("ai_threads").delete().eq("id", id);
     if (error) {
-      logDataIssue(error, { context: "ai-calc:delete" });
+      logDataIssue("ai-calc:delete", error);
       toast.error("Не удалось удалить");
       return;
     }
