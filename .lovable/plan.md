@@ -1,59 +1,80 @@
-# ИИ-расчёты: чат-ассистент на /ai-calc
 
-Пользователь пишет естественным языком («посчитай 1000 листовок А5 4+4 на мелованной 130»), ИИ распознаёт параметры, показывает карточку «Распознанный заказ» и кнопку «Открыть в калькуляторе» — никаких автосохранений в `calculations`.
+# ИИ-ассистент со знанием справочника
 
-## База данных (новая миграция)
+Сейчас `ai-calc-chat` работает «вслепую»: возвращает `proposed_order` с категориями вроде `coated 130`, но не знает реальных материалов, цен, форматов и машин из БД. Сделаем так, чтобы он видел весь справочник и мог опираться на конкретные строки при ответе и при предварительной оценке стоимости.
 
-Две таблицы со строгим RLS «только владелец»:
+## 1. Сервер: датасет знаний в edge function
 
-- `ai_threads` — id, user_id, title, created_at, updated_at
-- `ai_messages` — id, thread_id, user_id, role (`user|assistant`), parts (jsonb — массив UIMessage parts), created_at
+В `supabase/functions/ai-calc-chat/index.ts` добавляем загрузку справочника при каждом запросе (с кешем в памяти на 5 минут на инстанс):
 
-RLS: SELECT/INSERT/UPDATE/DELETE только при `auth.uid() = user_id`. На `ai_messages` дополнительно проверяем, что `thread_id` принадлежит этому же пользователю. Триггер `set_updated_at` на `ai_threads` для актуализации списка тредов.
+Таблицы, которые тянем (все READ-доступны для authenticated):
+- `materials` — id, name, type, density, format_width, format_height, cost_per_sheet
+- `purchase_formats`, `print_formats` — id, width, height, material_category, purchase_format_id
+- `format_presets`, `envelope_formats` — name, width, height
+- `press_machines` — id, name, machine_type, max_format_width/height, min/max_circulation, setup_sheets, setup_cost, cost_per_impression, product_types, priority
+- `equipment` — id, name, type, max_format_width/height, cost_per_impression
+- `lamination_prices` — film_type, size_range, cost_per_side
+- `operations` — name, category, fixed_cost, variable_cost, unit, setup_sheets
+- `calc_constants` — slug, value, unit (formCost, setupOwn, finishCutCost и т.д.)
+- `product_circulation_rules` — product_type, min/max_circulation, preferred_machine_id
+- `product_glossary` — slug, name, base_product_type, category, is_calculable
+- `system_settings` (только `vat_percent` и подобные)
 
-## Бэкенд: edge function `ai-calc-chat`
+Загрузка идёт через `service_role` ключ (справочник публично-читаемый для auth, но из функции проще service_role + минимальный SELECT). Никаких пользовательских данных не читаем.
 
-Новая функция (не трогаем `ai-assist`, она используется в калькуляторе и FormulaBuilder). Стек: AI SDK через Lovable AI Gateway, модель `google/gemini-3-flash-preview`, стриминг через `toUIMessageStreamResponse`.
+### Формат подачи модели
 
-- Авторизация: тот же паттерн что в `ai-assist` (Bearer JWT, проверка через `auth.getClaims`)
-- Rate-limit 10/мин на user_id
-- Системный промт: «Ты — помощник типографии. Уточняй параметры (тип, тираж, формат, красочность, материал, постпечать). Когда данных хватает — вызови инструмент `propose_calculation` с заполненной схемой»
-- Один tool `propose_calculation` с Zod-схемой ровно как у `parse-order` (product_type, circulation, format, color_front/back, material_category/density, постпечать, margin_percent, notes). `execute` просто возвращает аргументы — UI рендерит их как «карточку заказа».
-- Сохранение: `toUIMessageStreamResponse({ originalMessages, onFinish })` пишет финальный assistant UIMessage в `ai_messages` (UUID PK генерит БД).
+Собираем компактный JSON-«снимок» (только нужные поля, числа округляем, отбрасываем `created_at` и пр.) и оборачиваем в системный промт:
 
-## Фронтенд
+```
+ДОСТУПНЫЕ ДАННЫЕ СПРАВОЧНИКА (используй ТОЛЬКО эти id и значения):
+{
+  "materials": [ {"id":"...","name":"Меловка 130 SRA3","type":"coated","density":130,"w":450,"h":320,"price":140}, ... ],
+  "print_formats": [...],
+  "press_machines": [...],
+  "lamination": [...],
+  "constants": { "form_cost": 1000, "setup_own": 150, ... },
+  "vat_percent": 12
+}
+```
 
-Маршруты:
+Если снимок > ~30 КБ — режем по релевантности: материалы только подходящей плотности/типа из распознанного запроса (двухпроходный вызов: первый — определить категорию материала и формат, второй — с отфильтрованным датасетом). Для старта делаем один проход с полным снимком (на типичной БД это 5-15 КБ).
 
-- `/ai-calc` — главная страница: список тредов слева/сверху, пустое состояние с подсказкой и быстрыми примерами; кнопка «Новый разговор» создаёт тред и сразу делает `navigate('/ai-calc/:id')`.
-- `/ai-calc/:threadId` — активный чат. Чат-компонент монтируется с `key={threadId}`, `useChat({ id: threadId, messages: initialMessages, transport: DefaultChatTransport('/functions/v1/ai-calc-chat') })`.
+## 2. Расширяем `proposed_order`
 
-UI собираем из AI Elements (`bun x ai-elements@latest add conversation message prompt-input tool shimmer`):
+Добавляем поля, привязанные к реальным записям:
+- `material_id` (uuid из `materials`) — основной выбор
+- `material_alternatives` — массив из 2-3 альтернативных id (например, та же плотность другого поставщика)
+- `print_format_id`, `press_machine_id` — если ИИ смог однозначно подобрать
+- `estimated_cost` — `{ paper, print, postpress, total, sale_price, currency: "KZT" }`
+- `cost_breakdown` — короткие строки для UI (не для подмены инженерного расчёта)
 
-- `Conversation` + `ConversationContent` + `ConversationScrollButton` — транскрипт
-- `Message` / `MessageContent` / `MessageResponse` — сообщения с markdown
-- `PromptInput` + `PromptInputTextarea` + `PromptInputFooter` + `PromptInputSubmit` (внутри футера, `justify-end`) — композер; автофокус на маунте, после отправки и после смены треда
-- `Tool` / `ToolHeader` / `ToolContent` для `propose_calculation` — кастомный output: красивая карточка «Распознанный заказ» с двумя кнопками: «Открыть в калькуляторе» (передаёт параметры через `sessionStorage` + `navigate('/calculator')`) и «Уточнить» (просто продолжает диалог)
-- `Shimmer` «Обрабатываю…» во время `status === 'submitted'`
+Промт обновляем: «Используй реальные id из снимка. Если нужного материала нет — честно скажи и предложи ближайший. Считай ориентировочную стоимость по формуле: листов = ceil(тираж / шт.на.листе) + приладка; бумага = листов × cost_per_sheet; печать = листов × cost_per_impression × красочность; добавь формы и финишные операции. Округляй до 100 ₸».
 
-В `Calculator.tsx` добавляем чтение `sessionStorage.getItem('ai-calc-prefill')` на маунте — если есть, применяем поля так же, как сейчас делает `AiOrderAssistant.onApply`, и чистим ключ.
+## 3. Карточка в чате
 
-Логотип/идентичность: маленькая собственная иконка (генерим через imagegen, не `Sparkles`) — для пустого состояния и хедера треда.
+`ChatWindow.tsx` / `ProposedOrderCard`:
+- Показываем выбранный материал по имени (резолвим id → name из загруженного при маунте справочника, чтобы не дублировать)
+- Блок «Ориентировочная стоимость»: бумага / печать / постпечать / итого с НДС и «продажная при наценке N%»
+- Альтернативы материала — выпадашка «Заменить» (просто меняет id в `sessionStorage` перед открытием калькулятора)
+- Кнопка «Открыть в калькуляторе» — пишет `material_id` в prefill, чтобы калькулятор сразу подставил его (в `Calculator.tsx` дополняем prefill-логику: если есть `material_id` — выбираем материал по id, иначе fallback на текущий поиск по категории+плотности)
 
-## Навигация
+## 4. Безопасность и лимиты
 
-В сайдбаре/`MobileTabBar` добавляем пункт «ИИ-расчёт» (icon `MessageSquare` или сгенерённая иконка), ведёт на `/ai-calc`.
+- Edge function продолжает требовать JWT (как сейчас)
+- Снимок справочника одинаков для всех — никаких пользовательских данных, утечки нет
+- Кеш в памяти 5 мин по ключу `"reference-snapshot-v1"` чтобы не дёргать БД на каждое сообщение
+- Если LLM-ответ ссылается на несуществующий `material_id` — сервер валидирует и заменяет на `null` + добавляет в `notes`
+
+## 5. Что НЕ делаем сейчас
+
+- Не запускаем настоящий `calc/engine.ts` на сервере (Deno vs vite-only код, нужна отдельная итерация — оценка ИИ остаётся «ориентировочной», точная — в калькуляторе)
+- Не даём ИИ доступ к чужим расчётам или клиентам
+- Не делаем функцию-tool с вызовом БД (RAG-датасет в промте проще и предсказуемее, чем function calling для текущего объёма данных)
+- Не трогаем существующий `ai-assist` (используется в калькуляторе)
 
 ## Технические детали
 
-- AI SDK + `@ai-sdk/openai-compatible` импортируются в edge function через `npm:` спецификаторы
-- Транспорт: `DefaultChatTransport` указывает на `${VITE_SUPABASE_URL}/functions/v1/ai-calc-chat` с заголовком `Authorization: Bearer <access_token>` из текущей сессии (через кастомный `fetch`)
-- Все ошибки гейтвея (429, 402, validation) проходят через уже существующий `logDataIssue` и показываются toast’ом
-- Тесты: добавляем 2–3 интеграционных vitest-теста — anon не может читать `ai_threads`/`ai_messages`; авторизованный видит только свои; вызов `ai-calc-chat` без токена возвращает 401
-- Никаких изменений в `ai-assist`, `calculations`, существующих RLS или ролях
-
-## Что НЕ делаем в этой итерации
-
-- Не сохраняем расчёт автоматически (по выбору пользователя)
-- Не строим визарды/wizard-режим — только чат + карточка результата
-- Не трогаем существующий `AiOrderAssistant` Sheet внутри калькулятора (он остаётся)
+- Файлы: `supabase/functions/ai-calc-chat/index.ts` (расширяем), `src/components/ai-calc/ChatWindow.tsx` (карточка + резолв материала), `src/pages/Calculator.tsx` (prefill по `material_id`)
+- JSON-схема ответа модели (`response_format: json_object`) расширяется новыми опциональными полями — миграции БД не нужны
+- Тесты: добавляем unit для функции выбора материала по категории/плотности (на стороне сервера) и smoke-тест, что снимок справочника парсится без ошибок
