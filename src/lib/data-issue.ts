@@ -153,6 +153,5 @@ export function noSessionIssue(context: string): DataIssue {
   void persist(context, issue);
   return issue;
 }
-}
 
 export const DATA_ISSUE_MESSAGES = MESSAGES;
