@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DataState } from "@/components/DataState";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -162,35 +162,22 @@ const Index = () => {
             <FileText className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Последние расчёты</h2>
           </div>
-          {loading ? (
-            <div className="overflow-hidden rounded-2xl border border-border/60 bg-card p-3 space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 py-1">
-                  <Skeleton className="h-5 flex-1" />
-                  <Skeleton className="h-5 w-24 hidden sm:block" />
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-5 w-24" />
-                </div>
-              ))}
-            </div>
-          ) : loadError ? (
-            <Card className="lift">
-              <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-                <p className="text-sm text-muted-foreground max-w-md">{loadError}</p>
-                <Button variant="outline" onClick={load}>Повторить загрузку</Button>
-              </CardContent>
-            </Card>
-          ) : recent.length === 0 ? (
-            <Card className="lift">
-              <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-                <div className="ring-glow rounded-2xl p-4 bg-muted/40 animate-float-soft"><CalcIcon className="h-10 w-10 text-muted-foreground" /></div>
-                <p className="text-muted-foreground">Расчётов пока нет. Начните первый — это займёт 2-3 минуты.</p>
-                <Link to="/calculator"><Button><Plus className="mr-2 h-4 w-4" /> Новый расчёт</Button></Link>
-              </CardContent>
-            </Card>
-          ) : (
+          <DataState
+            loading={loading}
+            error={loadError}
+            empty={recent.length === 0}
+            onRetry={load}
+            variant="table"
+            emptyTitle="Расчётов пока нет"
+            emptyDescription="Начните первый — это займёт 2-3 минуты."
+            emptyAction={
+              <Link to="/calculator">
+                <Button><Plus className="mr-2 h-4 w-4" /> Новый расчёт</Button>
+              </Link>
+            }
+          >
             <CalcTable rows={recent} onRemove={remove} />
-          )}
+          </DataState>
         </section>
       </main>
 
