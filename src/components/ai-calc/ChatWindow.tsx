@@ -21,6 +21,20 @@ export type ProposedOrder = {
   color_back?: number;
   material_category?: string;
   material_density?: number;
+  material_id?: string | null;
+  material_alternatives?: string[];
+  press_machine_id?: string | null;
+  print_format_id?: string | null;
+  estimated_cost?: {
+    paper?: number;
+    print?: number;
+    postpress?: number;
+    total?: number;
+    with_vat?: number;
+    sale_price?: number;
+    currency?: string;
+  };
+  cost_breakdown?: string[];
   has_lamination?: boolean;
   lamination_film?: string;
   lamination_sides?: number;
@@ -93,12 +107,29 @@ function summarizeOrder(o: ProposedOrder): { lines: { label: string; value: stri
 function ProposedOrderCard({ order }: { order: ProposedOrder }) {
   const navigate = useNavigate();
   const { lines } = summarizeOrder(order);
+  const [materialName, setMaterialName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!order.material_id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("materials")
+        .select("name")
+        .eq("id", order.material_id!)
+        .maybeSingle();
+      if (!cancelled && data?.name) setMaterialName(data.name);
+    })();
+    return () => { cancelled = true; };
+  }, [order.material_id]);
+
   const openInCalculator = () => {
     try {
       sessionStorage.setItem("ai-calc-prefill", JSON.stringify(order));
     } catch { /* ignore */ }
     navigate("/calculator");
   };
+  const fmtKzt = (n: number) => `${Math.round(n).toLocaleString("ru-RU")} ₸`;
+  const est = order.estimated_cost;
   return (
     <div className="mt-2 rounded-lg border bg-card shadow-sm overflow-hidden">
       <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-2">
@@ -114,7 +145,38 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
             <span className="font-medium text-right">{l.value}</span>
           </li>
         ))}
+        {materialName && (
+          <li className="flex justify-between gap-3">
+            <span className="text-muted-foreground">Из справочника</span>
+            <span className="font-medium text-right">{materialName}</span>
+          </li>
+        )}
       </ul>
+      {est && (typeof est.total === "number" || typeof est.sale_price === "number") && (
+        <div className="px-3 py-2 border-t bg-muted/10 space-y-1 text-xs sm:text-sm">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Ориентир по справочнику</div>
+          {typeof est.paper === "number" && (
+            <div className="flex justify-between"><span className="text-muted-foreground">Бумага</span><span className="tabular-nums">{fmtKzt(est.paper)}</span></div>
+          )}
+          {typeof est.print === "number" && (
+            <div className="flex justify-between"><span className="text-muted-foreground">Печать</span><span className="tabular-nums">{fmtKzt(est.print)}</span></div>
+          )}
+          {typeof est.postpress === "number" && est.postpress > 0 && (
+            <div className="flex justify-between"><span className="text-muted-foreground">Постпечать</span><span className="tabular-nums">{fmtKzt(est.postpress)}</span></div>
+          )}
+          {typeof est.total === "number" && (
+            <div className="flex justify-between font-medium border-t pt-1 mt-1"><span>Себестоимость</span><span className="tabular-nums">{fmtKzt(est.total)}</span></div>
+          )}
+          {typeof est.sale_price === "number" && (
+            <div className="flex justify-between font-semibold text-primary"><span>Продажа</span><span className="tabular-nums">{fmtKzt(est.sale_price)}</span></div>
+          )}
+        </div>
+      )}
+      {order.cost_breakdown && order.cost_breakdown.length > 0 && (
+        <ul className="px-3 pb-2 text-[11px] text-muted-foreground space-y-0.5">
+          {order.cost_breakdown.slice(0, 4).map((s, i) => <li key={i}>• {s}</li>)}
+        </ul>
+      )}
       {order.notes && (
         <div className="px-3 pb-2 text-[11px] italic text-muted-foreground">{order.notes}</div>
       )}
