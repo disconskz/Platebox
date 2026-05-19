@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, Wand2 } from "lucide-react";
+import { ArrowRight, Download, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,7 @@ import {
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import aiLogo from "@/assets/ai-calc-logo.png";
 import { fmtMoney } from "@/lib/format";
+import { exportProposedOrderToPdf } from "@/lib/proposed-order-pdf";
 
 export type ProposedOrder = {
   product_type?: string;
@@ -158,6 +159,19 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
     try { sessionStorage.setItem("ai-calc-prefill", JSON.stringify(order)); } catch { /* ignore */ }
     navigate("/calculator");
   };
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const downloadPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await exportProposedOrderToPdf(order, materialName);
+    } catch (e) {
+      console.error("[ai-calc] pdf export failed", e);
+      toast.error("Не удалось сохранить PDF");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
   const est = order.estimated_cost;
   const colors = Math.max(order.color_front ?? 0, order.color_back ?? 0);
   const num = (n: number) => new Intl.NumberFormat("ru-RU").format(Math.round(n));
@@ -275,9 +289,21 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
               </p>
             ) : null}
           </div>
-          <Button size="sm" className="w-full gap-1.5" onClick={openInCalculator}>
-            Открыть расчёт <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex flex-col gap-1.5">
+            <Button size="sm" className="w-full gap-1.5" onClick={openInCalculator}>
+              Открыть расчёт <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5"
+              onClick={downloadPdf}
+              disabled={pdfBusy}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {pdfBusy ? "Готовим PDF…" : "Скачать PDF"}
+            </Button>
+          </div>
         </div>
       </div>
 
