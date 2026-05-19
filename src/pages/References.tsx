@@ -434,15 +434,12 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
 
   const load = async () => {
     if (!authReady) return;
-    const token = getCachedAccessToken();
-    if (!token) {
+    const session = await ensureSupabaseSession();
+    if (!session?.access_token) {
       console.warn(`[References.load:${spec.key}] нет сессии — пропускаю запрос`);
       return;
     }
-    const { data, error } = await withAuthHeader(
-      (supabase as any).from(spec.key).select("*").order(spec.cols[0].k),
-      token
-    );
+    const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
     if (error) {
       console.error(`[References.load:${spec.key}]`, error);
       toast.error(`Не удалось загрузить «${spec.title || spec.key}»: ${error.message}`);
@@ -454,13 +451,13 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
   const loadSections = async () => {
     if (!authReady) { setSectionList([]); return; }
     if (!hasSubgroup) { setSectionList([]); return; }
-    const token = getCachedAccessToken();
-    if (!token) return;
-    const { data: rs } = await withAuthHeader((supabase as any)
+    const session = await ensureSupabaseSession();
+    if (!session?.access_token) return;
+    const { data: rs } = await (supabase as any)
       .from("reference_sections")
       .select("name")
       .eq("table_key", spec.key)
-      .order("sort_order"), token);
+      .order("sort_order");
     const fromSections = ((rs as any[]) || []).map((r) => r.name as string);
     // плюс уникальные значения subgroup в данных
     const fromRows = Array.from(new Set(rows.map((r) => r.subgroup).filter(Boolean) as string[]));
