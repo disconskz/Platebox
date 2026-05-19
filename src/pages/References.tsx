@@ -834,6 +834,16 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
         )}
       </CardHeader>
       <CardContent>
+        <DataState
+          loading={loading}
+          error={loadError}
+          empty={!loading && !loadError && rows.length === 0 && !search && activeSection === "__all"}
+          onRetry={load}
+          variant="rows"
+          rowCount={8}
+          emptyTitle={`В справочнике «${spec.title || spec.key}» пока нет записей`}
+          emptyDescription="Добавьте первую запись через форму выше или импортируйте CSV."
+        >
         <div className="scroll-x overflow-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
