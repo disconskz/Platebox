@@ -48,7 +48,7 @@ interface Props {
   trigger?: ReactNode;
 }
 
-const FIELD_LABELS: Record<keyof ParsedOrder, string> = {
+const FIELD_LABELS: Partial<Record<keyof ParsedOrder, string>> = {
   product_type: "Тип продукции",
   name: "Название",
   circulation: "Тираж",
