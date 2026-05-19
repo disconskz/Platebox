@@ -27,6 +27,7 @@ import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
 import { useAuth } from "@/hooks/useAuth";
 import { ensureSupabaseSession } from "@/lib/auth-session";
+import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
 import { DataState } from "@/components/DataState";
 
 type AnyRow = Record<string, any>;
