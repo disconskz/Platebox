@@ -1,14 +1,14 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutGrid, Calculator as CalcIcon, BarChart3, Database, LogOut, BookOpen } from "lucide-react";
+import { LayoutGrid, Calculator as CalcIcon, BarChart3, Database, LogOut, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
 const items = [
   { to: "/app",        label: "Расчёты",    icon: LayoutGrid },
   { to: "/calculator", label: "Расчёт",     icon: CalcIcon },
+  { to: "/ai-calc",    label: "ИИ",         icon: Sparkles },
   { to: "/analytics",  label: "Аналитика",  icon: BarChart3 },
   { to: "/references", label: "НСИ",        icon: Database },
-  { to: "/knowledge",  label: "Помощь",     icon: BookOpen },
 ];
 
 export const MobileTabBar = () => {
