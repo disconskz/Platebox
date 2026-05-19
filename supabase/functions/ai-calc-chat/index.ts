@@ -193,6 +193,21 @@ const BASE_SYSTEM_PROMPT = `Ты — помощник менеджера тип�
     "material_alternatives": ["uuid", ...] (0-3 альтернативы той же категории/плотности),
     "press_machine_id": "uuid из press_machines (если уверен)",
     "print_format_id": "uuid из print_formats (если уверен)",
+    "purchase_format_id": "uuid из purchase_formats (если уверен)",
+    "items_per_sheet": число (раскладка — сколько изделий на одном печатном листе),
+    "sheets_useful": число (полезных листов = ceil(circulation / items_per_sheet)),
+    "sheets_setup": число (листы приладки — обычно press_machines.setup_sheets × красочность),
+    "sheets_total": число (sheets_useful + sheets_setup),
+    "material_price_per_sheet": число ₸ (из materials.price),
+    "impressions": число (sheets_total × max(color_front, color_back)),
+    "cost_per_impression": число ₸ (из press_machines.cost_per_impression),
+    "setup_cost": число ₸ (press_machines.setup_cost),
+    "forms_count": число (color_front + color_back),
+    "form_cost_total": число ₸ (стоимость форм; ≈ forms_count × calc_constants form_cost если есть),
+    "postpress_breakdown": [
+      { "name": "Ламинация", "qty": число, "unit": "лист"|"шт"|"м²", "unit_cost": число ₸, "cost": число ₸ },
+      ...
+    ] (по одной строке на каждую постпечатную операцию: ламинация, фальцовка, высечка, нумерация, тиснение, резка),
     "estimated_cost": {
       "paper": число ₸,
       "print": число ₸,
@@ -202,6 +217,9 @@ const BASE_SYSTEM_PROMPT = `Ты — помощник менеджера тип�
       "sale_price": число ₸ (with_vat * (1 + margin_percent/100)),
       "currency": "KZT"
     },
+    "vat_percent": число (vat_percent из справочника),
+    "vat_amount": число ₸ (total × vat_percent / 100),
+    "margin_amount": число ₸ (with_vat × margin_percent / 100),
     "cost_breakdown": ["короткая строка-объяснение", ...] (2-4 строки),
     "has_lamination": boolean,
     "lamination_film": "gloss" | "matte" | "velvet",
@@ -219,7 +237,8 @@ const BASE_SYSTEM_PROMPT = `Ты — помощник менеджера тип�
 Правила:
 - Используй ТОЛЬКО id из переданного справочника. Не выдумывай uuid.
 - Если подходящего материала нет в справочнике — поставь material_id = null, объясни в notes и предложи ближайший.
-- Считай ориентировочно: листов = ceil(тираж / шт_на_листе) + приладка; бумага = листов × price материала; печать = листов × cost_per_impression × max(color_front, color_back); добавь form_cost × (color_front+color_back) и финиш. Округляй до 100 ₸.
+- Считай ориентировочно: items_per_sheet = floor(print_format площадь / item площадь × 0.85); sheets_useful = ceil(тираж / items_per_sheet); sheets_setup = press_machines.setup_sheets × max(color_front,color_back); sheets_total = sheets_useful + sheets_setup; бумага = sheets_total × material_price_per_sheet; печать = sheets_total × cost_per_impression × max(color_front, color_back); добавь setup_cost машины и form_cost × forms_count, постпечать по operations и lamination. Округляй до 100 ₸.
+- ОБЯЗАТЕЛЬНО заполняй press_machine_id, print_format_id, items_per_sheet, sheets_useful, sheets_setup, sheets_total, material_price_per_sheet, impressions, cost_per_impression, setup_cost, postpress_breakdown, vat_percent, vat_amount, margin_amount — менеджеру нужна полная расшифровка.
 - Если не можешь оценить число шт_на_листе — прикинь по площади (purchase_w*h / item_w*h * 0.85).
 - Поля, которых не знаешь — пропускай.
 - 4+4 = color_front 4, color_back 4. 4+0 = front 4, back 0.
@@ -253,6 +272,7 @@ function sanitizeProposedOrder(order: any, snapshot: ReferenceSnapshot): any {
   const materialIds = new Set(snapshot.materials.map((m) => m.id));
   const machineIds = new Set(snapshot.press_machines.map((m) => m.id));
   const printIds = new Set(snapshot.print_formats.map((p) => p.id));
+  const purchaseIds = new Set(snapshot.purchase_formats.map((p) => p.id));
 
   const notes: string[] = [];
   if (typeof order.notes === "string" && order.notes.trim()) notes.push(order.notes.trim());
@@ -266,6 +286,32 @@ function sanitizeProposedOrder(order: any, snapshot: ReferenceSnapshot): any {
   }
   if (order.press_machine_id && !machineIds.has(order.press_machine_id)) order.press_machine_id = null;
   if (order.print_format_id && !printIds.has(order.print_format_id)) order.print_format_id = null;
+  if (order.purchase_format_id && !purchaseIds.has(order.purchase_format_id)) order.purchase_format_id = null;
+
+  // Резолвим человеко-читаемые подписи на сервере, чтобы клиент гарантированно получил их.
+  if (order.press_machine_id) {
+    const m = snapshot.press_machines.find((x) => x.id === order.press_machine_id);
+    if (m) {
+      order.press_machine_name = `${m.name} (${m.type}, до ${m.max_w}×${m.max_h} мм)`;
+      if (typeof order.cost_per_impression !== "number") order.cost_per_impression = m.cost_per_impression;
+      if (typeof order.setup_cost !== "number") order.setup_cost = m.setup_cost;
+    }
+  }
+  if (order.print_format_id) {
+    const p = snapshot.print_formats.find((x) => x.id === order.print_format_id);
+    if (p) order.print_format_label = `${p.w}×${p.h} мм`;
+  }
+  if (order.purchase_format_id) {
+    const p = snapshot.purchase_formats.find((x) => x.id === order.purchase_format_id);
+    if (p) order.purchase_format_label = `${p.w}×${p.h} мм`;
+  }
+  if (order.material_id) {
+    const m = snapshot.materials.find((x) => x.id === order.material_id);
+    if (m && typeof order.material_price_per_sheet !== "number") {
+      order.material_price_per_sheet = m.price;
+    }
+  }
+  if (typeof order.vat_percent !== "number") order.vat_percent = snapshot.vat_percent;
 
   order.notes = notes.join(" ") || undefined;
   return order;
