@@ -1,14 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import { Loader2, Send, Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { logDataIssue } from "@/lib/data-issue";
-import { cn } from "@/lib/utils";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputFooter,
+  PromptInputSubmit,
+  type PromptInputMessage,
+} from "@/components/ai-elements/prompt-input";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+import aiLogo from "@/assets/ai-calc-logo.png";
 
 export type ProposedOrder = {
   product_type?: string;
@@ -123,21 +136,20 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
   }, [order.material_id]);
 
   const openInCalculator = () => {
-    try {
-      sessionStorage.setItem("ai-calc-prefill", JSON.stringify(order));
-    } catch { /* ignore */ }
+    try { sessionStorage.setItem("ai-calc-prefill", JSON.stringify(order)); } catch { /* ignore */ }
     navigate("/calculator");
   };
   const fmtKzt = (n: number) => `${Math.round(n).toLocaleString("ru-RU")} ₸`;
   const est = order.estimated_cost;
+
   return (
-    <div className="mt-2 rounded-lg border bg-card shadow-sm overflow-hidden">
-      <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 text-accent" />
+    <div className="mt-3 rounded-xl border bg-card shadow-sm overflow-hidden max-w-md">
+      <div className="px-3.5 py-2 border-b bg-muted/30 flex items-center gap-2">
+        <Wand2 className="h-3.5 w-3.5 text-primary" />
         <span className="text-xs font-medium">Распознанный заказ</span>
         {order.name && <span className="text-xs text-muted-foreground truncate">· {order.name}</span>}
       </div>
-      <ul className="px-3 py-2 text-xs sm:text-sm space-y-1">
+      <ul className="px-3.5 py-2.5 text-xs sm:text-sm space-y-1">
         {lines.length === 0 && <li className="text-muted-foreground">Нет распознанных полей</li>}
         {lines.map((l) => (
           <li key={l.label} className="flex justify-between gap-3">
@@ -153,7 +165,7 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
         )}
       </ul>
       {est && (typeof est.total === "number" || typeof est.sale_price === "number") && (
-        <div className="px-3 py-2 border-t bg-muted/10 space-y-1 text-xs sm:text-sm">
+        <div className="px-3.5 py-2.5 border-t bg-muted/10 space-y-1 text-xs sm:text-sm">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Ориентир по справочнику</div>
           {typeof est.paper === "number" && (
             <div className="flex justify-between"><span className="text-muted-foreground">Бумага</span><span className="tabular-nums">{fmtKzt(est.paper)}</span></div>
@@ -173,14 +185,14 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
         </div>
       )}
       {order.cost_breakdown && order.cost_breakdown.length > 0 && (
-        <ul className="px-3 pb-2 text-[11px] text-muted-foreground space-y-0.5">
+        <ul className="px-3.5 pb-2 text-[11px] text-muted-foreground space-y-0.5">
           {order.cost_breakdown.slice(0, 4).map((s, i) => <li key={i}>• {s}</li>)}
         </ul>
       )}
       {order.notes && (
-        <div className="px-3 pb-2 text-[11px] italic text-muted-foreground">{order.notes}</div>
+        <div className="px-3.5 pb-2 text-[11px] italic text-muted-foreground">{order.notes}</div>
       )}
-      <div className="px-3 py-2 border-t bg-muted/20">
+      <div className="px-3.5 py-2 border-t bg-muted/20">
         <Button size="sm" className="w-full gap-1.5" onClick={openInCalculator}>
           Открыть в калькуляторе <ArrowRight className="h-3.5 w-3.5" />
         </Button>
@@ -189,34 +201,39 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
   );
 }
 
+const EXAMPLES = [
+  "Посчитай 1000 листовок А5 4+4 на мелованной 130",
+  "Визитки 90×50, 4+0, 500 шт, дизайнерская 300",
+  "Флаер А6, 4+4, 5000 шт, матовая ламинация",
+  "Буклет А4 с одним фальцем, 2000 шт, мелованная 150, 4+4",
+];
+
 export default function ChatWindow({ threadId, initialMessages, onTitleSuggested }: Props) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [status, setStatus] = useState<"ready" | "submitted" | "error">("ready");
+  const abortRef = useRef<AbortController | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Build short history for AI gateway (text only).
   const history = useMemo(
     () =>
       messages.flatMap((m) => {
         const txt = m.parts
-          .map((p) => (p.type === "text" ? p.text : p.type === "proposed_order" ? `[предложение: ${JSON.stringify(p.order)}]` : ""))
-          .join("\n")
-          .trim();
+          .map((p) =>
+            p.type === "text" ? p.text :
+            p.type === "proposed_order" ? `[предложение: ${JSON.stringify(p.order)}]` : "",
+          )
+          .join("\n").trim();
         return txt ? [{ role: m.role, content: txt }] : [];
       }),
     [messages],
   );
 
+  // Focus textarea on mount / thread change / after send
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages.length, loading]);
-
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, [threadId]);
+    const t = setTimeout(() => textareaRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [threadId, status]);
 
   const persistMessage = async (msg: { role: "user" | "assistant"; parts: ChatPart[] }) => {
     if (!user) return null;
@@ -237,40 +254,62 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
     return data as { id: string; created_at: string };
   };
 
-  const send = async () => {
-    const text = input.trim();
-    if (!text || loading || !user) return;
-    setInput("");
-    setLoading(true);
+  const send = async (text: string) => {
+    if (!text.trim() || status === "submitted" || !user) return;
+    const trimmed = text.trim();
+    setStatus("submitted");
 
-    const userMsgLocal: ChatMessage = {
+    const userMsg: ChatMessage = {
       id: `tmp-${Date.now()}`,
       role: "user",
-      parts: [{ type: "text", text }],
+      parts: [{ type: "text", text: trimmed }],
       created_at: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, userMsgLocal]);
+    setMessages((prev) => [...prev, userMsg]);
 
-    const saved = await persistMessage({ role: "user", parts: userMsgLocal.parts });
+    const saved = await persistMessage({ role: "user", parts: userMsg.parts });
     if (saved) {
-      setMessages((prev) => prev.map((m) => (m.id === userMsgLocal.id ? { ...m, id: saved.id, created_at: saved.created_at } : m)));
+      setMessages((prev) =>
+        prev.map((m) => (m.id === userMsg.id ? { ...m, id: saved.id, created_at: saved.created_at } : m)),
+      );
     }
 
-    // If first user message — suggest a title
+    // First user message → suggested title
     if (messages.length === 0) {
-      const suggested = text.slice(0, 60);
+      const suggested = trimmed.slice(0, 60);
       onTitleSuggested?.(suggested);
       await supabase.from("ai_threads").update({ title: suggested }).eq("id", threadId);
     } else {
       await supabase.from("ai_threads").update({ updated_at: new Date().toISOString() }).eq("id", threadId);
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const { data, error } = await supabase.functions.invoke("ai-calc-chat", {
-        body: { text, history },
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("no_session");
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-calc-chat`;
+      const res = await fetch(fnUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ text: trimmed, history }),
+        signal: controller.signal,
       });
-      if (error) throw error;
+
+      if (!res.ok) {
+        if (res.status === 429) throw new Error("rate_limit");
+        if (res.status === 402) throw new Error("credits");
+        throw new Error(`http_${res.status}`);
+      }
+      const data = await res.json();
       if (!data?.ok) throw new Error(data?.error || "ai_error");
+
       const parts: ChatPart[] = [{ type: "text", text: String(data.reply ?? "") }];
       if (data.proposed_order && typeof data.proposed_order === "object") {
         parts.push({ type: "proposed_order", order: data.proposed_order });
@@ -284,111 +323,127 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       setMessages((prev) => [...prev, aMsg]);
       const savedA = await persistMessage({ role: "assistant", parts });
       if (savedA) {
-        setMessages((prev) => prev.map((m) => (m.id === aMsg.id ? { ...m, id: savedA.id, created_at: savedA.created_at } : m)));
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aMsg.id ? { ...m, id: savedA.id, created_at: savedA.created_at } : m)),
+        );
       }
+      setStatus("ready");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      if (msg === "AbortError" || (e instanceof DOMException && e.name === "AbortError")) {
+        // Cancelled by user — persist a "_Остановлено._" marker so reload shows it
+        const stopMsg: ChatMessage = {
+          id: `tmp-${Date.now()}-stop`,
+          role: "assistant",
+          parts: [{ type: "text", text: "_Остановлено._" }],
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, stopMsg]);
+        const savedS = await persistMessage({ role: "assistant", parts: stopMsg.parts });
+        if (savedS) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === stopMsg.id ? { ...m, id: savedS.id, created_at: savedS.created_at } : m)),
+          );
+        }
+        setStatus("ready");
+        return;
+      }
       if (msg.includes("rate_limit")) toast.error("Слишком много запросов. Подождите немного.");
       else if (msg.includes("credits")) toast.error("Закончились кредиты ИИ. Пополните в настройках.");
+      else if (msg === "no_session") toast.error("Сессия истекла. Войдите снова.");
       else toast.error("ИИ не ответил. Попробуйте ещё раз.");
       logDataIssue("ai-calc:invoke", e as never);
+      setStatus("error");
     } finally {
-      setLoading(false);
-      textareaRef.current?.focus();
+      abortRef.current = null;
     }
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
+  const stop = () => {
+    abortRef.current?.abort();
   };
 
-  const examples = [
-    "Посчитай 1000 листовок А5 4+4 на мелованной 130",
-    "Визитки 90×50, 4+0, 500 шт, дизайнерская 300",
-    "Флаер А6, 4+4, 5000 шт, матовая ламинация",
-  ];
+  const handlePromptSubmit = (msg: PromptInputMessage) => {
+    void send(msg.text ?? "");
+  };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100dvh-5rem)]">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="max-w-md mx-auto text-center py-10 space-y-4">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground">
-              <Sparkles className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold">Опишите заказ словами</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                ИИ задаст уточнения и предложит готовую карточку для калькулятора.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              {examples.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  onClick={() => setInput(ex)}
-                  className="block w-full text-left text-xs px-3 py-2 rounded-lg border bg-card hover:bg-muted/40 transition-colors"
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {messages.map((m) => (
-          <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-            <div className={cn("max-w-[85%] sm:max-w-[75%]", m.role === "user" ? "" : "w-full")}>
-              {m.parts.map((p, i) =>
-                p.type === "text" ? (
-                  <div
-                    key={i}
-                    className={cn(
-                      "text-sm",
-                      m.role === "user"
-                        ? "rounded-2xl px-3.5 py-2 bg-primary text-primary-foreground"
-                        : "prose prose-sm dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 text-foreground",
-                    )}
+    <div className="flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100dvh-5rem)] bg-background">
+      <Conversation className="flex-1">
+        <ConversationContent className="max-w-3xl mx-auto w-full">
+          {messages.length === 0 ? (
+            <ConversationEmptyState
+              className="py-12"
+              icon={<img src={aiLogo} alt="" width={64} height={64} className="opacity-90" />}
+              title="Опишите заказ словами"
+              description="ИИ задаст уточнения, подберёт материал из справочника и сразу прикинет стоимость."
+            >
+              <img src={aiLogo} alt="" width={64} height={64} className="opacity-90" />
+              <div className="space-y-1 max-w-md">
+                <h3 className="font-medium text-sm">Опишите заказ словами</h3>
+                <p className="text-muted-foreground text-sm">
+                  ИИ задаст уточнения, подберёт материал из справочника и сразу прикинет стоимость.
+                </p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2 max-w-xl w-full pt-2">
+                {EXAMPLES.map((ex) => (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => void send(ex)}
+                    className="text-left text-xs px-3 py-2.5 rounded-lg border bg-card hover:bg-muted/40 transition-colors"
                   >
-                    {m.role === "assistant" ? <ReactMarkdown>{p.text}</ReactMarkdown> : p.text}
-                  </div>
-                ) : (
-                  <ProposedOrderCard key={i} order={p.order} />
-                ),
-              )}
-            </div>
-          </div>
-        ))}
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            </ConversationEmptyState>
+          ) : (
+            messages.map((m) => (
+              <Message key={m.id} from={m.role}>
+                <MessageContent>
+                  {m.parts.map((p, i) =>
+                    p.type === "text" ? (
+                      m.role === "assistant" ? (
+                        <MessageResponse key={i}>{p.text}</MessageResponse>
+                      ) : (
+                        <span key={i} className="whitespace-pre-wrap">{p.text}</span>
+                      )
+                    ) : (
+                      <ProposedOrderCard key={i} order={p.order} />
+                    ),
+                  )}
+                </MessageContent>
+              </Message>
+            ))
+          )}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="text-xs text-muted-foreground flex items-center gap-2 px-1">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> ИИ думает…
-            </div>
-          </div>
-        )}
-      </div>
+          {status === "submitted" && (
+            <Message from="assistant">
+              <MessageContent>
+                <Shimmer>ИИ думает…</Shimmer>
+              </MessageContent>
+            </Message>
+          )}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
 
-      <div className="border-t bg-card/80 backdrop-blur p-3 safe-bottom">
-        <div className="flex gap-2 items-end">
-          <Textarea
-            ref={textareaRef}
-            rows={1}
-            autoFocus
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Опишите заказ или задайте вопрос…"
-            className="resize-none min-h-[44px] max-h-32 text-sm"
-            disabled={loading}
-          />
-          <Button onClick={send} disabled={loading || !input.trim()} size="icon" className="h-11 w-11 shrink-0">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
+      <div className="border-t bg-card/80 backdrop-blur safe-bottom">
+        <div className="max-w-3xl mx-auto w-full p-3">
+          <PromptInput onSubmit={handlePromptSubmit}>
+            <PromptInputTextarea
+              ref={textareaRef as never}
+              placeholder="Опишите заказ или задайте уточняющий вопрос…"
+              autoFocus
+            />
+            <PromptInputFooter className="justify-end">
+              <PromptInputSubmit status={status} onStop={stop} />
+            </PromptInputFooter>
+          </PromptInput>
+          <p className="text-[10px] text-muted-foreground text-center mt-1.5">
+            ИИ использует справочник Platebox. Точный расчёт всегда выполняется в калькуляторе.
+          </p>
         </div>
       </div>
     </div>

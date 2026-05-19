@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, MessageSquare, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
 import { DataState } from "@/components/DataState";
+import aiLogo from "@/assets/ai-calc-logo.png";
 
 type Thread = { id: string; title: string; updated_at: string };
 
@@ -69,9 +70,7 @@ export default function AiCalc() {
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
         <div className="container mx-auto flex items-center gap-3 py-3 px-4">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground">
-              <MessageSquare className="h-4 w-4" />
-            </div>
+            <img src={aiLogo} alt="" width={32} height={32} className="h-8 w-8 shrink-0" />
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-semibold leading-tight truncate">ИИ-расчёт</h1>
               <p className="text-[11px] text-muted-foreground leading-tight">Опишите заказ словами — ИИ подберёт параметры</p>
