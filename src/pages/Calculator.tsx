@@ -227,24 +227,28 @@ const Calculator = () => {
       } catch (e: any) {
         toast.error("Не удалось загрузить правила расчёта: " + (e?.message || ""));
       }
-      const { data: m, error: mErr } = await supabase.from("materials").select("*").order("name");
-      handleSupabaseError(mErr, "материалы");
-      const { data: l, error: lErr } = await supabase.from("lamination_prices").select("film_type,size_range,cost_per_side");
-      handleSupabaseError(lErr, "ламинация");
-      const { data: e, error: eErr } = await supabase.from("equipment").select("*").eq("type", "print").order("name");
-      handleSupabaseError(eErr, "оборудование");
-      const { data: s, error: sErr } = await supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle();
-      handleSupabaseError(sErr, "настройки");
-      const { data: pf, error: pfErr } = await supabase.from("print_formats" as any).select("*").order("sort_order");
-      handleSupabaseError(pfErr, "печатные форматы");
-      const { data: buyf, error: buyErr } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
-      handleSupabaseError(buyErr, "закупочные форматы");
-      const { data: pm, error: pmErr } = await supabase.from("press_machines" as any).select("*").order("sort_order");
-      handleSupabaseError(pmErr, "печатные машины");
-      const { data: rules, error: rulesErr } = await supabase.from("product_circulation_rules" as any).select("*").order("sort_order");
-      handleSupabaseError(rulesErr, "правила тиражей");
-      const { data: ops, error: opsErr } = await supabase.from("operations").select("*").order("subgroup").order("name");
-      handleSupabaseError(opsErr, "операции");
+      const [mR, lR, eR, sR, pfR, buyR, pmR, rulesR, opsR] = await Promise.all([
+        supabase.from("materials").select("*").order("name"),
+        supabase.from("lamination_prices").select("film_type,size_range,cost_per_side"),
+        supabase.from("equipment").select("*").eq("type", "print").order("name"),
+        supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle(),
+        supabase.from("print_formats" as any).select("*").order("sort_order"),
+        supabase.from("purchase_formats" as any).select("*").order("sort_order"),
+        supabase.from("press_machines" as any).select("*").order("sort_order"),
+        supabase.from("product_circulation_rules" as any).select("*").order("sort_order"),
+        supabase.from("operations").select("*").order("subgroup").order("name"),
+      ]);
+      const m = mR.data, l = lR.data, e = eR.data, s = sR.data;
+      const pf = pfR.data, buyf = buyR.data, pm = pmR.data, rules = rulesR.data, ops = opsR.data;
+      handleSupabaseError(mR.error, "материалы");
+      handleSupabaseError(lR.error, "ламинация");
+      handleSupabaseError(eR.error, "оборудование");
+      handleSupabaseError(sR.error, "настройки");
+      handleSupabaseError(pfR.error, "печатные форматы");
+      handleSupabaseError(buyR.error, "закупочные форматы");
+      handleSupabaseError(pmR.error, "печатные машины");
+      handleSupabaseError(rulesR.error, "правила тиражей");
+      handleSupabaseError(opsR.error, "операции");
       if (s?.value) setVatPercent(Number(s.value) || 0);
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
@@ -264,6 +268,7 @@ const Calculator = () => {
     const tpl = searchParams.get("from");
     if (!tpl) return;
     (async () => {
+      await ensureSupabaseSession();
       const { data } = await supabase.from("calculations").select("*").eq("id", tpl).single();
       if (!data) return;
       setName((data.name || "") + (data.is_template ? "" : " (копия)"));

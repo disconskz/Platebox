@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureSupabaseSession } from "@/lib/auth-session";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtMoney } from "@/lib/format";
@@ -15,9 +17,13 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--success)
 const Analytics = () => {
   const [calcs, setCalcs] = useState<any[]>([]);
   const [period, setPeriod] = useState("30");
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) { setCalcs([]); return; }
     (async () => {
+      await ensureSupabaseSession();
       const since = new Date(Date.now() - Number(period) * 86400000).toISOString();
       const { data } = await supabase
         .from("calculations")
@@ -27,7 +33,7 @@ const Analytics = () => {
         .order("created_at", { ascending: true });
       setCalcs(data || []);
     })();
-  }, [period]);
+  }, [period, authLoading, user?.id]);
 
   const stats = useMemo(() => {
     const totalSale = calcs.reduce((s, c) => s + Number(c.sale_price || 0), 0);

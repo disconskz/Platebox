@@ -16,6 +16,7 @@ import { PRODUCT_LABELS } from "@/lib/calc/products";
 import { HelpHint } from "@/components/HelpHint";
 import { useAuth } from "@/hooks/useAuth";
 import { createSupabaseTimeout, isAbortError } from "@/lib/supabase-timeout";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 
 const STAGE_LABELS: Record<string, string> = {
   prepress: "Допечатные",
@@ -47,7 +48,9 @@ const CalculationView = () => {
 
   const load = async () => {
     if (!id) return;
-    if (!session?.access_token) {
+    const restored = await ensureSupabaseSession();
+    const token = restored?.access_token ?? session?.access_token;
+    if (!token) {
       setLoadError("Сессия входа не восстановлена. Выйдите и войдите снова.");
       setLoading(false);
       return;
@@ -62,7 +65,7 @@ const CalculationView = () => {
       const calcId = encodeURIComponent(id);
       const headers = {
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       };
       const requestJson = async <T,>(path: string): Promise<T> => {
         const res = await fetch(`${base}${path}`, { signal: timeout.signal, headers });

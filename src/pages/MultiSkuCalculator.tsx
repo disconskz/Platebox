@@ -55,15 +55,24 @@ export default function MultiSkuCalculator() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading) return;
+    if (!user) {
+      setMaterials([]);
+      setPrintFormats([]);
+      setPurchaseFormats([]);
+      return;
+    }
     (async () => {
       await ensureSupabaseSession();
       const rules = await loadCalcRules();
       setCalcRules(rules);
-      const { data: m } = await supabase.from("materials").select("*").order("name");
-      const { data: pf } = await supabase.from("print_formats" as any).select("*").order("sort_order");
-      const { data: buyf } = await supabase.from("purchase_formats" as any).select("*").order("sort_order");
-      const { data: s } = await supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle();
+      const [mRes, pfRes, buyRes, sRes] = await Promise.all([
+        supabase.from("materials").select("*").order("name"),
+        supabase.from("print_formats" as any).select("*").order("sort_order"),
+        supabase.from("purchase_formats" as any).select("*").order("sort_order"),
+        supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle(),
+      ]);
+      const m = mRes.data; const pf = pfRes.data; const buyf = buyRes.data; const s = sRes.data;
       setMaterials((m as Material[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
