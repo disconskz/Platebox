@@ -842,6 +842,9 @@ const Calculator = () => {
     if (typeof o.color_back === "number") setColorBack(o.color_back);
     if (o.material_category) setMaterialCategory(o.material_category);
     if (typeof o.material_density === "number") setMaterialDensity(o.material_density);
+    if (o.material_id && materials.some((m) => m.id === o.material_id)) {
+      setMaterialId(o.material_id);
+    }
     if (typeof o.has_fold === "boolean") setHasFold(o.has_fold);
     if (typeof o.fold_count === "number") setFoldCount(o.fold_count);
     if (typeof o.has_die_cut === "boolean") setHasDieCut(o.has_die_cut);
