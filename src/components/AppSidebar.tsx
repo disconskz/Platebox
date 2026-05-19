@@ -44,13 +44,14 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b">
-        <NavLink to="/app" className="flex items-center gap-2 px-2 py-2">
-          <div className="ring-glow flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground font-bold text-sm shadow-elevated transition-transform duration-300 hover:scale-105">
-            P
+        <NavLink to="/app" className="flex items-center gap-2.5 px-2 py-2">
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/30 transition-transform duration-300 hover:scale-105">
+            <span className="absolute inset-0 rounded-lg bg-primary/40 blur-md -z-10" />
+            <div className="h-3.5 w-3.5 bg-primary-foreground rounded-sm rotate-45 animate-pulse" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="text-sm font-semibold leading-tight truncate">Platebox</div>
+              <div className="text-base font-bold leading-tight truncate tracking-tight" style={{ fontFamily: '"Space Grotesk", sans-serif' }}>Platebox</div>
               <div className="text-[10px] text-muted-foreground truncate">Кабинет типографии</div>
             </div>
           )}
