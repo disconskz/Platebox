@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
-import { createSupabaseTimeout, isAbortError } from "@/lib/supabase-timeout";
+import { createSupabaseTimeout } from "@/lib/supabase-timeout";
 import { handleSupabaseError } from "@/lib/supabase-error";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
