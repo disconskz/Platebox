@@ -72,13 +72,6 @@ const OPT_LABELS: Record<string, string> = {
 
 const optLabel = (v: string) => OPT_LABELS[v] ?? v;
 
-const withAuthHeader = <T,>(query: T, accessToken: string | null): T => {
-  if (accessToken && typeof (query as any).setHeader === "function") {
-    (query as any).setHeader("Authorization", `Bearer ${accessToken}`);
-  }
-  return query;
-};
-
 // Динамические опции (загружаются из БД) для select-полей со ссылками на другие таблицы
 type DynamicOptions = {
   purchase_formats?: { value: string; label: string }[];
