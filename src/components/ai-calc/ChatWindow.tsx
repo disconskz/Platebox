@@ -146,8 +146,7 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
     <div className="mt-3 space-y-3 max-w-2xl">
       {/* Bento header — specs (4) + total (2) */}
       <div className="grid grid-cols-6 gap-3">
-        <div className="col-span-6 md:col-span-4 p-5 rounded-2xl border border-primary/20 bg-card/60 backdrop-blur-md relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-32 w-32 -mr-16 -mt-16 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="col-span-6 md:col-span-4 p-5 rounded-2xl border border-border bg-card relative overflow-hidden shadow-card">
           <div className="flex items-center gap-2 mb-4">
             <Wand2 className="h-3.5 w-3.5 text-primary" />
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">Распознанный заказ</h4>
@@ -173,7 +172,7 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
           )}
         </div>
 
-        <div className="col-span-6 md:col-span-2 p-5 rounded-2xl border border-primary/30 bg-primary/10 backdrop-blur-md flex flex-col justify-between gap-3">
+        <div className="col-span-6 md:col-span-2 p-5 rounded-2xl border border-primary/30 bg-primary/5 flex flex-col justify-between gap-3 shadow-card">
           <div>
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary/90">Итого, ₸</h4>
             <p
@@ -192,7 +191,7 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
               </p>
             ) : null}
           </div>
-          <Button size="sm" className="w-full gap-1.5 shadow-lg shadow-primary/30" onClick={openInCalculator}>
+          <Button size="sm" className="w-full gap-1.5" onClick={openInCalculator}>
             Открыть расчёт <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -403,25 +402,17 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
   };
 
   return (
-    <div className="relative flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100dvh-5rem)] bg-aurora">
+    <div className="relative flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100dvh-5rem)] bg-background">
       <Conversation className="flex-1">
         <ConversationContent className="max-w-3xl mx-auto w-full pb-44">
           {messages.length === 0 ? (
             <ConversationEmptyState
               className="py-12"
-              icon={
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-2xl" />
-                  <img src={aiLogo} alt="" width={72} height={72} className="relative opacity-95" />
-                </div>
-              }
+              icon={<img src={aiLogo} alt="" width={72} height={72} />}
               title="Опишите заказ словами"
               description="ИИ задаст уточнения, подберёт материал из справочника и сразу прикинет стоимость."
             >
-              <div className="relative">
-                <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-2xl" />
-                <img src={aiLogo} alt="" width={72} height={72} className="relative opacity-95" />
-              </div>
+              <img src={aiLogo} alt="" width={72} height={72} />
               <div className="space-y-1 max-w-md">
                 <h3 className="font-medium text-sm">Опишите заказ словами</h3>
                 <p className="text-muted-foreground text-sm">
@@ -434,7 +425,7 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                     key={ex}
                     type="button"
                     onClick={() => void send(ex)}
-                    className="text-left text-xs px-3 py-2.5 rounded-xl border border-border/60 bg-card/60 backdrop-blur hover:border-primary/40 hover:bg-primary/5 transition-all"
+                    className="text-left text-xs px-3 py-2.5 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all"
                   >
                     {ex}
                   </button>
@@ -455,7 +446,7 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                 <MessageContent
                   className={
                     m.role === "user"
-                      ? "group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground group-[.is-user]:rounded-2xl group-[.is-user]:rounded-tr-sm group-[.is-user]:shadow-[0_0_24px_hsl(var(--primary)/0.35)]"
+                      ? "group-[.is-user]:bg-primary group-[.is-user]:text-primary-foreground group-[.is-user]:rounded-2xl group-[.is-user]:rounded-tr-sm"
                       : undefined
                   }
                 >
@@ -500,16 +491,8 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       {/* Floating composer */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 safe-bottom">
         <div className="pointer-events-auto mx-auto max-w-2xl w-full px-3 sm:px-6 pb-4 pt-10 bg-gradient-to-t from-background via-background/90 to-transparent">
-          <div className="relative group">
-            <div
-              className="absolute -inset-1 rounded-[22px] blur-xl opacity-25 group-focus-within:opacity-50 transition-opacity duration-500 animate-gradient-sweep"
-              style={{
-                background:
-                  "linear-gradient(90deg, hsl(var(--primary)), hsl(280 70% 60%), hsl(var(--primary)))",
-                backgroundSize: "200% auto",
-              }}
-            />
-            <div className="relative rounded-[18px] border border-primary/30 bg-card/80 backdrop-blur-2xl shadow-2xl overflow-hidden">
+          <div className="relative">
+            <div className="relative rounded-[18px] border border-border bg-card shadow-elevated overflow-hidden">
               <PromptInput onSubmit={handlePromptSubmit} className="border-0 bg-transparent">
                 <PromptInputTextarea
                   ref={textareaRef as never}
@@ -518,7 +501,7 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                   className="bg-transparent"
                 />
                 <PromptInputFooter className="justify-end">
-                  <PromptInputSubmit status={status} onStop={stop} className="shadow-lg shadow-primary/30" />
+                  <PromptInputSubmit status={status} onStop={stop} />
                 </PromptInputFooter>
               </PromptInput>
             </div>
