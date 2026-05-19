@@ -27,6 +27,7 @@ import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
 import { useAuth } from "@/hooks/useAuth";
 import { ensureSupabaseSession } from "@/lib/auth-session";
+import { DataState } from "@/components/DataState";
 
 type AnyRow = Record<string, any>;
 
@@ -405,6 +406,8 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
   const [activeSection, setActiveSection] = useState<string>("__all");
   const [sectionList, setSectionList] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<{ rows: AnyRow[]; mode: "one" | "many" } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const hasSubgroup = useMemo(() => {
     const cols = spec.cols.map((c: any) => c.k);
@@ -416,18 +419,28 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
 
   const load = async () => {
     if (!authReady) return;
-    const session = await ensureSupabaseSession();
-    if (!session?.access_token) {
-      console.warn(`[References.load:${spec.key}] нет сессии — пропускаю запрос`);
-      return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const session = await ensureSupabaseSession();
+      if (!session?.access_token) {
+        setLoadError("Сессия входа не восстановлена. Обновите страницу или войдите снова.");
+        return;
+      }
+      const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
+      if (error) {
+        console.error(`[References.load:${spec.key}]`, error);
+        setLoadError(`Не удалось загрузить «${spec.title || spec.key}»: ${error.message}`);
+        return;
+      }
+      setRows((data as any) || []);
+      setSelected(new Set());
+    } catch (e: any) {
+      console.error(`[References.load:${spec.key}]`, e);
+      setLoadError(e?.message || "Неизвестная ошибка при загрузке");
+    } finally {
+      setLoading(false);
     }
-    const { data, error } = await (supabase as any).from(spec.key).select("*").order(spec.cols[0].k);
-    if (error) {
-      console.error(`[References.load:${spec.key}]`, error);
-      toast.error(`Не удалось загрузить «${spec.title || spec.key}»: ${error.message}`);
-    }
-    setRows((data as any) || []);
-    setSelected(new Set());
   };
 
   const loadSections = async () => {
@@ -822,6 +835,16 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
         )}
       </CardHeader>
       <CardContent>
+        <DataState
+          loading={loading}
+          error={loadError}
+          empty={!loading && !loadError && rows.length === 0 && !search && activeSection === "__all"}
+          onRetry={load}
+          variant="rows"
+          rowCount={8}
+          emptyTitle={`В справочнике «${spec.title || spec.key}» пока нет записей`}
+          emptyDescription="Добавьте первую запись через форму выше или импортируйте CSV."
+        >
         <div className="scroll-x overflow-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -952,6 +975,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
             </Button>
           </div>
         </div>
+        </DataState>
       </CardContent>
       <AlertDialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
         <AlertDialogContent>
