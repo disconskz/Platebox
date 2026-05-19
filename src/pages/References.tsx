@@ -26,7 +26,7 @@ import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
 import { useAuth } from "@/hooks/useAuth";
-import { getCachedAccessToken } from "@/lib/auth-session";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 
 type AnyRow = Record<string, any>;
 
@@ -91,11 +91,11 @@ const useDynamicOptions = (enabled: boolean): DynamicOptions => {
     if (!enabled) return;
     let cancelled = false;
     (async () => {
-      const token = getCachedAccessToken();
+      await ensureSupabaseSession();
       if (cancelled) return;
       const [pfRes, pmRes] = await Promise.all([
-        withAuthHeader((supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"), token),
-        withAuthHeader((supabase as any).from("press_machines").select("id,name").order("sort_order"), token),
+        (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"),
+        (supabase as any).from("press_machines").select("id,name").order("sort_order"),
       ]);
       if (pfRes.error) console.error("[useDynamicOptions] purchase_formats:", pfRes.error);
       if (pmRes.error) console.error("[useDynamicOptions] press_machines:", pmRes.error);
@@ -112,10 +112,9 @@ const useDynamicOptions = (enabled: boolean): DynamicOptions => {
     })();
     // Перезагрузить опции, если сессия обновилась (логин/рефреш токена).
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      const token = getCachedAccessToken(s);
-      if (token && !cancelled) {
-        withAuthHeader((supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"), token).then((pfRes: any) => {
-          withAuthHeader((supabase as any).from("press_machines").select("id,name").order("sort_order"), token).then((pmRes: any) => {
+      if (s?.access_token && !cancelled) {
+        (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order").then((pfRes: any) => {
+          (supabase as any).from("press_machines").select("id,name").order("sort_order").then((pmRes: any) => {
             if (cancelled) return;
             setOpts({
               purchase_formats: ((pfRes.data as any[]) || []).map((r) => ({ value: r.id, label: `${r.width} × ${r.height}` })),
