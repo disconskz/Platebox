@@ -1089,29 +1089,20 @@ export type Database = {
           total_cost: number
         }[]
       }
-      apply_item_price_change:
-        | {
-            Args: { _item_id: string; _new_price: number; _reason?: string }
-            Returns: {
-              profit: number
-              sale_price: number
-              total_cost: number
-            }[]
-          }
-        | {
-            Args: {
-              _expected_version?: number
-              _item_id: string
-              _new_price: number
-              _reason?: string
-            }
-            Returns: {
-              profit: number
-              sale_price: number
-              total_cost: number
-              version: number
-            }[]
-          }
+      apply_item_price_change: {
+        Args: {
+          _expected_version?: number
+          _item_id: string
+          _new_price: number
+          _reason?: string
+        }
+        Returns: {
+          profit: number
+          sale_price: number
+          total_cost: number
+          version: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
