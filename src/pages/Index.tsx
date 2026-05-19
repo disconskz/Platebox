@@ -15,9 +15,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import MobileTabBar from "@/components/MobileTabBar";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
-import { createSupabaseTimeout, isAbortError } from "@/lib/supabase-timeout";
+import { createSupabaseTimeout } from "@/lib/supabase-timeout";
 import { handleSupabaseError } from "@/lib/supabase-error";
 import { ensureSupabaseSession } from "@/lib/auth-session";
+import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
 
 type Calc = {
   id: string;
@@ -48,7 +49,8 @@ const Index = () => {
     const restored = await ensureSupabaseSession();
     const token = restored?.access_token ?? session?.access_token;
     if (!token) {
-      setLoadError("Сессия входа не восстановлена. Выйдите и войдите снова.");
+      const issue = noSessionIssue("Index.load:calculations");
+      setLoadError(issue.userMessage);
       setLoading(false);
       return;
     }
@@ -66,17 +68,16 @@ const Index = () => {
       });
       if (!res.ok) {
         const body = await res.text();
-        throw new Error(body || `HTTP ${res.status}`);
+        const err: any = new Error(body || `HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
       }
       const data = await res.json();
       setCalcs((data as Calc[]) || []);
     } catch (e: unknown) {
-      const message = isAbortError(e)
-        ? "Сервер не ответил за 12 секунд. Попробуйте обновить список."
-        : e instanceof Error ? e.message : "Неизвестная ошибка";
-      console.error("[Index.load] calculations error:", e);
-      setLoadError(message);
-      toast.error("Не удалось загрузить расчёты: " + message);
+      const issue = logDataIssue("Index.load:calculations", e as any);
+      setLoadError(issue.userMessage);
+      toast.error(issue.userMessage);
     } finally {
       timeout.cancel();
       setLoading(false);
