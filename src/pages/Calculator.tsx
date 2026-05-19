@@ -853,6 +853,18 @@ const Calculator = () => {
     if (typeof o.margin_percent === "number") setMargin(o.margin_percent);
   };
 
+  // Apply prefill from /ai-calc once on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("ai-calc-prefill");
+      if (!raw) return;
+      sessionStorage.removeItem("ai-calc-prefill");
+      const parsed = JSON.parse(raw) as ParsedOrder;
+      applyAiOrder(parsed);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
