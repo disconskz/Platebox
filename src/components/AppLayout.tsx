@@ -13,8 +13,8 @@ export default function AppLayout() {
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* Floating trigger on desktop only */}
-          <div className="hidden md:flex h-11 items-center px-3 border-b border-border/60 bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50 shadow-[0_1px_0_hsl(var(--border)/0.6)]">
-            <SidebarTrigger className="hover:bg-muted/60 transition-colors" />
+          <div className="hidden md:flex h-12 items-center px-4 border-b border-border/60 bg-card/40 backdrop-blur-xl supports-[backdrop-filter]:bg-card/30">
+            <SidebarTrigger className="hover:bg-primary/10 hover:text-primary transition-colors" />
           </div>
           <Outlet />
         </div>
