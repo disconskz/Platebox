@@ -289,9 +289,21 @@ function ProposedOrderCard({ order }: { order: ProposedOrder }) {
               </p>
             ) : null}
           </div>
-          <Button size="sm" className="w-full gap-1.5" onClick={openInCalculator}>
-            Открыть расчёт <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex flex-col gap-1.5">
+            <Button size="sm" className="w-full gap-1.5" onClick={openInCalculator}>
+              Открыть расчёт <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5"
+              onClick={downloadPdf}
+              disabled={pdfBusy}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {pdfBusy ? "Готовим PDF…" : "Скачать PDF"}
+            </Button>
+          </div>
         </div>
       </div>
 
