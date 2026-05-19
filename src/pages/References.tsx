@@ -433,6 +433,9 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
       if (error) {
         const issue = logDataIssue(`References.load:${spec.key}`, error);
         setLoadError(`«${spec.title || spec.key}»: ${issue.userMessage}`);
+        if (issue.kind === "forbidden" || issue.kind === "unauthorized" || issue.kind === "no_session") {
+          toast.error(issue.userMessage);
+        }
         return;
       }
       const list = (data as any[]) || [];
