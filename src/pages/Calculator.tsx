@@ -861,12 +861,16 @@ const Calculator = () => {
     try {
       const raw = sessionStorage.getItem("ai-calc-prefill");
       if (!raw) return;
-      sessionStorage.removeItem("ai-calc-prefill");
       const parsed = JSON.parse(raw) as ParsedOrder;
+      // Если префилл содержит material_id, но материалы ещё не загружены — ждём
+      if (parsed.material_id && !materials.some((m) => m.id === parsed.material_id)) {
+        if (materials.length === 0) return; // повторим, когда materials появятся
+      }
+      sessionStorage.removeItem("ai-calc-prefill");
       applyAiOrder(parsed);
     } catch { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [materials]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle has-tabbar pb-32 md:pb-0">
