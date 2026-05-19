@@ -22,6 +22,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import aiLogo from "@/assets/ai-calc-logo.png";
+import { fmtMoney } from "@/lib/format";
 
 export type ProposedOrder = {
   product_type?: string;
@@ -38,6 +39,24 @@ export type ProposedOrder = {
   material_alternatives?: string[];
   press_machine_id?: string | null;
   print_format_id?: string | null;
+  purchase_format_id?: string | null;
+  press_machine_name?: string;
+  print_format_label?: string;
+  purchase_format_label?: string;
+  items_per_sheet?: number;
+  sheets_useful?: number;
+  sheets_setup?: number;
+  sheets_total?: number;
+  material_price_per_sheet?: number;
+  impressions?: number;
+  cost_per_impression?: number;
+  setup_cost?: number;
+  forms_count?: number;
+  form_cost_total?: number;
+  postpress_breakdown?: Array<{ name: string; qty?: number; unit?: string; unit_cost?: number; cost: number }>;
+  vat_percent?: number;
+  vat_amount?: number;
+  margin_amount?: number;
   estimated_cost?: {
     paper?: number;
     print?: number;
