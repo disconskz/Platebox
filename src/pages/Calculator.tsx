@@ -268,6 +268,7 @@ const Calculator = () => {
     const tpl = searchParams.get("from");
     if (!tpl) return;
     (async () => {
+      await ensureSupabaseSession();
       const { data } = await supabase.from("calculations").select("*").eq("id", tpl).single();
       if (!data) return;
       setName((data.name || "") + (data.is_template ? "" : " (копия)"));
