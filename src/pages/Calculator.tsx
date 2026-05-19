@@ -27,6 +27,8 @@ import { ChevronUp } from "lucide-react";
 import { HelpHint } from "@/components/HelpHint";
 import { cn } from "@/lib/utils";
 import { useProductGlossary, GlossaryItem, CATEGORY_LABELS, GlossaryCategory } from "@/lib/glossary";
+import { useAuth } from "@/hooks/useAuth";
+import { ensureSupabaseSession } from "@/lib/auth-session";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -130,6 +132,7 @@ const formatDimSchema = z.number().int().positive().max(2000);
 
 const Calculator = () => {
   const navigate = useNavigate();
+  const { loading: authLoading, user } = useAuth();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const { items: glossary } = useProductGlossary();
@@ -203,8 +206,10 @@ const Calculator = () => {
   const [margin, setMargin] = useState(30);
 
   useEffect(() => {
+    if (authLoading || !user) return;
     (async () => {
       try {
+        await ensureSupabaseSession();
         const calcRules = await loadCalcRules();
         setCalcRules(calcRules);
       } catch (e: any) {
@@ -240,7 +245,7 @@ const Calculator = () => {
       if (m && m.length) setMaterialId((m[0] as Material).id);
       if (e && e.length) setEquipmentId((e[0] as Equipment).id);
     })();
-  }, []);
+  }, [authLoading, user?.id]);
 
   // Load template/clone if requested
   useEffect(() => {
