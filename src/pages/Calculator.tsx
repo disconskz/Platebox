@@ -206,7 +206,19 @@ const Calculator = () => {
   const [margin, setMargin] = useState(30);
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading) return;
+    if (!user) {
+      // Logout: clear cached reference data so the next user doesn't see stale rows.
+      setMaterials([]);
+      setLam([]);
+      setEquipment([]);
+      setPrintFormats([]);
+      setPurchaseFormats([]);
+      setPressMachines([]);
+      setCirculationRules([]);
+      setOperations([]);
+      return;
+    }
     (async () => {
       try {
         await ensureSupabaseSession();

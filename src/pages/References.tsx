@@ -83,39 +83,28 @@ const useDynamicOptions = (enabled: boolean): DynamicOptions => {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    (async () => {
+    const fetchOpts = async () => {
       await ensureSupabaseSession();
       if (cancelled) return;
       const [pfRes, pmRes] = await Promise.all([
         (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order"),
         (supabase as any).from("press_machines").select("id,name").order("sort_order"),
       ]);
+      if (cancelled) return;
       if (pfRes.error) console.error("[useDynamicOptions] purchase_formats:", pfRes.error);
       if (pmRes.error) console.error("[useDynamicOptions] press_machines:", pmRes.error);
-      const pf = pfRes.data;
-      const pm = pmRes.data;
-      if (cancelled) return;
       setOpts({
-        purchase_formats: ((pf as any[]) || []).map((r) => ({
+        purchase_formats: ((pfRes.data as any[]) || []).map((r) => ({
           value: r.id,
           label: `${r.width} × ${r.height}`,
         })),
-        press_machines: ((pm as any[]) || []).map((r) => ({ value: r.id, label: r.name })),
+        press_machines: ((pmRes.data as any[]) || []).map((r) => ({ value: r.id, label: r.name })),
       });
-    })();
+    };
+    fetchOpts();
     // Перезагрузить опции, если сессия обновилась (логин/рефреш токена).
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (s?.access_token && !cancelled) {
-        (supabase as any).from("purchase_formats").select("id,width,height").order("sort_order").then((pfRes: any) => {
-          (supabase as any).from("press_machines").select("id,name").order("sort_order").then((pmRes: any) => {
-            if (cancelled) return;
-            setOpts({
-              purchase_formats: ((pfRes.data as any[]) || []).map((r) => ({ value: r.id, label: `${r.width} × ${r.height}` })),
-              press_machines: ((pmRes.data as any[]) || []).map((r) => ({ value: r.id, label: r.name })),
-            });
-          });
-        });
-      }
+      if (s?.access_token && !cancelled) fetchOpts();
     });
     return () => { cancelled = true; sub.subscription.unsubscribe(); };
   }, [enabled]);
