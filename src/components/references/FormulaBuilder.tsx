@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X, AlertTriangle, Eraser } from "lucide-react";
+import { HelpCircle, Lightbulb } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Token,
   BuilderConst,
@@ -34,6 +37,7 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
   const [rawMode, setRawMode] = useState(false);
   const [rawText, setRawText] = useState("");
   const [numInput, setNumInput] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -93,11 +97,44 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {title}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Помощь">
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                  Формула = последовательность значений и операторов.
+                  <br />Например: <code>[Количество ударов] × 30 + 5000</code>.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </DialogTitle>
           <DialogDescription>
             Соберите формулу из переменных, констант и чисел. При сохранении она преобразуется в текстовый вид.
           </DialogDescription>
         </DialogHeader>
+
+        <Collapsible open={helpOpen} onOpenChange={setHelpOpen}>
+          <CollapsibleTrigger asChild>
+            <button type="button" className="w-full flex items-center justify-between rounded-md border bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-200 hover:bg-amber-50">
+              <span className="inline-flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> Как составлять формулы</span>
+              <span className="text-[10px] opacity-70">{helpOpen ? "скрыть" : "показать"}</span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="text-xs space-y-1.5 px-2.5 py-2 border-x border-b rounded-b-md bg-card -mt-px">
+            <p><b>Переменная</b> — значение, которое появится при расчёте конкретного заказа: количество ударов, площадь, тираж и т.д. Вставляется в виде чипа <code>[Имя]</code>.</p>
+            <p><b>Спецтокены</b>: <code>[ТИРАЖ]</code> — общий тираж заказа из калькулятора; <code>[ПРЕДЫДУЩЕЕ ЗНАЧЕНИЕ]</code> — результат предыдущего шага в цепочке.</p>
+            <p><b>Константа</b> — общее число из справочника «Константы» (цена оттиска, цена формы и т.п.). При сохранении подставляется текущим значением.</p>
+            <p><b>Число</b> — постоянная величина прямо в формуле (например <code>5000</code> за приладку).</p>
+            <p><b>Операторы</b>: <code>+</code> сложение, <code>−</code> вычитание, <code>×</code> умножение, <code>÷</code> деление. Используйте <code>(</code> и <code>)</code>, чтобы задать порядок: сначала считается то, что в скобках.</p>
+            <p className="text-muted-foreground">Примеры: <code>[Площадь, см²] × 200</code> · <code>([ТИРАЖ] ÷ 1000) × 30 + 5000</code> · <code>[Кол-во оттисков] × [Цена оттиска]</code>.</p>
+            <p className="text-muted-foreground">Снизу видна строка-результат и проверка при ТИРАЖ = 1000 — если она «не вычислено», какой-то переменной не хватает значения по умолчанию.</p>
+          </CollapsibleContent>
+        </Collapsible>
 
         {rawMode ? (
           <div className="space-y-2">
@@ -141,7 +178,8 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
             </div>
 
             {/* Кнопки операторов */}
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[11px] text-muted-foreground mr-1">Оператор:</span>
               {(["+", "-", "*", "/", "(", ")"] as const).map((op) => (
                 <Button key={op} type="button" variant="outline" size="sm" onClick={() => addOp(op)} className="w-9 font-mono">
                   {op === "*" ? "×" : op === "/" ? "÷" : op}

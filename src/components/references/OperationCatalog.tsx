@@ -4,7 +4,8 @@ import { ensureSupabaseSession } from "@/lib/auth-session";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Search, CheckCircle2, AlertCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Search, CheckCircle2, AlertCircle, Pencil, Plus, Trash2, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FormulaBuilder } from "./FormulaBuilder";
 import { BuilderConst } from "@/lib/operations/formula-builder";
 import { useAuth } from "@/hooks/useAuth";
@@ -200,6 +201,18 @@ export default function OperationCatalog() {
         <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-600" /> с формулами: <b className="text-foreground tabular-nums">{readyCount}</b></span>
         <span>•</span>
         <span className="inline-flex items-center gap-1"><AlertCircle className="h-3 w-3 text-amber-600" /> требуют заполнения: <b className="text-foreground tabular-nums">{ops.length - readyCount}</b></span>
+        <span className="ml-auto">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1 cursor-help underline decoration-dotted"><Info className="h-3 w-3" /> как работают формулы</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-sm text-xs leading-relaxed">
+                Каждая статья работ = «Цена × Количество». В оба поля можно вписать как число (например <code>30</code>), так и формулу с переменными в квадратных скобках: <code>[Площадь] × 200</code>. Переменные операции описаны в таблице «Параметры» выше — менеджер заполнит их при расчёте заказа, и итог посчитается автоматически.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </span>
       </div>
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
