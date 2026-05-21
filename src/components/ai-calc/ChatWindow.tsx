@@ -21,7 +21,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import aiLogo from "@/assets/ai-calc-logo.png";
+import aiLogo from "@/assets/plata-avatar.png";
 import { fmtMoney } from "@/lib/format";
 import { exportProposedOrderToPdf } from "@/lib/proposed-order-pdf";
 import MessageActions from "./MessageActions";
@@ -671,15 +671,15 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
           {messages.length === 0 ? (
             <ConversationEmptyState
               className="py-12"
-              icon={<img src={aiLogo} alt="" width={72} height={72} />}
-              title="Опишите заказ словами"
-              description="ИИ задаст уточнения, подберёт материал из справочника и сразу прикинет стоимость."
+              icon={<img src={aiLogo} alt="Плата" width={72} height={72} loading="lazy" />}
+              title="Привет, я Плата"
+              description="Опишите заказ словами — я задам уточнения, подберу материал из справочника и сразу прикину стоимость."
             >
-              <img src={aiLogo} alt="" width={72} height={72} />
+              <img src={aiLogo} alt="Плата" width={72} height={72} loading="lazy" />
               <div className="space-y-1 max-w-md">
-                <h3 className="font-medium text-sm">Опишите заказ словами</h3>
+                <h3 className="font-medium text-sm">Привет, я Плата</h3>
                 <p className="text-muted-foreground text-sm">
-                  ИИ задаст уточнения, подберёт материал из справочника и сразу прикинет стоимость.
+                  Опишите заказ словами — я задам уточнения, подберу материал из справочника и сразу прикину стоимость.
                 </p>
               </div>
               <div className="grid sm:grid-cols-2 gap-2 max-w-xl w-full pt-2">
@@ -705,10 +705,8 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
               <Message key={m.id} from={m.role} className="animate-fade-in group/msg">
                 {m.role === "assistant" && (
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="h-7 w-7 rounded-lg border border-primary/30 bg-primary/10 flex items-center justify-center">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AI Ассистент</span>
+                    <img src={aiLogo} alt="" width={28} height={28} loading="lazy" className="h-7 w-7 rounded-lg" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Плата</span>
                   </div>
                 )}
                 <MessageContent
@@ -766,14 +764,12 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
           {status === "submitted" && (
             <Message from="assistant">
               <div className="flex items-center gap-2 mb-1">
-                <div className="h-7 w-7 rounded-lg border border-primary/30 bg-primary/10 flex items-center justify-center">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-primary">AI Ассистент</span>
+                <img src={aiLogo} alt="" width={28} height={28} loading="lazy" className="h-7 w-7 rounded-lg animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Плата</span>
               </div>
               <MessageContent>
                 <div className="flex items-center gap-3">
-                  <Shimmer>ИИ думает…</Shimmer>
+                  <Shimmer>Плата думает…</Shimmer>
                   <div className="relative h-1.5 w-32 overflow-hidden rounded-full bg-primary/10">
                     <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-primary/60 to-transparent animate-shimmer-bar" />
                   </div>

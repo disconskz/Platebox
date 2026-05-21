@@ -19,7 +19,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { type AiThread, archivedThreads, groupThreads, useAiThreads } from "@/hooks/useAiThreads";
-import aiLogo from "@/assets/ai-calc-logo.png";
+import aiLogo from "@/assets/plata-avatar.png";
 
 function relTime(iso: string): string {
   const d = new Date(iso);
@@ -66,11 +66,11 @@ export default function AiThreadsSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="gap-2">
         <Link to="/ai-calc" className="flex items-center gap-2 px-2 py-1.5">
-          <img src={aiLogo} alt="" width={24} height={24} className="h-6 w-6 shrink-0" />
+          <img src={aiLogo} alt="Плата" width={28} height={28} loading="lazy" className="h-7 w-7 shrink-0 rounded-lg" />
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-xs font-semibold leading-tight truncate">ИИ-расчёт</p>
-              <p className="text-[10px] text-muted-foreground leading-tight truncate">Platebox</p>
+              <p className="text-xs font-semibold leading-tight truncate">Плата</p>
+              <p className="text-[10px] text-muted-foreground leading-tight truncate">ИИ-ассистент Platebox</p>
             </div>
           )}
         </Link>
