@@ -1,8 +1,11 @@
-// ИИ-чат для расчётов: принимает историю беседы и новое сообщение,
-// возвращает текстовый ответ ассистента и опционально структурированное
-// предложение заказа (proposed_order) для отправки в калькулятор.
+// ИИ-чат расчётов с tool-calling: ассистент видит весь справочник через
+// инструменты, считает заказ настоящим движком и возвращает построчную
+// карточку proposed_order + обновлённый draft для памяти диалога.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { loadReferenceSnapshot } from "./references.ts";
+import { TOOLS, runTool, createState } from "./tools.ts";
+import { buildSystemPrompt } from "./prompt.ts";
 
 const ALLOWED_ORIGINS = new Set([
   "https://platebox.kz",
@@ -41,9 +44,6 @@ function rateLimit(key: string) {
 
 const MODEL = "google/gemini-3-flash-preview";
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-// ---------- Reference snapshot (cached in memory, refreshed every 5 min) ----------
-type ReferenceSnapshot = {
   materials: Array<{ id: string; name: string; type: string; density: number; w: number; h: number; price: number }>;
   print_formats: Array<{ id: string; w: number; h: number; purchase_format_id: string | null }>;
   purchase_formats: Array<{ id: string; w: number; h: number; category: string }>;
@@ -56,12 +56,6 @@ type ReferenceSnapshot = {
   format_presets: Array<{ name: string; w: number; h: number; category: string }>;
   envelope_formats: Array<{ name: string; w: number; h: number }>;
   vat_percent: number;
-};
-
-let snapshotCache: { data: ReferenceSnapshot; ts: number } | null = null;
-const SNAPSHOT_TTL_MS = 5 * 60 * 1000;
-
-async function loadReferenceSnapshot(): Promise<ReferenceSnapshot> {
   const now = Date.now();
   if (snapshotCache && now - snapshotCache.ts < SNAPSHOT_TTL_MS) return snapshotCache.data;
 
@@ -138,12 +132,20 @@ async function loadReferenceSnapshot(): Promise<ReferenceSnapshot> {
   };
 
   snapshotCache = { data: snapshot, ts: now };
-  return snapshot;
-}
+const MAX_TOOL_STEPS = 8;
 
-type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
+type ChatMessage = {
+  role: "user" | "assistant" | "system" | "tool";
+  content: string | null;
+  tool_calls?: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }>;
+  tool_call_id?: string;
+  name?: string;
+};
 
-async function callGateway(messages: ChatMessage[], response_format?: unknown) {
+async function callGateway(
+  messages: ChatMessage[],
+  opts: { tools?: unknown; response_format?: unknown; tool_choice?: unknown } = {},
+) {
   const key = Deno.env.get("LOVABLE_API_KEY");
   if (!key) throw new Error("LOVABLE_API_KEY missing");
   const res = await fetch(GATEWAY, {
@@ -152,13 +154,19 @@ async function callGateway(messages: ChatMessage[], response_format?: unknown) {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${key}`,
     },
-    body: JSON.stringify({ model: MODEL, messages, ...(response_format ? { response_format } : {}) }),
+    body: JSON.stringify({
+      model: MODEL,
+      messages,
+      ...(opts.tools ? { tools: opts.tools } : {}),
+      ...(opts.tool_choice ? { tool_choice: opts.tool_choice } : {}),
+      ...(opts.response_format ? { response_format: opts.response_format } : {}),
+    }),
   });
   if (res.status === 429) throw new Error("rate_limit");
   if (res.status === 402) throw new Error("credits_exhausted");
   if (!res.ok) throw new Error(`gateway_${res.status}`);
   const data = await res.json();
-  return String(data?.choices?.[0]?.message?.content ?? "");
+  return data?.choices?.[0]?.message ?? { role: "assistant", content: "" };
 }
 
 function jsonResp(corsHeaders: Record<string, string>, body: unknown, status = 200, extra: Record<string, string> = {}) {
@@ -168,153 +176,22 @@ function jsonResp(corsHeaders: Record<string, string>, body: unknown, status = 2
   });
 }
 
-const BASE_SYSTEM_PROMPT = `Ты — помощник менеджера типографии Platebox. Помогаешь быстро посчитать стоимость заказа, опираясь СТРОГО на справочник, который дан ниже.
-
-Твоя задача:
-1. Если в сообщении пользователя достаточно данных для расчёта — сразу предложи карточку заказа c реальным material_id из справочника и ориентировочной стоимостью.
-2. Если данных не хватает — задай 1-2 уточняющих вопроса (не больше) по самым важным недостающим параметрам: тип продукции, тираж, формат, красочность, материал.
-3. Отвечай коротко, по-деловому, по-русски. Без воды.
-
-ВСЕГДА возвращай СТРОГО валидный JSON по схеме:
-{
-  "reply": "текст ответа пользователю (markdown допустим, коротко)",
-  "proposed_order": null | {
-    "product_type": "leaflet" | "booklet" | "business_card" | "poster" | "flyer" | "brochure" | "other",
-    "name": "короткое название",
-    "circulation": число (тираж),
-    "format": "A3" | "A4" | "A5" | "A6" | "custom",
-    "custom_width_mm": число,
-    "custom_height_mm": число,
-    "color_front": 0..4,
-    "color_back": 0..4,
-    "material_category": "coated" | "uncoated" | "designer" | "cardboard",
-    "material_density": число г/м²,
-    "material_id": "uuid из materials в справочнике (ОБЯЗАТЕЛЬНО если можешь подобрать)",
-    "material_alternatives": ["uuid", ...] (0-3 альтернативы той же категории/плотности),
-    "press_machine_id": "uuid из press_machines (если уверен)",
-    "print_format_id": "uuid из print_formats (если уверен)",
-    "purchase_format_id": "uuid из purchase_formats (если уверен)",
-    "items_per_sheet": число (раскладка — сколько изделий на одном печатном листе),
-    "sheets_useful": число (полезных листов = ceil(circulation / items_per_sheet)),
-    "sheets_setup": число (листы приладки — обычно press_machines.setup_sheets × красочность),
-    "sheets_total": число (sheets_useful + sheets_setup),
-    "material_price_per_sheet": число ₸ (из materials.price),
-    "impressions": число (sheets_total × max(color_front, color_back)),
-    "cost_per_impression": число ₸ (из press_machines.cost_per_impression),
-    "setup_cost": число ₸ (press_machines.setup_cost),
-    "forms_count": число (color_front + color_back),
-    "form_cost_total": число ₸ (стоимость форм; ≈ forms_count × calc_constants form_cost если есть),
-    "postpress_breakdown": [
-      { "name": "Ламинация", "qty": число, "unit": "лист"|"шт"|"м²", "unit_cost": число ₸, "cost": число ₸ },
-      ...
-    ] (по одной строке на каждую постпечатную операцию: ламинация, фальцовка, высечка, нумерация, тиснение, резка),
-    "estimated_cost": {
-      "paper": число ₸,
-      "print": число ₸,
-      "postpress": число ₸,
-      "total": число ₸ (себестоимость без НДС),
-      "with_vat": число ₸ (total * (1 + vat_percent/100)),
-      "sale_price": число ₸ (with_vat * (1 + margin_percent/100)),
-      "currency": "KZT"
-    },
-    "vat_percent": число (vat_percent из справочника),
-    "vat_amount": число ₸ (total × vat_percent / 100),
-    "margin_amount": число ₸ (with_vat × margin_percent / 100),
-    "cost_breakdown": ["короткая строка-объяснение", ...] (2-4 строки),
-    "has_lamination": boolean,
-    "lamination_film": "gloss" | "matte" | "velvet",
-    "lamination_sides": 1 | 2,
-    "has_fold": boolean,
-    "fold_count": число,
-    "has_numbering": boolean,
-    "has_stamping": boolean,
-    "has_die_cut": boolean,
-    "margin_percent": число,
-    "notes": "что не уверен/не распознал"
-  }
-}
-
-Правила:
-- Используй ТОЛЬКО id из переданного справочника. Не выдумывай uuid.
-- Если подходящего материала нет в справочнике — поставь material_id = null, объясни в notes и предложи ближайший.
-- Считай ориентировочно: items_per_sheet = floor(print_format площадь / item площадь × 0.85); sheets_useful = ceil(тираж / items_per_sheet); sheets_setup = press_machines.setup_sheets × max(color_front,color_back); sheets_total = sheets_useful + sheets_setup; бумага = sheets_total × material_price_per_sheet; печать = sheets_total × cost_per_impression × max(color_front, color_back); добавь setup_cost машины и form_cost × forms_count, постпечать по operations и lamination. Округляй до 100 ₸.
-- ОБЯЗАТЕЛЬНО заполняй press_machine_id, print_format_id, items_per_sheet, sheets_useful, sheets_setup, sheets_total, material_price_per_sheet, impressions, cost_per_impression, setup_cost, postpress_breakdown, vat_percent, vat_amount, margin_amount — менеджеру нужна полная расшифровка.
-- postpress_breakdown ОБЯЗАТЕЛЬНО детализируй: каждая постпечатная операция = отдельный объект с полями name (название операции человеческим языком, напр. "Ламинация матовая 1+0", "Фальцовка 1 биг", "Высечка контура", "Нумерация", "Тиснение фольгой", "Финишная резка"), qty (количество — листов / штук / м²), unit ("лист"|"шт"|"м²"), unit_cost (цена за единицу из operations/lamination), cost (итог = qty × unit_cost). Не сворачивай всё в одну строку "постпечать".
-- Если постпечати нет — верни postpress_breakdown: [].
-- Если не можешь оценить число шт_на_листе — прикинь по площади (purchase_w*h / item_w*h * 0.85).
-- Поля, которых не знаешь — пропускай.
-- 4+4 = color_front 4, color_back 4. 4+0 = front 4, back 0.
-- "мелованная"/"меловка" → coated, "офсетная" → uncoated, "дизайнерская" → designer, "картон" → cardboard.
-- А5/А4/А3/А6 → format A5/A4/A3/A6 (latin). Свой размер → custom + width/height.
-- Если предлагаешь карточку — в reply краткое подтверждение, детали в proposed_order.
-- Если задаёшь вопрос — proposed_order = null.
-- Без markdown-кода, без \`\`\`json — только сам JSON-объект.`;
-
-function buildSystemPrompt(snapshot: ReferenceSnapshot): string {
-  // Compact snapshot — keep JSON small (< 30 KB)
-  const data = {
-    materials: snapshot.materials,
-    purchase_formats: snapshot.purchase_formats,
-    print_formats: snapshot.print_formats,
-    press_machines: snapshot.press_machines,
-    lamination: snapshot.lamination,
-    operations: snapshot.operations,
-    constants: snapshot.constants,
-    circulation_rules: snapshot.circulation_rules,
-    glossary: snapshot.glossary,
-    format_presets: snapshot.format_presets,
-    envelope_formats: snapshot.envelope_formats,
-    vat_percent: snapshot.vat_percent,
-  };
-  return `${BASE_SYSTEM_PROMPT}\n\nСПРАВОЧНИК (используй только эти id и значения):\n${JSON.stringify(data)}`;
-}
-
-function sanitizeProposedOrder(order: any, snapshot: ReferenceSnapshot): any {
+function sanitizeProposedOrder(order: any, snapshot: Awaited<ReturnType<typeof loadReferenceSnapshot>>): any {
   if (!order || typeof order !== "object") return null;
   const materialIds = new Set(snapshot.materials.map((m) => m.id));
   const machineIds = new Set(snapshot.press_machines.map((m) => m.id));
   const printIds = new Set(snapshot.print_formats.map((p) => p.id));
   const purchaseIds = new Set(snapshot.purchase_formats.map((p) => p.id));
-
   const notes: string[] = [];
   if (typeof order.notes === "string" && order.notes.trim()) notes.push(order.notes.trim());
-
   if (order.material_id && !materialIds.has(order.material_id)) {
     notes.push(`ИИ предложил материал ${order.material_id}, которого нет в справочнике.`);
     order.material_id = null;
   }
-  if (Array.isArray(order.material_alternatives)) {
-    order.material_alternatives = order.material_alternatives.filter((id: unknown) => typeof id === "string" && materialIds.has(id));
-  }
   if (order.press_machine_id && !machineIds.has(order.press_machine_id)) order.press_machine_id = null;
   if (order.print_format_id && !printIds.has(order.print_format_id)) order.print_format_id = null;
   if (order.purchase_format_id && !purchaseIds.has(order.purchase_format_id)) order.purchase_format_id = null;
-
-  // Резолвим человеко-читаемые подписи на сервере, чтобы клиент гарантированно получил их.
-  if (order.press_machine_id) {
-    const m = snapshot.press_machines.find((x) => x.id === order.press_machine_id);
-    if (m) {
-      order.press_machine_name = `${m.name} (${m.type}, до ${m.max_w}×${m.max_h} мм)`;
-      if (typeof order.cost_per_impression !== "number") order.cost_per_impression = m.cost_per_impression;
-      if (typeof order.setup_cost !== "number") order.setup_cost = m.setup_cost;
-    }
-  }
-  if (order.print_format_id) {
-    const p = snapshot.print_formats.find((x) => x.id === order.print_format_id);
-    if (p) order.print_format_label = `${p.w}×${p.h} мм`;
-  }
-  if (order.purchase_format_id) {
-    const p = snapshot.purchase_formats.find((x) => x.id === order.purchase_format_id);
-    if (p) order.purchase_format_label = `${p.w}×${p.h} мм`;
-  }
-  if (order.material_id) {
-    const m = snapshot.materials.find((x) => x.id === order.material_id);
-    if (m && typeof order.material_price_per_sheet !== "number") {
-      order.material_price_per_sheet = m.price;
-    }
-  }
   if (typeof order.vat_percent !== "number") order.vat_percent = snapshot.vat_percent;
-
   order.notes = notes.join(" ") || undefined;
   return order;
 }
@@ -347,11 +224,13 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const history: ChatMessage[] = Array.isArray(body?.history) ? body.history.slice(-20) : [];
+    const history: Array<{ role: "user" | "assistant"; content: string }> =
+      Array.isArray(body?.history) ? body.history.slice(-20) : [];
     const userText: string = String(body?.text ?? "").trim();
+    const draft = body?.draft && typeof body.draft === "object" ? body.draft : {};
     if (!userText) return jsonResp(corsHeaders, { error: "empty" }, 400);
 
-    let snapshot: ReferenceSnapshot;
+    let snapshot: Awaited<ReturnType<typeof loadReferenceSnapshot>>;
     try {
       snapshot = await loadReferenceSnapshot();
     } catch (e) {
@@ -359,21 +238,57 @@ Deno.serve(async (req) => {
       return jsonResp(corsHeaders, { error: "snapshot_failed" }, 500);
     }
 
+    const state = createState();
     const messages: ChatMessage[] = [
-      { role: "system", content: buildSystemPrompt(snapshot) },
-      ...history.filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string"),
+      { role: "system", content: buildSystemPrompt(snapshot, draft) },
+      ...history
+        .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+        .map((m) => ({ role: m.role, content: m.content }) as ChatMessage),
       { role: "user", content: userText },
     ];
 
-    const raw = await callGateway(messages, { type: "json_object" });
-    let parsed: { reply?: string; proposed_order?: unknown } = {};
-    try { parsed = JSON.parse(raw); } catch {
-      parsed = { reply: raw || "Не удалось разобрать ответ.", proposed_order: null };
+    // Tool-calling loop
+    let finalContent = "";
+    for (let step = 0; step < MAX_TOOL_STEPS; step++) {
+      const isLast = step === MAX_TOOL_STEPS - 1;
+      const msg = await callGateway(messages, {
+        tools: isLast ? undefined : TOOLS,
+        response_format: { type: "json_object" },
+      });
+      const toolCalls = msg?.tool_calls as ChatMessage["tool_calls"] | undefined;
+      if (toolCalls && toolCalls.length > 0) {
+        messages.push({ role: "assistant", content: msg.content ?? null, tool_calls: toolCalls });
+        for (const tc of toolCalls) {
+          let parsedArgs: Record<string, unknown> = {};
+          try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* noop */ }
+          let result: unknown;
+          try {
+            result = runTool(tc.function.name, parsedArgs, snapshot, state);
+          } catch (e) {
+            result = { error: (e as Error).message };
+          }
+          messages.push({
+            role: "tool",
+            tool_call_id: tc.id,
+            name: tc.function.name,
+            content: JSON.stringify(result).slice(0, 60_000),
+          });
+        }
+        continue;
+      }
+      finalContent = String(msg?.content ?? "");
+      break;
+    }
+
+    let parsed: { reply?: string; draft?: unknown } = {};
+    try { parsed = JSON.parse(finalContent); } catch {
+      parsed = { reply: finalContent || "Не удалось разобрать ответ.", draft };
     }
     const reply = typeof parsed.reply === "string" && parsed.reply.trim() ? parsed.reply.trim() : "—";
-    const order = sanitizeProposedOrder(parsed.proposed_order, snapshot);
+    const order = sanitizeProposedOrder(state.proposed_order, snapshot);
+    const nextDraft = parsed.draft && typeof parsed.draft === "object" ? parsed.draft : draft;
 
-    return jsonResp(corsHeaders, { ok: true, reply, proposed_order: order });
+    return jsonResp(corsHeaders, { ok: true, reply, proposed_order: order, draft: nextDraft });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const status = msg === "rate_limit" ? 429 : msg === "credits_exhausted" ? 402 : 500;
