@@ -21,6 +21,8 @@ export default function CustomReferences() {
   const [active, setActive] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [draft, setDraft] = useState<Record<string, any>>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const loadRefs = async () => {
     const { data } = await (supabase as any).from("custom_references").select("*").order("sort_order");
@@ -33,7 +35,13 @@ export default function CustomReferences() {
   };
 
   useEffect(() => { loadRefs(); }, []);
-  useEffect(() => { if (active) loadRows(active); }, [active]);
+  useEffect(() => { if (active) loadRows(active); setPage(1); }, [active]);
+  useEffect(() => { setPage(1); }, [pageSize]);
+
+  const pageRows = useMemo(
+    () => rows.slice((page - 1) * pageSize, page * pageSize),
+    [rows, page, pageSize],
+  );
 
   const activeRef = refs.find((r) => r.id === active);
 
