@@ -85,7 +85,7 @@ export interface CalcInput {
   stampingClicheH?: number; // cm
   stampingNotebook?: boolean;
   /** Несколько клише тиснения. Если задано — используется вместо одиночных W/H. */
-  stampingCliches?: Array<{ w: number; h: number }>;
+  stampingCliches?: Array<{ w: number; h: number; points?: number }>;
   hasLamPrepress?: boolean; // припрессовка для пакетов
   lamPrepressSides?: 1 | 2;
   // print pricing
