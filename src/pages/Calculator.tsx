@@ -1541,6 +1541,16 @@ const Calculator = () => {
                     sheets={result && !("error" in result) ? result.printSheets : 0}
                     forms={result && !("error" in result) ? result.forms : 0}
                   />
+                  <div className="pt-3 border-t mt-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <div className="font-medium text-sm">Дополнительные операции (по формулам справочника)</div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Выберите операцию — стоимость рассчитается по загруженным формулам (цена × количество). Поля параметров заполняются автоматически по тиражу; недостающие можно ввести вручную.
+                    </p>
+                    <CatalogOperationsPicker circulation={circulation} onChange={setCatalogOpsItems} />
+                  </div>
                 </CardContent>
               </Card>
             )}
