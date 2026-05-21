@@ -25,9 +25,20 @@ interface OpParam {
   notes: string;
 }
 
+interface OpWorkItem {
+  id: string;
+  operation_code: number;
+  code: number;
+  sort_order: number;
+  name: string;
+  price_source: string;
+  quantity_source: string;
+}
+
 export default function OperationCatalog() {
   const [ops, setOps] = useState<Operation[]>([]);
   const [params, setParams] = useState<Record<number, OpParam[]>>({});
+  const [workItems, setWorkItems] = useState<Record<number, OpWorkItem[]>>({});
   const [activeCode, setActiveCode] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -46,16 +57,17 @@ export default function OperationCatalog() {
   }, []);
 
   useEffect(() => {
-    if (activeCode == null || params[activeCode]) return;
+    if (activeCode == null) return;
+    if (params[activeCode] && workItems[activeCode]) return;
     (async () => {
-      const { data } = await (supabase as any)
-        .from("operation_parameters")
-        .select("*")
-        .eq("operation_code", activeCode)
-        .order("sort_order");
-      setParams((p) => ({ ...p, [activeCode]: (data as OpParam[]) || [] }));
+      const [{ data: p }, { data: w }] = await Promise.all([
+        (supabase as any).from("operation_parameters").select("*").eq("operation_code", activeCode).order("sort_order"),
+        (supabase as any).from("operation_work_items").select("*").eq("operation_code", activeCode).order("sort_order"),
+      ]);
+      setParams((s) => ({ ...s, [activeCode]: (p as OpParam[]) || [] }));
+      setWorkItems((s) => ({ ...s, [activeCode]: (w as OpWorkItem[]) || [] }));
     })();
-  }, [activeCode, params]);
+  }, [activeCode, params, workItems]);
 
   const groups = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -73,6 +85,7 @@ export default function OperationCatalog() {
 
   const active = ops.find((o) => o.code === activeCode) || null;
   const activeParams = activeCode != null ? params[activeCode] || [] : [];
+  const activeWork = activeCode != null ? workItems[activeCode] || [] : [];
 
   return (
     <div className="space-y-3">
@@ -160,6 +173,37 @@ export default function OperationCatalog() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {activeWork.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Стоимость работ</div>
+                    <div className="border rounded-md overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                          <tr>
+                            <th className="text-left p-2 w-12">#</th>
+                            <th className="text-left p-2">Статья</th>
+                            <th className="text-left p-2">Цена</th>
+                            <th className="text-left p-2">Количество</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeWork.map((w) => (
+                            <tr key={w.id} className="border-t align-top">
+                              <td className="p-2 font-mono text-xs text-muted-foreground">{w.sort_order}</td>
+                              <td className="p-2">
+                                <div className="font-medium">{w.name}</div>
+                                <div className="text-[11px] text-muted-foreground font-mono">код {w.code}</div>
+                              </td>
+                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{w.price_source || "—"}</td>
+                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{w.quantity_source || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>

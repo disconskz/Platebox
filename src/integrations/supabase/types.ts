@@ -877,6 +877,45 @@ export type Database = {
           },
         ]
       }
+      operation_work_items: {
+        Row: {
+          code: number
+          created_at: string
+          id: string
+          name: string
+          notes: string
+          operation_code: number
+          price_source: string
+          quantity_source: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: number
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string
+          operation_code: number
+          price_source?: string
+          quantity_source?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: number
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string
+          operation_code?: number
+          price_source?: string
+          quantity_source?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       operations: {
         Row: {
           category: string
