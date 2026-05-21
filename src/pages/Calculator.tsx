@@ -203,6 +203,8 @@ const Calculator = () => {
   const [numbersPerSheet, setNumbersPerSheet] = useState(1);
   const [hasStamping, setHasStamping] = useState(false);
   const [stampCliches, setStampCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
+  const [hasEmbossing, setHasEmbossing] = useState(false);
+  const [embossCliches, setEmbossCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
 
