@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight, AlertTriangle,
-  Copy, Download, Upload, MoreHorizontal, Search, X, Link2,
+  Copy, Download, Upload, MoreHorizontal, Search, X, Link2, Layers,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
