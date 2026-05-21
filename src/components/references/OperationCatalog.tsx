@@ -3,7 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Search, CheckCircle2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, Search, CheckCircle2, AlertCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { FormulaBuilder } from "./FormulaBuilder";
+import { BuilderConst } from "@/lib/operations/formula-builder";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Operation {
   id: string;
@@ -43,14 +48,23 @@ export default function OperationCatalog() {
   const [loading, setLoading] = useState(true);
   /** Сколько work_items и параметров у каждой операции — для бейджей и «готово/нет». */
   const [counts, setCounts] = useState<Record<number, { p: number; w: number }>>({});
+  const [consts, setConsts] = useState<BuilderConst[]>([]);
+  const { isAdmin } = useAuth();
+  // Контекст редактора формулы
+  const [editor, setEditor] = useState<null | {
+    title: string;
+    initial: string;
+    onSave: (v: string) => Promise<void> | void;
+  }>(null);
 
   useEffect(() => {
     (async () => {
       await ensureSupabaseSession();
-      const [cRes, pRes, wRes] = await Promise.all([
+      const [cRes, pRes, wRes, kRes] = await Promise.all([
         (supabase as any).from("operation_catalog").select("*").order("sort_order").order("name"),
         (supabase as any).from("operation_parameters").select("operation_code"),
         (supabase as any).from("operation_work_items").select("operation_code"),
+        (supabase as any).from("calc_constants").select("slug,name,value"),
       ]);
       setOps((cRes.data as Operation[]) || []);
       const map: Record<number, { p: number; w: number }> = {};
@@ -63,6 +77,7 @@ export default function OperationCatalog() {
         (map[k] ||= { p: 0, w: 0 }).w++;
       }
       setCounts(map);
+      setConsts(((kRes.data as any[]) || []) as BuilderConst[]);
       setLoading(false);
     })();
   }, []);
@@ -98,6 +113,78 @@ export default function OperationCatalog() {
   const activeParams = activeCode != null ? params[activeCode] || [] : [];
   const activeWork = activeCode != null ? workItems[activeCode] || [] : [];
   const readyCount = useMemo(() => Object.values(counts).filter((c) => c.w > 0).length, [counts]);
+
+  // Переменные, доступные внутри текущей операции — все её параметры.
+  const variables = useMemo(
+    () => activeParams.map((p) => ({ name: p.name })),
+    [activeParams]
+  );
+
+  const nextCode = (rows: { code: number }[]) => (rows.reduce((m, r) => Math.max(m, r.code), 0) || 0) + 1;
+  const nextOrder = (rows: { sort_order: number }[]) => (rows.reduce((m, r) => Math.max(m, r.sort_order), 0) || 0) + 1;
+
+  async function refreshActive(code: number) {
+    const [{ data: p }, { data: w }] = await Promise.all([
+      (supabase as any).from("operation_parameters").select("*").eq("operation_code", code).order("sort_order"),
+      (supabase as any).from("operation_work_items").select("*").eq("operation_code", code).order("sort_order"),
+    ]);
+    const np = (p as OpParam[]) || [];
+    const nw = (w as OpWorkItem[]) || [];
+    setParams((s) => ({ ...s, [code]: np }));
+    setWorkItems((s) => ({ ...s, [code]: nw }));
+    setCounts((s) => ({ ...s, [code]: { p: np.length, w: nw.length } }));
+  }
+
+  async function updateParam(id: string, patch: Partial<OpParam>) {
+    const { error } = await (supabase as any).from("operation_parameters").update(patch).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
+  async function updateWork(id: string, patch: Partial<OpWorkItem>) {
+    const { error } = await (supabase as any).from("operation_work_items").update(patch).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
+  async function addParam() {
+    if (activeCode == null) return;
+    const rows = activeParams;
+    const { error } = await (supabase as any).from("operation_parameters").insert({
+      operation_code: activeCode,
+      code: nextCode(rows),
+      sort_order: nextOrder(rows),
+      name: "Новый параметр",
+      default_value: "0",
+      formula: "",
+      notes: "",
+    });
+    if (error) { toast.error(error.message); return; }
+    await refreshActive(activeCode);
+  }
+  async function addWork() {
+    if (activeCode == null) return;
+    const rows = activeWork;
+    const { error } = await (supabase as any).from("operation_work_items").insert({
+      operation_code: activeCode,
+      code: nextCode(rows),
+      sort_order: nextOrder(rows),
+      name: "Новая статья",
+      price_source: "0",
+      quantity_source: "0",
+      notes: "",
+    });
+    if (error) { toast.error(error.message); return; }
+    await refreshActive(activeCode);
+  }
+  async function deleteParam(id: string) {
+    const { error } = await (supabase as any).from("operation_parameters").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
+  async function deleteWork(id: string) {
+    const { error } = await (supabase as any).from("operation_work_items").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
 
   return (
     <div className="space-y-2">
