@@ -613,6 +613,53 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
     abortRef.current?.abort();
   };
 
+  const regenerate = async () => {
+    if (status === "submitted") return;
+    // Find last assistant; remove it (and any trailing assistants), then resend last user
+    const lastUserIdx = [...messages].map((m) => m.role).lastIndexOf("user");
+    if (lastUserIdx < 0) return;
+    const lastUser = messages[lastUserIdx];
+    const lastUserText = lastUser.parts.find((p) => p.type === "text") as { type: "text"; text: string } | undefined;
+    if (!lastUserText) return;
+    // Delete assistant messages after that user message (DB + state)
+    const toDelete = messages.slice(lastUserIdx + 1).filter((m) => m.role === "assistant" && !m.id.startsWith("tmp-"));
+    setMessages((prev) => prev.slice(0, lastUserIdx + 1));
+    if (toDelete.length > 0) {
+      await supabase.from("ai_messages").delete().in("id", toDelete.map((m) => m.id));
+    }
+    await send(lastUserText.text, { skipUserMessage: true });
+  };
+
+  const startEdit = (m: ChatMessage) => {
+    const t = m.parts.find((p) => p.type === "text") as { type: "text"; text: string } | undefined;
+    setEditingId(m.id);
+    setEditDraft(t?.text ?? "");
+  };
+  const cancelEdit = () => { setEditingId(null); setEditDraft(""); };
+  const saveEdit = async (m: ChatMessage) => {
+    const newText = editDraft.trim();
+    if (!newText) { cancelEdit(); return; }
+    const idx = messages.findIndex((x) => x.id === m.id);
+    if (idx < 0) { cancelEdit(); return; }
+    // Update DB if persisted
+    if (!m.id.startsWith("tmp-")) {
+      await supabase
+        .from("ai_messages")
+        .update({ parts: [{ type: "text", text: newText }] as unknown as never })
+        .eq("id", m.id);
+    }
+    // Drop everything after the edited message
+    const tail = messages.slice(idx + 1).filter((x) => !x.id.startsWith("tmp-")).map((x) => x.id);
+    if (tail.length > 0) {
+      await supabase.from("ai_messages").delete().in("id", tail);
+    }
+    setMessages((prev) =>
+      prev.slice(0, idx).concat([{ ...m, parts: [{ type: "text", text: newText }] }]),
+    );
+    cancelEdit();
+    await send(newText, { skipUserMessage: true });
+  };
+
   const handlePromptSubmit = (msg: PromptInputMessage) => {
     void send(msg.text ?? "");
   };
