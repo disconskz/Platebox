@@ -29,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { useProductGlossary, GlossaryItem, CATEGORY_LABELS, GlossaryCategory } from "@/lib/glossary";
 import { useAuth } from "@/hooks/useAuth";
 import { ensureSupabaseSession } from "@/lib/auth-session";
+import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import type { SpecItem } from "@/lib/calc/types";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -148,6 +150,8 @@ const Calculator = () => {
   const [operations, setOperations] = useState<OperationRow[]>([]);
   // выбранные операции из справочника: id -> { qty, price }
   const [extraOps, setExtraOps] = useState<Record<string, ExtraOpState>>({});
+  // строки спецификации из справочника операций (operation_catalog + work_items)
+  const [catalogOpsItems, setCatalogOpsItems] = useState<SpecItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [vatPercent, setVatPercent] = useState(0);
 
@@ -674,9 +678,10 @@ const Calculator = () => {
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
-    if (!extraSpecItems.length) return baseResult;
-    const spec = [...baseResult.spec, ...extraSpecItems];
-    const extrasTotal = extraSpecItems.reduce((s: number, i: any) => s + i.total, 0);
+    const allExtras = [...extraSpecItems, ...catalogOpsItems];
+    if (!allExtras.length) return baseResult;
+    const spec = [...baseResult.spec, ...allExtras];
+    const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     const totalCost = baseResult.totalCost + extrasTotal;
     const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
     return {
@@ -686,7 +691,7 @@ const Calculator = () => {
       vatAmount,
       totalWithVat: totalCost + vatAmount,
     };
-  }, [baseResult, extraSpecItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -1536,6 +1541,16 @@ const Calculator = () => {
                     sheets={result && !("error" in result) ? result.printSheets : 0}
                     forms={result && !("error" in result) ? result.forms : 0}
                   />
+                  <div className="pt-3 border-t mt-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <div className="font-medium text-sm">Дополнительные операции (по формулам справочника)</div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Выберите операцию — стоимость рассчитается по загруженным формулам (цена × количество). Поля параметров заполняются автоматически по тиражу; недостающие можно ввести вручную.
+                    </p>
+                    <CatalogOperationsPicker circulation={circulation} onChange={setCatalogOpsItems} />
+                  </div>
                 </CardContent>
               </Card>
             )}
