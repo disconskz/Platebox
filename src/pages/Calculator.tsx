@@ -1064,7 +1064,7 @@ const Calculator = () => {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </section>
 
             <section id="section-2" className="scroll-mt-24">
               <Card>
@@ -1250,7 +1250,7 @@ const Calculator = () => {
                   )}
                 </CardContent>
               </Card>
-            )}
+            </section>
 
             <section id="section-3" className="scroll-mt-24">
               <Card>
@@ -1450,7 +1450,7 @@ const Calculator = () => {
                   )}
                 </CardContent>
               </Card>
-            )}
+            </section>
 
             <section id="section-4" className="scroll-mt-24">
               <Card>
@@ -1553,7 +1553,7 @@ const Calculator = () => {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </section>
 
             <section id="section-5" className="scroll-mt-24">
               {result && !("error" in result) ? (
@@ -1586,7 +1586,7 @@ const Calculator = () => {
                   <p className="text-xs text-muted-foreground">Шаблон будет доступен на главной — из него можно создать новый расчёт одной кнопкой.</p>
                 </CardContent>
               </Card>
-            )}
+            </section>
 
             {stepError && (
               <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
