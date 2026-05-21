@@ -271,10 +271,17 @@ export default function OperationCatalog() {
                   <div className="mt-2 text-base font-semibold">{active.name}</div>
                 </div>
 
-                {!activeParams.length && (
-                  <div className="text-sm text-muted-foreground">Параметры для этой операции ещё не загружены.</div>
-                )}
-                {activeParams.length > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Параметры</div>
+                    {isAdmin && (
+                      <Button size="sm" variant="outline" onClick={addParam}><Plus className="h-3.5 w-3.5 mr-1" />параметр</Button>
+                    )}
+                  </div>
+                  {!activeParams.length && (
+                    <div className="text-sm text-muted-foreground">Параметров пока нет.</div>
+                  )}
+                  {activeParams.length > 0 && (
                   <div className="border rounded-md overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -283,6 +290,7 @@ export default function OperationCatalog() {
                           <th className="text-left p-2">Параметр</th>
                           <th className="text-left p-2">По умолчанию</th>
                           <th className="text-left p-2">Формула</th>
+                          {isAdmin && <th className="w-10"></th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -290,21 +298,66 @@ export default function OperationCatalog() {
                           <tr key={p.id} className="border-t align-top">
                             <td className="p-2 font-mono text-xs text-muted-foreground">{p.sort_order}</td>
                             <td className="p-2">
-                              <div className="font-medium">{p.name}</div>
+                              {isAdmin ? (
+                                <Input
+                                  className="h-7 text-sm"
+                                  defaultValue={p.name}
+                                  key={p.id + "n" + p.name}
+                                  onBlur={(e) => e.target.value !== p.name && updateParam(p.id, { name: e.target.value })}
+                                />
+                              ) : (
+                                <div className="font-medium">{p.name}</div>
+                              )}
                               <div className="text-[11px] text-muted-foreground font-mono">код {p.code}</div>
                             </td>
-                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{p.default_value || "—"}</td>
-                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{p.formula || "—"}</td>
+                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                              <div className="flex items-start gap-1">
+                                <span className="flex-1">{p.default_value || "—"}</span>
+                                {isAdmin && (
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                    title: `Значение по умолчанию: ${p.name}`,
+                                    initial: p.default_value || "",
+                                    onSave: (v) => updateParam(p.id, { default_value: v }),
+                                  })}><Pencil className="h-3 w-3" /></Button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                              <div className="flex items-start gap-1">
+                                <span className="flex-1">{p.formula || "—"}</span>
+                                {isAdmin && (
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                    title: `Формула параметра: ${p.name}`,
+                                    initial: p.formula || "",
+                                    onSave: (v) => updateParam(p.id, { formula: v }),
+                                  })}><Pencil className="h-3 w-3" /></Button>
+                                )}
+                              </div>
+                            </td>
+                            {isAdmin && (
+                              <td className="p-2 text-right">
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteParam(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                )}
+                  )}
+                </div>
 
-                {activeWork.length > 0 && (
-                  <div className="space-y-1">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
                     <div className="text-xs uppercase tracking-wider text-muted-foreground">Стоимость работ</div>
+                    {isAdmin && (
+                      <Button size="sm" variant="outline" onClick={addWork}><Plus className="h-3.5 w-3.5 mr-1" />статья</Button>
+                    )}
+                  </div>
+                  {!activeWork.length && (
+                    <div className="text-sm text-muted-foreground">Статей пока нет.</div>
+                  )}
+                  {activeWork.length > 0 && (
                     <div className="border rounded-md overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -313,6 +366,7 @@ export default function OperationCatalog() {
                             <th className="text-left p-2">Статья</th>
                             <th className="text-left p-2">Цена</th>
                             <th className="text-left p-2">Количество</th>
+                            {isAdmin && <th className="w-10"></th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -320,23 +374,72 @@ export default function OperationCatalog() {
                             <tr key={w.id} className="border-t align-top">
                               <td className="p-2 font-mono text-xs text-muted-foreground">{w.sort_order}</td>
                               <td className="p-2">
-                                <div className="font-medium">{w.name}</div>
+                                {isAdmin ? (
+                                  <Input
+                                    className="h-7 text-sm"
+                                    defaultValue={w.name}
+                                    key={w.id + "n" + w.name}
+                                    onBlur={(e) => e.target.value !== w.name && updateWork(w.id, { name: e.target.value })}
+                                  />
+                                ) : (
+                                  <div className="font-medium">{w.name}</div>
+                                )}
                                 <div className="text-[11px] text-muted-foreground font-mono">код {w.code}</div>
                               </td>
-                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{w.price_source || "—"}</td>
-                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{w.quantity_source || "—"}</td>
+                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                                <div className="flex items-start gap-1">
+                                  <span className="flex-1">{w.price_source || "—"}</span>
+                                  {isAdmin && (
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                      title: `Цена: ${w.name}`,
+                                      initial: w.price_source || "",
+                                      onSave: (v) => updateWork(w.id, { price_source: v }),
+                                    })}><Pencil className="h-3 w-3" /></Button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                                <div className="flex items-start gap-1">
+                                  <span className="flex-1">{w.quantity_source || "—"}</span>
+                                  {isAdmin && (
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                      title: `Количество: ${w.name}`,
+                                      initial: w.quantity_source || "",
+                                      onSave: (v) => updateWork(w.id, { quantity_source: v }),
+                                    })}><Pencil className="h-3 w-3" /></Button>
+                                  )}
+                                </div>
+                              </td>
+                              {isAdmin && (
+                                <td className="p-2 text-right">
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteWork(w.id)}><Trash2 className="h-3 w-3" /></Button>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
+      <FormulaBuilder
+        open={!!editor}
+        title={editor?.title || ""}
+        initialValue={editor?.initial || ""}
+        variables={variables}
+        constants={consts}
+        onClose={() => setEditor(null)}
+        onSave={async (v) => {
+          if (!editor) return;
+          await editor.onSave(v);
+          setEditor(null);
+        }}
+      />
     </div>
   );
 }
