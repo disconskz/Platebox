@@ -339,13 +339,26 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const netPrintSheets = Math.ceil(input.circulation / layout.itemsPerSheet);
 
   // Setup sheets
-  let setupSheets =
-    input.manualSetupSheets ??
-    Math.ceil((turnaround === "foreign" ? rule.setupForeign : rule.setupOwn) + netPrintSheets * rule.setupPercent);
+  // Базовая формула приладки (для «своего оборота»): setupOwn + 1% от тиража печатных листов.
+  // Для «чужого оборота» приладка = 2 × базовая (печатается два прогона).
+  // Для «без оборота» — приладка = базовая (один прогон), но без процентной надбавки —
+  // достаточно константы setupOwn, иначе цифры завышены.
+  let setupSheets: number;
+  if (input.manualSetupSheets !== undefined && input.manualSetupSheets !== null) {
+    setupSheets = input.manualSetupSheets;
+  } else {
+    const baseOwn = Math.ceil(rule.setupOwn + netPrintSheets * rule.setupPercent);
+    if (turnaround === "foreign") {
+      setupSheets = baseOwn * 2;
+    } else if (turnaround === "none") {
+      setupSheets = Math.max(1, Math.ceil(rule.setupOwn));
+    } else {
+      setupSheets = baseOwn;
+    }
+  }
   if (isBag) setupSheets = Math.max(rule.bagMinSetup, setupSheets);
-  else setupSheets = Math.max(rule.setupOwn, setupSheets);
-  if (turnaround === "foreign" && !input.manualSetupSheets) {
-    warnings.push("Чужой оборот: приладка увеличена до " + setupSheets + " листов.");
+  if (turnaround === "foreign" && (input.manualSetupSheets === undefined || input.manualSetupSheets === null)) {
+    warnings.push("Чужой оборот: приладка = ×2 от своего оборота (" + setupSheets + " листов).");
   }
 
   const printSheets = netPrintSheets + setupSheets;
