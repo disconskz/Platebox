@@ -26,6 +26,112 @@ export const TOOLS: ToolDef[] = [
   {
     type: "function",
     function: {
+      name: "list_calc_variants",
+      description: "Готовые варианты пошагового расчёта (calc_variants) с их этапами. Используй, когда нужно предложить пользователю конкретный сценарий расчёта (например, разные виды буклетов или визиток).",
+      parameters: {
+        type: "object",
+        properties: {
+          base_product_type: { type: "string", description: "leaflet, booklet, business_card, ..." },
+          category: { type: "string" },
+          query: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_calc_variant_detail",
+      description: "Полная карточка варианта расчёта с этапами, единицами и материалами по умолчанию.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_calc_stage_library",
+      description: "Библиотека переиспользуемых этапов с формулами. Используй, когда нужно показать пользователю готовые формулы на выбор.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: { type: "string" },
+          query: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_purchase_formats",
+      description: "Закупочные форматы бумаги (B1, B2 и т.д.) с фильтром по категории материала.",
+      parameters: {
+        type: "object",
+        properties: { material_category: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_equipment",
+      description: "Доп. оборудование (резаки, ламинаторы, биговщики и т.д.). Фильтр по типу.",
+      parameters: {
+        type: "object",
+        properties: { type: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_envelope_formats",
+      description: "Стандартные форматы конвертов.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_format_presets",
+      description: "Пресеты форматов изделий (А-серия, евро, визитки и т.д.).",
+      parameters: {
+        type: "object",
+        properties: { category: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_circulation_rules",
+      description: "Правила выбора машины и постпечати по тиражу для продукта. Помогает Плате автоматически предложить машину.",
+      parameters: {
+        type: "object",
+        properties: { product_type: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "suggest_next_step",
+      description: "Серверный мастер. По текущему черновику заказа возвращает следующий обязательный параметр, готовые варианты ответа (chips) и пояснение. Вызывай ПЕРЕД каждым уточняющим вопросом, чтобы знать, что именно спрашивать и какие варианты предложить.",
+      parameters: {
+        type: "object",
+        properties: {
+          draft: { type: "object", additionalProperties: true, description: "Текущий черновик заказа" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "list_materials",
       description: "Поиск материалов из справочника. Фильтры по типу (coated/uncoated/designer/cardboard), плотности и минимальному формату.",
       parameters: {
@@ -230,6 +336,136 @@ export function runTool(
           description: v.description,
         })),
       };
+    }
+    case "list_calc_variants": {
+      const base = String(args.base_product_type ?? "");
+      const cat = String(args.category ?? "");
+      const q = String(args.query ?? "");
+      const items = snapshot.calc_variants
+        .filter((v) => !base || v.base_product_type === base)
+        .filter((v) => !cat || v.category === cat)
+        .filter((v) => !q || matchSearch(v.name, q) || matchSearch(v.description, q))
+        .map((v) => ({
+          id: v.id, name: v.name, description: v.description,
+          base: v.base_product_type, category: v.category,
+          stages: v.stages.map((s) => ({ name: s.name, unit: s.unit, material_id: s.material_id })),
+        }));
+      return { count: items.length, items };
+    }
+    case "get_calc_variant_detail": {
+      const id = String(args.id ?? "");
+      const v = snapshot.calc_variants.find((x) => x.id === id);
+      if (!v) return { error: "not_found" };
+      return v;
+    }
+    case "list_calc_stage_library": {
+      const cat = String(args.category ?? "");
+      const q = String(args.query ?? "");
+      const items = snapshot.calc_stage_library
+        .filter((s) => !cat || s.category === cat)
+        .filter((s) => !q || matchSearch(s.name, q));
+      return { count: items.length, items };
+    }
+    case "list_purchase_formats": {
+      const cat = String(args.material_category ?? "");
+      const items = snapshot.purchase_formats.filter((p) => !cat || p.category === cat);
+      return { items };
+    }
+    case "list_equipment": {
+      const t = String(args.type ?? "");
+      const items = snapshot.equipment.filter((e) => !t || e.type === t);
+      return { items };
+    }
+    case "list_envelope_formats": {
+      return { items: snapshot.envelope_formats };
+    }
+    case "list_format_presets": {
+      const cat = String(args.category ?? "");
+      const items = snapshot.format_presets.filter((f) => !cat || f.category === cat);
+      return { items };
+    }
+    case "list_circulation_rules": {
+      const pt = String(args.product_type ?? "");
+      const items = snapshot.circulation_rules.filter((c) => !pt || c.product_type === pt);
+      return { items };
+    }
+    case "suggest_next_step": {
+      const draft = (args.draft ?? {}) as Record<string, unknown>;
+      const STEPS: Array<{ key: string; field: string; question: string; chips: () => Array<{ label: string; value: string; hint?: string }> }> = [
+        {
+          key: "product_type", field: "product_type",
+          question: "Какой тип изделия считаем?",
+          chips: () => snapshot.glossary.filter((g) => g.is_calculable).slice(0, 8)
+            .map((g) => ({ label: g.name, value: g.name, hint: g.description?.slice(0, 60) })),
+        },
+        {
+          key: "variant", field: "variant_id",
+          question: "Какой сценарий расчёта подойдёт?",
+          chips: () => {
+            const base = String((draft as any).product_type ?? "");
+            const vs = snapshot.calc_variants.filter((v) => !base || v.base_product_type === base);
+            const list = vs.length ? vs : snapshot.calc_variants;
+            return list.slice(0, 6).map((v) => ({ label: v.name, value: v.name, hint: v.description?.slice(0, 60) }));
+          },
+        },
+        {
+          key: "circulation", field: "circulation",
+          question: "Какой тираж?",
+          chips: () => [100, 500, 1000, 2000, 5000, 10000].map((n) => ({ label: `${n.toLocaleString("ru-RU")} шт`, value: String(n) })),
+        },
+        {
+          key: "format", field: "format",
+          question: "Какой формат изделия?",
+          chips: () => ["A6", "A5", "A4", "A3", "евро DL", "90×50", "custom"]
+            .map((f) => ({ label: f, value: f })),
+        },
+        {
+          key: "color", field: "color_front",
+          question: "Какая красочность?",
+          chips: () => ["4+4", "4+0", "1+1", "1+0"].map((c) => ({ label: c, value: c })),
+        },
+        {
+          key: "material", field: "material_id",
+          question: "Какой материал?",
+          chips: () => {
+            const cat = String((draft as any).material_category ?? "");
+            const dens = Number((draft as any).material_density ?? 0);
+            return snapshot.materials
+              .filter((m) => !cat || m.type === cat)
+              .filter((m) => !dens || Math.abs(m.density - dens) <= 30)
+              .slice(0, 6)
+              .map((m) => ({ label: `${m.name} ${m.density}`, value: m.name, hint: `${m.w}×${m.h} мм` }));
+          },
+        },
+        {
+          key: "postpress", field: "postpress",
+          question: "Какая постпечать нужна?",
+          chips: () => {
+            const cats = [...new Set(snapshot.operation_catalog.map((o) => o.category))].filter(Boolean);
+            return [{ label: "Без постпечати", value: "нет" }, ...cats.slice(0, 6).map((c) => ({ label: c, value: c }))];
+          },
+        },
+        {
+          key: "margin", field: "margin_percent",
+          question: "Какая наценка?",
+          chips: () => [20, 30, 40, 50].map((n) => ({ label: `${n}%`, value: String(n) })),
+        },
+      ];
+      // Find first missing field
+      for (const s of STEPS) {
+        const v = (draft as any)[s.field];
+        const filled = s.field === "color_front"
+          ? typeof (draft as any).color_front === "number" && typeof (draft as any).color_back === "number"
+          : s.field === "postpress"
+          ? Array.isArray((draft as any).postpress)
+          : v != null && v !== "";
+        if (!filled) {
+          let chips: Array<{ label: string; value: string; hint?: string }> = [];
+          try { chips = s.chips(); } catch { chips = []; }
+          return { step: s.key, field: s.field, question: s.question, chips, done: false };
+        }
+      }
+      return { step: "calculate", done: true, question: "Все параметры собраны. Запусти calculate_order и затем propose_order_card." };
     }
     case "list_materials": {
       const t = String(args.type ?? "").trim();

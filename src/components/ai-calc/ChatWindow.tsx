@@ -87,6 +87,7 @@ export type ChatPart =
   | { type: "text"; text: string }
   | { type: "proposed_order"; order: ProposedOrder }
   | { type: "draft"; draft: Record<string, unknown> }
+  | { type: "choices"; choices: Array<{ label: string; value: string; hint?: string }>; step?: string | null }
   | { type: "tool_trace"; trace: ToolTraceItem[] };
 
 export type ChatMessage = {
@@ -541,6 +542,9 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       if (Array.isArray(data.tool_trace) && data.tool_trace.length > 0) {
         parts.push({ type: "tool_trace", trace: data.tool_trace as ToolTraceItem[] });
       }
+      if (Array.isArray(data.choices) && data.choices.length > 0) {
+        parts.push({ type: "choices", choices: data.choices as Array<{ label: string; value: string; hint?: string }>, step: data.step ?? null });
+      }
       if (data.proposed_order && typeof data.proposed_order === "object") {
         parts.push({ type: "proposed_order", order: data.proposed_order });
       }
@@ -745,6 +749,21 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                       <ProposedOrderCard key={i} order={p.order} />
                     ) : p.type === "tool_trace" ? (
                       <AiToolTrace key={i} trace={p.trace} />
+                    ) : p.type === "choices" ? (
+                      <div key={i} className="mt-2 flex flex-wrap gap-1.5">
+                        {p.choices.map((c, ci) => (
+                          <button
+                            key={ci}
+                            type="button"
+                            disabled={status === "submitted" || idx !== messages.length - 1}
+                            onClick={() => void send(c.value)}
+                            title={c.hint}
+                            className="text-xs px-2.5 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-foreground hover:bg-primary/10 hover:border-primary/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {c.label}
+                          </button>
+                        ))}
+                      </div>
                     ) : null,
                   ))}
                 </MessageContent>
