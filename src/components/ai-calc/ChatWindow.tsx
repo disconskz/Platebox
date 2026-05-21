@@ -517,7 +517,7 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
           "Authorization": `Bearer ${token}`,
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ text: trimmed, history }),
+        body: JSON.stringify({ text: trimmed, history, draft: draftRef.current }),
         signal: controller.signal,
       });
 
@@ -532,6 +532,10 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       const parts: ChatPart[] = [{ type: "text", text: String(data.reply ?? "") }];
       if (data.proposed_order && typeof data.proposed_order === "object") {
         parts.push({ type: "proposed_order", order: data.proposed_order });
+      }
+      if (data.draft && typeof data.draft === "object") {
+        draftRef.current = data.draft as Record<string, unknown>;
+        parts.push({ type: "draft", draft: data.draft });
       }
       const aMsg: ChatMessage = {
         id: `tmp-${Date.now()}-a`,
