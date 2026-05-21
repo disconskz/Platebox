@@ -372,7 +372,10 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const formsPrepCost = forms * rule.formPrepCost;
 
   // Print
-  const impressions = printSheets * (turnaround === "own" ? 2 : 1);
+  // Каждый прогон краски = отдельный оттиск. Стороны учитываются через
+  // colorFront + colorBack (для «свой оборот» обычно colorBack > 0).
+  const colorsTotal = Math.max(1, (input.colorFront || 0) + (input.colorBack || 0));
+  const impressions = printSheets * colorsTotal;
   const printPerImpr = input.printCostPerImpression ?? (turnaround === "foreign" ? 5 : 3);
   const printCost = impressions * printPerImpr;
   const inkCost = 0;
