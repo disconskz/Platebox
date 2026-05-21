@@ -86,6 +86,12 @@ export interface CalcInput {
   stampingNotebook?: boolean;
   /** Несколько клише тиснения. Если задано — используется вместо одиночных W/H. */
   stampingCliches?: Array<{ w: number; h: number; points?: number }>;
+  /** Конгрев: включён? */
+  hasEmbossing?: boolean;
+  /** Несколько клише конгрева. Каждое со своим количеством точек. */
+  embossingCliches?: Array<{ w: number; h: number; points?: number }>;
+  /** Конгрев по тетрадям (увеличенная цена за оттиск). */
+  embossingNotebook?: boolean;
   hasLamPrepress?: boolean; // припрессовка для пакетов
   lamPrepressSides?: 1 | 2;
   // print pricing

@@ -55,6 +55,10 @@ export const calcInputSchema = z
       .array(z.object({ w: nonNegNum.max(500), h: nonNegNum.max(500), points: nonNegNum.int().max(100).optional() }))
       .max(20)
       .optional(),
+    embossingCliches: z
+      .array(z.object({ w: nonNegNum.max(500), h: nonNegNum.max(500), points: nonNegNum.int().max(100).optional() }))
+      .max(20)
+      .optional(),
     lamPrepressSides: z.union([z.literal(1), z.literal(2)]).optional(),
   })
   .passthrough();
