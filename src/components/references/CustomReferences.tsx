@@ -116,7 +116,7 @@ export default function CustomReferences() {
                     ))}
                     <td className="p-1.5 text-right"><Button size="sm" onClick={addRow}><Plus className="h-3.5 w-3.5" /></Button></td>
                   </tr>
-                  {rows.map((row) => (
+                  {pageRows.map((row) => (
                     <tr key={row.id} className="border-t">
                       {activeRef.fields.map((f) => (
                         <td key={f.key} className="p-1.5">
