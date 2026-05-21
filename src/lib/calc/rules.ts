@@ -27,6 +27,7 @@ const KEY_MAP: Record<string, keyof CalcRules> = {
   "rule.price.stampingClichePerCm2": "stampingClichePerCm2",
   "rule.price.stampingImpr": "stampingImpr",
   "rule.price.stampingImprNotebook": "stampingImprNotebook",
+  "rule.price.operationSetupCost": "operationSetupCost",
   "rule.formats.maxPrintW": "maxPrintW",
   "rule.formats.maxPrintH": "maxPrintH",
   "rule.formats.altPrintW": "altPrintW",

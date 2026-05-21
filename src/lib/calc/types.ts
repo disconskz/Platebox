@@ -186,4 +186,6 @@ export const DEFAULTS = {
   stampingImpr: 20,
   stampingImprNotebook: 50,
   designCost: 500,
+  /** Универсальная приладка для постпечатных операций (если своя не задана). */
+  operationSetupCost: 1500,
 };

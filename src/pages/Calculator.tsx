@@ -659,21 +659,33 @@ const Calculator = () => {
   // Доп. строки спецификации из выбранных операций справочника
   const extraSpecItems = useMemo(() => {
     return Object.entries(extraOps)
-      .map(([id, st]) => {
+      .flatMap(([id, st]) => {
         const op = operations.find((o) => o.id === id);
-        if (!op || !st.qty) return null;
+        if (!op || !st.qty) return [];
         const stage = (op.category as any) || "postpress";
-        const total = st.qty * st.price + Number(op.fixed_cost || 0);
-        return {
+        const items: any[] = [];
+        const setup = Number(op.fixed_cost || 0);
+        if (setup > 0) {
+          items.push({
+            stage,
+            name: `${op.name} (приладка)`,
+            quantity: 1,
+            unit: "шт",
+            unitPrice: setup,
+            total: setup,
+          });
+        }
+        items.push({
           stage,
           name: op.name,
           quantity: st.qty,
           unit: op.unit || "шт",
           unitPrice: st.price,
-          total,
-        };
+          total: st.qty * st.price,
+        });
+        return items;
       })
-      .filter(Boolean) as any[];
+      ;
   }, [extraOps, operations]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
