@@ -202,7 +202,7 @@ const Calculator = () => {
   const [hasNumbering, setHasNumbering] = useState(false);
   const [numbersPerSheet, setNumbersPerSheet] = useState(1);
   const [hasStamping, setHasStamping] = useState(false);
-  const [stampCliches, setStampCliches] = useState<Array<{ w: number; h: number }>>([{ w: 5, h: 3 }]);
+  const [stampCliches, setStampCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
 
@@ -1558,7 +1558,7 @@ const Calculator = () => {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setStampCliches((arr) => [...arr, { w: 5, h: 3 }])}
+                          onClick={() => setStampCliches((arr) => [...arr, { w: 5, h: 3, points: 1 }])}
                         >
                           + клише
                         </Button>
@@ -1591,6 +1591,19 @@ const Calculator = () => {
                               }}
                             />
                             <span className="text-xs text-muted-foreground">см</span>
+                            <span className="text-xs text-muted-foreground ml-2">точек</span>
+                            <Input
+                              className="w-16"
+                              type="number"
+                              inputMode="numeric"
+                              min={1}
+                              value={c.points ?? 1}
+                              onChange={(e) => {
+                                const v = Math.max(1, Number(e.target.value) || 1);
+                                setStampCliches((arr) => arr.map((x, j) => (j === i ? { ...x, points: v } : x)));
+                              }}
+                              title="Сколько точек тиснения делается этим клише за один оттиск"
+                            />
                             {stampCliches.length > 1 && (
                               <Button
                                 type="button"
@@ -1604,7 +1617,7 @@ const Calculator = () => {
                           </div>
                         ))}
                         <p className="text-xs text-muted-foreground">
-                          Каждое клише — отдельная точка тиснения: добавляется свой расчёт клише и {stampCliches.length > 1 ? `×${stampCliches.length} ` : ""}оттисков на тираж.
+                          Каждое клише считается отдельно; в поле «точек» укажите, сколько точек тиснения наносится одним клише за оттиск. Итоговые оттиски = тираж × сумма точек по всем клише.
                         </p>
                       </div>
                     )}

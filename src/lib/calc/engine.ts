@@ -445,16 +445,21 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     if (cliches.length > 0) {
       const impr = input.stampingNotebook ? rule.stampingImprNotebook : rule.stampingImpr;
       postpress.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
+      const pointsList = cliches.map((c) => Math.max(1, Math.floor((c as any).points ?? 1)));
+      const totalPoints = pointsList.reduce((s, n) => s + n, 0);
       cliches.forEach((c, i) => {
         const area = c.w * c.h;
         const cliche = Math.max(rule.stampingClicheMin, area * rule.stampingClichePerCm2);
-        const label = cliches.length > 1 ? ` #${i + 1} (${c.w}×${c.h} см)` : "";
+        const p = pointsList[i];
+        const label = cliches.length > 1 || p > 1
+          ? ` #${i + 1} (${c.w}×${c.h} см${p > 1 ? `, ${p} точек` : ""})`
+          : "";
         postpress.push({ stage: "postpress", name: `Тиснение (клише)${label}`, quantity: area, unit: "см²", unitPrice: rule.stampingClichePerCm2, total: cliche });
       });
-      const totalImpr = input.circulation * cliches.length;
+      const totalImpr = input.circulation * totalPoints;
       postpress.push({
         stage: "postpress",
-        name: cliches.length > 1 ? `Тиснение (оттиски, ${cliches.length} точек)` : "Тиснение (оттиски)",
+        name: totalPoints > 1 ? `Тиснение (оттиски, ${totalPoints} точек)` : "Тиснение (оттиски)",
         quantity: totalImpr,
         unit: "оттиск",
         unitPrice: impr,
