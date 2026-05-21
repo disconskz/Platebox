@@ -1699,7 +1699,14 @@ const Calculator = () => {
             </SheetTrigger>
             <SheetContent side="bottom" className="rounded-t-2xl">
               <SheetHeader><SheetTitle>Итоги</SheetTitle></SheetHeader>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                <PriceBreakdownTree
+                  spec={result.spec as any}
+                  totalCost={totalCost}
+                  marginPercent={margin}
+                  vatPercent={vatPercent}
+                  circulation={circulation}
+                />
                 <Row label="Себестоимость" value={fmtMoney(totalCost)} />
                 <div>
                   <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
