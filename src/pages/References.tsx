@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight, AlertTriangle,
-  Copy, Download, Upload, MoreHorizontal, Search, X,
+  Copy, Download, Upload, MoreHorizontal, Search, X, Link2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
 import { DataState } from "@/components/DataState";
+import { Badge } from "@/components/ui/badge";
 
 type AnyRow = Record<string, any>;
 
@@ -272,13 +273,7 @@ const References = () => {
           <div className="ml-auto text-sm font-medium truncate">Справочники (НСИ)</div>
         </div>
       </header>
-      <main className="container mx-auto py-4 sm:py-6 px-4">
-        <div className="mb-3 text-sm text-muted-foreground inline-flex items-center">
-          Справочники питают калькулятор: меняете цены и нормативы здесь — они подтягиваются во все новые расчёты.
-          <HelpHint title="Справочники" learnMore="refs-materials">
-            Бумага, операции, оборудование, ламинация и системные константы. Изменения видны во всех новых расчётах.
-          </HelpHint>
-        </div>
+      <main className="container mx-auto py-3 px-3 sm:px-4">
         <ReferencesNav dynOpts={dynOpts} authReady={authReady} />
       </main>
       <MobileTabBar />
@@ -286,51 +281,98 @@ const References = () => {
   );
 };
 
-// Группированная навигация по справочникам: на десктопе — сайдбар,
-// на мобильных — Select. Заменяет горизонтальную полоску табов,
-// которую неудобно листать при большом числе разделов.
-const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] = [
+/**
+ * Описание раздела: что это, к каким таблицам относится для подсчёта строк,
+ * с какими другими разделами связан (показываем чипами «связан с»).
+ * countKey — реальная таблица в БД, по которой считаем количество строк;
+ * для виртуальных разделов (__rules, __custom…) указываем null.
+ */
+type NavItem = {
+  key: string;
+  title: string;
+  desc?: string;
+  countKey?: string | null;
+  relatedKeys?: string[];
+};
+
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: "Материалы и форматы",
     items: [
-      { key: "materials", title: "Бумага" },
-      { key: "purchase_formats", title: "Закупочные форматы" },
-      { key: "print_formats", title: "Печатные форматы" },
-      { key: "envelope_formats", title: "Конверты" },
+      { key: "materials", title: "Бумага", desc: "Каталог бумаги: тип, плотность, формат и цена за лист.", countKey: "materials", relatedKeys: ["purchase_formats", "print_formats"] },
+      { key: "purchase_formats", title: "Закупочные форматы", desc: "Форматы листа у поставщика. На них ссылается бумага и печатные форматы.", countKey: "purchase_formats", relatedKeys: ["materials", "print_formats"] },
+      { key: "print_formats", title: "Печатные форматы", desc: "Рабочие форматы печати, вырезаемые из закупочного.", countKey: "print_formats", relatedKeys: ["purchase_formats", "press_machines"] },
+      { key: "envelope_formats", title: "Конверты", desc: "Готовые конвертные форматы для расчёта.", countKey: "envelope_formats" },
     ],
   },
   {
     title: "Производство",
     items: [
-      { key: "operations", title: "Операции" },
-      { key: "__op_catalog", title: "Виды работ (формулы)" },
-      { key: "equipment", title: "Оборудование" },
-      { key: "press_machines", title: "Печатные машины" },
-      { key: "lamination_prices", title: "Ламинация" },
+      { key: "operations", title: "Операции", desc: "Базовые операции с фиксированной и переменной ценой.", countKey: "operations", relatedKeys: ["__op_catalog", "equipment"] },
+      { key: "__op_catalog", title: "Виды работ (формулы)", desc: "Полный каталог операций с параметрами и формулами расчёта.", countKey: "operation_catalog", relatedKeys: ["operations"] },
+      { key: "equipment", title: "Оборудование", desc: "Послепечатное оборудование и стоимость оттиска.", countKey: "equipment" },
+      { key: "press_machines", title: "Печатные машины", desc: "Печатные машины, форматы, приладка, типы продукции.", countKey: "press_machines", relatedKeys: ["print_formats", "product_circulation_rules"] },
+      { key: "lamination_prices", title: "Ламинация", desc: "Цены за сторону по плёнке и размеру.", countKey: "lamination_prices" },
     ],
   },
   {
     title: "Правила и настройки",
     items: [
-      { key: "product_circulation_rules", title: "Правила тиражей" },
-      { key: "__rules", title: "Правила расчёта" },
-      { key: "system_settings", title: "Константы" },
-      { key: "__calc_constants", title: "Константы формул" },
+      { key: "product_circulation_rules", title: "Правила тиражей", desc: "Какая машина обслуживает продукт в каком диапазоне тиражей.", countKey: "product_circulation_rules", relatedKeys: ["press_machines"] },
+      { key: "__rules", title: "Правила расчёта", desc: "Конструктор правил для формул калькулятора.", countKey: null },
+      { key: "system_settings", title: "Константы", desc: "Системные ключ-значение настройки.", countKey: "system_settings" },
+      { key: "__calc_constants", title: "Константы формул", desc: "Числовые константы, используемые в формулах.", countKey: null },
     ],
   },
   {
     title: "Расширения",
     items: [
-      { key: "__glossary", title: "Глоссарий продукции" },
-      { key: "__custom", title: "Свои справочники" },
+      { key: "__glossary", title: "Глоссарий продукции", desc: "Объяснения типов продукции для подсказок.", countKey: null },
+      { key: "__custom", title: "Свои справочники", desc: "Пользовательские справочники для своих нужд.", countKey: null },
     ],
   },
 ];
 
+const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
+const NAV_BY_KEY: Record<string, NavItem> = Object.fromEntries(ALL_NAV_ITEMS.map((i) => [i.key, i]));
+
 const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authReady: boolean }) => {
   const [active, setActive] = useState<string>("materials");
-  const allItems = NAV_GROUPS.flatMap((g) => g.items);
-  const activeTitle = allItems.find((i) => i.key === active)?.title ?? "";
+  const [navQuery, setNavQuery] = useState("");
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  // Подсчёт строк в каждой реальной таблице — показываем рядом с пунктом.
+  // Один проход на сессию: не блокирует UI, ошибки тихо игнорируем.
+  useEffect(() => {
+    if (!authReady) return;
+    let cancelled = false;
+    (async () => {
+      const tables = Array.from(new Set(ALL_NAV_ITEMS.map((i) => i.countKey).filter(Boolean) as string[]));
+      const results = await Promise.all(
+        tables.map(async (t) => {
+          try {
+            const { count } = await (supabase as any).from(t).select("*", { count: "exact", head: true });
+            return [t, count ?? 0] as const;
+          } catch {
+            return [t, 0] as const;
+          }
+        }),
+      );
+      if (cancelled) return;
+      setCounts(Object.fromEntries(results));
+    })();
+    return () => { cancelled = true; };
+  }, [authReady]);
+
+  const filteredGroups = useMemo(() => {
+    const q = navQuery.trim().toLowerCase();
+    if (!q) return NAV_GROUPS;
+    return NAV_GROUPS
+      .map((g) => ({ ...g, items: g.items.filter((i) => i.title.toLowerCase().includes(q) || (i.desc || "").toLowerCase().includes(q)) }))
+      .filter((g) => g.items.length > 0);
+  }, [navQuery]);
+
+  const activeItem = NAV_BY_KEY[active];
 
   const renderContent = () => {
     if (active === "__rules") return <CalcRulesEditor />;
@@ -343,8 +385,10 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
     return <RefTable spec={spec as any} dynOpts={dynOpts} authReady={authReady} />;
   };
 
+  const countOf = (it: NavItem) => (it.countKey ? counts[it.countKey] : undefined);
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+    <div className="grid gap-3 lg:grid-cols-[240px_1fr]">
       {/* Mobile: Select */}
       <div className="lg:hidden">
         <Select value={active} onValueChange={setActive}>
@@ -353,9 +397,14 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
             {NAV_GROUPS.map((g, gi) => (
               <Fragment key={g.title}>
                 <div className={`px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground ${gi === 0 ? "" : "mt-1 border-t"}`}>{g.title}</div>
-                {g.items.map((it) => (
-                  <SelectItem key={it.key} value={it.key}>{it.title}</SelectItem>
-                ))}
+                {g.items.map((it) => {
+                  const c = countOf(it);
+                  return (
+                    <SelectItem key={it.key} value={it.key}>
+                      {it.title}{c != null ? ` (${c})` : ""}
+                    </SelectItem>
+                  );
+                })}
               </Fragment>
             ))}
           </SelectContent>
@@ -364,37 +413,104 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
 
       {/* Desktop: sidebar */}
       <nav className="hidden lg:block">
-        <div className="sticky top-20 space-y-4 p-2 rounded-lg border bg-card">
-          {NAV_GROUPS.map((g) => (
-            <div key={g.title}>
-              <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {g.title}
+        <div className="sticky top-16 rounded-lg border bg-card overflow-hidden">
+          <div className="px-2 py-2 border-b bg-muted/30">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={navQuery}
+                onChange={(e) => setNavQuery(e.target.value)}
+                placeholder="Найти раздел…"
+                className="h-7 pl-7 pr-7 text-xs"
+              />
+              {navQuery && (
+                <button
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  onClick={() => setNavQuery("")}
+                  aria-label="Очистить"
+                ><X className="h-3 w-3" /></button>
+              )}
+            </div>
+          </div>
+          <div className="max-h-[calc(100vh-9rem)] overflow-y-auto p-1.5">
+            {!filteredGroups.length && (
+              <div className="px-2 py-3 text-xs text-muted-foreground">Ничего не найдено</div>
+            )}
+            {filteredGroups.map((g, gi) => (
+              <div key={g.title} className={gi === 0 ? "" : "mt-2 pt-2 border-t"}>
+                <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {g.title}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {g.items.map((it) => {
+                    const isActive = active === it.key;
+                    const c = countOf(it);
+                    return (
+                      <button
+                        key={it.key}
+                        onClick={() => setActive(it.key)}
+                        className={`group text-left text-[13px] px-2 py-1 rounded-md flex items-center gap-2 transition-colors ${
+                          isActive ? "bg-primary text-primary-foreground" : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                        }`}
+                      >
+                        <span className="truncate flex-1">{it.title}</span>
+                        {c != null && (
+                          <span className={`text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded ${
+                            isActive ? "bg-primary-foreground/15 text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-background"
+                          }`}>{c}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5">
-                {g.items.map((it) => {
-                  const isActive = active === it.key;
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      <div className="min-w-0 space-y-2">
+        {activeItem && (
+          <div className="rounded-lg border bg-card px-3 py-2.5">
+            <div className="flex items-start gap-2 flex-wrap">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-semibold leading-tight">{activeItem.title}</h2>
+                  {countOf(activeItem) != null && (
+                    <Badge variant="secondary" className="font-mono text-[10px] h-4 px-1.5">
+                      {countOf(activeItem)} записей
+                    </Badge>
+                  )}
+                  <HelpHint title="Справочники" learnMore="refs-materials">
+                    Изменения видны во всех новых расчётах.
+                  </HelpHint>
+                </div>
+                {activeItem.desc && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{activeItem.desc}</p>
+                )}
+              </div>
+            </div>
+            {!!activeItem.relatedKeys?.length && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-2 border-t">
+                <Link2 className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Связан с</span>
+                {activeItem.relatedKeys.map((k) => {
+                  const rel = NAV_BY_KEY[k];
+                  if (!rel) return null;
                   return (
                     <button
-                      key={it.key}
-                      onClick={() => setActive(it.key)}
-                      className={`text-left text-sm px-2.5 py-1.5 rounded-md transition-colors ${
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                      }`}
+                      key={k}
+                      onClick={() => setActive(k)}
+                      className="text-[11px] px-1.5 py-0.5 rounded border bg-background hover:bg-muted transition-colors"
                     >
-                      {it.title}
+                      {rel.title}
                     </button>
                   );
                 })}
               </div>
-            </div>
-          ))}
-        </div>
-      </nav>
-
-      <div className="min-w-0">
-        <div className="lg:hidden mb-2 text-sm font-medium">{activeTitle}</div>
+            )}
+          </div>
+        )}
         {renderContent()}
       </div>
     </div>
