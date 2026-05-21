@@ -13,6 +13,52 @@ export function getCalcRules(): CalcRules {
 }
 const R = () => CURRENT_RULES;
 
+// === Резка печатный → конечный (из справочника cut_count_rules + константа) ===
+export interface CutRulesData {
+  /** Цена одного реза печатного листа, ₸. */
+  pricePerCut: number;
+  /** Карта "PRINT|ITEM" -> число резов на один печатный лист. */
+  table: Record<string, number>;
+}
+let CUT_RULES: CutRulesData = { pricePerCut: 1, table: {} };
+export function setCutRules(d: CutRulesData) {
+  CUT_RULES = { pricePerCut: Number(d.pricePerCut) || 1, table: { ...d.table } };
+}
+export function getCutRules(): CutRulesData {
+  return CUT_RULES;
+}
+
+/** A-форматы в мм для распознавания печатного листа по фактическим размерам. */
+const A_FORMATS: Array<{ name: string; w: number; h: number }> = [
+  { name: "A0", w: 841, h: 1189 },
+  { name: "A1", w: 594, h: 841 },
+  { name: "A2", w: 420, h: 594 },
+  { name: "A3", w: 297, h: 420 },
+  { name: "A4", w: 210, h: 297 },
+  { name: "A5", w: 148, h: 210 },
+  { name: "A6", w: 105, h: 148 },
+];
+/** Определить имя печатного листа по фактическим размерам (±15 мм допуск, любая ориентация). */
+export function detectPrintFormatName(w: number, h: number, tol = 15): string | null {
+  const lo = Math.min(w, h);
+  const hi = Math.max(w, h);
+  for (const f of A_FORMATS) {
+    if (Math.abs(f.w - lo) <= tol && Math.abs(f.h - hi) <= tol) return f.name;
+  }
+  // SRA/печатные форматы > A2 — приравниваем к ближайшему «надформату»
+  if (hi >= 700) return "A1";
+  if (hi >= 500) return "A2";
+  if (hi >= 380) return "A3";
+  return null;
+}
+/** Поиск количества резов в таблице. Возвращает null, если связки нет. */
+export function lookupCutCount(printName: string | null, itemName: string | null): number | null {
+  if (!printName || !itemName) return null;
+  const key = `${printName}|${itemName}`;
+  const v = CUT_RULES.table[key];
+  return typeof v === "number" && v >= 0 ? v : null;
+}
+
 export function calculateLayout(
   productW: number,
   productH: number,
