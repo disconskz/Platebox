@@ -82,7 +82,8 @@ export type ProposedOrder = {
 
 export type ChatPart =
   | { type: "text"; text: string }
-  | { type: "proposed_order"; order: ProposedOrder };
+  | { type: "proposed_order"; order: ProposedOrder }
+  | { type: "draft"; draft: Record<string, unknown> };
 
 export type ChatMessage = {
   id: string;
@@ -423,6 +424,15 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
   const [status, setStatus] = useState<"ready" | "submitted" | "error">("ready");
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // Dialog memory: agent-side draft state, restored from last assistant message
+  const draftRef = useRef<Record<string, unknown>>({});
+  useEffect(() => {
+    for (let i = initialMessages.length - 1; i >= 0; i--) {
+      const m = initialMessages[i];
+      const dp = m.parts.find((p) => p.type === "draft") as { type: "draft"; draft: Record<string, unknown> } | undefined;
+      if (dp) { draftRef.current = dp.draft || {}; break; }
+    }
+  }, [initialMessages, threadId]);
 
   const history = useMemo(
     () =>
@@ -507,7 +517,7 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
           "Authorization": `Bearer ${token}`,
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ text: trimmed, history }),
+        body: JSON.stringify({ text: trimmed, history, draft: draftRef.current }),
         signal: controller.signal,
       });
 
@@ -522,6 +532,10 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       const parts: ChatPart[] = [{ type: "text", text: String(data.reply ?? "") }];
       if (data.proposed_order && typeof data.proposed_order === "object") {
         parts.push({ type: "proposed_order", order: data.proposed_order });
+      }
+      if (data.draft && typeof data.draft === "object") {
+        draftRef.current = data.draft as Record<string, unknown>;
+        parts.push({ type: "draft", draft: data.draft });
       }
       const aMsg: ChatMessage = {
         id: `tmp-${Date.now()}-a`,
@@ -632,9 +646,9 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                       ) : (
                         <span key={i} className="whitespace-pre-wrap">{p.text}</span>
                       )
-                    ) : (
+                    ) : p.type === "proposed_order" ? (
                       <ProposedOrderCard key={i} order={p.order} />
-                    ),
+                    ) : null,
                   )}
                 </MessageContent>
               </Message>
