@@ -678,9 +678,10 @@ const Calculator = () => {
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
-    if (!extraSpecItems.length) return baseResult;
-    const spec = [...baseResult.spec, ...extraSpecItems];
-    const extrasTotal = extraSpecItems.reduce((s: number, i: any) => s + i.total, 0);
+    const allExtras = [...extraSpecItems, ...catalogOpsItems];
+    if (!allExtras.length) return baseResult;
+    const spec = [...baseResult.spec, ...allExtras];
+    const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     const totalCost = baseResult.totalCost + extrasTotal;
     const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
     return {
@@ -690,7 +691,7 @@ const Calculator = () => {
       vatAmount,
       totalWithVat: totalCost + vatAmount,
     };
-  }, [baseResult, extraSpecItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
