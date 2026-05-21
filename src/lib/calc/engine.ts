@@ -28,6 +28,19 @@ export function getCutRules(): CutRulesData {
   return CUT_RULES;
 }
 
+// === Расходные материалы (фольга для тиснения и т.п.) ===
+export interface MaterialPrices {
+  /** Цена 1 см² фольги для тиснения, ₸. */
+  foilPerCm2: number;
+}
+let MATERIAL_PRICES: MaterialPrices = { foilPerCm2: 6 };
+export function setMaterialPrices(p: Partial<MaterialPrices>) {
+  MATERIAL_PRICES = { ...MATERIAL_PRICES, ...p };
+}
+export function getMaterialPrices(): MaterialPrices {
+  return MATERIAL_PRICES;
+}
+
 /** A-форматы в мм для распознавания печатного листа по фактическим размерам. */
 const A_FORMATS: Array<{ name: string; w: number; h: number }> = [
   { name: "A0", w: 841, h: 1189 },
@@ -441,6 +454,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   // Postpress
   const postpress: SpecItem[] = [];
+  // Расходные материалы (фольга и т.п.) — выносим в отдельную «корзину»
+  // и показываем в конце сводки вместе с бумагой/краской.
+  const consumables: SpecItem[] = [];
 
   // Резка печатного листа на конечный формат изделия.
   // Берём число резов из справочника cut_count_rules по связке
@@ -544,6 +560,20 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
         unitPrice: impr,
         total: totalImpr * impr,
       });
+      // Фольга: расход = сумма площадей клише с учётом точек × тираж.
+      const totalFoilAreaPerImpr = cliches.reduce((s, c, i) => s + c.w * c.h * pointsList[i], 0);
+      const foilArea = totalFoilAreaPerImpr * input.circulation;
+      const foilPrice = MATERIAL_PRICES.foilPerCm2;
+      if (foilArea > 0 && foilPrice > 0) {
+        consumables.push({
+          stage: "material",
+          name: "Фольга для тиснения",
+          quantity: Math.ceil(foilArea),
+          unit: "см²",
+          unitPrice: foilPrice,
+          total: Math.ceil(foilArea) * foilPrice,
+        });
+      }
     }
   }
 
@@ -604,7 +634,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     { stage: "print", name: `Печать офсетная (${turnaround === "foreign" ? "чужой" : turnaround === "own" ? "свой" : "без оборота"})`, quantity: impressions, unit: "оттиск", unitPrice: printPerImpr, total: printCost },
   ];
 
-  const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics];
+  const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics, ...consumables];
   const totalCost = spec.reduce((s, i) => s + i.total, 0);
 
   const vatPercent = input.vatPercent ?? 0;

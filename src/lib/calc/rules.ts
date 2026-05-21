@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { DEFAULTS } from "./types";
-import type { CutRulesData } from "./engine";
+import type { CutRulesData, MaterialPrices } from "./engine";
 
 export type CalcRules = typeof DEFAULTS;
 
@@ -68,4 +68,21 @@ export async function loadCutRules(): Promise<CutRulesData> {
   }
   const price = Number((constRes.data as any)?.value);
   return { pricePerCut: Number.isFinite(price) && price > 0 ? price : 1, table };
+}
+
+/** Загружает цены расходных материалов из calc_constants. */
+export async function loadMaterialPrices(): Promise<MaterialPrices> {
+  await ensureSupabaseSession();
+  const { data } = await (supabase as any)
+    .from("calc_constants")
+    .select("slug,value")
+    .in("slug", ["foil_price_per_cm2"]);
+  const map: Record<string, number> = {};
+  for (const r of (data as { slug: string; value: number }[]) || []) {
+    const n = Number(r.value);
+    if (Number.isFinite(n)) map[r.slug] = n;
+  }
+  return {
+    foilPerCm2: map["foil_price_per_cm2"] && map["foil_price_per_cm2"] > 0 ? map["foil_price_per_cm2"] : 6,
+  };
 }
