@@ -665,6 +665,8 @@ const Calculator = () => {
         const stage = (op.category as any) || "postpress";
         const items: any[] = [];
         const setup = Number(op.fixed_cost || 0);
+        const price = Number(op.variable_cost || 0);
+        const minCost = Number(op.min_cost || 0);
         if (setup > 0) {
           items.push({
             stage,
@@ -680,9 +682,21 @@ const Calculator = () => {
           name: op.name,
           quantity: st.qty,
           unit: op.unit || "шт",
-          unitPrice: st.price,
-          total: st.qty * st.price,
+          unitPrice: price,
+          total: st.qty * price,
         });
+        // Добор до минимальной стоимости работы (если задана в справочнике)
+        const sumSoFar = items.reduce((s, i) => s + i.total, 0);
+        if (minCost > 0 && sumSoFar < minCost) {
+          items.push({
+            stage,
+            name: `${op.name} (добор до мин. стоимости)`,
+            quantity: 1,
+            unit: "шт",
+            unitPrice: minCost - sumSoFar,
+            total: minCost - sumSoFar,
+          });
+        }
         return items;
       })
       ;
@@ -1866,7 +1880,7 @@ const ExtraOpsPicker = ({
     if (next[op.id]) {
       delete next[op.id];
     } else {
-      next[op.id] = { qty: defaultQty(op.unit), price: Number(op.variable_cost || 0) };
+      next[op.id] = { qty: defaultQty(op.unit) };
     }
     setExtraOps(next);
   };
@@ -1899,7 +1913,12 @@ const ExtraOpsPicker = ({
                       return (
                         <div key={op.id} className="flex flex-wrap items-center gap-2 rounded border bg-background p-2 text-sm">
                           <Checkbox checked={!!sel} onCheckedChange={() => toggle(op)} id={`op-${op.id}`} />
-                          <Label htmlFor={`op-${op.id}`} className="flex-1 cursor-pointer text-sm">{op.name}</Label>
+                          <Label htmlFor={`op-${op.id}`} className="flex-1 cursor-pointer text-sm">
+                            {op.name}
+                            {op.description ? (
+                              <span className="block text-[11px] text-muted-foreground font-normal">{op.description}</span>
+                            ) : null}
+                          </Label>
                           {sel && (
                             <>
                               <Input
@@ -1909,15 +1928,19 @@ const ExtraOpsPicker = ({
                                 onChange={(e) => update(op.id, { qty: Number(e.target.value) || 0 })}
                               />
                               <span className="text-xs text-muted-foreground w-14">{op.unit || "шт"}</span>
-                              <Input
-                                type="number"
-                                className="w-24 h-8"
-                                value={sel.price}
-                                onChange={(e) => update(op.id, { price: Number(e.target.value) || 0 })}
-                              />
-                              <span className="text-xs text-muted-foreground">₸</span>
+                              <span
+                                className="w-24 h-8 inline-flex items-center justify-end px-2 rounded border bg-muted/40 text-xs tabular-nums text-muted-foreground"
+                                title="Цена из справочника «Типы работ». Изменить может только администратор."
+                              >
+                                {fmtMoney(Number(op.variable_cost || 0))}
+                              </span>
                               <span className="text-xs font-medium tabular-nums w-24 text-right">
-                                = {fmtMoney(sel.qty * sel.price + Number(op.fixed_cost || 0))}
+                                = {fmtMoney(
+                                  Math.max(
+                                    sel.qty * Number(op.variable_cost || 0) + Number(op.fixed_cost || 0),
+                                    Number(op.min_cost || 0),
+                                  ),
+                                )}
                               </span>
                             </>
                           )}
