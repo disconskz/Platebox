@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureSupabaseSession } from "@/lib/auth-session";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Search, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface Operation {
   id: string;
@@ -42,16 +41,28 @@ export default function OperationCatalog() {
   const [activeCode, setActiveCode] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  /** Сколько work_items и параметров у каждой операции — для бейджей и «готово/нет». */
+  const [counts, setCounts] = useState<Record<number, { p: number; w: number }>>({});
 
   useEffect(() => {
     (async () => {
       await ensureSupabaseSession();
-      const { data } = await (supabase as any)
-        .from("operation_catalog")
-        .select("*")
-        .order("sort_order")
-        .order("name");
-      setOps((data as Operation[]) || []);
+      const [cRes, pRes, wRes] = await Promise.all([
+        (supabase as any).from("operation_catalog").select("*").order("sort_order").order("name"),
+        (supabase as any).from("operation_parameters").select("operation_code"),
+        (supabase as any).from("operation_work_items").select("operation_code"),
+      ]);
+      setOps((cRes.data as Operation[]) || []);
+      const map: Record<number, { p: number; w: number }> = {};
+      for (const r of ((pRes.data as any[]) || [])) {
+        const k = r.operation_code as number;
+        (map[k] ||= { p: 0, w: 0 }).p++;
+      }
+      for (const r of ((wRes.data as any[]) || [])) {
+        const k = r.operation_code as number;
+        (map[k] ||= { p: 0, w: 0 }).w++;
+      }
+      setCounts(map);
       setLoading(false);
     })();
   }, []);
@@ -86,11 +97,16 @@ export default function OperationCatalog() {
   const active = ops.find((o) => o.code === activeCode) || null;
   const activeParams = activeCode != null ? params[activeCode] || [] : [];
   const activeWork = activeCode != null ? workItems[activeCode] || [] : [];
+  const readyCount = useMemo(() => Object.values(counts).filter((c) => c.w > 0).length, [counts]);
 
   return (
-    <div className="space-y-3">
-      <div className="text-sm text-muted-foreground">
-        Виды работ ({ops.length}) с параметрами и формулами расчёта. Данные постепенно пополняются.
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>Всего: <b className="text-foreground tabular-nums">{ops.length}</b></span>
+        <span>•</span>
+        <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-600" /> с формулами: <b className="text-foreground tabular-nums">{readyCount}</b></span>
+        <span>•</span>
+        <span className="inline-flex items-center gap-1"><AlertCircle className="h-3 w-3 text-amber-600" /> требуют заполнения: <b className="text-foreground tabular-nums">{ops.length - readyCount}</b></span>
       </div>
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -98,41 +114,55 @@ export default function OperationCatalog() {
           placeholder="Поиск по названию, категории или коду…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+          className="pl-9 h-9"
         />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <Card className="max-h-[70vh] overflow-auto">
-          <CardContent className="p-2">
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="rounded-md border bg-card max-h-[70vh] overflow-auto">
+          <div className="p-1.5">
             {loading && <div className="p-4 text-sm text-muted-foreground">Загрузка…</div>}
             {!loading && !groups.length && <div className="p-4 text-sm text-muted-foreground">Ничего не найдено</div>}
             {groups.map(([cat, items]) => (
-              <div key={cat} className="mb-2">
-                <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">{cat}</div>
+              <div key={cat} className="mb-1.5">
+                <div className="sticky top-0 bg-card/95 backdrop-blur px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground border-b">
+                  {cat} <span className="text-muted-foreground/60 tabular-nums">({items.length})</span>
+                </div>
                 {items.map((o) => {
                   const isActive = o.code === activeCode;
+                  const c = counts[o.code];
+                  const ready = (c?.w || 0) > 0;
                   return (
                     <button
                       key={o.id}
                       onClick={() => setActiveCode(o.code)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-2 py-1 rounded-md text-[13px] flex items-center gap-2 transition-colors ${
                         isActive ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                       }`}
                     >
-                      <span className="font-mono text-[11px] opacity-70 w-10 shrink-0">{o.code}</span>
+                      {ready
+                        ? <CheckCircle2 className={`h-3 w-3 shrink-0 ${isActive ? "opacity-90" : "text-emerald-600"}`} />
+                        : <AlertCircle className={`h-3 w-3 shrink-0 ${isActive ? "opacity-90" : "text-amber-600"}`} />}
+                      <span className="font-mono text-[10px] opacity-60 w-8 shrink-0 tabular-nums">{o.code}</span>
                       <span className="truncate flex-1">{o.name}</span>
-                      <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                      {c && (
+                        <span className={`text-[10px] font-mono tabular-nums px-1 rounded ${
+                          isActive ? "bg-primary-foreground/15" : "text-muted-foreground bg-muted"
+                        }`} title="параметры / статьи работ">
+                          {c.p}·{c.w}
+                        </span>
+                      )}
+                      <ChevronRight className="h-3 w-3 opacity-50" />
                     </button>
                   );
                 })}
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="max-h-[70vh] overflow-auto">
-          <CardContent className="p-4">
+        <div className="rounded-md border bg-card max-h-[70vh] overflow-auto">
+          <div className="p-3">
             {!active && <div className="text-sm text-muted-foreground">Выберите операцию слева, чтобы увидеть её параметры и формулы</div>}
             {active && (
               <div className="space-y-3">
@@ -141,6 +171,9 @@ export default function OperationCatalog() {
                     <Badge variant="outline" className="font-mono">#{active.code}</Badge>
                     <Badge variant="secondary">{active.category}</Badge>
                     <Badge variant="outline">порядок {active.sort_order}</Badge>
+                    {(counts[active.code]?.w || 0) > 0
+                      ? <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white gap-1"><CheckCircle2 className="h-3 w-3" /> готова к расчёту</Badge>
+                      : <Badge variant="outline" className="text-amber-700 border-amber-300 gap-1"><AlertCircle className="h-3 w-3" /> формулы не загружены</Badge>}
                   </div>
                   <div className="mt-2 text-base font-semibold">{active.name}</div>
                 </div>
@@ -208,8 +241,8 @@ export default function OperationCatalog() {
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
