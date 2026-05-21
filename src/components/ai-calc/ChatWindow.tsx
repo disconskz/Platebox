@@ -696,8 +696,13 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
               </div>
             </ConversationEmptyState>
           ) : (
-            messages.map((m) => (
-              <Message key={m.id} from={m.role} className="animate-fade-in">
+            messages.map((m, idx) => {
+              const isLastAssistant =
+                m.role === "assistant" && idx === messages.length - 1 && status !== "submitted";
+              const textPart = m.parts.find((p) => p.type === "text") as { type: "text"; text: string } | undefined;
+              const isEditing = editingId === m.id;
+              return (
+              <Message key={m.id} from={m.role} className="animate-fade-in group/msg">
                 {m.role === "assistant" && (
                   <div className="flex items-center gap-2 mb-1">
                     <div className="h-7 w-7 rounded-lg border border-primary/30 bg-primary/10 flex items-center justify-center">
@@ -713,7 +718,25 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                       : undefined
                   }
                 >
-                  {m.parts.map((p, i) =>
+                  {isEditing ? (
+                    <div className="space-y-2 w-full">
+                      <Input
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void saveEdit(m);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        autoFocus
+                        className="bg-background text-foreground"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="ghost" onClick={cancelEdit}>Отмена</Button>
+                        <Button size="sm" onClick={() => void saveEdit(m)}>Отправить</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    m.parts.map((p, i) =>
                     p.type === "text" ? (
                       m.role === "assistant" ? (
                         <MessageResponse key={i}>{p.text}</MessageResponse>
@@ -722,11 +745,22 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                       )
                     ) : p.type === "proposed_order" ? (
                       <ProposedOrderCard key={i} order={p.order} />
+                    ) : p.type === "tool_trace" ? (
+                      <AiToolTrace key={i} trace={p.trace} />
                     ) : null,
-                  )}
+                  ))}
                 </MessageContent>
+                {!isEditing && textPart && (
+                  <MessageActions
+                    text={textPart.text}
+                    role={m.role}
+                    onRegenerate={isLastAssistant ? () => void regenerate() : undefined}
+                    onEdit={m.role === "user" ? () => startEdit(m) : undefined}
+                  />
+                )}
               </Message>
-            ))
+              );
+            })
           )}
 
           {status === "submitted" && (
