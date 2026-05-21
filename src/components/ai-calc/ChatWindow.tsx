@@ -642,9 +642,9 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                       ) : (
                         <span key={i} className="whitespace-pre-wrap">{p.text}</span>
                       )
-                    ) : (
+                    ) : p.type === "proposed_order" ? (
                       <ProposedOrderCard key={i} order={p.order} />
-                    ),
+                    ) : null,
                   )}
                 </MessageContent>
               </Message>
