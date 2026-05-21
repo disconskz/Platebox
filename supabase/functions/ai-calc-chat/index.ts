@@ -210,15 +210,21 @@ Deno.serve(async (req) => {
       break;
     }
 
-    let parsed: { reply?: string; draft?: unknown } = {};
+    let parsed: { reply?: string; draft?: unknown; choices?: unknown; step?: unknown } = {};
     try { parsed = JSON.parse(finalContent); } catch {
       parsed = { reply: finalContent || "Не удалось разобрать ответ.", draft };
     }
     const reply = typeof parsed.reply === "string" && parsed.reply.trim() ? parsed.reply.trim() : "—";
     const order = sanitizeProposedOrder(state.proposed_order, snapshot);
     const nextDraft = parsed.draft && typeof parsed.draft === "object" ? parsed.draft : draft;
+    const choices = Array.isArray(parsed.choices)
+      ? (parsed.choices as unknown[]).filter((c): c is { label: string; value: string; hint?: string } =>
+          !!c && typeof c === "object" && typeof (c as { label?: unknown }).label === "string" && typeof (c as { value?: unknown }).value === "string",
+        ).slice(0, 10)
+      : [];
+    const step = typeof parsed.step === "string" ? parsed.step : null;
 
-    return jsonResp(corsHeaders, { ok: true, reply, proposed_order: order, draft: nextDraft, tool_trace: toolTrace });
+    return jsonResp(corsHeaders, { ok: true, reply, proposed_order: order, draft: nextDraft, tool_trace: toolTrace, choices, step });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const status = msg === "rate_limit" ? 429 : msg === "credits_exhausted" ? 402 : 500;
