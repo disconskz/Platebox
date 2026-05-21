@@ -52,7 +52,7 @@ export const calcInputSchema = z
     stampingClicheW: nonNegNum.max(500).optional(),
     stampingClicheH: nonNegNum.max(500).optional(),
     stampingCliches: z
-      .array(z.object({ w: nonNegNum.max(500), h: nonNegNum.max(500) }))
+      .array(z.object({ w: nonNegNum.max(500), h: nonNegNum.max(500), points: nonNegNum.int().max(100).optional() }))
       .max(20)
       .optional(),
     lamPrepressSides: z.union([z.literal(1), z.literal(2)]).optional(),
