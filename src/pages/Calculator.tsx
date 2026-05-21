@@ -1599,11 +1599,8 @@ const Calculator = () => {
               </div>
             )}
 
-            {/* Desktop nav buttons */}
-            <div className="hidden sm:flex justify-between pt-2">
-              <Button variant="outline" onClick={prev} disabled={step === 1}><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
-              <Button onClick={next} disabled={step === 6 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
-            </div>
+            {/* Десктопная навигация по шагам убрана: все секции на одном экране,
+                перемещение — через Stepper сверху или скролл. */}
           </div>
 
           {/* Desktop sidebar with totals */}
