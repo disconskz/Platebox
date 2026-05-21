@@ -150,6 +150,8 @@ const Calculator = () => {
   const [operations, setOperations] = useState<OperationRow[]>([]);
   // выбранные операции из справочника: id -> { qty, price }
   const [extraOps, setExtraOps] = useState<Record<string, ExtraOpState>>({});
+  // строки спецификации из справочника операций (operation_catalog + work_items)
+  const [catalogOpsItems, setCatalogOpsItems] = useState<SpecItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [vatPercent, setVatPercent] = useState(0);
 
