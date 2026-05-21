@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -67,32 +66,31 @@ export default function CustomReferences() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="text-xs text-muted-foreground inline-flex items-center">
-        Создавайте свои таблицы (поставщики, прайсы, контакты) с произвольной схемой полей.
-        <HelpHint title="Свои справочники" learnMore="custom-create">
-          <p>Произвольные таблицы для ваших процессов. Поля: текст, число или список значений.</p>
-          <p>Эти данные не участвуют в формулах калькулятора напрямую — это ваш «карман» внутри Platebox.</p>
-        </HelpHint>
-      </div>
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Select value={active ?? ""} onValueChange={setActive}>
-          <SelectTrigger className="w-64 h-9"><SelectValue placeholder="Выберите справочник" /></SelectTrigger>
+          <SelectTrigger className="w-64 h-8"><SelectValue placeholder="Выберите справочник" /></SelectTrigger>
           <SelectContent>
             {refs.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <NewReferenceDialog onCreated={loadRefs} />
         {activeRef && (
-          <Button variant="outline" size="sm" onClick={removeRef}><Trash2 className="h-3.5 w-3.5 mr-1" /> Удалить справочник</Button>
+          <div className="text-xs text-muted-foreground tabular-nums">{rows.length} записей · {activeRef.fields.length} полей</div>
         )}
+        <div className="ml-auto flex items-center gap-2">
+          <HelpHint title="Свои справочники" learnMore="custom-create">
+            <p>Произвольные таблицы для ваших процессов. Поля: текст, число или список значений.</p>
+            <p>Эти данные не участвуют в формулах калькулятора напрямую — это ваш «карман» внутри Platebox.</p>
+          </HelpHint>
+          <NewReferenceDialog onCreated={loadRefs} />
+          {activeRef && (
+            <Button variant="outline" size="sm" className="h-8" onClick={removeRef}><Trash2 className="h-3.5 w-3.5 mr-1" /> Удалить</Button>
+          )}
+        </div>
       </div>
 
       {activeRef ? (
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">{activeRef.name}</CardTitle></CardHeader>
-          <CardContent>
-            <div className="overflow-auto rounded-md border">
+        <div className="overflow-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
@@ -129,9 +127,7 @@ export default function CustomReferences() {
                   )}
                 </tbody>
               </table>
-            </div>
-          </CardContent>
-        </Card>
+        </div>
       ) : (
         <div className="text-sm text-muted-foreground p-6 border rounded-md text-center">
           Создайте свой справочник кнопкой выше.
