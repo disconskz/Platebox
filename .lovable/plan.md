@@ -1,134 +1,137 @@
-## Что меняем
 
-Сейчас `ai-calc-chat` пихает в один system-prompt краткий снапшот справочников и просит модель «прикинуть на глаз». Постпечать оценивается без формул из `operation_work_items`, нет параметров операций, нет калькуляционных переменных, нет памяти между шагами диалога, нет реального просчёта.
+# Полноценный чат с ИИ-ассистентом
 
-Цель — ассистент, который:
-- видит **все позиции справочника**, включая параметры и формулы операций;
-- **сам спрашивает** недостающее свободной формой, помнит, что уже узнал;
-- **считает по тем же формулам**, что и калькулятор (никаких «оценок ±»);
-- возвращает **построчный разбор** материал / печать / постпечать / маржа / НДС.
+Текущее состояние: страница `/ai-calc` со списком, отдельная `/ai-calc/:id` с чатом, `ChatWindow` ходит обычным `fetch`-POST в edge function (без стрима), action'ов на сообщениях нет, заголовок = первые 60 символов, удаление через `confirm()`, tool-calls невидимы.
 
----
+Что делаем — большая переработка под чат-уровень ChatGPT.
 
-## 1. Расширение датасета справочника
+## 1. Макет: единая страница с сайдбаром
 
-В `loadReferenceSnapshot` добавляем:
+- Делаем новый компонент `AiChatLayout` на базе shadcn `Sidebar` (`collapsible="icon"`).
+- Маршруты остаются: `/ai-calc` (пустой стейт справа) и `/ai-calc/:threadId` (активный тред справа) — обе раскладки рисуются одним layout-компонентом, сайдбар не размонтируется при переключении треда.
+- На мобильных (<768px): сайдбар прячется, открывается через `SidebarTrigger` в шапке.
+- В шапке чата: название треда (inline-rename по клику), кнопки Pin / Archive / Delete, переключатель сайдбара.
 
-| Что | Откуда | Что отдаём модели |
-| --- | --- | --- |
-| Каталог операций | `operation_catalog` | `code`, `name`, `category`, `description` |
-| Параметры операций | `operation_parameters` | `operation_code`, `name`, `default_value`, `formula`, `notes` |
-| Виды работ операции | `operation_work_items` | `operation_code`, `name`, `price_source`, `quantity_source`, `notes` |
-| Библиотека этапов | `calc_stage_library` | `name`, `category`, `formula`, `unit` |
-| Варианты расчёта | `calc_variants` + `calc_variant_stages` | название, базовый продукт, состав этапов |
-| Кастомные справочники | `custom_references` + `custom_reference_rows` | имена полей и строки (нужно для нестандартных позиций) |
-| Полные `calc_constants` | как сейчас, но с `name`, `unit`, `description` | объяснимые константы |
-| Оборудование | `equipment` | резервная техника, не только пресса |
-| Подгруппы | у материалов/форматов/прессов/ламинации | для фильтров по «офсет/цифра», подкатегориям |
+## 2. Сайдбар тредов
 
-Снапшот по-прежнему кэшируем 5 минут, но переход с одного JSON-блока в system-prompt → на **выдачу через tool-calls**, чтобы не раздувать контекст.
+Один новый компонент `AiThreadsSidebar`:
 
----
+- Поиск по `title` + содержимому (фильтрация локально по уже загруженным; на бэке — `ilike` по `title`, плюс серверный поиск по `ai_messages.parts::text` через RPC при вводе ≥ 3 символов).
+- Кнопка «Новый разговор» вверху.
+- Группировка тредов: **Закреплённые** → **Сегодня** → **Вчера** → **Последние 7 дней** → **Раньше** (бакеты по `updated_at`).
+- Каждая строка: иконка чата + название + относительное время. Hover показывает popover-меню (Pin / Rename / Archive / Delete).
+- Активный тред подсвечивается `SidebarMenuButton isActive`.
+- Архивные скрыты по умолчанию; внизу сайдбара кнопка «Архив (N)» открывает отдельный диалог со списком архивных.
 
-## 2. Серверный движок формул
+## 3. Стриминг ответа по токенам
 
-Портируем `src/lib/operations/formula.ts` (`evalFormula`, `parseDefault`, `extractVariables`) в `supabase/functions/_shared/formula.ts`. Используется и инструментом `calculate_operation`, и для предрасчёта дефолтов параметров.
+Edge function переписываем на SSE-стрим через AI SDK + Lovable AI Gateway (см. `ai-sdk-lovable-gateway`):
 
-Добавляем `_shared/calc-engine.ts` с тонкой функцией `estimateOrder(input, snapshot)`, которая повторяет логику калькулятора:
+- `streamText({ model, messages, tools, stopWhen: stepCountIs(50), abortSignal: req.signal })` — текущая ручная tool-loop через `fetch`/JSON выбрасывается.
+- Возврат: `result.toUIMessageStreamResponse({ originalMessages, onFinish })` — сервер сохраняет финальное assistant-сообщение сам.
+- Клиент: переходим на AI SDK UI `useChat` + `DefaultChatTransport`, transport бьётся в `/functions/v1/ai-calc-chat` со своим `Authorization`.
+- Сохраняем существующий контракт `proposed_order` + `draft` через AI SDK **data parts** (`writeData({ type: 'proposed_order', order })`, `writeData({ type: 'draft', draft })`). Клиент рендерит их через `message.parts`.
+- Stop-кнопка по контракту `ai-sdk-abort-cancel`: `request.signal` → `streamText.abortSignal`; на клиенте — `useChat().stop` в `PromptInputSubmit`, на abort клиент дописывает «_Остановлено._» к последнему текстовому парту и сохраняет.
 
-```text
-items_per_sheet → sheets_useful → sheets_setup → sheets_total
-paper_cost = sheets_total × material.price
-prepress = forms × form_cost (из calc_constants)
-print_cost = sheets_total × cost_per_impression × max(front,back) + setup_cost
-postpress[i] = evalFormula(price_source) × evalFormula(quantity_source) с подставленными параметрами
-total = sum; sale = total × (1 + margin/100); vat = sale × vat/100
+## 4. Видимые шаги агента (tool calls)
+
+В UI каждое tool-обращение рендерим как блок внутри assistant-сообщения:
+
+- Заголовок с иконкой по типу tool (`search_operations` → магнит, `calculate_order` → калькулятор, `list_materials` → лист и т.д.).
+- Текущее состояние: «ИИ ищет материал…» / «Готово» / «Ошибка» (по `state` AI SDK tool part: `input-streaming` / `input-available` / `output-available` / `output-error`).
+- `<details>`-блок (свернут по умолчанию) с JSON входа и выхода.
+- Компонент `AiToolStep` (новый), мапит имя tool → label + icon из словаря.
+
+## 5. Действия на сообщениях
+
+В каждом сообщении — bottom-bar actions (видимы на hover, на тач — всегда):
+
+- **User**: «Редактировать» — переключает сообщение в textarea, по сохранению удаляются все последующие сообщения и запускается заново (`setMessages` + `sendMessage` через `useChat`).
+- **Assistant**: «Копировать» (text-only из parts), «Регенерировать» (удаляет последний assistant и повторяет последний user через `regenerate()` из `useChat`).
+- Существующий блок `ProposedOrderCard` остаётся как кастомный part-renderer.
+
+## 6. Композер
+
+Оставляем AI Elements `PromptInput` + `PromptInputTextarea` + `PromptInputFooter` + `PromptInputSubmit`:
+
+- Кнопка-сабмит уже превращается в Stop при `submitted`/`streaming` (поправим vendored `prompt-input.tsx` согласно `ai-sdk-abort-cancel` — убираем спиннер, всегда показываем квадрат с первого кадра).
+- Счётчик символов (мягкий лимит 2000) в `PromptInputFooter` слева.
+- Кнопка «Очистить» при наличии текста.
+- Чипы-пресеты над композером показываем только при пустом треде (как сейчас).
+
+## 7. Авто-заголовок
+
+После первого assistant-ответа триггерим отдельный лёгкий вызов в gateway:
+
+- `generateText({ model: "google/gemini-2.5-flash-lite", prompt: "Дай заголовок ≤ 40 символов для разговора: ..." })` на бэке — новая edge function `ai-thread-title` (или дополнительный action в текущей).
+- Обновляем `ai_threads.title`, шлём в клиент по той же ответу или подписываемся realtime.
+
+## 8. Pin / Archive в БД
+
+Миграция к `ai_threads`:
+
+- `is_pinned BOOLEAN NOT NULL DEFAULT false`
+- `is_archived BOOLEAN NOT NULL DEFAULT false`
+- индекс `idx_ai_threads_user_pinned_updated (user_id, is_pinned DESC, updated_at DESC) WHERE NOT is_archived`
+- RLS уже корректные (по `user_id`) — не меняем.
+
+## 9. Анимации (уровень 4 / 5)
+
+Используем существующие `animate-fade-in`, `animate-scale-in` + добавим:
+
+- Smooth slide для сайдбара (shadcn даёт из коробки).
+- Stagger fade-in для каждого нового message-парта (через CSS-задержку или Motion).
+- Pulse-dot у ассистента во время `submitted`.
+- Shimmer-bar в композере во время стрима (уже есть `Shimmer`).
+- Tool-step: scale-in при появлении, плавное раскрытие `<details>` через `accordion-down`.
+- Список тредов: row-enter `fade-in`, исчезновение при удалении `fade-out`.
+
+Motion library пока не добавляем — обходимся существующими keyframes из `tailwind.config.ts`.
+
+## 10. Технические файлы
+
+Новые:
+- `src/components/ai-calc/AiChatLayout.tsx` — `SidebarProvider` + outlet.
+- `src/components/ai-calc/AiThreadsSidebar.tsx` — сайдбар, поиск, группировка, контекст-меню.
+- `src/components/ai-calc/MessageActions.tsx` — копировать/регенерировать/редактировать.
+- `src/components/ai-calc/AiToolStep.tsx` — рендер tool-парта.
+- `src/components/ai-calc/RenameThreadDialog.tsx`, `ArchiveDrawer.tsx`.
+- `src/hooks/useAiThreads.ts` — загрузка/группировка/мутации тредов.
+- `supabase/functions/ai-thread-title/index.ts` — генерация заголовка.
+
+Изменяем:
+- `src/App.tsx` — оборачиваем `/ai-calc/*` в `AiChatLayout`.
+- `src/pages/AiCalc.tsx` → empty state справа (без своего header'а).
+- `src/pages/AiCalcThread.tsx` → только загрузка сообщений + `ChatWindow`.
+- `src/components/ai-calc/ChatWindow.tsx` → переписываем под `useChat` + `DefaultChatTransport`, добавляем actions, tool-step рендер, focus-mgmt.
+- `src/components/ai-elements/prompt-input.tsx` → стоп-иконка с первого кадра (см. `ai-sdk-abort-cancel`).
+- `supabase/functions/ai-calc-chat/index.ts` → `streamText` + `toUIMessageStreamResponse`, data parts для `proposed_order` и `draft`.
+
+Зависимости: ставим `ai`, `@ai-sdk/openai-compatible`, `@ai-sdk/react`.
+
+## 11. Миграция БД
+
+```sql
+ALTER TABLE public.ai_threads
+  ADD COLUMN is_pinned boolean NOT NULL DEFAULT false,
+  ADD COLUMN is_archived boolean NOT NULL DEFAULT false;
+
+CREATE INDEX idx_ai_threads_user_pinned_updated
+  ON public.ai_threads (user_id, is_pinned DESC, updated_at DESC)
+  WHERE NOT is_archived;
 ```
 
----
+## 12. Acceptance checks
 
-## 3. Перевод edge-функции на AI SDK + tool-calling
-
-Заменяем «один system-prompt + json_object» на `streamText` из `npm:ai` через AI Gateway по гайду `ai-sdk-lovable-gateway`. `stopWhen: stepCountIs(50)`.
-
-Инструменты (узкие схемы через `zod`):
-
-| Tool | Что делает |
-| --- | --- |
-| `list_product_types` | Список из `product_glossary` + `calc_variants` для подбора базы. |
-| `list_materials` | Фильтр по `type` (`coated/uncoated/...`), `density`, `min_w/h`. Возвращает id, имя, плотность, формат, цену. |
-| `list_print_formats` | Фильтр по подходящему `purchase_format_id`/материалу. |
-| `list_press_machines` | Фильтр по `product_type`, тиражу, формату. |
-| `search_operations` | Поиск операции по фразе («ламинация», «биговка», «нумерация»). Возвращает `code`, категорию, параметры (`name`, `default`, `formula`) и `work_items`. |
-| `get_operation_detail` | Подробно по `code`: все параметры и формулы. |
-| `evaluate_formula` | Принимает формулу + контекст переменных, возвращает число (использует движок). |
-| `calculate_order` | Полный построчный расчёт: на входе материал, машина, формат, тираж, красочность, список выбранных операций с их параметрами. На выходе spec[] (stage, name, qty, unit_price, total) + cost / margin / vat / sale. |
-| `propose_order_card` | Финализирует `proposed_order` строго в той же схеме, что фронт ждёт сейчас (`material_id`, `press_machine_id`, `print_format_id`, `postpress_breakdown`, `estimated_cost`, …). Перед возвратом валидируется санитайзером. |
-
-Так как тулов >8, применяем паттерн дефералки из `ai-sdk-tool-deferral` только при необходимости — здесь набор фиксирован и небольшой, поэтому регистрируем напрямую.
-
----
-
-## 4. Память по диалогу
-
-Контракт памяти держим в JSON-объекте `draft`, который ассистент возвращает каждым ходом и видит в следующем. Хранение — на клиенте в `ai_messages.parts` (через uiMessage parts вида `data-draft`), сервер просто прокидывает последний `draft` обратно в system-prompt. Поля:
-
-```text
-draft = {
-  product_type, name, circulation, format, custom_w/h,
-  color_front, color_back,
-  material_id, material_category, material_density,
-  press_machine_id, print_format_id, items_per_sheet,
-  postpress: [ { operation_code, params: {...}, notes } ],
-  margin_percent, vat_percent,
-  asked: ["density","lamination_film",...],   // уже спрошенное
-  unresolved: ["fold_count",...]              // что нужно ещё
-}
-```
-
-Это даёт «пересчитай с другой бумагой» / «добавь биговку» без перебора истории.
-
----
-
-## 5. Системный промпт (контракт ассистента)
-
-Короткий, без снапшота. Ключевые правила:
-- Сначала смотри `draft`. Если хватает данных — вызови `calculate_order` и затем `propose_order_card`. Не считай сам в голове.
-- Если не хватает обязательного — задай вопросы свободно, по 1–3 за раз, опираясь на `product_glossary` и характер изделия (для визиток — про скругление и ламинацию; для буклетов — про фальцовку и скрепление; и т. д.).
-- Для поиска операций ВСЕГДА `search_operations` → `get_operation_detail` → `evaluate_formula`. Не выдумывай цены.
-- Возвращай ответ в виде AI SDK message parts: текст + (опционально) data-part `proposed_order` для UI карточки.
-
----
-
-## 6. Клиент
-
-Минимальные изменения в `ChatWindow.tsx` и `AiOrderAssistant.tsx`:
-- Парсим `parts`, ищем `data-proposed_order` (или оставляем текущую обёртку `{reply, proposed_order}` поверх стрима, если решим не мигрировать сразу на `useChat` — обе совместимы).
-- Карточка заказа уже знает поля `postpress_breakdown`, `estimated_cost`, `material_id` — менять не нужно.
-
----
-
-## 7. Тех. файлы
-
-```text
-supabase/functions/_shared/
-  formula.ts             # порт src/lib/operations/formula.ts
-  calc-engine.ts         # estimateOrder + postpress по operation_work_items
-  references.ts          # loadReferenceSnapshot (расширенный) + кэш
-  tools.ts               # все AI SDK tool({...}) с zod-схемами
-  prompt.ts              # системный промпт + рендер draft
-supabase/functions/ai-calc-chat/index.ts   # переписать на streamText + tools
-```
-
-`ai-assist` (старый) пока не трогаем.
-
----
-
-## 8. Проверки
-
-- `supabase--test_edge_functions` + локальный unit-тест `formula.ts` (повторяет существующий тестовый набор).
-- `supabase--curl_edge_functions`: сценарии
-  1. «Листовка А5 1000 шт, мелованная 130, 4+4, матовая ламинация 1+0» → должен сразу прислать `proposed_order` с реальными id и постатейным `postpress_breakdown`.
-  2. «Визитки 500 шт» → ассистент должен спросить про красочность/ламинацию.
-  3. «Пересчитай с офсетной 80 г» → должен использовать предыдущий `draft`.
-- Замер размера запроса: контекст модели на ход ≤ 8k токенов (за счёт перехода со снапшота-в-промпте на tools).
+- Сайдбар открыт по умолчанию, сворачивается в icon-режим, на мобильном — sheet.
+- Поиск фильтрует список по тайтлу мгновенно; ввод ≥ 3 символов добивает серверным поиском по содержимому.
+- Группы Сегодня/Вчера/7 дней/Раньше + Закреплённые сверху.
+- Pin / Archive / Rename / Delete работают, состояние сохраняется в БД и видно после reload.
+- Авто-заголовок появляется после 1-го ответа ассистента и обновляется в сайдбаре без перезагрузки.
+- Ответ стримится по токенам, виден shimmer в шапке композера.
+- Tool calls видны как блоки внутри ассистент-сообщения, JSON inside `<details>`.
+- Стоп-кнопка с первого кадра submitted, прерывает стрим и сохраняет частичный ответ с маркером.
+- На assistant-сообщении: копировать / регенерировать. На user-сообщении: редактировать с пересчётом.
+- ProposedOrderCard и `draft` (память диалога) продолжают работать — рендерятся через AI SDK data parts.
+- Анимации: появление сообщений, открытие сайдбара, hover на тредах, tool-step accordion — все плавные, без рывков.
+- Никаких изменений в `Calculator` и других страницах.
