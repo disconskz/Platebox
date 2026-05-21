@@ -26,6 +26,112 @@ export const TOOLS: ToolDef[] = [
   {
     type: "function",
     function: {
+      name: "list_calc_variants",
+      description: "Готовые варианты пошагового расчёта (calc_variants) с их этапами. Используй, когда нужно предложить пользователю конкретный сценарий расчёта (например, разные виды буклетов или визиток).",
+      parameters: {
+        type: "object",
+        properties: {
+          base_product_type: { type: "string", description: "leaflet, booklet, business_card, ..." },
+          category: { type: "string" },
+          query: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_calc_variant_detail",
+      description: "Полная карточка варианта расчёта с этапами, единицами и материалами по умолчанию.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_calc_stage_library",
+      description: "Библиотека переиспользуемых этапов с формулами. Используй, когда нужно показать пользователю готовые формулы на выбор.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: { type: "string" },
+          query: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_purchase_formats",
+      description: "Закупочные форматы бумаги (B1, B2 и т.д.) с фильтром по категории материала.",
+      parameters: {
+        type: "object",
+        properties: { material_category: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_equipment",
+      description: "Доп. оборудование (резаки, ламинаторы, биговщики и т.д.). Фильтр по типу.",
+      parameters: {
+        type: "object",
+        properties: { type: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_envelope_formats",
+      description: "Стандартные форматы конвертов.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_format_presets",
+      description: "Пресеты форматов изделий (А-серия, евро, визитки и т.д.).",
+      parameters: {
+        type: "object",
+        properties: { category: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_circulation_rules",
+      description: "Правила выбора машины и постпечати по тиражу для продукта. Помогает Плате автоматически предложить машину.",
+      parameters: {
+        type: "object",
+        properties: { product_type: { type: "string" } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "suggest_next_step",
+      description: "Серверный мастер. По текущему черновику заказа возвращает следующий обязательный параметр, готовые варианты ответа (chips) и пояснение. Вызывай ПЕРЕД каждым уточняющим вопросом, чтобы знать, что именно спрашивать и какие варианты предложить.",
+      parameters: {
+        type: "object",
+        properties: {
+          draft: { type: "object", additionalProperties: true, description: "Текущий черновик заказа" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "list_materials",
       description: "Поиск материалов из справочника. Фильтры по типу (coated/uncoated/designer/cardboard), плотности и минимальному формату.",
       parameters: {
