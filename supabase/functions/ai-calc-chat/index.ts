@@ -151,6 +151,7 @@ Deno.serve(async (req) => {
     }
 
     const state = createState();
+    const toolTrace: Array<{ name: string; args: unknown; result_summary: string; ok: boolean }> = [];
     const messages: ChatMessage[] = [
       { role: "system", content: buildSystemPrompt(snapshot, draft) },
       ...history
@@ -174,11 +175,28 @@ Deno.serve(async (req) => {
           let parsedArgs: Record<string, unknown> = {};
           try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* noop */ }
           let result: unknown;
+          let ok = true;
           try {
             result = runTool(tc.function.name, parsedArgs, snapshot, state);
           } catch (e) {
             result = { error: (e as Error).message };
+            ok = false;
           }
+          // Short summary of the tool output for the UI trace
+          let summary = "";
+          try {
+            const r = result as Record<string, unknown>;
+            if (Array.isArray(r)) summary = `${r.length} элементов`;
+            else if (r && typeof r === "object") {
+              if ("error" in r) summary = String((r as { error: unknown }).error).slice(0, 120);
+              else if ("matches" in r && Array.isArray((r as { matches: unknown[] }).matches)) summary = `${(r as { matches: unknown[] }).matches.length} совпадений`;
+              else if ("items" in r && Array.isArray((r as { items: unknown[] }).items)) summary = `${(r as { items: unknown[] }).items.length} записей`;
+              else if ("estimate" in r) summary = "расчёт выполнен";
+              else if ("ok" in r) summary = "готово";
+              else summary = Object.keys(r).slice(0, 4).join(", ");
+            }
+          } catch { /* noop */ }
+          toolTrace.push({ name: tc.function.name, args: parsedArgs, result_summary: summary, ok });
           messages.push({
             role: "tool",
             tool_call_id: tc.id,
@@ -200,7 +218,7 @@ Deno.serve(async (req) => {
     const order = sanitizeProposedOrder(state.proposed_order, snapshot);
     const nextDraft = parsed.draft && typeof parsed.draft === "object" ? parsed.draft : draft;
 
-    return jsonResp(corsHeaders, { ok: true, reply, proposed_order: order, draft: nextDraft });
+    return jsonResp(corsHeaders, { ok: true, reply, proposed_order: order, draft: nextDraft, tool_trace: toolTrace });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const status = msg === "rate_limit" ? 429 : msg === "credits_exhausted" ? 402 : 500;
