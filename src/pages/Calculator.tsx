@@ -1606,7 +1606,15 @@ const Calculator = () => {
           {/* Desktop sidebar with totals */}
           <div className="hidden lg:block lg:col-span-2 space-y-4 lg:order-2">
             {result && !("error" in result) && (
-              <Card className="lg:sticky lg:top-20 shadow-elevated">
+              <div className="lg:sticky lg:top-20 space-y-4">
+              <PriceBreakdownTree
+                spec={result.spec as any}
+                totalCost={totalCost}
+                marginPercent={margin}
+                vatPercent={vatPercent}
+                circulation={circulation}
+              />
+              <Card className="shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
                 <CardContent>
                   <LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} productType={productType} alternatives={result.alternatives} mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }} />
@@ -1667,6 +1675,7 @@ const Calculator = () => {
                   )}
                 </div>
               </Card>
+              </div>
             )}
           </div>
         </div>
