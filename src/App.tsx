@@ -9,6 +9,7 @@ import AuthPage from "./pages/Auth.tsx";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
+import AiChatLayout from "@/components/ai-calc/AiChatLayout";
 import Calculator from "./pages/Calculator.tsx";
 import MultiSkuCalculator from "./pages/MultiSkuCalculator.tsx";
 import References from "./pages/References.tsx";
@@ -54,10 +55,14 @@ const App = () => (
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/knowledge" element={<Knowledge />} />
-              <Route path="/ai-calc" element={<AiCalc />} />
-              <Route path="/ai-calc/:threadId" element={<AiCalcThread />} />
               <Route path="/calculation/:id" element={<CalculationView />} />
               <Route path="/calculation/:id/quote" element={<Quote />} />
+            </Route>
+
+            {/* Standalone AI chat shell with its own threads sidebar */}
+            <Route element={<ProtectedRoute><AiChatLayout /></ProtectedRoute>}>
+              <Route path="/ai-calc" element={<AiCalc />} />
+              <Route path="/ai-calc/:threadId" element={<AiCalcThread />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
