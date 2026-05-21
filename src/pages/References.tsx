@@ -333,6 +333,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { key: "product_circulation_rules", title: "Правила тиражей", desc: "Какая машина обслуживает продукт в каком диапазоне тиражей.", countKey: "product_circulation_rules", relatedKeys: ["press_machines"] },
       { key: "__rules", title: "Правила расчёта", desc: "Конструктор правил для формул калькулятора.", countKey: null },
+      { key: "cut_count_rules", title: "Резы: печатный → конечный", desc: "Сколько резов делает резак, чтобы из печатного листа получить конечный формат изделия (с подрезкой 2–3 мм).", countKey: "cut_count_rules" },
       { key: "system_settings", title: "Константы", desc: "Системные ключ-значение настройки.", countKey: "system_settings" },
       { key: "__calc_constants", title: "Константы формул", desc: "Числовые константы, используемые в формулах.", countKey: null },
     ],
