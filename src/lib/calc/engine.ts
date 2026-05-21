@@ -404,6 +404,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   if (isBooklet && input.hasFold) {
     const folds = (input.foldCount ?? 1) * input.circulation;
     const u = (input.foldCount ?? 1) === 1 ? 1.5 : 2.5;
+    postpress.push({ stage: "postpress", name: "Фальцовка (приладка)", quantity: 1, unit: "шт", unitPrice: (rule as any).operationSetupCost ?? 1500, total: (rule as any).operationSetupCost ?? 1500 });
     postpress.push({ stage: "postpress", name: `Фальцовка (${input.foldCount ?? 1} сг.)`, quantity: folds, unit: "сгиб", unitPrice: u, total: folds * u });
   }
 
@@ -423,11 +424,13 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     const mapKey = `${input.laminationFilm}:${key}`;
     const price = input.laminationPriceMap?.[mapKey] ?? 25;
     const sides = input.laminationSides ?? 1;
+    postpress.push({ stage: "postpress", name: "Ламинация (приладка)", quantity: sides, unit: "сторона", unitPrice: (rule as any).operationSetupCost ?? 1500, total: ((rule as any).operationSetupCost ?? 1500) * sides });
     postpress.push({ stage: "postpress", name: `Ламинация ${input.laminationFilm} (${sides} ст.)`, quantity: input.circulation * sides, unit: "сторона", unitPrice: price, total: input.circulation * sides * price });
   }
 
   if (input.hasNumbering && input.numbersPerSheet) {
     const qty = input.numbersPerSheet * input.circulation;
+    postpress.push({ stage: "postpress", name: "Нумерация (приладка)", quantity: 1, unit: "шт", unitPrice: (rule as any).operationSetupCost ?? 1500, total: (rule as any).operationSetupCost ?? 1500 });
     postpress.push({ stage: "postpress", name: "Нумерация", quantity: qty, unit: "номер", unitPrice: rule.numberingCost, total: qty * rule.numberingCost });
   }
 
