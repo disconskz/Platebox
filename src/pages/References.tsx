@@ -250,6 +250,17 @@ const TABLES = [
     ],
     defaults: { name: "", width: 110, height: 220, sort_order: 100 },
   },
+  {
+    key: "cut_count_rules",
+    title: "Резы: печатный → конечный",
+    cols: [
+      { k: "print_format", t: "select", label: "Печатный лист", opts: ["A0", "A1", "A2", "A3", "A4", "A5"] },
+      { k: "item_format", t: "select", label: "Конечный формат", opts: ["A1", "A2", "A3", "A4", "A5", "A6"] },
+      { k: "cuts", t: "number", label: "Резов на 1 лист" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { print_format: "A1", item_format: "A3", cuts: 8, sort_order: 100 },
+  },
 ] as const;
 
 const References = () => {
