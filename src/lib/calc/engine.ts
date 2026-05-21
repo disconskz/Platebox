@@ -634,7 +634,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     { stage: "print", name: `Печать офсетная (${turnaround === "foreign" ? "чужой" : turnaround === "own" ? "свой" : "без оборота"})`, quantity: impressions, unit: "оттиск", unitPrice: printPerImpr, total: printCost },
   ];
 
-  const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics];
+  const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics, ...consumables];
   const totalCost = spec.reduce((s, i) => s + i.total, 0);
 
   const vatPercent = input.vatPercent ?? 0;
