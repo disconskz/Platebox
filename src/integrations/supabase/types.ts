@@ -926,9 +926,11 @@ export type Database = {
         Row: {
           category: string
           created_at: string | null
+          description: string | null
           fixed_cost: number | null
           format_label: string | null
           id: string
+          min_cost: number | null
           name: string
           setup_sheets: number | null
           subgroup: string | null
@@ -938,9 +940,11 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string | null
+          description?: string | null
           fixed_cost?: number | null
           format_label?: string | null
           id?: string
+          min_cost?: number | null
           name: string
           setup_sheets?: number | null
           subgroup?: string | null
@@ -950,9 +954,11 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string | null
+          description?: string | null
           fixed_cost?: number | null
           format_label?: string | null
           id?: string
+          min_cost?: number | null
           name?: string
           setup_sheets?: number | null
           subgroup?: string | null
