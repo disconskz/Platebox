@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { listConstants, upsertConstant, deleteConstant } from "@/lib/calc/variants/api";
 import { CalcConstant } from "@/lib/calc/variants/types";
@@ -12,6 +10,7 @@ import { CalcConstant } from "@/lib/calc/variants/types";
 export default function CalcConstants() {
   const [rows, setRows] = useState<CalcConstant[]>([]);
   const [draft, setDraft] = useState({ slug: "", name: "", value: 0, unit: "₸", description: "" });
+  const [search, setSearch] = useState("");
 
   const reload = async () => setRows(await listConstants());
   useEffect(() => { reload(); }, []);
@@ -37,51 +36,91 @@ export default function CalcConstants() {
     try { await deleteConstant(id); reload(); } catch (e: any) { toast.error(e.message || "Ошибка"); }
   };
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      r.slug.toLowerCase().includes(q) ||
+      r.name.toLowerCase().includes(q) ||
+      (r.description || "").toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
+  const patchRow = (id: string, patch: Partial<CalcConstant>) =>
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="text-sm text-muted-foreground">
-          Глобальные ставки и нормативы для формул конструктора (например, стоимость формы, расход краски).
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск по slug, названию или описанию…" className="h-8 pl-7" />
         </div>
+        <div className="text-xs text-muted-foreground tabular-nums">{filtered.length} / {rows.length}</div>
         <Link to="/references/variants">
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="h-8 gap-1.5">
             <ExternalLink className="h-3.5 w-3.5" /> Варианты просчёта
           </Button>
         </Link>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-sm">Добавить константу</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:grid-cols-5">
-            <div><Label className="text-xs">Slug</Label><Input value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} placeholder="form_cost" /></div>
-            <div><Label className="text-xs">Название</Label><Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Стоимость формы" /></div>
-            <div><Label className="text-xs">Значение</Label><Input type="number" value={draft.value} onChange={(e) => setDraft({ ...draft, value: Number(e.target.value) })} /></div>
-            <div><Label className="text-xs">Ед.</Label><Input value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} /></div>
-            <div className="flex items-end"><Button onClick={add} className="w-full gap-1"><Plus className="h-4 w-4" /> Добавить</Button></div>
-          </div>
-          <div className="mt-2"><Label className="text-xs">Описание</Label><Input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></div>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-2">
-        {rows.map((c) => (
-          <Card key={c.id}>
-            <CardContent className="pt-4 grid gap-2 sm:grid-cols-[160px_1fr_120px_80px_auto]">
-              <div><Label className="text-xs">Slug</Label><Input value={c.slug} disabled className="font-mono text-xs" /></div>
-              <div><Label className="text-xs">Название</Label><Input value={c.name} onChange={(e) => setRows(rows.map((r) => r.id === c.id ? { ...r, name: e.target.value } : r))} /></div>
-              <div><Label className="text-xs">Значение</Label><Input type="number" value={c.value} onChange={(e) => setRows(rows.map((r) => r.id === c.id ? { ...r, value: Number(e.target.value) } : r))} /></div>
-              <div><Label className="text-xs">Ед.</Label><Input value={c.unit} onChange={(e) => setRows(rows.map((r) => r.id === c.id ? { ...r, unit: e.target.value } : r))} /></div>
-              <div className="flex items-end gap-1">
-                <Button size="sm" onClick={() => save(c)}>Сохранить</Button>
-                <Button size="icon" variant="ghost" onClick={() => remove(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-              </div>
-              {c.description && <div className="sm:col-span-5 text-xs text-muted-foreground">{c.description}</div>}
-            </CardContent>
-          </Card>
-        ))}
-        {!rows.length && <div className="text-sm text-muted-foreground text-center py-8">Пока нет констант</div>}
+      <div className="overflow-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0">
+            <tr>
+              <th className="text-left p-2 w-40">Slug</th>
+              <th className="text-left p-2">Название / описание</th>
+              <th className="text-left p-2 w-28">Значение</th>
+              <th className="text-left p-2 w-20">Ед.</th>
+              <th className="w-28"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-t bg-primary/5 align-top">
+              <td className="p-1.5">
+                <Input className="h-8 font-mono text-xs" value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} placeholder="form_cost" />
+              </td>
+              <td className="p-1.5 space-y-1">
+                <Input className="h-8" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Стоимость формы" />
+                <Input className="h-7 text-xs" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Описание (необязательно)" />
+              </td>
+              <td className="p-1.5">
+                <Input className="h-8 tabular-nums" type="number" value={draft.value} onChange={(e) => setDraft({ ...draft, value: Number(e.target.value) })} />
+              </td>
+              <td className="p-1.5">
+                <Input className="h-8" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} />
+              </td>
+              <td className="p-1.5 text-right">
+                <Button size="sm" onClick={add} className="h-8 gap-1"><Plus className="h-3.5 w-3.5" /> Добавить</Button>
+              </td>
+            </tr>
+            {filtered.map((c) => (
+              <tr key={c.id} className="border-t hover:bg-muted/30 align-top">
+                <td className="p-1.5 font-mono text-xs text-muted-foreground">{c.slug}</td>
+                <td className="p-1.5 space-y-1">
+                  <Input className="h-8" value={c.name} onChange={(e) => patchRow(c.id, { name: e.target.value })} onBlur={() => save(c)} />
+                  <Input className="h-7 text-xs" value={c.description || ""} onChange={(e) => patchRow(c.id, { description: e.target.value })} onBlur={() => save(c)} placeholder="Описание" />
+                </td>
+                <td className="p-1.5">
+                  <Input className="h-8 tabular-nums" type="number" value={c.value} onChange={(e) => patchRow(c.id, { value: Number(e.target.value) })} onBlur={() => save(c)} />
+                </td>
+                <td className="p-1.5">
+                  <Input className="h-8" value={c.unit} onChange={(e) => patchRow(c.id, { unit: e.target.value })} onBlur={() => save(c)} />
+                </td>
+                <td className="p-1.5 text-right">
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => remove(c.id)} title="Удалить">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {!filtered.length && (
+              <tr className="border-t"><td colSpan={5} className="p-6 text-center text-xs text-muted-foreground">Ничего не найдено</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
+      <p className="text-[11px] text-muted-foreground">Изменения сохраняются автоматически при потере фокуса.</p>
     </div>
   );
 }

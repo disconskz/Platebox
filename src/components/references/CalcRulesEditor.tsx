@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -9,6 +8,7 @@ import { DEFAULTS } from "@/lib/calc/types";
 import { RULE_KEY_MAP } from "@/lib/calc/rules";
 import { HelpHint } from "@/components/HelpHint";
 import { ensureSupabaseSession } from "@/lib/auth-session";
+import { Search } from "lucide-react";
 
 type Section = { title: string; description?: string; learnMore?: string; help?: string; fields: { key: string; label: string; unit?: string; hint?: string }[] };
 
@@ -83,6 +83,7 @@ const SECTIONS: Section[] = [
 export default function CalcRulesEditor() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const load = async () => {
     try {
@@ -141,53 +142,69 @@ export default function CalcRulesEditor() {
 
   if (loading) return <div className="text-sm text-muted-foreground p-4">Загрузка правил…</div>;
 
+  const q = search.trim().toLowerCase();
+  const visibleSections = q
+    ? SECTIONS
+        .map((s) => ({
+          ...s,
+          fields: s.fields.filter((f) =>
+            f.label.toLowerCase().includes(q) ||
+            f.key.toLowerCase().includes(q) ||
+            (f.unit || "").toLowerCase().includes(q),
+          ),
+        }))
+        .filter((s) => s.fields.length > 0)
+    : SECTIONS;
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-md border bg-muted/30">
-        <div className="text-sm flex items-center">
-          Правила расчёта применяются ко всем новым расчётам. Изменения не затрагивают уже сохранённые сметы.
-          <HelpHint title="Как работают правила" learnMore="rules-where">
-            <p>Меняете значения здесь — все НОВЫЕ расчёты считаются по новым правилам. Уже сохранённые сметы не пересчитываются (защита истории).</p>
-            <p>Чтобы пересчитать старый заказ — продублируйте его в списке расчётов.</p>
-          </HelpHint>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Найти параметр…" className="h-8 pl-7" />
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={resetToDefaults}>Сбросить к заводским</Button>
-          <Button size="sm" onClick={saveAll}>Сохранить все</Button>
-        </div>
+        <HelpHint title="Как работают правила" learnMore="rules-where">
+          <p>Меняете значения здесь — все НОВЫЕ расчёты считаются по новым правилам. Уже сохранённые сметы не пересчитываются (защита истории).</p>
+          <p>Чтобы пересчитать старый заказ — продублируйте его в списке расчётов.</p>
+        </HelpHint>
+        <Button variant="outline" size="sm" className="h-8" onClick={resetToDefaults}>Сбросить</Button>
+        <Button size="sm" className="h-8" onClick={saveAll}>Сохранить все</Button>
       </div>
 
-      {SECTIONS.map((s) => (
-        <Card key={s.title}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center">
-              {s.title}
-              {s.help && (
-                <HelpHint title={s.title} learnMore={s.learnMore}>{s.help}</HelpHint>
-              )}
-            </CardTitle>
-            {s.description && <div className="text-xs text-muted-foreground">{s.description}</div>}
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {s.fields.map((f) => (
-                <div key={f.key} className="grid grid-cols-[1fr_auto] items-end gap-2">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">{f.label} {f.unit && <span className="text-muted-foreground/70">({f.unit})</span>}</Label>
-                    <Input
-                      type="number"
-                      step="any"
-                      className="h-8"
-                      value={values[f.key] ?? ""}
-                      onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-                      onBlur={() => saveOne(f.key)}
-                    />
-                  </div>
-                </div>
-              ))}
+      {!visibleSections.length && (
+        <div className="text-xs text-muted-foreground p-6 text-center border rounded-md">Ничего не найдено</div>
+      )}
+
+      {visibleSections.map((s) => (
+        <div key={s.title} className="rounded-md border overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-muted/40 border-b">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold flex items-center">
+                {s.title}
+                {s.help && <HelpHint title={s.title} learnMore={s.learnMore}>{s.help}</HelpHint>}
+              </div>
+              {s.description && <div className="text-[11px] text-muted-foreground truncate">{s.description}</div>}
             </div>
-          </CardContent>
-        </Card>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground bg-background px-1.5 py-0.5 rounded border">{s.fields.length}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-1.5 p-2">
+            {s.fields.map((f) => (
+              <div key={f.key} className="grid grid-cols-[1fr_110px] items-center gap-2">
+                <Label className="text-xs text-muted-foreground truncate" title={f.label}>
+                  {f.label} {f.unit && <span className="text-muted-foreground/60">({f.unit})</span>}
+                </Label>
+                <Input
+                  type="number"
+                  step="any"
+                  className="h-7 tabular-nums text-right"
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+                  onBlur={() => saveOne(f.key)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );
