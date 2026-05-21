@@ -428,6 +428,8 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
   const [status, setStatus] = useState<"ready" | "submitted" | "error">("ready");
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
   // Dialog memory: agent-side draft state, restored from last assistant message
   const draftRef = useRef<Record<string, unknown>>({});
   useEffect(() => {
@@ -477,28 +479,30 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
     return data as { id: string; created_at: string };
   };
 
-  const send = async (text: string) => {
+  const send = async (text: string, opts: { skipUserMessage?: boolean; isFirst?: boolean } = {}) => {
     if (!text.trim() || status === "submitted" || !user) return;
     const trimmed = text.trim();
     setStatus("submitted");
 
-    const userMsg: ChatMessage = {
-      id: `tmp-${Date.now()}`,
-      role: "user",
-      parts: [{ type: "text", text: trimmed }],
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    const wasFirstUser = opts.isFirst ?? messages.filter((m) => m.role === "user").length === 0;
 
-    const saved = await persistMessage({ role: "user", parts: userMsg.parts });
-    if (saved) {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === userMsg.id ? { ...m, id: saved.id, created_at: saved.created_at } : m)),
-      );
+    if (!opts.skipUserMessage) {
+      const userMsg: ChatMessage = {
+        id: `tmp-${Date.now()}`,
+        role: "user",
+        parts: [{ type: "text", text: trimmed }],
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      const saved = await persistMessage({ role: "user", parts: userMsg.parts });
+      if (saved) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === userMsg.id ? { ...m, id: saved.id, created_at: saved.created_at } : m)),
+        );
+      }
     }
 
-    // First user message → suggested title
-    if (messages.length === 0) {
+    if (wasFirstUser) {
       const suggested = trimmed.slice(0, 60);
       onTitleSuggested?.(suggested);
       await supabase.from("ai_threads").update({ title: suggested }).eq("id", threadId);
@@ -534,6 +538,9 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       if (!data?.ok) throw new Error(data?.error || "ai_error");
 
       const parts: ChatPart[] = [{ type: "text", text: String(data.reply ?? "") }];
+      if (Array.isArray(data.tool_trace) && data.tool_trace.length > 0) {
+        parts.push({ type: "tool_trace", trace: data.tool_trace as ToolTraceItem[] });
+      }
       if (data.proposed_order && typeof data.proposed_order === "object") {
         parts.push({ type: "proposed_order", order: data.proposed_order });
       }
@@ -555,6 +562,22 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
         );
       }
       setStatus("ready");
+
+      // Auto-title after first assistant reply (fire-and-forget)
+      if (wasFirstUser) {
+        void (async () => {
+          try {
+            const { data: titleData } = await supabase.functions.invoke("ai-thread-title", {
+              body: { user_text: trimmed, assistant_text: String(data.reply ?? "") },
+            });
+            const t = (titleData as { title?: string } | null)?.title?.trim();
+            if (t) {
+              onTitleSuggested?.(t);
+              await supabase.from("ai_threads").update({ title: t }).eq("id", threadId);
+            }
+          } catch { /* noop */ }
+        })();
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === "AbortError" || (e instanceof DOMException && e.name === "AbortError")) {
