@@ -31,6 +31,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
 import type { SpecItem } from "@/lib/calc/types";
+import { PriceBreakdownTree } from "@/components/calc/PriceBreakdownTree";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -707,12 +708,11 @@ const Calculator = () => {
   const goto = (n: number) => {
     setStep(n);
     setMaxReached((m) => Math.max(m, n));
-    // плавно прокручиваем к началу формы при смене шага
+    // Все шаги отображаются одновременно — просто скроллим к нужной секции
     if (typeof window !== "undefined") {
       requestAnimationFrame(() => {
-        const el = document.getElementById("step-anchor");
+        const el = document.getElementById(`section-${n}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        else window.scrollTo({ top: 0, behavior: "smooth" });
       });
     }
   };
@@ -924,7 +924,7 @@ const Calculator = () => {
 
         <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3 space-y-4 lg:order-1 order-1">
-            {step === 1 && (
+            <section id="section-1" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>1. Продукция и параметры</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
@@ -1064,9 +1064,9 @@ const Calculator = () => {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </section>
 
-            {step === 2 && (
+            <section id="section-2" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -1250,9 +1250,9 @@ const Calculator = () => {
                   )}
                 </CardContent>
               </Card>
-            )}
+            </section>
 
-            {step === 3 && (
+            <section id="section-3" className="scroll-mt-24">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -1450,9 +1450,9 @@ const Calculator = () => {
                   )}
                 </CardContent>
               </Card>
-            )}
+            </section>
 
-            {step === 4 && (
+            <section id="section-4" className="scroll-mt-24">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -1553,18 +1553,25 @@ const Calculator = () => {
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </section>
 
-            {step === 5 && result && !("error" in result) && (
-              <Card>
-                <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
-                <CardContent>
-                  <SpecTable result={result} />
-                </CardContent>
-              </Card>
-            )}
+            <section id="section-5" className="scroll-mt-24">
+              {result && !("error" in result) ? (
+                <Card>
+                  <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
+                  <CardContent>
+                    <SpecTable result={result} />
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">Спецификация появится, когда расчёт станет валидным.</CardContent>
+                </Card>
+              )}
+            </section>
 
-            {step === 6 && (
+            <section id="section-6" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>6. Сохранение</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -1579,7 +1586,7 @@ const Calculator = () => {
                   <p className="text-xs text-muted-foreground">Шаблон будет доступен на главной — из него можно создать новый расчёт одной кнопкой.</p>
                 </CardContent>
               </Card>
-            )}
+            </section>
 
             {stepError && (
               <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
@@ -1592,17 +1599,22 @@ const Calculator = () => {
               </div>
             )}
 
-            {/* Desktop nav buttons */}
-            <div className="hidden sm:flex justify-between pt-2">
-              <Button variant="outline" onClick={prev} disabled={step === 1}><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
-              <Button onClick={next} disabled={step === 6 || !!stepError}>Далее <ArrowRight className="ml-2 h-4 w-4" /></Button>
-            </div>
+            {/* Десктопная навигация по шагам убрана: все секции на одном экране,
+                перемещение — через Stepper сверху или скролл. */}
           </div>
 
           {/* Desktop sidebar with totals */}
           <div className="hidden lg:block lg:col-span-2 space-y-4 lg:order-2">
             {result && !("error" in result) && (
-              <Card className="lg:sticky lg:top-20 shadow-elevated">
+              <div className="lg:sticky lg:top-20 space-y-4">
+              <PriceBreakdownTree
+                spec={result.spec as any}
+                totalCost={totalCost}
+                marginPercent={margin}
+                vatPercent={vatPercent}
+                circulation={circulation}
+              />
+              <Card className="shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
                 <CardContent>
                   <LayoutPreview layout={result.layout} productW={dims.w} productH={dims.h} productType={productType} alternatives={result.alternatives} mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }} />
@@ -1663,6 +1675,7 @@ const Calculator = () => {
                   )}
                 </div>
               </Card>
+              </div>
             )}
           </div>
         </div>
@@ -1686,7 +1699,14 @@ const Calculator = () => {
             </SheetTrigger>
             <SheetContent side="bottom" className="rounded-t-2xl">
               <SheetHeader><SheetTitle>Итоги</SheetTitle></SheetHeader>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                <PriceBreakdownTree
+                  spec={result.spec as any}
+                  totalCost={totalCost}
+                  marginPercent={margin}
+                  vatPercent={vatPercent}
+                  circulation={circulation}
+                />
                 <Row label="Себестоимость" value={fmtMoney(totalCost)} />
                 <div>
                   <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
