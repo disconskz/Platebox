@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { HelpHint } from "@/components/HelpHint";
+import { ListPagination } from "./ListPagination";
 
 type FieldDef = { key: string; label: string; type: "text" | "number" | "select"; opts?: string[] };
 type CustomRef = { id: string; slug: string; name: string; fields: FieldDef[]; sort_order: number };
