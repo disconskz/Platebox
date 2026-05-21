@@ -49,7 +49,13 @@ export default function OperationCatalog() {
   /** Сколько work_items и параметров у каждой операции — для бейджей и «готово/нет». */
   const [counts, setCounts] = useState<Record<number, { p: number; w: number }>>({});
   const [consts, setConsts] = useState<BuilderConst[]>([]);
-  const { isAdmin } = useAuth();
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    (supabase as any).from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }: any) => setIsAdmin(!!data));
+  }, [user]);
   // Контекст редактора формулы
   const [editor, setEditor] = useState<null | {
     title: string;
