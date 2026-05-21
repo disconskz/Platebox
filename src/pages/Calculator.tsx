@@ -924,7 +924,7 @@ const Calculator = () => {
 
         <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3 space-y-4 lg:order-1 order-1">
-            {step === 1 && (
+            <section id="section-1" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>1. Продукция и параметры</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2">
@@ -1066,7 +1066,7 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 2 && (
+            <section id="section-2" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -1252,7 +1252,7 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 3 && (
+            <section id="section-3" className="scroll-mt-24">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -1452,7 +1452,7 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 4 && (
+            <section id="section-4" className="scroll-mt-24">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -1555,16 +1555,23 @@ const Calculator = () => {
               </Card>
             )}
 
-            {step === 5 && result && !("error" in result) && (
-              <Card>
-                <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
-                <CardContent>
-                  <SpecTable result={result} />
-                </CardContent>
-              </Card>
-            )}
+            <section id="section-5" className="scroll-mt-24">
+              {result && !("error" in result) ? (
+                <Card>
+                  <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
+                  <CardContent>
+                    <SpecTable result={result} />
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader><CardTitle>5. Спецификация</CardTitle></CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">Спецификация появится, когда расчёт станет валидным.</CardContent>
+                </Card>
+              )}
+            </section>
 
-            {step === 6 && (
+            <section id="section-6" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>6. Сохранение</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
