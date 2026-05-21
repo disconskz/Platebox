@@ -557,6 +557,20 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
         unitPrice: impr,
         total: totalImpr * impr,
       });
+      // Фольга: расход = сумма площадей клише с учётом точек × тираж.
+      const totalFoilAreaPerImpr = cliches.reduce((s, c, i) => s + c.w * c.h * pointsList[i], 0);
+      const foilArea = totalFoilAreaPerImpr * input.circulation;
+      const foilPrice = MATERIAL_PRICES.foilPerCm2;
+      if (foilArea > 0 && foilPrice > 0) {
+        postpress.push({
+          stage: "material",
+          name: "Фольга для тиснения",
+          quantity: Math.ceil(foilArea),
+          unit: "см²",
+          unitPrice: foilPrice,
+          total: Math.ceil(foilArea) * foilPrice,
+        });
+      }
     }
   }
 
