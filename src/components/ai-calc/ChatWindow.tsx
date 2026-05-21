@@ -568,7 +568,7 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
         void (async () => {
           try {
             const { data: titleData } = await supabase.functions.invoke("ai-thread-title", {
-              body: { user_text: trimmed, assistant_text: String(data.reply ?? "") },
+              body: { thread_id: threadId },
             });
             const t = (titleData as { title?: string } | null)?.title?.trim();
             if (t) {
