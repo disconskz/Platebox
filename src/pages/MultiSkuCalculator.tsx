@@ -11,8 +11,8 @@ import { toast } from "sonner";
 import { MultiSkuTable } from "@/components/calc/MultiSkuTable";
 import { VariantCompareCard } from "@/components/calc/VariantCompareCard";
 import { HelpHint } from "@/components/HelpHint";
-import { loadCalcRules } from "@/lib/calc/rules";
-import { setCalcRules } from "@/lib/calc/engine";
+import { loadCalcRules, loadCutRules } from "@/lib/calc/rules";
+import { setCalcRules, setCutRules } from "@/lib/calc/engine";
 import { runMultiSkuCalculation, type SkuItem, type MultiSkuResult } from "@/lib/calc/multi-sku";
 import { fmtMoney } from "@/lib/format";
 import MobileTabBar from "@/components/MobileTabBar";
@@ -66,6 +66,12 @@ export default function MultiSkuCalculator() {
       await ensureSupabaseSession();
       const rules = await loadCalcRules();
       setCalcRules(rules);
+      try {
+        const cutData = await loadCutRules();
+        setCutRules(cutData);
+      } catch (e) {
+        console.warn("[MultiSkuCalculator] loadCutRules failed", e);
+      }
       const [mRes, pfRes, buyRes, sRes] = await Promise.all([
         supabase.from("materials").select("*").order("name"),
         supabase.from("print_formats" as any).select("*").order("sort_order"),
