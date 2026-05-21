@@ -21,7 +21,7 @@ const STAGE_META: Record<string, { label: string; color: string; hint: string }>
   },
   prepress: {
     label: "Допечатные",
-    color: "bg-info",
+    color: "bg-primary/60",
     hint: "Изготовление форм/пластин и приладка. Зависит от количества форм (красочности и числа сторон).",
   },
   print: {
