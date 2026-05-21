@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { CATEGORY_LABELS, GlossaryCategory, GlossaryItem, useProductGlossary } from "@/lib/glossary";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
 import { useAuth } from "@/hooks/useAuth";
+import { ListPagination } from "./ListPagination";
 
 const CATEGORY_OPTS: GlossaryCategory[] = [
   "print_small","multipage","calendar","large_format","sticker","pos",
@@ -28,6 +29,8 @@ export default function ProductGlossary() {
       .then(({ data }: any) => setIsAdmin(!!data));
   }, [user]);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [draft, setDraft] = useState<Partial<GlossaryItem>>({
     slug: "", name: "", description: "", category: "other",
     base_product_type: null, is_calculable: false, sort_order: 100,
@@ -42,6 +45,12 @@ export default function ProductGlossary() {
       i.description.toLowerCase().includes(q)
     );
   }, [items, search]);
+
+  useEffect(() => { setPage(1); }, [search, pageSize]);
+  const pageRows = useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize],
+  );
 
   const addRow = async () => {
     if (!draft.slug || !draft.name) return toast.error("Укажите slug и название");
@@ -118,7 +127,7 @@ export default function ProductGlossary() {
                 <td className="p-1.5 text-right"><Button size="sm" onClick={addRow}><Plus className="h-3.5 w-3.5" /></Button></td>
               </tr>
             )}
-            {filtered.map((row) => (
+            {pageRows.map((row) => (
               <tr key={row.id} className="border-t align-top">
                 <td className="p-1.5 font-mono text-xs">{row.slug}</td>
                 <td className="p-1.5">
@@ -150,6 +159,13 @@ export default function ProductGlossary() {
           </tbody>
         </table>
       </div>
+      <ListPagination
+        page={page}
+        pageSize={pageSize}
+        total={filtered.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
       {!isAdmin && <div className="text-xs text-muted-foreground">Только просмотр. Редактирование доступно администраторам.</div>}
     </div>
   );
