@@ -708,12 +708,11 @@ const Calculator = () => {
   const goto = (n: number) => {
     setStep(n);
     setMaxReached((m) => Math.max(m, n));
-    // плавно прокручиваем к началу формы при смене шага
+    // Все шаги отображаются одновременно — просто скроллим к нужной секции
     if (typeof window !== "undefined") {
       requestAnimationFrame(() => {
-        const el = document.getElementById("step-anchor");
+        const el = document.getElementById(`section-${n}`);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        else window.scrollTo({ top: 0, behavior: "smooth" });
       });
     }
   };
