@@ -480,6 +480,16 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
               </div>
             ))}
           </div>
+          <div className="border-t p-1.5 bg-muted/20">
+            <Link
+              to="/references/variants"
+              className="group text-left text-[13px] px-2 py-1.5 rounded-md flex items-center gap-2 transition-colors text-foreground/80 hover:bg-muted hover:text-foreground"
+            >
+              <Layers className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+              <span className="flex-1">Варианты просчёта</span>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            </Link>
+          </div>
         </div>
       </nav>
 
