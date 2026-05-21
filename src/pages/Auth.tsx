@@ -2,18 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import {
-  Calculator as CalcIcon,
   ArrowLeft,
+  ArrowRight,
   Eye,
   EyeOff,
   Mail,
   Lock,
   User as UserIcon,
   Building2,
-  Sparkles,
-  Layers,
-  Gauge,
-  ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -138,129 +134,144 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* Left: brand panel (desktop only) */}
-      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden p-10 text-primary-foreground">
-        <div className="absolute inset-0 -z-10" style={{ background: "var(--gradient-primary)" }} />
-        <div className="absolute inset-0 -z-10 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              "radial-gradient(hsl(var(--primary-foreground)) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
-          }}
-        />
-        <div
-          className="absolute -top-40 -right-40 h-[480px] w-[480px] rounded-full blur-3xl opacity-30"
-          style={{ background: "hsl(var(--accent))" }}
-        />
-
-        <div className="relative">
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" /> На главную
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
+      {/* Header — same as Landing */}
+      <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md safe-top">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-between px-4 py-3 sm:px-8 sm:py-3.5">
+          <Link to="/" className="flex items-center gap-3">
+            <span className="font-mono text-[15px] font-semibold leading-none tracking-tight">platebox</span>
+            <span className="hidden sm:inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-foreground/70" />
+              v.1.0 · ALM·KZ
+            </span>
+          </Link>
+          <Link to="/">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-none font-mono text-[12px] tracking-wide gap-1.5 border-border bg-transparent"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> На главную
+            </Button>
           </Link>
         </div>
+      </header>
 
-        <div className="relative max-w-md space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-foreground/10 backdrop-blur ring-1 ring-primary-foreground/20">
-              <CalcIcon className="h-5 w-5" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">Platebox</span>
+      {/* Editorial split */}
+      <main className="flex-1 grid lg:grid-cols-12 border-b border-border">
+        {/* Left: masthead */}
+        <aside className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between border-r border-border p-10 xl:p-14 bg-background relative overflow-hidden">
+          <div
+            className="absolute inset-0 -z-10 opacity-[0.04]"
+            style={{
+              backgroundImage: "linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)",
+              backgroundSize: "48px 48px",
+            }}
+          />
+          <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="tabular-nums">№ 01</span>
+            <span className="h-px w-8 bg-border" />
+            <span>{tab === "signin" ? "Вход в систему" : "Создание аккаунта"}</span>
           </div>
 
-          <div className="space-y-3">
-            <span className="eyebrow text-primary-foreground/60">Профессиональная типография</span>
-            <h1 className="font-serif text-5xl leading-[1.05]">
-              Точные расчёты <br />за&nbsp;секунды.
+          <div className="max-w-xl space-y-8 py-12">
+            <h1 className="font-serif text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.95] tracking-tight">
+              {tab === "signin" ? (
+                <>С возвращением<span className="text-primary">.</span></>
+              ) : (
+                <>Старт за минуту<span className="text-primary">.</span></>
+              )}
             </h1>
-            <p className="text-primary-foreground/70 text-base leading-relaxed max-w-sm">
-              Себестоимость, наценка и НДС — на одном экране. От листовки до календаря.
+            <p className="font-mono text-[13px] leading-relaxed text-muted-foreground max-w-md">
+              {tab === "signin"
+                ? "Войдите, чтобы продолжить расчёты, шаблоны и КП."
+                : "Зарегистрируйтесь — справочник, шаблоны и история уже ждут вас."}
             </p>
+
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 pt-6 border-t border-border">
+              {[
+                { k: "01", t: "Спуск полос", d: "Авто-раскладка SRA3 / B2 / SM-52" },
+                { k: "02", t: "Себестоимость", d: "Бумага, печать, постпечать — одной таблицей" },
+                { k: "03", t: "КП в один клик", d: "PDF и XLSX с маржой и сроком" },
+                { k: "04", t: "Плата AI", d: "Пошаговый расчёт с подсказками" },
+              ].map((f) => (
+                <li key={f.k} className="space-y-1">
+                  <div className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    <span className="tabular-nums text-foreground/40">{f.k}</span>
+                    <span className="text-foreground">{f.t}</span>
+                  </div>
+                  <p className="text-[13px] text-muted-foreground leading-snug">{f.d}</p>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <ul className="space-y-3 pt-2">
-            {[
-              { icon: Layers, text: "22 вида продукции и 100+ материалов" },
-              { icon: Gauge, text: "Авто-раскладка и подбор приладки" },
-              { icon: ShieldCheck, text: "Шаблоны, история и КП в один клик" },
-            ].map((f, i) => (
-              <li key={i} className="flex items-center gap-3 text-sm text-primary-foreground/85">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-foreground/10 ring-1 ring-primary-foreground/15">
-                  <f.icon className="h-4 w-4" />
-                </span>
-                {f.text}
-              </li>
-            ))}
-          </ul>
-        </div>
+          <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span>© {new Date().getFullYear()} Platebox · Almaty</span>
+            <span className="tabular-nums">v.1.0</span>
+          </div>
+        </aside>
 
-        <div className="relative text-xs text-primary-foreground/50">
-          © {new Date().getFullYear()} Platebox · Almaty
-        </div>
-      </aside>
-
-      {/* Right: form */}
-      <main className="relative flex flex-col">
-        <header className="lg:hidden px-4 pt-4">
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> На главную
-          </Link>
-        </header>
-
-        <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
-          <div className="w-full max-w-md">
-            {/* Mobile logo */}
-            <div className="flex flex-col items-center text-center mb-6 lg:hidden">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-elevated mb-3">
-                <CalcIcon className="h-6 w-6" />
-              </div>
-              <h1 className="font-serif text-2xl">Platebox</h1>
-              <p className="text-sm text-muted-foreground mt-1">Калькулятор полиграфии</p>
-            </div>
-
-            <div className="rounded-2xl border bg-card shadow-elevated p-6 sm:p-8">
-              <div className="mb-6 hidden lg:block">
-                <span className="eyebrow">Личный кабинет</span>
-                <h2 className="mt-1 font-serif text-3xl">
-                  {tab === "signin" ? "С возвращением" : "Создать аккаунт"}
-                </h2>
-                <p className="mt-1.5 text-sm text-muted-foreground">
-                  {tab === "signin"
-                    ? "Войдите, чтобы продолжить расчёты."
-                    : "Зарегистрируйтесь — это займёт меньше минуты."}
-                </p>
+        {/* Right: form */}
+        <section className="lg:col-span-6 xl:col-span-5 flex flex-col">
+          <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
+            <div className="w-full max-w-md">
+              {/* Mobile eyebrow */}
+              <div className="lg:hidden mb-8 space-y-3">
+                <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  <span className="tabular-nums">№ 01</span>
+                  <span className="h-px w-8 bg-border" />
+                  <span>{tab === "signin" ? "Вход" : "Регистрация"}</span>
+                </div>
+                <h1 className="font-serif text-4xl leading-[0.95] tracking-tight">
+                  {tab === "signin" ? (
+                    <>С возвращением<span className="text-primary">.</span></>
+                  ) : (
+                    <>Старт за минуту<span className="text-primary">.</span></>
+                  )}
+                </h1>
               </div>
 
               <Tabs value={tab} onValueChange={(v) => setTab(v as "signin" | "signup")}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="signin">Вход</TabsTrigger>
-                  <TabsTrigger value="signup">Регистрация</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 rounded-none border border-border bg-transparent p-0 h-auto">
+                  <TabsTrigger
+                    value="signin"
+                    className="rounded-none border-r border-border font-mono text-[12px] uppercase tracking-[0.14em] data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-none py-3"
+                  >
+                    Вход
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="signup"
+                    className="rounded-none font-mono text-[12px] uppercase tracking-[0.14em] data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-none py-3"
+                  >
+                    Регистрация
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="signin">
-                  <form onSubmit={handleSignIn} className="space-y-4 pt-5">
+                  <form onSubmit={handleSignIn} className="space-y-5 pt-8">
                     <FieldWithIcon icon={Mail} label="Email" htmlFor="si-email">
                       <Input id="si-email" type="email" autoComplete="email" required
                         placeholder="you@company.com"
-                        className={`pl-10 h-11 ${siErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        className={`pl-10 h-12 rounded-none border-border bg-transparent font-mono text-[13px] ${siErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={siEmail} onChange={(e) => setSiEmail(e.target.value)} />
                       {siErrors.email && <p className="text-xs text-destructive mt-1">{siErrors.email}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Lock} label="Пароль" htmlFor="si-password">
                       <Input id="si-password" type={showSiPwd ? "text" : "password"} autoComplete="current-password" required
                         placeholder="••••••••"
-                        className={`pl-10 pr-10 h-11 ${siErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        className={`pl-10 pr-10 h-12 rounded-none border-border bg-transparent font-mono text-[13px] ${siErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={siPassword} onChange={(e) => setSiPassword(e.target.value)} />
                       <PwdToggle shown={showSiPwd} onToggle={() => setShowSiPwd((s) => !s)} />
                       {siErrors.password && <p className="text-xs text-destructive mt-1">{siErrors.password}</p>}
                     </FieldWithIcon>
                     {siErrors.form && <p className="text-xs text-destructive">{siErrors.form}</p>}
-                    <Button type="submit" className="w-full h-11 text-base" disabled={busy}>
-                      {busy ? "Входим…" : "Войти"}
+                    <Button type="submit" className="w-full h-12 rounded-none font-mono text-[12px] uppercase tracking-[0.14em] gap-2" disabled={busy}>
+                      {busy ? "Входим…" : <>Войти <ArrowRight className="h-3.5 w-3.5" /></>}
                     </Button>
-                    <p className="text-center text-xs text-muted-foreground pt-1">
+                    <p className="text-center font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground pt-1">
                       Нет аккаунта?{" "}
-                      <button type="button" onClick={() => setTab("signup")} className="text-foreground font-medium hover:text-accent transition-colors">
+                      <button type="button" onClick={() => setTab("signup")} className="text-foreground underline underline-offset-4 hover:text-primary transition-colors">
                         Создать
                       </button>
                     </p>
@@ -268,42 +279,41 @@ const AuthPage = () => {
                 </TabsContent>
 
                 <TabsContent value="signup">
-                  <form onSubmit={handleSignUp} className="space-y-4 pt-5">
+                  <form onSubmit={handleSignUp} className="space-y-5 pt-8">
                     <FieldWithIcon icon={UserIcon} label="Имя" htmlFor="su-name">
                       <Input id="su-name" required placeholder="Айгерим"
-                        className={`pl-10 h-11 ${suErrors.full_name ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        className={`pl-10 h-12 rounded-none border-border bg-transparent font-mono text-[13px] ${suErrors.full_name ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suName} onChange={(e) => setSuName(e.target.value)} />
                       {suErrors.full_name && <p className="text-xs text-destructive mt-1">{suErrors.full_name}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Building2} label="Компания" htmlFor="su-company" hint="необязательно">
                       <Input id="su-company" placeholder="Platebox"
-                        className={`pl-10 h-11 ${suErrors.company ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        className={`pl-10 h-12 rounded-none border-border bg-transparent font-mono text-[13px] ${suErrors.company ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suCompany} onChange={(e) => setSuCompany(e.target.value)} />
                       {suErrors.company && <p className="text-xs text-destructive mt-1">{suErrors.company}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Mail} label="Email" htmlFor="su-email">
                       <Input id="su-email" type="email" autoComplete="email" required
                         placeholder="you@company.com"
-                        className={`pl-10 h-11 ${suErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        className={`pl-10 h-12 rounded-none border-border bg-transparent font-mono text-[13px] ${suErrors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suEmail} onChange={(e) => setSuEmail(e.target.value)} />
                       {suErrors.email && <p className="text-xs text-destructive mt-1">{suErrors.email}</p>}
                     </FieldWithIcon>
                     <FieldWithIcon icon={Lock} label="Пароль" htmlFor="su-password" hint="мин. 6 символов">
                       <Input id="su-password" type={showSuPwd ? "text" : "password"} autoComplete="new-password" required minLength={6}
                         placeholder="••••••••"
-                        className={`pl-10 pr-10 h-11 ${suErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        className={`pl-10 pr-10 h-12 rounded-none border-border bg-transparent font-mono text-[13px] ${suErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         value={suPassword} onChange={(e) => setSuPassword(e.target.value)} />
                       <PwdToggle shown={showSuPwd} onToggle={() => setShowSuPwd((s) => !s)} />
                       {suErrors.password && <p className="text-xs text-destructive mt-1">{suErrors.password}</p>}
                     </FieldWithIcon>
                     {suErrors.form && <p className="text-xs text-destructive">{suErrors.form}</p>}
-                    <Button type="submit" className="w-full h-11 text-base" disabled={busy}>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      {busy ? "Создаём…" : "Создать аккаунт"}
+                    <Button type="submit" className="w-full h-12 rounded-none font-mono text-[12px] uppercase tracking-[0.14em] gap-2" disabled={busy}>
+                      {busy ? "Создаём…" : <>Создать аккаунт <ArrowRight className="h-3.5 w-3.5" /></>}
                     </Button>
-                    <p className="text-center text-xs text-muted-foreground pt-1">
+                    <p className="text-center font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground pt-1">
                       Уже есть аккаунт?{" "}
-                      <button type="button" onClick={() => setTab("signin")} className="text-foreground font-medium hover:text-accent transition-colors">
+                      <button type="button" onClick={() => setTab("signin")} className="text-foreground underline underline-offset-4 hover:text-primary transition-colors">
                         Войти
                       </button>
                     </p>
@@ -315,7 +325,7 @@ const AuthPage = () => {
               </Tabs>
             </div>
           </div>
-        </div>
+        </section>
       </main>
     </div>
   );
@@ -334,13 +344,13 @@ const FieldWithIcon = ({
   hint?: string;
   children: React.ReactNode;
 }) => (
-  <div className="space-y-1.5">
+  <div className="space-y-2">
     <div className="flex items-baseline justify-between">
-      <Label htmlFor={htmlFor} className="text-xs font-medium text-foreground">{label}</Label>
-      {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
+      <Label htmlFor={htmlFor} className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</Label>
+      {hint && <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">{hint}</span>}
     </div>
     <div className="relative">
-      <Icon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Icon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
       {children}
     </div>
   </div>
@@ -351,7 +361,7 @@ const PwdToggle = ({ shown, onToggle }: { shown: boolean; onToggle: () => void }
     type="button"
     onClick={onToggle}
     aria-label={shown ? "Скрыть пароль" : "Показать пароль"}
-    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-foreground transition-colors"
   >
     {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
   </button>
