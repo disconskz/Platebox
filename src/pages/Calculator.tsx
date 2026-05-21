@@ -531,6 +531,8 @@ const Calculator = () => {
       stampingCliches: stampCliches,
       stampingClicheW: stampCliches[0]?.w,
       stampingClicheH: stampCliches[0]?.h,
+      hasEmbossing,
+      embossingCliches: embossCliches,
       hasLamPrepress,
       lamPrepressSides,
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
