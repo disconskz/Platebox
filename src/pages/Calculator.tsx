@@ -526,14 +526,15 @@ const Calculator = () => {
       hasNumbering,
       numbersPerSheet,
       hasStamping,
-      stampingClicheW: stampW,
-      stampingClicheH: stampH,
+      stampingCliches: stampCliches,
+      stampingClicheW: stampCliches[0]?.w,
+      stampingClicheH: stampCliches[0]?.h,
       hasLamPrepress,
       lamPrepressSides,
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
