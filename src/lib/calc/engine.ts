@@ -454,6 +454,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   // Postpress
   const postpress: SpecItem[] = [];
+  // Расходные материалы (фольга и т.п.) — выносим в отдельную «корзину»
+  // и показываем в конце сводки вместе с бумагой/краской.
+  const consumables: SpecItem[] = [];
 
   // Резка печатного листа на конечный формат изделия.
   // Берём число резов из справочника cut_count_rules по связке
