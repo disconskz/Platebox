@@ -428,13 +428,33 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     postpress.push({ stage: "postpress", name: "Нумерация", quantity: qty, unit: "номер", unitPrice: rule.numberingCost, total: qty * rule.numberingCost });
   }
 
-  if (input.hasStamping && input.stampingClicheW && input.stampingClicheH) {
-    const area = input.stampingClicheW * input.stampingClicheH;
-    const cliche = Math.max(rule.stampingClicheMin, area * rule.stampingClichePerCm2);
-    const impr = input.stampingNotebook ? rule.stampingImprNotebook : rule.stampingImpr;
-    postpress.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
-    postpress.push({ stage: "postpress", name: "Тиснение (клише)", quantity: area, unit: "см²", unitPrice: rule.stampingClichePerCm2, total: cliche });
-    postpress.push({ stage: "postpress", name: "Тиснение (оттиски)", quantity: input.circulation, unit: "оттиск", unitPrice: impr, total: input.circulation * impr });
+  if (input.hasStamping) {
+    // Список клише: либо массив, либо одиночные W/H для обратной совместимости.
+    const cliches = (input.stampingCliches && input.stampingCliches.length
+      ? input.stampingCliches
+      : (input.stampingClicheW && input.stampingClicheH
+          ? [{ w: input.stampingClicheW, h: input.stampingClicheH }]
+          : [])
+    ).filter((c) => c.w > 0 && c.h > 0);
+    if (cliches.length > 0) {
+      const impr = input.stampingNotebook ? rule.stampingImprNotebook : rule.stampingImpr;
+      postpress.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
+      cliches.forEach((c, i) => {
+        const area = c.w * c.h;
+        const cliche = Math.max(rule.stampingClicheMin, area * rule.stampingClichePerCm2);
+        const label = cliches.length > 1 ? ` #${i + 1} (${c.w}×${c.h} см)` : "";
+        postpress.push({ stage: "postpress", name: `Тиснение (клише)${label}`, quantity: area, unit: "см²", unitPrice: rule.stampingClichePerCm2, total: cliche });
+      });
+      const totalImpr = input.circulation * cliches.length;
+      postpress.push({
+        stage: "postpress",
+        name: cliches.length > 1 ? `Тиснение (оттиски, ${cliches.length} точек)` : "Тиснение (оттиски)",
+        quantity: totalImpr,
+        unit: "оттиск",
+        unitPrice: impr,
+        total: totalImpr * impr,
+      });
+    }
   }
 
   // Logistics: упаковка ×2 для вырубки

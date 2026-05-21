@@ -51,6 +51,10 @@ export const calcInputSchema = z
     numbersPerSheet: nonNegNum.int().max(1000).optional(),
     stampingClicheW: nonNegNum.max(500).optional(),
     stampingClicheH: nonNegNum.max(500).optional(),
+    stampingCliches: z
+      .array(z.object({ w: nonNegNum.max(500), h: nonNegNum.max(500) }))
+      .max(20)
+      .optional(),
     lamPrepressSides: z.union([z.literal(1), z.literal(2)]).optional(),
   })
   .passthrough();

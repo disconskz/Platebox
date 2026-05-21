@@ -202,8 +202,7 @@ const Calculator = () => {
   const [hasNumbering, setHasNumbering] = useState(false);
   const [numbersPerSheet, setNumbersPerSheet] = useState(1);
   const [hasStamping, setHasStamping] = useState(false);
-  const [stampW, setStampW] = useState(5);
-  const [stampH, setStampH] = useState(3);
+  const [stampCliches, setStampCliches] = useState<Array<{ w: number; h: number }>>([{ w: 5, h: 3 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
 
@@ -527,14 +526,15 @@ const Calculator = () => {
       hasNumbering,
       numbersPerSheet,
       hasStamping,
-      stampingClicheW: stampW,
-      stampingClicheH: stampH,
+      stampingCliches: stampCliches,
+      stampingClicheW: stampCliches[0]?.w,
+      stampingClicheH: stampCliches[0]?.h,
       hasLamPrepress,
       lamPrepressSides,
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampW, stampH, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
@@ -1523,13 +1523,65 @@ const Calculator = () => {
                     <Input className="w-28" type="number" inputMode="numeric" value={numbersPerSheet} onChange={(e) => setNumbersPerSheet(Number(e.target.value))} disabled={!hasNumbering} />
                     <span className="text-xs text-muted-foreground">номеров/лист</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Checkbox checked={hasStamping} onCheckedChange={(v) => setHasStamping(!!v)} id="st" />
-                    <Label htmlFor="st" className="flex-1">Тиснение</Label>
-                    <Input className="w-20" type="number" inputMode="numeric" value={stampW} onChange={(e) => setStampW(Number(e.target.value))} disabled={!hasStamping} />
-                    <span className="text-xs">×</span>
-                    <Input className="w-20" type="number" inputMode="numeric" value={stampH} onChange={(e) => setStampH(Number(e.target.value))} disabled={!hasStamping} />
-                    <span className="text-xs text-muted-foreground">см</span>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={hasStamping} onCheckedChange={(v) => setHasStamping(!!v)} id="st" />
+                      <Label htmlFor="st" className="flex-1">Тиснение</Label>
+                      {hasStamping && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setStampCliches((arr) => [...arr, { w: 5, h: 3 }])}
+                        >
+                          + клише
+                        </Button>
+                      )}
+                    </div>
+                    {hasStamping && (
+                      <div className="pl-7 space-y-2">
+                        {stampCliches.map((c, i) => (
+                          <div key={i} className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-16">Клише {i + 1}</span>
+                            <Input
+                              className="w-20"
+                              type="number"
+                              inputMode="numeric"
+                              value={c.w}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                setStampCliches((arr) => arr.map((x, j) => (j === i ? { ...x, w: v } : x)));
+                              }}
+                            />
+                            <span className="text-xs">×</span>
+                            <Input
+                              className="w-20"
+                              type="number"
+                              inputMode="numeric"
+                              value={c.h}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                setStampCliches((arr) => arr.map((x, j) => (j === i ? { ...x, h: v } : x)));
+                              }}
+                            />
+                            <span className="text-xs text-muted-foreground">см</span>
+                            {stampCliches.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setStampCliches((arr) => arr.filter((_, j) => j !== i))}
+                              >
+                                Удалить
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground">
+                          Каждое клише — отдельная точка тиснения: добавляется свой расчёт клише и {stampCliches.length > 1 ? `×${stampCliches.length} ` : ""}оттисков на тираж.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <ExtraOpsPicker
                     operations={operations.filter((o) => o.category === "postpress" || o.category === "logistics" || o.category === "print" || o.category === "prepress")}
