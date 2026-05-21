@@ -138,16 +138,18 @@ const TABLES = [
   },
   {
     key: "operations",
-    title: "Операции",
+    title: "Типы работ",
     cols: [
       { k: "name", t: "text", label: "Название" },
       { k: "category", t: "select", label: "Категория", opts: ["prepress", "print", "postpress", "logistics"] },
       { k: "subgroup", t: "text", label: "Подгруппа" },
-      { k: "fixed_cost", t: "number", label: "Фикс. ₸" },
-      { k: "variable_cost", t: "number", label: "Перем. ₸" },
+      { k: "fixed_cost", t: "number", label: "Приладка ₸" },
+      { k: "variable_cost", t: "number", label: "Цена ₸/ед" },
+      { k: "min_cost", t: "number", label: "Мин. ₸" },
       { k: "unit", t: "text", label: "Ед." },
+      { k: "description", t: "text", label: "Комментарий" },
     ],
-    defaults: { name: "", category: "postpress", subgroup: "", fixed_cost: 0, variable_cost: 0, unit: "шт" },
+    defaults: { name: "", category: "postpress", subgroup: "", fixed_cost: 0, variable_cost: 0, min_cost: 0, unit: "шт", description: "" },
   },
   {
     key: "equipment",
@@ -308,7 +310,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: "Производство",
     items: [
-      { key: "operations", title: "Операции", desc: "Базовые операции с фиксированной и переменной ценой.", countKey: "operations", relatedKeys: ["__op_catalog", "equipment"] },
+      { key: "operations", title: "Типы работ", desc: "Справочник постпечатных и сопутствующих работ: цена, приладка, мин. стоимость. Изменения сразу подтягиваются в калькулятор.", countKey: "operations", relatedKeys: ["__op_catalog", "equipment"] },
       { key: "__op_catalog", title: "Виды работ (формулы)", desc: "Полный каталог операций с параметрами и формулами расчёта.", countKey: "operation_catalog", relatedKeys: ["operations"] },
       { key: "equipment", title: "Оборудование", desc: "Послепечатное оборудование и стоимость оттиска.", countKey: "equipment" },
       { key: "press_machines", title: "Печатные машины", desc: "Печатные машины, форматы, приладка, типы продукции.", countKey: "press_machines", relatedKeys: ["print_formats", "product_circulation_rules"] },
