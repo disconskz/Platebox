@@ -87,6 +87,7 @@ export type ChatPart =
   | { type: "text"; text: string }
   | { type: "proposed_order"; order: ProposedOrder }
   | { type: "draft"; draft: Record<string, unknown> }
+  | { type: "choices"; choices: Array<{ label: string; value: string; hint?: string }>; step?: string | null }
   | { type: "tool_trace"; trace: ToolTraceItem[] };
 
 export type ChatMessage = {
@@ -540,6 +541,9 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       const parts: ChatPart[] = [{ type: "text", text: String(data.reply ?? "") }];
       if (Array.isArray(data.tool_trace) && data.tool_trace.length > 0) {
         parts.push({ type: "tool_trace", trace: data.tool_trace as ToolTraceItem[] });
+      }
+      if (Array.isArray(data.choices) && data.choices.length > 0) {
+        parts.push({ type: "choices", choices: data.choices as Array<{ label: string; value: string; hint?: string }>, step: data.step ?? null });
       }
       if (data.proposed_order && typeof data.proposed_order === "object") {
         parts.push({ type: "proposed_order", order: data.proposed_order });
