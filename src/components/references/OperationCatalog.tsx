@@ -3,7 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Search, CheckCircle2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, Search, CheckCircle2, AlertCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { FormulaBuilder } from "./FormulaBuilder";
+import { BuilderConst } from "@/lib/operations/formula-builder";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Operation {
   id: string;
@@ -43,14 +48,29 @@ export default function OperationCatalog() {
   const [loading, setLoading] = useState(true);
   /** Сколько work_items и параметров у каждой операции — для бейджей и «готово/нет». */
   const [counts, setCounts] = useState<Record<number, { p: number; w: number }>>({});
+  const [consts, setConsts] = useState<BuilderConst[]>([]);
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    (supabase as any).from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }: any) => setIsAdmin(!!data));
+  }, [user]);
+  // Контекст редактора формулы
+  const [editor, setEditor] = useState<null | {
+    title: string;
+    initial: string;
+    onSave: (v: string) => Promise<void> | void;
+  }>(null);
 
   useEffect(() => {
     (async () => {
       await ensureSupabaseSession();
-      const [cRes, pRes, wRes] = await Promise.all([
+      const [cRes, pRes, wRes, kRes] = await Promise.all([
         (supabase as any).from("operation_catalog").select("*").order("sort_order").order("name"),
         (supabase as any).from("operation_parameters").select("operation_code"),
         (supabase as any).from("operation_work_items").select("operation_code"),
+        (supabase as any).from("calc_constants").select("slug,name,value"),
       ]);
       setOps((cRes.data as Operation[]) || []);
       const map: Record<number, { p: number; w: number }> = {};
@@ -63,6 +83,7 @@ export default function OperationCatalog() {
         (map[k] ||= { p: 0, w: 0 }).w++;
       }
       setCounts(map);
+      setConsts(((kRes.data as any[]) || []) as BuilderConst[]);
       setLoading(false);
     })();
   }, []);
@@ -98,6 +119,78 @@ export default function OperationCatalog() {
   const activeParams = activeCode != null ? params[activeCode] || [] : [];
   const activeWork = activeCode != null ? workItems[activeCode] || [] : [];
   const readyCount = useMemo(() => Object.values(counts).filter((c) => c.w > 0).length, [counts]);
+
+  // Переменные, доступные внутри текущей операции — все её параметры.
+  const variables = useMemo(
+    () => activeParams.map((p) => ({ name: p.name })),
+    [activeParams]
+  );
+
+  const nextCode = (rows: { code: number }[]) => (rows.reduce((m, r) => Math.max(m, r.code), 0) || 0) + 1;
+  const nextOrder = (rows: { sort_order: number }[]) => (rows.reduce((m, r) => Math.max(m, r.sort_order), 0) || 0) + 1;
+
+  async function refreshActive(code: number) {
+    const [{ data: p }, { data: w }] = await Promise.all([
+      (supabase as any).from("operation_parameters").select("*").eq("operation_code", code).order("sort_order"),
+      (supabase as any).from("operation_work_items").select("*").eq("operation_code", code).order("sort_order"),
+    ]);
+    const np = (p as OpParam[]) || [];
+    const nw = (w as OpWorkItem[]) || [];
+    setParams((s) => ({ ...s, [code]: np }));
+    setWorkItems((s) => ({ ...s, [code]: nw }));
+    setCounts((s) => ({ ...s, [code]: { p: np.length, w: nw.length } }));
+  }
+
+  async function updateParam(id: string, patch: Partial<OpParam>) {
+    const { error } = await (supabase as any).from("operation_parameters").update(patch).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
+  async function updateWork(id: string, patch: Partial<OpWorkItem>) {
+    const { error } = await (supabase as any).from("operation_work_items").update(patch).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
+  async function addParam() {
+    if (activeCode == null) return;
+    const rows = activeParams;
+    const { error } = await (supabase as any).from("operation_parameters").insert({
+      operation_code: activeCode,
+      code: nextCode(rows),
+      sort_order: nextOrder(rows),
+      name: "Новый параметр",
+      default_value: "0",
+      formula: "",
+      notes: "",
+    });
+    if (error) { toast.error(error.message); return; }
+    await refreshActive(activeCode);
+  }
+  async function addWork() {
+    if (activeCode == null) return;
+    const rows = activeWork;
+    const { error } = await (supabase as any).from("operation_work_items").insert({
+      operation_code: activeCode,
+      code: nextCode(rows),
+      sort_order: nextOrder(rows),
+      name: "Новая статья",
+      price_source: "0",
+      quantity_source: "0",
+      notes: "",
+    });
+    if (error) { toast.error(error.message); return; }
+    await refreshActive(activeCode);
+  }
+  async function deleteParam(id: string) {
+    const { error } = await (supabase as any).from("operation_parameters").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
+  async function deleteWork(id: string) {
+    const { error } = await (supabase as any).from("operation_work_items").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    if (activeCode != null) await refreshActive(activeCode);
+  }
 
   return (
     <div className="space-y-2">
@@ -178,10 +271,17 @@ export default function OperationCatalog() {
                   <div className="mt-2 text-base font-semibold">{active.name}</div>
                 </div>
 
-                {!activeParams.length && (
-                  <div className="text-sm text-muted-foreground">Параметры для этой операции ещё не загружены.</div>
-                )}
-                {activeParams.length > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Параметры</div>
+                    {isAdmin && (
+                      <Button size="sm" variant="outline" onClick={addParam}><Plus className="h-3.5 w-3.5 mr-1" />параметр</Button>
+                    )}
+                  </div>
+                  {!activeParams.length && (
+                    <div className="text-sm text-muted-foreground">Параметров пока нет.</div>
+                  )}
+                  {activeParams.length > 0 && (
                   <div className="border rounded-md overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -190,6 +290,7 @@ export default function OperationCatalog() {
                           <th className="text-left p-2">Параметр</th>
                           <th className="text-left p-2">По умолчанию</th>
                           <th className="text-left p-2">Формула</th>
+                          {isAdmin && <th className="w-10"></th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -197,21 +298,66 @@ export default function OperationCatalog() {
                           <tr key={p.id} className="border-t align-top">
                             <td className="p-2 font-mono text-xs text-muted-foreground">{p.sort_order}</td>
                             <td className="p-2">
-                              <div className="font-medium">{p.name}</div>
+                              {isAdmin ? (
+                                <Input
+                                  className="h-7 text-sm"
+                                  defaultValue={p.name}
+                                  key={p.id + "n" + p.name}
+                                  onBlur={(e) => e.target.value !== p.name && updateParam(p.id, { name: e.target.value })}
+                                />
+                              ) : (
+                                <div className="font-medium">{p.name}</div>
+                              )}
                               <div className="text-[11px] text-muted-foreground font-mono">код {p.code}</div>
                             </td>
-                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{p.default_value || "—"}</td>
-                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{p.formula || "—"}</td>
+                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                              <div className="flex items-start gap-1">
+                                <span className="flex-1">{p.default_value || "—"}</span>
+                                {isAdmin && (
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                    title: `Значение по умолчанию: ${p.name}`,
+                                    initial: p.default_value || "",
+                                    onSave: (v) => updateParam(p.id, { default_value: v }),
+                                  })}><Pencil className="h-3 w-3" /></Button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                              <div className="flex items-start gap-1">
+                                <span className="flex-1">{p.formula || "—"}</span>
+                                {isAdmin && (
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                    title: `Формула параметра: ${p.name}`,
+                                    initial: p.formula || "",
+                                    onSave: (v) => updateParam(p.id, { formula: v }),
+                                  })}><Pencil className="h-3 w-3" /></Button>
+                                )}
+                              </div>
+                            </td>
+                            {isAdmin && (
+                              <td className="p-2 text-right">
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteParam(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                )}
+                  )}
+                </div>
 
-                {activeWork.length > 0 && (
-                  <div className="space-y-1">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
                     <div className="text-xs uppercase tracking-wider text-muted-foreground">Стоимость работ</div>
+                    {isAdmin && (
+                      <Button size="sm" variant="outline" onClick={addWork}><Plus className="h-3.5 w-3.5 mr-1" />статья</Button>
+                    )}
+                  </div>
+                  {!activeWork.length && (
+                    <div className="text-sm text-muted-foreground">Статей пока нет.</div>
+                  )}
+                  {activeWork.length > 0 && (
                     <div className="border rounded-md overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -220,6 +366,7 @@ export default function OperationCatalog() {
                             <th className="text-left p-2">Статья</th>
                             <th className="text-left p-2">Цена</th>
                             <th className="text-left p-2">Количество</th>
+                            {isAdmin && <th className="w-10"></th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -227,23 +374,72 @@ export default function OperationCatalog() {
                             <tr key={w.id} className="border-t align-top">
                               <td className="p-2 font-mono text-xs text-muted-foreground">{w.sort_order}</td>
                               <td className="p-2">
-                                <div className="font-medium">{w.name}</div>
+                                {isAdmin ? (
+                                  <Input
+                                    className="h-7 text-sm"
+                                    defaultValue={w.name}
+                                    key={w.id + "n" + w.name}
+                                    onBlur={(e) => e.target.value !== w.name && updateWork(w.id, { name: e.target.value })}
+                                  />
+                                ) : (
+                                  <div className="font-medium">{w.name}</div>
+                                )}
                                 <div className="text-[11px] text-muted-foreground font-mono">код {w.code}</div>
                               </td>
-                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{w.price_source || "—"}</td>
-                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">{w.quantity_source || "—"}</td>
+                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                                <div className="flex items-start gap-1">
+                                  <span className="flex-1">{w.price_source || "—"}</span>
+                                  {isAdmin && (
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                      title: `Цена: ${w.name}`,
+                                      initial: w.price_source || "",
+                                      onSave: (v) => updateWork(w.id, { price_source: v }),
+                                    })}><Pencil className="h-3 w-3" /></Button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2 text-xs font-mono whitespace-pre-wrap break-words">
+                                <div className="flex items-start gap-1">
+                                  <span className="flex-1">{w.quantity_source || "—"}</span>
+                                  {isAdmin && (
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditor({
+                                      title: `Количество: ${w.name}`,
+                                      initial: w.quantity_source || "",
+                                      onSave: (v) => updateWork(w.id, { quantity_source: v }),
+                                    })}><Pencil className="h-3 w-3" /></Button>
+                                  )}
+                                </div>
+                              </td>
+                              {isAdmin && (
+                                <td className="p-2 text-right">
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteWork(w.id)}><Trash2 className="h-3 w-3" /></Button>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
+      <FormulaBuilder
+        open={!!editor}
+        title={editor?.title || ""}
+        initialValue={editor?.initial || ""}
+        variables={variables}
+        constants={consts}
+        onClose={() => setEditor(null)}
+        onSave={async (v) => {
+          if (!editor) return;
+          await editor.onSave(v);
+          setEditor(null);
+        }}
+      />
     </div>
   );
 }
