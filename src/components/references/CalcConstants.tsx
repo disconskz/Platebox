@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { listConstants, upsertConstant, deleteConstant } from "@/lib/calc/variants/api";
 import { CalcConstant } from "@/lib/calc/variants/types";
+import { ListPagination } from "./ListPagination";
 
 const UNIT_GROUPS: Array<{ key: string; label: string; match: (u: string) => boolean }> = [
   { key: "money", label: "Деньги (₸)", match: (u) => /₸|тг|kzt/i.test(u) },
@@ -31,6 +32,8 @@ const UNIT_PRESETS = ["₸", "%", "₸/см²", "₸/оттиск", "₸/лис�
 export default function CalcConstants() {
   const [rows, setRows] = useState<CalcConstant[]>([]);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState({ slug: "", name: "", value: 0, unit: "₸", description: "" });
@@ -73,9 +76,15 @@ export default function CalcConstants() {
     );
   }, [rows, search]);
 
+  useEffect(() => { setPage(1); }, [search, pageSize]);
+  const pagedFiltered = useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize],
+  );
+
   const grouped = useMemo(() => {
     const map = new Map<string, CalcConstant[]>();
-    for (const r of filtered) {
+    for (const r of pagedFiltered) {
       const k = groupOf(r.unit || "");
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
@@ -88,7 +97,7 @@ export default function CalcConstants() {
         items: map.get(k) || [],
       }))
       .filter((g) => g.items.length > 0);
-  }, [filtered]);
+  }, [pagedFiltered]);
 
   const patchRow = (id: string, patch: Partial<CalcConstant>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -251,6 +260,14 @@ export default function CalcConstants() {
       <datalist id="unit-presets-row">
         {UNIT_PRESETS.map((u) => <option key={u} value={u} />)}
       </datalist>
+
+      <ListPagination
+        page={page}
+        pageSize={pageSize}
+        total={filtered.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       <p className="text-[11px] text-muted-foreground px-1">
         Изменения сохраняются автоматически при потере фокуса. <Check className="inline h-3 w-3 text-emerald-500" /> — успешно сохранено.

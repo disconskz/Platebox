@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { HelpHint } from "@/components/HelpHint";
+import { ListPagination } from "./ListPagination";
 
 type FieldDef = { key: string; label: string; type: "text" | "number" | "select"; opts?: string[] };
 type CustomRef = { id: string; slug: string; name: string; fields: FieldDef[]; sort_order: number };
@@ -20,6 +21,8 @@ export default function CustomReferences() {
   const [active, setActive] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [draft, setDraft] = useState<Record<string, any>>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const loadRefs = async () => {
     const { data } = await (supabase as any).from("custom_references").select("*").order("sort_order");
@@ -32,7 +35,13 @@ export default function CustomReferences() {
   };
 
   useEffect(() => { loadRefs(); }, []);
-  useEffect(() => { if (active) loadRows(active); }, [active]);
+  useEffect(() => { if (active) loadRows(active); setPage(1); }, [active]);
+  useEffect(() => { setPage(1); }, [pageSize]);
+
+  const pageRows = useMemo(
+    () => rows.slice((page - 1) * pageSize, page * pageSize),
+    [rows, page, pageSize],
+  );
 
   const activeRef = refs.find((r) => r.id === active);
 
@@ -90,6 +99,7 @@ export default function CustomReferences() {
       </div>
 
       {activeRef ? (
+        <>
         <div className="overflow-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -107,7 +117,7 @@ export default function CustomReferences() {
                     ))}
                     <td className="p-1.5 text-right"><Button size="sm" onClick={addRow}><Plus className="h-3.5 w-3.5" /></Button></td>
                   </tr>
-                  {rows.map((row) => (
+                  {pageRows.map((row) => (
                     <tr key={row.id} className="border-t">
                       {activeRef.fields.map((f) => (
                         <td key={f.key} className="p-1.5">
@@ -128,6 +138,14 @@ export default function CustomReferences() {
                 </tbody>
               </table>
         </div>
+        <ListPagination
+          page={page}
+          pageSize={pageSize}
+          total={rows.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+        </>
       ) : (
         <div className="text-sm text-muted-foreground p-6 border rounded-md text-center">
           Создайте свой справочник кнопкой выше.
