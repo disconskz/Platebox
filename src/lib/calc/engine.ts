@@ -565,7 +565,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
       const foilArea = totalFoilAreaPerImpr * input.circulation;
       const foilPrice = MATERIAL_PRICES.foilPerCm2;
       if (foilArea > 0 && foilPrice > 0) {
-        postpress.push({
+        consumables.push({
           stage: "material",
           name: "Фольга для тиснения",
           quantity: Math.ceil(foilArea),
