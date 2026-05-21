@@ -24,6 +24,9 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import aiLogo from "@/assets/ai-calc-logo.png";
 import { fmtMoney } from "@/lib/format";
 import { exportProposedOrderToPdf } from "@/lib/proposed-order-pdf";
+import MessageActions from "./MessageActions";
+import { AiToolTrace, type ToolTraceItem } from "./AiToolStep";
+import { Input } from "@/components/ui/input";
 
 export type ProposedOrder = {
   product_type?: string;
@@ -83,7 +86,8 @@ export type ProposedOrder = {
 export type ChatPart =
   | { type: "text"; text: string }
   | { type: "proposed_order"; order: ProposedOrder }
-  | { type: "draft"; draft: Record<string, unknown> };
+  | { type: "draft"; draft: Record<string, unknown> }
+  | { type: "tool_trace"; trace: ToolTraceItem[] };
 
 export type ChatMessage = {
   id: string;
