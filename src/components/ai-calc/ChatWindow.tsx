@@ -24,6 +24,9 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import aiLogo from "@/assets/ai-calc-logo.png";
 import { fmtMoney } from "@/lib/format";
 import { exportProposedOrderToPdf } from "@/lib/proposed-order-pdf";
+import MessageActions from "./MessageActions";
+import { AiToolTrace, type ToolTraceItem } from "./AiToolStep";
+import { Input } from "@/components/ui/input";
 
 export type ProposedOrder = {
   product_type?: string;
@@ -83,7 +86,8 @@ export type ProposedOrder = {
 export type ChatPart =
   | { type: "text"; text: string }
   | { type: "proposed_order"; order: ProposedOrder }
-  | { type: "draft"; draft: Record<string, unknown> };
+  | { type: "draft"; draft: Record<string, unknown> }
+  | { type: "tool_trace"; trace: ToolTraceItem[] };
 
 export type ChatMessage = {
   id: string;
@@ -424,6 +428,8 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
   const [status, setStatus] = useState<"ready" | "submitted" | "error">("ready");
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
   // Dialog memory: agent-side draft state, restored from last assistant message
   const draftRef = useRef<Record<string, unknown>>({});
   useEffect(() => {
@@ -473,28 +479,30 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
     return data as { id: string; created_at: string };
   };
 
-  const send = async (text: string) => {
+  const send = async (text: string, opts: { skipUserMessage?: boolean; isFirst?: boolean } = {}) => {
     if (!text.trim() || status === "submitted" || !user) return;
     const trimmed = text.trim();
     setStatus("submitted");
 
-    const userMsg: ChatMessage = {
-      id: `tmp-${Date.now()}`,
-      role: "user",
-      parts: [{ type: "text", text: trimmed }],
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    const wasFirstUser = opts.isFirst ?? messages.filter((m) => m.role === "user").length === 0;
 
-    const saved = await persistMessage({ role: "user", parts: userMsg.parts });
-    if (saved) {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === userMsg.id ? { ...m, id: saved.id, created_at: saved.created_at } : m)),
-      );
+    if (!opts.skipUserMessage) {
+      const userMsg: ChatMessage = {
+        id: `tmp-${Date.now()}`,
+        role: "user",
+        parts: [{ type: "text", text: trimmed }],
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      const saved = await persistMessage({ role: "user", parts: userMsg.parts });
+      if (saved) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === userMsg.id ? { ...m, id: saved.id, created_at: saved.created_at } : m)),
+        );
+      }
     }
 
-    // First user message → suggested title
-    if (messages.length === 0) {
+    if (wasFirstUser) {
       const suggested = trimmed.slice(0, 60);
       onTitleSuggested?.(suggested);
       await supabase.from("ai_threads").update({ title: suggested }).eq("id", threadId);
@@ -530,6 +538,9 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
       if (!data?.ok) throw new Error(data?.error || "ai_error");
 
       const parts: ChatPart[] = [{ type: "text", text: String(data.reply ?? "") }];
+      if (Array.isArray(data.tool_trace) && data.tool_trace.length > 0) {
+        parts.push({ type: "tool_trace", trace: data.tool_trace as ToolTraceItem[] });
+      }
       if (data.proposed_order && typeof data.proposed_order === "object") {
         parts.push({ type: "proposed_order", order: data.proposed_order });
       }
@@ -551,6 +562,22 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
         );
       }
       setStatus("ready");
+
+      // Auto-title after first assistant reply (fire-and-forget)
+      if (wasFirstUser) {
+        void (async () => {
+          try {
+            const { data: titleData } = await supabase.functions.invoke("ai-thread-title", {
+              body: { thread_id: threadId },
+            });
+            const t = (titleData as { title?: string } | null)?.title?.trim();
+            if (t) {
+              onTitleSuggested?.(t);
+              await supabase.from("ai_threads").update({ title: t }).eq("id", threadId);
+            }
+          } catch { /* noop */ }
+        })();
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === "AbortError" || (e instanceof DOMException && e.name === "AbortError")) {
@@ -584,6 +611,53 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
 
   const stop = () => {
     abortRef.current?.abort();
+  };
+
+  const regenerate = async () => {
+    if (status === "submitted") return;
+    // Find last assistant; remove it (and any trailing assistants), then resend last user
+    const lastUserIdx = [...messages].map((m) => m.role).lastIndexOf("user");
+    if (lastUserIdx < 0) return;
+    const lastUser = messages[lastUserIdx];
+    const lastUserText = lastUser.parts.find((p) => p.type === "text") as { type: "text"; text: string } | undefined;
+    if (!lastUserText) return;
+    // Delete assistant messages after that user message (DB + state)
+    const toDelete = messages.slice(lastUserIdx + 1).filter((m) => m.role === "assistant" && !m.id.startsWith("tmp-"));
+    setMessages((prev) => prev.slice(0, lastUserIdx + 1));
+    if (toDelete.length > 0) {
+      await supabase.from("ai_messages").delete().in("id", toDelete.map((m) => m.id));
+    }
+    await send(lastUserText.text, { skipUserMessage: true });
+  };
+
+  const startEdit = (m: ChatMessage) => {
+    const t = m.parts.find((p) => p.type === "text") as { type: "text"; text: string } | undefined;
+    setEditingId(m.id);
+    setEditDraft(t?.text ?? "");
+  };
+  const cancelEdit = () => { setEditingId(null); setEditDraft(""); };
+  const saveEdit = async (m: ChatMessage) => {
+    const newText = editDraft.trim();
+    if (!newText) { cancelEdit(); return; }
+    const idx = messages.findIndex((x) => x.id === m.id);
+    if (idx < 0) { cancelEdit(); return; }
+    // Update DB if persisted
+    if (!m.id.startsWith("tmp-")) {
+      await supabase
+        .from("ai_messages")
+        .update({ parts: [{ type: "text", text: newText }] as unknown as never })
+        .eq("id", m.id);
+    }
+    // Drop everything after the edited message
+    const tail = messages.slice(idx + 1).filter((x) => !x.id.startsWith("tmp-")).map((x) => x.id);
+    if (tail.length > 0) {
+      await supabase.from("ai_messages").delete().in("id", tail);
+    }
+    setMessages((prev) =>
+      prev.slice(0, idx).concat([{ ...m, parts: [{ type: "text", text: newText }] }]),
+    );
+    cancelEdit();
+    await send(newText, { skipUserMessage: true });
   };
 
   const handlePromptSubmit = (msg: PromptInputMessage) => {
@@ -622,8 +696,13 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
               </div>
             </ConversationEmptyState>
           ) : (
-            messages.map((m) => (
-              <Message key={m.id} from={m.role} className="animate-fade-in">
+            messages.map((m, idx) => {
+              const isLastAssistant =
+                m.role === "assistant" && idx === messages.length - 1 && status !== "submitted";
+              const textPart = m.parts.find((p) => p.type === "text") as { type: "text"; text: string } | undefined;
+              const isEditing = editingId === m.id;
+              return (
+              <Message key={m.id} from={m.role} className="animate-fade-in group/msg">
                 {m.role === "assistant" && (
                   <div className="flex items-center gap-2 mb-1">
                     <div className="h-7 w-7 rounded-lg border border-primary/30 bg-primary/10 flex items-center justify-center">
@@ -639,7 +718,25 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                       : undefined
                   }
                 >
-                  {m.parts.map((p, i) =>
+                  {isEditing ? (
+                    <div className="space-y-2 w-full">
+                      <Input
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void saveEdit(m);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        autoFocus
+                        className="bg-background text-foreground"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="ghost" onClick={cancelEdit}>Отмена</Button>
+                        <Button size="sm" onClick={() => void saveEdit(m)}>Отправить</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    m.parts.map((p, i) =>
                     p.type === "text" ? (
                       m.role === "assistant" ? (
                         <MessageResponse key={i}>{p.text}</MessageResponse>
@@ -648,11 +745,22 @@ export default function ChatWindow({ threadId, initialMessages, onTitleSuggested
                       )
                     ) : p.type === "proposed_order" ? (
                       <ProposedOrderCard key={i} order={p.order} />
+                    ) : p.type === "tool_trace" ? (
+                      <AiToolTrace key={i} trace={p.trace} />
                     ) : null,
-                  )}
+                  ))}
                 </MessageContent>
+                {!isEditing && textPart && (
+                  <MessageActions
+                    text={textPart.text}
+                    role={m.role}
+                    onRegenerate={isLastAssistant ? () => void regenerate() : undefined}
+                    onEdit={m.role === "user" ? () => startEdit(m) : undefined}
+                  />
+                )}
               </Message>
-            ))
+              );
+            })
           )}
 
           {status === "submitted" && (
