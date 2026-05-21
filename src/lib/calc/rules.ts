@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { DEFAULTS } from "./types";
+import type { CutRulesData } from "./engine";
 
 export type CalcRules = typeof DEFAULTS;
 
@@ -50,4 +51,21 @@ export async function loadCalcRules(): Promise<CalcRules> {
     if (!Number.isNaN(num)) (rules as any)[field] = num;
   }
   return rules;
+}
+
+/** Загружает таблицу «Резы: печатный → конечный» и константу «Цена реза печатного листа». */
+export async function loadCutRules(): Promise<CutRulesData> {
+  await ensureSupabaseSession();
+  const [rulesRes, constRes] = await Promise.all([
+    (supabase as any).from("cut_count_rules").select("print_format,item_format,cuts"),
+    (supabase as any).from("calc_constants").select("slug,value").eq("slug", "cut_price_per_print").maybeSingle(),
+  ]);
+  const table: Record<string, number> = {};
+  for (const r of (rulesRes.data as { print_format: string; item_format: string; cuts: number }[]) || []) {
+    const cuts = Number(r.cuts);
+    if (!Number.isFinite(cuts) || cuts < 0) continue;
+    table[`${r.print_format}|${r.item_format}`] = cuts;
+  }
+  const price = Number((constRes.data as any)?.value);
+  return { pricePerCut: Number.isFinite(price) && price > 0 ? price : 1, table };
 }

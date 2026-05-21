@@ -13,8 +13,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Stepper } from "@/components/calc/Stepper";
 import { LayoutPreview } from "@/components/calc/LayoutPreview";
 import AiOrderAssistant, { type ParsedOrder } from "@/components/calc/AiOrderAssistant";
-import { FORMAT_PRESETS, runCalculation, setCalcRules } from "@/lib/calc/engine";
-import { loadCalcRules } from "@/lib/calc/rules";
+import { FORMAT_PRESETS, runCalculation, setCalcRules, setCutRules } from "@/lib/calc/engine";
+import { loadCalcRules, loadCutRules } from "@/lib/calc/rules";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
@@ -230,6 +230,12 @@ const Calculator = () => {
         await ensureSupabaseSession();
         const calcRules = await loadCalcRules();
         setCalcRules(calcRules);
+        try {
+          const cutData = await loadCutRules();
+          setCutRules(cutData);
+        } catch (e) {
+          console.warn("[Calculator] loadCutRules failed", e);
+        }
       } catch (e: any) {
         toast.error("Не удалось загрузить правила расчёта: " + (e?.message || ""));
       }

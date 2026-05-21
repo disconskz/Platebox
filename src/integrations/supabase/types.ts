@@ -636,6 +636,33 @@ export type Database = {
         }
         Relationships: []
       }
+      cut_count_rules: {
+        Row: {
+          created_at: string
+          cuts: number
+          id: string
+          item_format: string
+          print_format: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          cuts: number
+          id?: string
+          item_format: string
+          print_format: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          cuts?: number
+          id?: string
+          item_format?: string
+          print_format?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       envelope_formats: {
         Row: {
           created_at: string

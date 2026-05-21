@@ -250,6 +250,17 @@ const TABLES = [
     ],
     defaults: { name: "", width: 110, height: 220, sort_order: 100 },
   },
+  {
+    key: "cut_count_rules",
+    title: "Резы: печатный → конечный",
+    cols: [
+      { k: "print_format", t: "select", label: "Печатный лист", opts: ["A0", "A1", "A2", "A3", "A4", "A5"] },
+      { k: "item_format", t: "select", label: "Конечный формат", opts: ["A1", "A2", "A3", "A4", "A5", "A6"] },
+      { k: "cuts", t: "number", label: "Резов на 1 лист" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { print_format: "A1", item_format: "A3", cuts: 8, sort_order: 100 },
+  },
 ] as const;
 
 const References = () => {
@@ -322,6 +333,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { key: "product_circulation_rules", title: "Правила тиражей", desc: "Какая машина обслуживает продукт в каком диапазоне тиражей.", countKey: "product_circulation_rules", relatedKeys: ["press_machines"] },
       { key: "__rules", title: "Правила расчёта", desc: "Конструктор правил для формул калькулятора.", countKey: null },
+      { key: "cut_count_rules", title: "Резы: печатный → конечный", desc: "Сколько резов делает резак, чтобы из печатного листа получить конечный формат изделия (с подрезкой 2–3 мм).", countKey: "cut_count_rules" },
       { key: "system_settings", title: "Константы", desc: "Системные ключ-значение настройки.", countKey: "system_settings" },
       { key: "__calc_constants", title: "Константы формул", desc: "Числовые константы, используемые в формулах.", countKey: null },
     ],
