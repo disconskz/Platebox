@@ -25,6 +25,7 @@ import CalcRulesEditor from "@/components/references/CalcRulesEditor";
 import CustomReferences from "@/components/references/CustomReferences";
 import ProductGlossary from "@/components/references/ProductGlossary";
 import CalcConstants from "@/components/references/CalcConstants";
+import OperationCatalog from "@/components/references/OperationCatalog";
 import { useAuth } from "@/hooks/useAuth";
 import { ensureSupabaseSession } from "@/lib/auth-session";
 import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
@@ -302,6 +303,7 @@ const NAV_GROUPS: { title: string; items: { key: string; title: string }[] }[] =
     title: "Производство",
     items: [
       { key: "operations", title: "Операции" },
+      { key: "__op_catalog", title: "Виды работ (формулы)" },
       { key: "equipment", title: "Оборудование" },
       { key: "press_machines", title: "Печатные машины" },
       { key: "lamination_prices", title: "Ламинация" },
@@ -335,6 +337,7 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
     if (active === "__custom") return <CustomReferences />;
     if (active === "__glossary") return <ProductGlossary />;
     if (active === "__calc_constants") return <CalcConstants />;
+    if (active === "__op_catalog") return <OperationCatalog />;
     const spec = TABLES.find((t) => t.key === active);
     if (!spec) return null;
     return <RefTable spec={spec as any} dynOpts={dynOpts} authReady={authReady} />;

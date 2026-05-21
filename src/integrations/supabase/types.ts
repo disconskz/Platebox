@@ -797,6 +797,86 @@ export type Database = {
           },
         ]
       }
+      operation_catalog: {
+        Row: {
+          category: string
+          code: number
+          created_at: string
+          description: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          code: number
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          code?: number
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      operation_parameters: {
+        Row: {
+          code: number
+          created_at: string
+          default_value: string
+          formula: string
+          id: string
+          name: string
+          notes: string
+          operation_code: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: number
+          created_at?: string
+          default_value?: string
+          formula?: string
+          id?: string
+          name: string
+          notes?: string
+          operation_code: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: number
+          created_at?: string
+          default_value?: string
+          formula?: string
+          id?: string
+          name?: string
+          notes?: string
+          operation_code?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operation_parameters_operation_code_fkey"
+            columns: ["operation_code"]
+            isOneToOne: false
+            referencedRelation: "operation_catalog"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       operations: {
         Row: {
           category: string
