@@ -1,20 +1,26 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import aiLogo from "@/assets/ai-calc-logo.png";
+import { useNavigate, useParams } from "react-router-dom";
+import { Loader2, Pin, PinOff, Archive, Trash2, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { logDataIssue, noSessionIssue } from "@/lib/data-issue";
 import { toast } from "sonner";
 import ChatWindow, { type ChatMessage, type ChatPart } from "@/components/ai-calc/ChatWindow";
+import { useAiThreads } from "@/hooks/useAiThreads";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function AiCalcThread() {
   const { threadId } = useParams<{ threadId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [title, setTitle] = useState("Разговор");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const { threads, rename, togglePin, toggleArchive, remove } = useAiThreads();
+  const meta = threads.find((t) => t.id === threadId);
 
   useEffect(() => {
     if (!threadId) return;
@@ -57,19 +63,56 @@ export default function AiCalcThread() {
 
   if (!threadId) return null;
 
+  const saveTitle = async () => {
+    if (titleDraft.trim() && titleDraft !== title) {
+      setTitle(titleDraft.trim());
+      await rename(threadId, titleDraft.trim());
+    }
+    setEditingTitle(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Удалить этот разговор?")) return;
+    await remove(threadId);
+    navigate("/ai-calc");
+  };
+
   return (
-    <div className="min-h-screen has-tabbar pb-0 flex flex-col">
-      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30 safe-top">
-        <div className="container mx-auto flex items-center gap-3 py-3 px-4">
-          <Link to="/ai-calc" className="text-sm text-muted-foreground hover:text-foreground shrink-0 flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">К разговорам</span>
-          </Link>
-          <img src={aiLogo} alt="" width={24} height={24} className="h-6 w-6 shrink-0" />
-          <h1 className="text-sm sm:text-base font-medium truncate">{title}</h1>
+    <div className="flex-1 flex flex-col min-h-0">
+      <header className="border-b bg-card/60 backdrop-blur sticky top-0 z-20 flex items-center gap-2 px-4 py-2">
+        {editingTitle ? (
+          <Input
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={() => void saveTitle()}
+            onKeyDown={(e) => { if (e.key === "Enter") void saveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
+            autoFocus
+            className="h-8 text-sm max-w-md"
+            maxLength={80}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setTitleDraft(title); setEditingTitle(true); }}
+            className="flex items-center gap-1.5 text-sm font-medium truncate hover:text-primary transition-colors group/title"
+            title="Переименовать"
+          >
+            <span className="truncate">{title}</span>
+            <Pencil className="h-3 w-3 opacity-0 group-hover/title:opacity-60 transition-opacity" />
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-1">
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => void togglePin(threadId)} title={meta?.is_pinned ? "Открепить" : "Закрепить"}>
+            {meta?.is_pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => void toggleArchive(threadId)} title="В архив">
+            <Archive className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={handleDelete} title="Удалить">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </header>
-
       <div className="flex-1 min-h-0">
         {loading || messages === null ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
