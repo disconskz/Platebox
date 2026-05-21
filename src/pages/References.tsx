@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight, AlertTriangle,
-  Copy, Download, Upload, MoreHorizontal, Search, X, Link2,
+  Copy, Download, Upload, MoreHorizontal, Search, X, Link2, Layers,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -479,6 +479,16 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
                 </div>
               </div>
             ))}
+          </div>
+          <div className="border-t p-1.5 bg-muted/20">
+            <Link
+              to="/references/variants"
+              className="group text-left text-[13px] px-2 py-1.5 rounded-md flex items-center gap-2 transition-colors text-foreground/80 hover:bg-muted hover:text-foreground"
+            >
+              <Layers className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+              <span className="flex-1">Варианты просчёта</span>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            </Link>
           </div>
         </div>
       </nav>
