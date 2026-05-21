@@ -1626,6 +1626,79 @@ const Calculator = () => {
                       </div>
                     )}
                   </div>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={hasEmbossing} onCheckedChange={(v) => setHasEmbossing(!!v)} id="emb" />
+                      <Label htmlFor="emb" className="flex-1">Конгрев</Label>
+                      {hasEmbossing && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEmbossCliches((arr) => [...arr, { w: 5, h: 3, points: 1 }])}
+                        >
+                          + клише
+                        </Button>
+                      )}
+                    </div>
+                    {hasEmbossing && (
+                      <div className="pl-7 space-y-2">
+                        {embossCliches.map((c, i) => (
+                          <div key={i} className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-16">Клише {i + 1}</span>
+                            <Input
+                              className="w-20"
+                              type="number"
+                              inputMode="numeric"
+                              value={c.w}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                setEmbossCliches((arr) => arr.map((x, j) => (j === i ? { ...x, w: v } : x)));
+                              }}
+                            />
+                            <span className="text-xs">×</span>
+                            <Input
+                              className="w-20"
+                              type="number"
+                              inputMode="numeric"
+                              value={c.h}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                setEmbossCliches((arr) => arr.map((x, j) => (j === i ? { ...x, h: v } : x)));
+                              }}
+                            />
+                            <span className="text-xs text-muted-foreground">см</span>
+                            <span className="text-xs text-muted-foreground ml-2">точек</span>
+                            <Input
+                              className="w-16"
+                              type="number"
+                              inputMode="numeric"
+                              min={1}
+                              value={c.points ?? 1}
+                              onChange={(e) => {
+                                const v = Math.max(1, Number(e.target.value) || 1);
+                                setEmbossCliches((arr) => arr.map((x, j) => (j === i ? { ...x, points: v } : x)));
+                              }}
+                              title="Сколько точек конгрева делается этим клише за один оттиск"
+                            />
+                            {embossCliches.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEmbossCliches((arr) => arr.filter((_, j) => j !== i))}
+                              >
+                                Удалить
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground">
+                          Каждое клише считается отдельно; в поле «точек» укажите, сколько точек конгрева наносится одним клише за оттиск. Итоговые оттиски = тираж × сумма точек по всем клише.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                   <ExtraOpsPicker
                     operations={operations.filter((o) => o.category === "postpress" || o.category === "logistics" || o.category === "print" || o.category === "prepress")}
                     extraOps={extraOps}
