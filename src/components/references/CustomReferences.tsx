@@ -99,6 +99,7 @@ export default function CustomReferences() {
       </div>
 
       {activeRef ? (
+        <>
         <div className="overflow-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -137,6 +138,14 @@ export default function CustomReferences() {
                 </tbody>
               </table>
         </div>
+        <ListPagination
+          page={page}
+          pageSize={pageSize}
+          total={rows.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+        </>
       ) : (
         <div className="text-sm text-muted-foreground p-6 border rounded-md text-center">
           Создайте свой справочник кнопкой выше.
