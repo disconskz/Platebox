@@ -64,9 +64,9 @@ type CirculationRuleRow = {
   preferred_machine_id: string | null;
   sort_order: number;
 };
-type OperationRow = { id: string; name: string; category: string; subgroup: string | null; fixed_cost: number; variable_cost: number; unit: string | null };
+type OperationRow = { id: string; name: string; category: string; subgroup: string | null; fixed_cost: number; variable_cost: number; min_cost?: number; description?: string | null; unit: string | null };
 
-type ExtraOpState = { qty: number; price: number };
+type ExtraOpState = { qty: number };
 
 const MATERIAL_CATEGORIES: { value: string; label: string }[] = [
   { value: "cardboard", label: "Картон" },
