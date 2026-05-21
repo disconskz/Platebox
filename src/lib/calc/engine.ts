@@ -28,6 +28,19 @@ export function getCutRules(): CutRulesData {
   return CUT_RULES;
 }
 
+// === Расходные материалы (фольга для тиснения и т.п.) ===
+export interface MaterialPrices {
+  /** Цена 1 см² фольги для тиснения, ₸. */
+  foilPerCm2: number;
+}
+let MATERIAL_PRICES: MaterialPrices = { foilPerCm2: 6 };
+export function setMaterialPrices(p: Partial<MaterialPrices>) {
+  MATERIAL_PRICES = { ...MATERIAL_PRICES, ...p };
+}
+export function getMaterialPrices(): MaterialPrices {
+  return MATERIAL_PRICES;
+}
+
 /** A-форматы в мм для распознавания печатного листа по фактическим размерам. */
 const A_FORMATS: Array<{ name: string; w: number; h: number }> = [
   { name: "A0", w: 841, h: 1189 },
