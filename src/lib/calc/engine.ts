@@ -72,6 +72,19 @@ export function lookupCutCount(printName: string | null, itemName: string | null
   return typeof v === "number" && v >= 0 ? v : null;
 }
 
+/**
+ * Авто-расчёт количества резов по фактической раскладке (ТЗ).
+ * - 1 изделие на листе → 4 реза (обрезка по периметру);
+ * - иначе → 2 × (cols + rows).
+ */
+export function autoCutsFromLayout(layout: { cols: number; rows: number; itemsPerSheet: number }): number {
+  const items = Math.max(1, layout.itemsPerSheet | 0);
+  if (items <= 1) return 4;
+  const cols = Math.max(1, layout.cols | 0);
+  const rows = Math.max(1, layout.rows | 0);
+  return 2 * (cols + rows);
+}
+
 export function calculateLayout(
   productW: number,
   productH: number,
