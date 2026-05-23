@@ -472,42 +472,64 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const consumables: SpecItem[] = [];
 
   // Резка печатного листа на конечный формат изделия.
-  // Берём число резов из справочника cut_count_rules по связке
-  // «фактический печатный формат → формат изделия». Если связки нет —
-  // откатываемся на старую модель (cutsPerItem × кол-во изделий).
+  // Приоритет (по ТЗ):
+  //   1) ручное переопределение (input.cutsPerSheetOverride);
+  //   2) справочник cut_count_rules по связке «печатный → конечный»;
+  //   3) авто-расчёт по фактической раскладке: 1 → 4 реза, иначе 2×(cols+rows).
   const printName = detectPrintFormatName(layout.printFormat.width, layout.printFormat.height);
   const itemName = input.formatType && input.formatType !== "custom" ? input.formatType : null;
-  const tableCuts = lookupCutCount(printName, itemName);
   const cutPrice = CUT_RULES.pricePerCut ?? rule.finishCutCost ?? 1;
-  if (tableCuts != null) {
-    const qty = Math.ceil(printSheets * tableCuts);
-    postpress.push({
-      stage: "postpress",
-      name: `Резка ${printName} → ${itemName} (${tableCuts} рез/лист)`,
-      quantity: qty,
-      unit: "рез",
-      unitPrice: cutPrice,
-      total: qty * cutPrice,
-    });
+  const tableCuts = lookupCutCount(printName, itemName);
+  const override = Number.isFinite(input.cutsPerSheetOverride as number) && (input.cutsPerSheetOverride as number) >= 0
+    ? Math.floor(input.cutsPerSheetOverride as number)
+    : null;
+  let cutsPerSheet: number;
+  let cutSource: "manual" | "table" | "auto";
+  let cutLabel: string;
+  if (override != null) {
+    cutsPerSheet = override;
+    cutSource = "manual";
+    cutLabel = `Резка (ручная корректировка, ${cutsPerSheet} рез/лист)`;
+  } else if (tableCuts != null) {
+    cutsPerSheet = tableCuts;
+    cutSource = "table";
+    cutLabel = `Резка ${printName} → ${itemName} (справочник, ${cutsPerSheet} рез/лист)`;
   } else {
-    const cutsPerItem = finishCutsPerItem(
-      input.productType,
-      input.finishCutsPerItem,
-      (rule as any).finishCutsPerItem ?? 4
-    );
-    const qty = Math.ceil(printSheets * layout.itemsPerSheet * cutsPerItem);
-    postpress.push({
-      stage: "postpress",
-      name: `Резка готовых листов (×${cutsPerItem})`,
-      quantity: qty,
-      unit: "рез",
-      unitPrice: cutPrice,
-      total: qty * cutPrice,
-    });
-    if (printName && itemName) {
-      warnings.push(`В справочнике резов нет связки ${printName} → ${itemName}. Добавьте её в Справочники → «Резка: печатный → конечный», иначе используется приблизительная модель.`);
-    }
+    cutsPerSheet = autoCutsFromLayout(layout);
+    cutSource = "auto";
+    cutLabel = layout.itemsPerSheet <= 1
+      ? `Резка (авто: 1 изделие → 4 реза)`
+      : `Резка (авто: 2×(${layout.cols}+${layout.rows}) = ${cutsPerSheet} рез/лист)`;
   }
+  const cutQty = Math.ceil(printSheets * cutsPerSheet);
+  postpress.push({
+    stage: "postpress",
+    name: cutLabel,
+    quantity: cutQty,
+    unit: "рез",
+    unitPrice: cutPrice,
+    total: cutQty * cutPrice,
+  });
+  const bleed = R().bleed;
+  const cutInfo = {
+    source: cutSource,
+    printName,
+    itemName,
+    cols: layout.cols,
+    rows: layout.rows,
+    itemsPerSheet: layout.itemsPerSheet,
+    cutsPerSheet,
+    pricePerCut: cutPrice,
+    printSheets,
+    total: cutQty * cutPrice,
+    bleed,
+    productW: input.formatWidth,
+    productH: input.formatHeight,
+    productWithBleedW: input.formatWidth + bleed * 2,
+    productWithBleedH: input.formatHeight + bleed * 2,
+    printW: layout.printFormat.width,
+    printH: layout.printFormat.height,
+  };
 
   if (isBooklet && input.hasFold) {
     const folds = (input.foldCount ?? 1) * input.circulation;
