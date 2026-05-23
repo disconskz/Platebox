@@ -760,6 +760,24 @@ const Calculator = () => {
   }, [extraOps, operations]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
+  // Авто-значения переменных формулы (как вычисляет калькулятор)
+  const autoVars = useMemo<Record<string, number>>(() => {
+    if (!baseResult || "error" in baseResult) return {};
+    return {
+      тираж: circulation,
+      кол_форм: baseResult.forms ?? 0,
+      кол_красок: colorFront + colorBack,
+      сторон: colorBack > 0 ? 2 : 1,
+      печ_листов: baseResult.printSheets ?? 0,
+      закуп_листов: baseResult.purchaseSheets ?? 0,
+      кол_резов: 0,
+      кол_блоков: 0,
+      площадь_печати: ((baseResult.layout?.printFormat?.width ?? 0) * (baseResult.layout?.printFormat?.height ?? 0) * (baseResult.printSheets ?? 0)) / 1_000_000,
+      приладка: baseResult.setupSheets ?? 0,
+      плотность: (effectiveMaterial as any)?.density ?? 0,
+    };
+  }, [baseResult, circulation, colorFront, colorBack, effectiveMaterial]);
+
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
     const allExtras = [...extraSpecItems, ...catalogOpsItems];
@@ -772,19 +790,10 @@ const Calculator = () => {
     // Если в справочнике задана активная формула — применяем её к итоговой себестоимости
     if (useVariantOverride && activeVariantFull && activeVariantFull.stages?.length) {
       try {
-        const vars: Record<string, number> = {
-          тираж: circulation,
-          кол_форм: baseResult.forms ?? 0,
-          кол_красок: colorFront + colorBack,
-          сторон: colorBack > 0 ? 2 : 1,
-          печ_листов: baseResult.printSheets ?? 0,
-          закуп_листов: baseResult.purchaseSheets ?? 0,
-          кол_резов: 0,
-          кол_блоков: 0,
-          площадь_печати: ((baseResult.layout?.printFormat?.width ?? 0) * (baseResult.layout?.printFormat?.height ?? 0) * (baseResult.printSheets ?? 0)) / 1_000_000,
-          приладка: baseResult.setupSheets ?? 0,
-          плотность: (effectiveMaterial as any)?.density ?? 0,
-        };
+        const vars: Record<string, number> = { ...autoVars };
+        for (const [k, v] of Object.entries(variableOverrides)) {
+          if (Number.isFinite(v)) vars[k] = v;
+        }
         // Предварительная диагностика ссылок формулы
         const refs = collectStageRefs(activeVariantFull.stages);
         const unknownVars = [...refs.vars].filter((v) => !VARIABLE_KEYS.has(v));
@@ -792,6 +801,7 @@ const Calculator = () => {
         const zeroVars = [...refs.vars].filter((v) => VARIABLE_KEYS.has(v) && !(vars[v] > 0));
 
         const run = runVariantFormula(activeVariantFull, { vars, consts: variantConstants });
+        const overrideKeys = Object.keys(variableOverrides).filter((k) => refs.vars.has(k));
         variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
         // Себестоимость = формула + допоперации (которые не учитываются формулой)
         totalCost = run.total + extrasTotal;
@@ -804,6 +814,8 @@ const Calculator = () => {
           variantWarning = `Формула вернула 0. Возможно, ещё не определены значения для: ${zeroVars.join(", ")} (заполните данные на шагах 1–4).`;
         } else if (run.total <= 0) {
           variantWarning = `Формула «${activeVariantFull.name}» вернула 0 — проверьте этапы и константы.`;
+        } else if (overrideKeys.length) {
+          variantWarning = `Применены ручные значения переменных: ${overrideKeys.join(", ")}.`;
         }
       } catch (e: any) {
         variantWarning = `Ошибка применения формулы: ${e?.message || "неизвестно"}. Используется системный расчёт.`;
@@ -824,7 +836,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariant, activeVariantFull, variantConstants, circulation, colorFront, colorBack, effectiveMaterial]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariant, activeVariantFull, variantConstants, autoVars, variableOverrides, colorBack]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
