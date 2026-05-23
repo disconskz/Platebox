@@ -1138,6 +1138,13 @@ const Calculator = () => {
                           >
                             ↻
                           </button>
+                          <FormulaWizard
+                            variant={activeVariantFull}
+                            constants={variantConstants}
+                            autoVars={autoVars}
+                            overrides={variableOverrides}
+                            onChangeOverrides={setVariableOverrides}
+                          />
                         </>
                       ) : (
                         <>
