@@ -1070,11 +1070,18 @@ const Calculator = () => {
                         <>
                           <span className="inline-flex items-center gap-1 text-success">
                             <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                            Активная формула:
+                            {useVariantOverride ? "Применяется формула:" : "Формула отключена:"}
                           </span>
                           <Link to={`/references/variants/${activeVariant.id}`} className="font-medium text-foreground hover:underline truncate">
                             {activeVariant.name}
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => setUseVariantOverride((v) => !v)}
+                            className="ml-auto text-primary hover:underline shrink-0"
+                          >
+                            {useVariantOverride ? "Отключить" : "Включить"}
+                          </button>
                         </>
                       ) : (
                         <>
