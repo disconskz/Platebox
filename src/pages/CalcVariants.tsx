@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Copy, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Copy, Trash2, Pencil, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
-import { listVariants, createVariant, deleteVariant, duplicateVariant } from "@/lib/calc/variants/api";
+import { listVariants, createVariant, deleteVariant, duplicateVariant, setActiveVariant } from "@/lib/calc/variants/api";
 import { PRODUCT_LABELS } from "@/lib/calc/products";
+import { Badge } from "@/components/ui/badge";
 
 type Row = Awaited<ReturnType<typeof listVariants>>[number];
 
@@ -48,6 +49,11 @@ export default function CalcVariants() {
   const remove = async () => {
     if (!delId) return;
     try { await deleteVariant(delId); setDelId(null); toast.success("Удалено"); reload(); }
+    catch (e: any) { toast.error(e.message || "Ошибка"); }
+  };
+
+  const activate = async (id: string) => {
+    try { await setActiveVariant(id); toast.success("Формула применяется в расчётах"); reload(); }
     catch (e: any) { toast.error(e.message || "Ошибка"); }
   };
 
@@ -124,7 +130,14 @@ export default function CalcVariants() {
                     {rows.map((r) => (
                       <tr key={r.id} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="py-2 pr-2">
-                          <Link to={`/references/variants/${r.id}`} className="font-medium hover:underline">{r.name}</Link>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link to={`/references/variants/${r.id}`} className="font-medium hover:underline">{r.name}</Link>
+                            {(r as any).is_active && (
+                              <Badge variant="default" className="bg-success/15 text-success hover:bg-success/20 border-success/30 gap-1">
+                                <Zap className="h-3 w-3" /> Активная
+                              </Badge>
+                            )}
+                          </div>
                           {r.description && <div className="text-xs text-muted-foreground">{r.description}</div>}
                         </td>
                         <td className="py-2 pr-2 text-muted-foreground">{PRODUCT_LABELS[r.base_product_type as keyof typeof PRODUCT_LABELS] || r.base_product_type}</td>
@@ -132,6 +145,11 @@ export default function CalcVariants() {
                         <td className="py-2 pr-2 text-xs text-muted-foreground">{(r as any).created_at ? new Date((r as any).created_at).toLocaleDateString("ru-RU") : ""}</td>
                         <td className="py-2 pr-2 text-right">
                           <div className="inline-flex gap-1">
+                            {!(r as any).is_active && (
+                              <Button size="sm" variant="ghost" aria-label="Применить" title="Применять эту формулу в расчётах" onClick={() => activate(r.id)}>
+                                <Zap className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                             <Button size="sm" variant="ghost" aria-label="Редактировать" onClick={() => nav(`/references/variants/${r.id}`)}><Pencil className="h-3.5 w-3.5" /></Button>
                             <Button size="sm" variant="ghost" aria-label="Дублировать" onClick={() => dup(r.id)}><Copy className="h-3.5 w-3.5" /></Button>
                             <Button size="sm" variant="ghost" aria-label="Удалить" onClick={() => setDelId(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
@@ -147,7 +165,14 @@ export default function CalcVariants() {
                 {rows.map((r) => (
                   <div key={r.id} className="rounded-lg border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <Link to={`/references/variants/${r.id}`} className="font-medium text-sm hover:underline min-w-0 truncate">{r.name}</Link>
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <Link to={`/references/variants/${r.id}`} className="font-medium text-sm hover:underline min-w-0 truncate">{r.name}</Link>
+                        {(r as any).is_active && (
+                          <Badge className="bg-success/15 text-success border-success/30 gap-1 h-5 px-1.5 text-[10px]">
+                            <Zap className="h-2.5 w-2.5" /> Активная
+                          </Badge>
+                        )}
+                      </div>
                       <span className="text-[10px] text-muted-foreground shrink-0">
                         {(r as any).created_at ? new Date((r as any).created_at).toLocaleDateString("ru-RU") : ""}
                       </span>
@@ -158,6 +183,11 @@ export default function CalcVariants() {
                         {PRODUCT_LABELS[r.base_product_type as keyof typeof PRODUCT_LABELS] || r.base_product_type} · этапов {r.stage_count}
                       </div>
                       <div className="flex gap-1 shrink-0">
+                        {!(r as any).is_active && (
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label="Применить" onClick={() => activate(r.id)}>
+                            <Zap className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label="Редактировать" onClick={() => nav(`/references/variants/${r.id}`)}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label="Дублировать" onClick={() => dup(r.id)}><Copy className="h-3.5 w-3.5" /></Button>
                         <Button size="sm" variant="outline" className="h-8 w-8 p-0 hover:text-destructive" aria-label="Удалить" onClick={() => setDelId(r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
