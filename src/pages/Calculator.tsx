@@ -764,6 +764,7 @@ const Calculator = () => {
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
     let variantApplied: null | { name: string; total: number; stages: Array<{ name: string; unit: string; value: number; formulaText: string }> } = null;
+    let variantWarning: string | null = null;
 
     // Если в справочнике задана активная формула — применяем её к итоговой себестоимости
     if (useVariantOverride && activeVariantFull && activeVariantFull.stages?.length) {
@@ -781,11 +782,33 @@ const Calculator = () => {
           приладка: baseResult.setupSheets ?? 0,
           плотность: (effectiveMaterial as any)?.density ?? 0,
         };
+        // Предварительная диагностика ссылок формулы
+        const refs = collectStageRefs(activeVariantFull.stages);
+        const unknownVars = [...refs.vars].filter((v) => !VARIABLE_KEYS.has(v));
+        const unknownConsts = [...refs.consts].filter((s) => !(s in variantConstants));
+        const zeroVars = [...refs.vars].filter((v) => VARIABLE_KEYS.has(v) && !(vars[v] > 0));
+
         const run = runVariantFormula(activeVariantFull, { vars, consts: variantConstants });
         variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
         // Себестоимость = формула + допоперации (которые не учитываются формулой)
         totalCost = run.total + extrasTotal;
-      } catch { /* fallback к baseResult.totalCost */ }
+
+        if (unknownVars.length) {
+          variantWarning = `Формула «${activeVariantFull.name}» использует неизвестные переменные: ${unknownVars.join(", ")}. Откройте формулу и исправьте.`;
+        } else if (unknownConsts.length) {
+          variantWarning = `Формула «${activeVariantFull.name}» ссылается на отсутствующие константы: @${unknownConsts.join(", @")}. Создайте их в справочнике.`;
+        } else if (run.total <= 0 && zeroVars.length) {
+          variantWarning = `Формула вернула 0. Возможно, ещё не определены значения для: ${zeroVars.join(", ")} (заполните данные на шагах 1–4).`;
+        } else if (run.total <= 0) {
+          variantWarning = `Формула «${activeVariantFull.name}» вернула 0 — проверьте этапы и константы.`;
+        }
+      } catch (e: any) {
+        variantWarning = `Ошибка применения формулы: ${e?.message || "неизвестно"}. Используется системный расчёт.`;
+      }
+    } else if (useVariantOverride && activeVariant && !activeVariantFull) {
+      variantWarning = "Активная формула не загрузилась. Проверьте справочник.";
+    } else if (useVariantOverride && activeVariantFull && !activeVariantFull.stages?.length) {
+      variantWarning = `В формуле «${activeVariantFull.name}» нет ни одного этапа. Добавьте этапы в редакторе.`;
     }
 
     const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
@@ -796,8 +819,9 @@ const Calculator = () => {
       vatAmount,
       totalWithVat: totalCost + vatAmount,
       variantApplied,
+      variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariantFull, variantConstants, circulation, colorFront, colorBack, effectiveMaterial]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariant, activeVariantFull, variantConstants, circulation, colorFront, colorBack, effectiveMaterial]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
