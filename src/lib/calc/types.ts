@@ -153,6 +153,25 @@ export interface CalcResult {
   vatAmount: number; // НДС от себестоимости (информативно)
   totalWithVat: number; // себестоимость + НДС
   warnings: string[];
+  cutInfo?: {
+    source: "manual" | "table" | "auto";
+    printName: string | null;
+    itemName: string | null;
+    cols: number;
+    rows: number;
+    itemsPerSheet: number;
+    cutsPerSheet: number;
+    pricePerCut: number;
+    printSheets: number;
+    total: number;
+    bleed: number;
+    productW: number;
+    productH: number;
+    productWithBleedW: number;
+    productWithBleedH: number;
+    printW: number;
+    printH: number;
+  };
   alternatives?: Array<{
     printW: number;
     printH: number;
