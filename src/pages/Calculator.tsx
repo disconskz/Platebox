@@ -2075,6 +2075,13 @@ const Calculator = () => {
                   variantApplied={(result as any).variantApplied}
                   variantWarning={(result as any).variantWarning}
                 />
+                {(result as any).cutInfo && (
+                  <CutInfoCard
+                    info={(result as any).cutInfo}
+                    override={cutsOverride}
+                    onOverride={setCutsOverride}
+                  />
+                )}
                 <Row label="Себестоимость" value={fmtMoney(totalCost)} />
                 <div>
                   <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
