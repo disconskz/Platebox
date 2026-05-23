@@ -731,6 +731,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     totalWithVat,
     warnings,
     alternatives,
+    cutInfo,
   };
 }
 
