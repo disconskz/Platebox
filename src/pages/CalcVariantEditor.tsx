@@ -8,12 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
-import { getVariant, updateVariant, replaceStages, listConstants, listStageLibrary, upsertConstant } from "@/lib/calc/variants/api";
+import { getVariant, updateVariant, replaceStages, listConstants, listStageLibrary, upsertConstant, setActiveVariant, deactivateVariant } from "@/lib/calc/variants/api";
 import { CalcConstant, CalcVariant, FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, VariantStage } from "@/lib/calc/variants/types";
 import FormulaBuilder from "@/components/calc/FormulaBuilder";
 import { runVariant, collectStageRefs } from "@/lib/calc/variants/engine";
-import { AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Sparkles, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const TEST_DEFAULTS: Record<string, number> = {
   тираж: 5000, кол_форм: 4, кол_красок: 4, сторон: 2, печ_листов: 700,
@@ -139,6 +141,22 @@ export default function CalcVariantEditor() {
     finally { setSaving(false); }
   };
 
+  const toggleActive = async (next: boolean) => {
+    if (!variant) return;
+    try {
+      if (next) await setActiveVariant(variant.id);
+      else await deactivateVariant(variant.id);
+      setVariant({ ...variant, is_active: next });
+      toast.success(next ? "Формула применяется в расчётах" : "Формула отключена");
+    } catch (e: any) { toast.error(e.message || "Ошибка"); }
+  };
+
+  const saveBlockedReason = !canSave
+    ? (validation.unknownVars.length > 0
+        ? `Неизвестные переменные: ${validation.unknownVars.join(", ")}`
+        : `Неизвестные константы: ${validation.unknownConsts.join(", ")}`)
+    : "";
+
   if (!variant) return <div className="p-8 text-sm text-muted-foreground">Загрузка…</div>;
 
   return (
@@ -150,11 +168,22 @@ export default function CalcVariantEditor() {
             <span className="hidden sm:inline">К списку</span>
           </Link>
           <h1 className="text-base sm:text-lg font-semibold truncate min-w-0 flex-1">{variant.name}</h1>
-          <div className="ml-auto shrink-0">
-            <Button onClick={save} disabled={saving || !canSave} size="sm">
-              <Save className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Сохранить</span>
-            </Button>
+          <div className="ml-auto shrink-0 flex items-center gap-2">
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button onClick={save} disabled={saving || !canSave} size="sm">
+                      <Save className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Сохранить</span>
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {saveBlockedReason && (
+                  <TooltipContent side="bottom" className="max-w-xs">{saveBlockedReason}</TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </header>
@@ -171,6 +200,25 @@ export default function CalcVariantEditor() {
               <div className="md:col-span-2">
                 <Label>Описание</Label>
                 <Input value={variant.description} onChange={(e) => setVariant({ ...variant, description: e.target.value })} placeholder="Короткое описание" />
+              </div>
+              <div className="md:col-span-2">
+                <div className={cn(
+                  "rounded-lg border p-3 flex items-start gap-3 transition-colors",
+                  variant.is_active ? "border-success/40 bg-success/5" : "border-border bg-muted/30"
+                )}>
+                  <Zap className={cn("h-5 w-5 mt-0.5 shrink-0", variant.is_active ? "text-success" : "text-muted-foreground")} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">Использовать в расчётах</div>
+                      <Switch checked={!!variant.is_active} onCheckedChange={toggleActive} />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {variant.is_active
+                        ? `Эта формула применяется к расчётам типа «${variant.base_product_type}». Активной может быть только одна формула на тип.`
+                        : `Включите, чтобы расчёты этого типа использовали именно эту формулу. Прежняя активная для «${variant.base_product_type}» будет автоматически отключена.`}
+                    </p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
