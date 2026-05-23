@@ -169,13 +169,27 @@ const Calculator = () => {
 
   // Активная формула из справочника «Варианты просчёта» для текущего типа продукции
   const [activeVariant, setActiveVariant] = useState<{ id: string; name: string } | null>(null);
+  // Полная активная формула со ступенями + константы — нужны для применения её в расчёте
+  const [activeVariantFull, setActiveVariantFull] = useState<any | null>(null);
+  const [variantConstants, setVariantConstants] = useState<Record<string, number>>({});
+  // Применять ли формулу для итоговой себестоимости (по умолчанию — да, если активна)
+  const [useVariantOverride, setUseVariantOverride] = useState(true);
   useEffect(() => {
     let stop = false;
     (async () => {
       try {
-        const { getActiveVariantFor } = await import("@/lib/calc/variants/api");
+        const { getActiveVariantFor, getVariant, listConstants } = await import("@/lib/calc/variants/api");
         const v = await getActiveVariantFor(productType);
         if (!stop) setActiveVariant(v);
+        if (v) {
+          const [full, consts] = await Promise.all([getVariant(v.id), listConstants()]);
+          if (!stop) {
+            setActiveVariantFull(full);
+            setVariantConstants(Object.fromEntries((consts as any[]).map((c) => [c.slug, Number(c.value) || 0])));
+          }
+        } else if (!stop) {
+          setActiveVariantFull(null);
+        }
       } catch { if (!stop) setActiveVariant(null); }
     })();
     return () => { stop = true; };
