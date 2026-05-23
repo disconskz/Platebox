@@ -101,3 +101,30 @@ export async function listStageLibrary(): Promise<Array<{ id: string; name: stri
   const { data } = await sb.from("calc_stage_library").select("*").order("sort_order");
   return ((data as any[]) || []) as any;
 }
+
+/**
+ * Делает вариант активным для своего base_product_type.
+ * Все другие варианты этого же типа становятся неактивными — активен всегда один.
+ */
+export async function setActiveVariant(id: string): Promise<void> {
+  const { data: v, error: e1 } = await sb.from("calc_variants").select("base_product_type").eq("id", id).maybeSingle();
+  if (e1) throw e1;
+  if (!v) throw new Error("Вариант не найден");
+  const base = (v as any).base_product_type as string;
+  const { error: e2 } = await sb.from("calc_variants").update({ is_active: false }).eq("base_product_type", base);
+  if (e2) throw e2;
+  const { error: e3 } = await sb.from("calc_variants").update({ is_active: true }).eq("id", id);
+  if (e3) throw e3;
+}
+
+/** Снять признак активности с варианта. */
+export async function deactivateVariant(id: string): Promise<void> {
+  const { error } = await sb.from("calc_variants").update({ is_active: false }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Активный вариант для базового типа продукции, либо null. */
+export async function getActiveVariantFor(baseProductType: string): Promise<{ id: string; name: string } | null> {
+  const { data } = await sb.from("calc_variants").select("id,name").eq("base_product_type", baseProductType).eq("is_active", true).maybeSingle();
+  return (data as any) || null;
+}
