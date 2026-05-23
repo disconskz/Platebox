@@ -15,7 +15,8 @@ import { LayoutPreview } from "@/components/calc/LayoutPreview";
 import AiOrderAssistant, { type ParsedOrder } from "@/components/calc/AiOrderAssistant";
 import { FORMAT_PRESETS, runCalculation, setCalcRules, setCutRules, setMaterialPrices } from "@/lib/calc/engine";
 import { loadCalcRules, loadCutRules, loadMaterialPrices } from "@/lib/calc/rules";
-import { runVariant as runVariantFormula } from "@/lib/calc/variants/engine";
+import { runVariant as runVariantFormula, collectStageRefs } from "@/lib/calc/variants/engine";
+import { VARIABLE_KEYS } from "@/lib/calc/variants/types";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
@@ -175,6 +176,8 @@ const Calculator = () => {
   const [variantConstants, setVariantConstants] = useState<Record<string, number>>({});
   // Применять ли формулу для итоговой себестоимости (по умолчанию — да, если активна)
   const [useVariantOverride, setUseVariantOverride] = useState(true);
+  // Тик для принудительного обновления активной формулы (после правки в справочнике)
+  const [variantReloadTick, setVariantReloadTick] = useState(0);
   useEffect(() => {
     let stop = false;
     (async () => {
@@ -194,7 +197,13 @@ const Calculator = () => {
       } catch { if (!stop) setActiveVariant(null); }
     })();
     return () => { stop = true; };
-  }, [productType]);
+  }, [productType, variantReloadTick]);
+  // Автоподхват изменений: при возврате во вкладку перечитываем активную формулу
+  useEffect(() => {
+    const onFocus = () => setVariantReloadTick((t) => t + 1);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);
   const [formatType, setFormatType] = useState<FormatType>("A4");
@@ -755,6 +764,7 @@ const Calculator = () => {
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
     let variantApplied: null | { name: string; total: number; stages: Array<{ name: string; unit: string; value: number; formulaText: string }> } = null;
+    let variantWarning: string | null = null;
 
     // Если в справочнике задана активная формула — применяем её к итоговой себестоимости
     if (useVariantOverride && activeVariantFull && activeVariantFull.stages?.length) {
@@ -772,11 +782,33 @@ const Calculator = () => {
           приладка: baseResult.setupSheets ?? 0,
           плотность: (effectiveMaterial as any)?.density ?? 0,
         };
+        // Предварительная диагностика ссылок формулы
+        const refs = collectStageRefs(activeVariantFull.stages);
+        const unknownVars = [...refs.vars].filter((v) => !VARIABLE_KEYS.has(v));
+        const unknownConsts = [...refs.consts].filter((s) => !(s in variantConstants));
+        const zeroVars = [...refs.vars].filter((v) => VARIABLE_KEYS.has(v) && !(vars[v] > 0));
+
         const run = runVariantFormula(activeVariantFull, { vars, consts: variantConstants });
         variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
         // Себестоимость = формула + допоперации (которые не учитываются формулой)
         totalCost = run.total + extrasTotal;
-      } catch { /* fallback к baseResult.totalCost */ }
+
+        if (unknownVars.length) {
+          variantWarning = `Формула «${activeVariantFull.name}» использует неизвестные переменные: ${unknownVars.join(", ")}. Откройте формулу и исправьте.`;
+        } else if (unknownConsts.length) {
+          variantWarning = `Формула «${activeVariantFull.name}» ссылается на отсутствующие константы: @${unknownConsts.join(", @")}. Создайте их в справочнике.`;
+        } else if (run.total <= 0 && zeroVars.length) {
+          variantWarning = `Формула вернула 0. Возможно, ещё не определены значения для: ${zeroVars.join(", ")} (заполните данные на шагах 1–4).`;
+        } else if (run.total <= 0) {
+          variantWarning = `Формула «${activeVariantFull.name}» вернула 0 — проверьте этапы и константы.`;
+        }
+      } catch (e: any) {
+        variantWarning = `Ошибка применения формулы: ${e?.message || "неизвестно"}. Используется системный расчёт.`;
+      }
+    } else if (useVariantOverride && activeVariant && !activeVariantFull) {
+      variantWarning = "Активная формула не загрузилась. Проверьте справочник.";
+    } else if (useVariantOverride && activeVariantFull && !activeVariantFull.stages?.length) {
+      variantWarning = `В формуле «${activeVariantFull.name}» нет ни одного этапа. Добавьте этапы в редакторе.`;
     }
 
     const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
@@ -787,8 +819,9 @@ const Calculator = () => {
       vatAmount,
       totalWithVat: totalCost + vatAmount,
       variantApplied,
+      variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariantFull, variantConstants, circulation, colorFront, colorBack, effectiveMaterial]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariant, activeVariantFull, variantConstants, circulation, colorFront, colorBack, effectiveMaterial]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -1081,6 +1114,14 @@ const Calculator = () => {
                             className="ml-auto text-primary hover:underline shrink-0"
                           >
                             {useVariantOverride ? "Отключить" : "Включить"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVariantReloadTick((t) => t + 1)}
+                            className="text-muted-foreground hover:text-foreground shrink-0"
+                            title="Перечитать формулу из справочника"
+                          >
+                            ↻
                           </button>
                         </>
                       ) : (
@@ -1903,6 +1944,8 @@ const Calculator = () => {
                 marginPercent={margin}
                 vatPercent={vatPercent}
                 circulation={circulation}
+                variantApplied={(result as any).variantApplied}
+                variantWarning={(result as any).variantWarning}
               />
               <Card className="shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
@@ -1996,6 +2039,8 @@ const Calculator = () => {
                   marginPercent={margin}
                   vatPercent={vatPercent}
                   circulation={circulation}
+                  variantApplied={(result as any).variantApplied}
+                  variantWarning={(result as any).variantWarning}
                 />
                 <Row label="Себестоимость" value={fmtMoney(totalCost)} />
                 <div>
