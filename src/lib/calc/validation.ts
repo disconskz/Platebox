@@ -44,6 +44,7 @@ export const calcInputSchema = z
     printCostPerImpression: nonNegNum.max(1e5).optional(),
     packagingPerUnit: nonNegNum.max(1e5).optional(),
     finishCutsPerItem: nonNegNum.max(100).optional(),
+    cutsPerSheetOverride: nonNegNum.max(1000).optional(),
     manualForms: nonNegNum.int().max(64).optional(),
     manualSetupSheets: nonNegNum.int().max(1e6).optional(),
     foldCount: nonNegNum.int().max(20).optional(),
