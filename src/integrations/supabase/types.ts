@@ -154,6 +154,8 @@ export type Database = {
           material_id: string | null
           name: string
           sort_order: number
+          source: string
+          system_key: string | null
           unit: string
           variant_id: string
         }
@@ -165,6 +167,8 @@ export type Database = {
           material_id?: string | null
           name: string
           sort_order?: number
+          source?: string
+          system_key?: string | null
           unit?: string
           variant_id: string
         }
@@ -176,6 +180,8 @@ export type Database = {
           material_id?: string | null
           name?: string
           sort_order?: number
+          source?: string
+          system_key?: string | null
           unit?: string
           variant_id?: string
         }
