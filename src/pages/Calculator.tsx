@@ -179,6 +179,8 @@ const Calculator = () => {
   const [useVariantOverride, setUseVariantOverride] = useState(true);
   // Тик для принудительного обновления активной формулы (после правки в справочнике)
   const [variantReloadTick, setVariantReloadTick] = useState(0);
+  // Ручные переопределения переменных формулы (мастер формулы)
+  const [variableOverrides, setVariableOverrides] = useState<Record<string, number>>({});
   useEffect(() => {
     let stop = false;
     (async () => {
