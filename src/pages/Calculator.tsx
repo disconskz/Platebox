@@ -2031,6 +2031,8 @@ const Calculator = () => {
                   marginPercent={margin}
                   vatPercent={vatPercent}
                   circulation={circulation}
+                  variantApplied={(result as any).variantApplied}
+                  variantWarning={(result as any).variantWarning}
                 />
                 <Row label="Себестоимость" value={fmtMoney(totalCost)} />
                 <div>
