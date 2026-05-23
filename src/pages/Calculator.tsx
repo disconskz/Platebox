@@ -1058,6 +1058,39 @@ const Calculator = () => {
                       <div><Label>Высота, мм</Label><Input type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} /></div>
                     </div>
                   )}
+                  <div>
+                    <Label>
+                      Наценка, %
+                      <HelpHint title="Наценка" learnMore="calc-margin">
+                        Можно ввести вручную или поменять слайдером в итогах справа. Цена без НДС = себестоимость × (1 + наценка/100).
+                      </HelpHint>
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={1000}
+                      step={1}
+                      value={margin}
+                      onChange={(e) => setMargin(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+                    />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[10, 20, 30, 40, 50, 70, 100].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMargin(m)}
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-xs border transition-colors",
+                            margin === m
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                          )}
+                        >
+                          {m}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="md:col-span-2">
                     <Label>
                       Красочность
