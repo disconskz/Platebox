@@ -1936,6 +1936,8 @@ const Calculator = () => {
                 marginPercent={margin}
                 vatPercent={vatPercent}
                 circulation={circulation}
+                variantApplied={(result as any).variantApplied}
+                variantWarning={(result as any).variantWarning}
               />
               <Card className="shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
