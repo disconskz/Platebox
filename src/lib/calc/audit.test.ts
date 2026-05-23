@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runCalculation } from "./engine";
+import { runCalculation, autoCutsFromLayout, setCutRules } from "./engine";
 import { runMultiSkuCalculation } from "./multi-sku";
 import { cutsForNesting, finishCutsPerItem, validateCalcInput } from "./validation";
 import { CalcInput, FormatPair } from "./types";
@@ -81,9 +81,10 @@ describe("P1 — параметризация финишной резки", () =
   it("неизвестный тип — DEFAULTS", () => {
     expect(finishCutsPerItem("unknown_product", undefined, 4)).toBe(4);
   });
-  it("listovka: явный override снижает себестоимость", () => {
-    const a = runCalculation({ ...baseInput, finishCutsPerItem: 4 });
-    const b = runCalculation({ ...baseInput, finishCutsPerItem: 1 });
+  it("ручное cutsPerSheetOverride снижает себестоимость", () => {
+    setCutRules({ pricePerCut: 1, table: {} });
+    const a = runCalculation({ ...baseInput, cutsPerSheetOverride: 20 });
+    const b = runCalculation({ ...baseInput, cutsPerSheetOverride: 4 });
     expect(b.totalCost).toBeLessThan(a.totalCost);
   });
 });
@@ -153,5 +154,49 @@ describe("P2 — multi-sku валидация", () => {
         ],
       })
     ).toThrow(/Некорректные/);
+  });
+});
+
+describe("ТЗ — авто-расчёт резов по раскладке", () => {
+  it("1 изделие → 4 реза", () => {
+    expect(autoCutsFromLayout({ cols: 1, rows: 1, itemsPerSheet: 1 })).toBe(4);
+  });
+  it("2×4 → 12 резов", () => {
+    expect(autoCutsFromLayout({ cols: 2, rows: 4, itemsPerSheet: 8 })).toBe(12);
+  });
+  it("4×4 → 16 резов", () => {
+    expect(autoCutsFromLayout({ cols: 4, rows: 4, itemsPerSheet: 16 })).toBe(16);
+  });
+  it("8×8 → 32 реза", () => {
+    expect(autoCutsFromLayout({ cols: 8, rows: 8, itemsPerSheet: 64 })).toBe(32);
+  });
+
+  it("нестандартное изделие — авто-расчёт попадает в cutInfo", () => {
+    setCutRules({ pricePerCut: 1, table: {} });
+    const r: any = runCalculation({
+      ...baseInput,
+      formatType: "custom",
+      formatWidth: 100,
+      formatHeight: 70,
+      formatPairs: [{ print: { width: 520, height: 360 }, purchase: { width: 640, height: 920 } }],
+    });
+    expect(r.cutInfo).toBeTruthy();
+    expect(r.cutInfo.source).toBe("auto");
+    expect(r.cutInfo.cutsPerSheet).toBe(2 * (r.cutInfo.cols + r.cutInfo.rows));
+    expect(r.cutInfo.total).toBe(Math.ceil(r.cutInfo.printSheets * r.cutInfo.cutsPerSheet) * r.cutInfo.pricePerCut);
+  });
+
+  it("ручная корректировка имеет приоритет над авто", () => {
+    setCutRules({ pricePerCut: 1, table: {} });
+    const r: any = runCalculation({
+      ...baseInput,
+      formatType: "custom",
+      formatWidth: 100,
+      formatHeight: 70,
+      formatPairs: [{ print: { width: 520, height: 360 }, purchase: { width: 640, height: 920 } }],
+      cutsPerSheetOverride: 7,
+    });
+    expect(r.cutInfo.source).toBe("manual");
+    expect(r.cutInfo.cutsPerSheet).toBe(7);
   });
 });

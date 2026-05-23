@@ -35,6 +35,7 @@ import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPick
 import type { SpecItem } from "@/lib/calc/types";
 import { PriceBreakdownTree } from "@/components/calc/PriceBreakdownTree";
 import { FormulaWizard } from "@/components/calc/FormulaWizard";
+import { CutInfoCard } from "@/components/calc/CutInfoCard";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -181,6 +182,8 @@ const Calculator = () => {
   const [variantReloadTick, setVariantReloadTick] = useState(0);
   // Ручные переопределения переменных формулы (мастер формулы)
   const [variableOverrides, setVariableOverrides] = useState<Record<string, number>>({});
+  // Ручная корректировка количества резов на печатный лист (ТЗ — резка)
+  const [cutsOverride, setCutsOverride] = useState<number | null>(null);
   useEffect(() => {
     let stop = false;
     (async () => {
@@ -590,8 +593,9 @@ const Calculator = () => {
       lamPrepressSides,
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
+      cutsPerSheetOverride: cutsOverride ?? undefined,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
@@ -1969,6 +1973,13 @@ const Calculator = () => {
                 variantApplied={(result as any).variantApplied}
                 variantWarning={(result as any).variantWarning}
               />
+              {(result as any).cutInfo && (
+                <CutInfoCard
+                  info={(result as any).cutInfo}
+                  override={cutsOverride}
+                  onOverride={setCutsOverride}
+                />
+              )}
               <Card className="shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
                 <CardContent>
@@ -2064,6 +2075,13 @@ const Calculator = () => {
                   variantApplied={(result as any).variantApplied}
                   variantWarning={(result as any).variantWarning}
                 />
+                {(result as any).cutInfo && (
+                  <CutInfoCard
+                    info={(result as any).cutInfo}
+                    override={cutsOverride}
+                    onOverride={setCutsOverride}
+                  />
+                )}
                 <Row label="Себестоимость" value={fmtMoney(totalCost)} />
                 <div>
                   <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Наценка</span><span>{margin}%</span></div>
