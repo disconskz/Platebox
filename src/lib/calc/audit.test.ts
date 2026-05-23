@@ -81,9 +81,10 @@ describe("P1 — параметризация финишной резки", () =
   it("неизвестный тип — DEFAULTS", () => {
     expect(finishCutsPerItem("unknown_product", undefined, 4)).toBe(4);
   });
-  it("listovka: явный override снижает себестоимость", () => {
-    const a = runCalculation({ ...baseInput, finishCutsPerItem: 4 });
-    const b = runCalculation({ ...baseInput, finishCutsPerItem: 1 });
+  it("ручное cutsPerSheetOverride снижает себестоимость", () => {
+    setCutRules({ pricePerCut: 1, table: {} });
+    const a = runCalculation({ ...baseInput, cutsPerSheetOverride: 20 });
+    const b = runCalculation({ ...baseInput, cutsPerSheetOverride: 4 });
     expect(b.totalCost).toBeLessThan(a.totalCost);
   });
 });
