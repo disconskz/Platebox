@@ -861,7 +861,7 @@ const Calculator = () => {
         totalCost = run.total + extrasTotal;
         // Заменяем основную спецификацию строками формулы, чтобы пользователь видел единый расчёт
         const formulaSpec = run.stages.map((st: any) => ({
-          stage: mapSourceToStage(st.source),
+          stage: (st.source === "material" ? "material" : st.source === "system" ? "print" : "postpress") as any,
           name: st.source === "material" && st.materialName
             ? `${st.name} · ${st.materialName}`
             : st.name,
