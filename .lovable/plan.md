@@ -1,64 +1,85 @@
-# План: пошаговый расчёт Платы + расширение датасетов
+## Что меняем
 
-## Что не хватает сейчас
+Сейчас резка считается так:
+1. Если в `cut_count_rules` есть связка «печатный→конечный» — берём оттуда.
+2. Иначе — старая модель `printSheets × itemsPerSheet × finishCutsPerItem`.
 
-Снапшот справочников в `ai-calc-chat/references.ts` уже грузит большинство таблиц, но **инструменты ассистента (`tools.ts`) их не показывают модели**. Из-за этого Плата не умеет:
+ТЗ требует другую логику: брать **фактическую раскладку** (`cols`, `rows`), которую движок уже считает в `layoutVariants`, и применять формулу:
+- если `itemsPerSheet === 1` → `4` реза;
+- иначе → `2 × (cols + rows)`.
 
-- предложить готовый **вариант расчёта** (`calc_variants` + `calc_variant_stages`) — а это как раз то, что мы только что вынесли в боковую панель справочника;
-- посмотреть **библиотеку этапов с формулами** (`calc_stage_library`) и предложить пользователю выбрать формулу/критерий;
-- использовать **правила тиражей** (`product_circulation_rules`), **правила раскроя** (`cut_count_rules`), **закупочные форматы**, **форматы конвертов**, **пресеты форматов**, **доп. оборудование** — всё это есть в БД, но не пробрасывается как tool.
+Справочник `cut_count_rules` остаётся как опциональный override для стандартных пар (A1→A2 и т.д.); если связки нет — авто по раскладке, а **не** старая «×4 на изделие» модель.
 
-Плюс сам системный промпт сейчас просит «1–3 коротких вопроса свободной формой», без структуры шагов и без вариантов на выбор.
+## 1. Движок (`src/lib/calc/engine.ts` + `validation.ts`)
 
-## Что сделаем
+- Новая функция `autoCutsFromLayout(layout)`:
+  ```ts
+  layout.itemsPerSheet <= 1 ? 4 : 2 * (layout.cols + layout.rows)
+  ```
+- В блоке «Резка печатного листа на конечный формат изделия» (engine.ts ~ст. 461–497) приоритет:
+  1. `input.cutsPerSheetOverride` (ручная корректировка) → используем как есть.
+  2. `lookupCutCount(printName, itemName)` из `cut_count_rules` → как сейчас.
+  3. Иначе → `autoCutsFromLayout(layout)`. Это **заменяет** старый fallback `finishCutsPerItem × items`.
+- В `SpecItem.name` пишем источник: `«Резка (авто 2×(cols+rows))»`, `«Резка A1→A4 (справочник)»`, `«Резка (ручная корректировка)»`.
+- Цена реза остаётся: `CUT_RULES.pricePerCut` (константа `cut_price_per_print`) с дефолтом 1₸. Никаких миграций БД не требуется — константа уже подгружается из `calc_constants`.
+- В `CalcResult` добавляем поле `cutInfo`:
+  ```ts
+  cutInfo?: {
+    source: "manual" | "table" | "auto";
+    printName: string | null;
+    itemName: string | null;
+    cols: number;
+    rows: number;
+    itemsPerSheet: number;
+    cutsPerSheet: number;
+    pricePerCut: number;
+    printSheets: number;
+    total: number;
+  }
+  ```
 
-### 1. Расширить tools.ts новыми инструментами
+## 2. Вход (`src/lib/calc/types.ts`)
 
-Добавить в `TOOLS` и `runTool`:
+- Добавляем в `CalcInput`:
+  ```ts
+  /** Ручное переопределение количества резов на один печатный лист (по ТЗ). */
+  cutsPerSheetOverride?: number;
+  ```
+- В `validation.ts` (`CalcInputSchema`) — `cutsPerSheetOverride: nonNegNum.max(1000).optional()`.
 
-- `list_calc_variants({ base_product_type?, category?, query? })` — варианты расчёта с этапами и материалами;
-- `get_calc_variant_detail({ id })` — полная карточка варианта со всеми этапами, формулами и материалами;
-- `list_calc_stage_library({ category?, query? })` — переиспользуемые этапы с формулами;
-- `list_purchase_formats({ material_category? })`, `list_equipment({ type? })`, `list_envelope_formats()`, `list_format_presets({ category? })`, `list_cut_count_rules()`, `list_circulation_rules({ product_type? })` — справочные списки;
-- `suggest_next_step({ draft })` — серверный инструмент, который по текущему черновику и `circulation_rules`/`calc_variants` возвращает: следующий обязательный параметр, готовые варианты ответа (chips), пояснение и какие формулы из библиотеки сюда подходят. Это «движок мастера», на который опирается пошаговый режим.
+## 3. UI калькулятора (`src/pages/Calculator.tsx`)
 
-### 2. Пошаговый режим в prompt.ts
+- Прокидываем `cutsPerSheetOverride` в `CalcInput` (новое состояние `cutsOverride: number | null`).
+- В правой панели (или в карточке «Постпечать») рендерим компактный блок «Резка», показывающий по ТЗ:
+  - печатный формат и размер готового изделия;
+  - размер изделия с bleed (`product + 2*bleed`);
+  - `cols × rows`, `itemsPerSheet`;
+  - `cutsPerSheet`, источник (авто / справочник / ручная);
+  - цена реза и итог;
+  - инпут «Изменить вручную» (только для администратора/технолога — пока без role-check, видно всем; кнопка «Сбросить на авто»).
+- Новый компонент: `src/components/calc/CutInfoCard.tsx` (читает `result.cutInfo`, отдаёт `onOverride(n|null)`).
 
-Переписать системный промпт:
+## 4. Тесты (`src/lib/calc/audit.test.ts` или новый)
 
-- ввести явные шаги: `product → variant → format → material → press → postpress → margin → calculate → propose`;
-- на каждом шаге Плата сначала вызывает `suggest_next_step` (или соответствующий list_…), потом задаёт **один** вопрос и **обязательно** прикладывает массив `choices` с готовыми вариантами;
-- если пользователь говорит «считай как обычно» — Плата выбирает первый вариант из `circulation_rules` / `calc_variants` и идёт дальше без лишних вопросов;
-- расширить JSON-ответ: `{"reply": "...", "draft": {...}, "choices": [{label, value, hint?}], "step": "material" }`. `choices` рендерится в UI чипами.
+- `autoCutsFromLayout`: 1×1→4, 2×4→12, 4×4→16, 8×8→32.
+- Engine: при отсутствии связки в `cut_count_rules` и нестандартном изделии 100×70 на 520×360 → cuts соответствуют раскладке, total = `printSheets * cuts * price`.
+- Engine: `cutsPerSheetOverride = 7` → используется именно 7, source = `manual`.
 
-### 3. UI: чипы с вариантами ответа
+## 5. Что НЕ трогаем
 
-В `src/components/ai-calc/ChatWindow.tsx`:
+- Справочник `cut_count_rules` (UI и схема) — без изменений.
+- Резку **закупочного → печатного** (`cutsForNesting`) — без изменений.
+- Цена реза — уже в `calc_constants` (`cut_price_per_print`), отдельный справочник работ создавать не будем (ТЗ-пункт 10 уже покрыт существующей таблицей; при желании можно отдельной задачей завести `operation_catalog` запись).
 
-- если у сообщения ассистента есть `choices` (берём из `parts` / metadata) — рендерим кнопки-чипы под сообщением;
-- клик по чипу = отправка текста `value` как сообщения пользователя;
-- сохраняем `choices` в `ai_messages.parts` (jsonb уже поддерживает).
+## Файлы
 
-В `supabase/functions/ai-calc-chat/index.ts` — пробрасывать `choices` и `step` из JSON-ответа модели в БД и в ответ клиенту.
+```text
+src/lib/calc/engine.ts          — autoCutsFromLayout, новый приоритет, cutInfo
+src/lib/calc/types.ts           — CalcInput.cutsPerSheetOverride, CalcResult.cutInfo
+src/lib/calc/validation.ts      — схема для cutsPerSheetOverride
+src/pages/Calculator.tsx        — состояние override, передача в input, рендер CutInfoCard
+src/components/calc/CutInfoCard.tsx (new) — карточка с разбивкой и ручным вводом
+src/lib/calc/audit.test.ts      — тесты авто-расчёта и override
+```
 
-### 4. Обзор справочника в промпте
-
-В `buildReferenceOverview` добавить: число вариантов расчёта, число этапов библиотеки, доступные правила тиражей и раскроя. Чтобы модель сразу знала, что у неё в арсенале.
-
-## Технические детали
-
-Файлы, которые меняем:
-
-- `supabase/functions/ai-calc-chat/tools.ts` — +7 инструментов, +кейсы в `runTool`;
-- `supabase/functions/ai-calc-chat/prompt.ts` — новый системный промпт с шагами и форматом `choices`;
-- `supabase/functions/ai-calc-chat/index.ts` — парсинг `choices`/`step` из ответа модели, сохранение в `ai_messages.parts`, возврат клиенту;
-- `src/components/ai-calc/ChatWindow.tsx` — рендер чипов под сообщением и обработчик клика;
-- (опц.) `src/components/ai-calc/AiToolStep.tsx` — компактная карточка «Шаг N: материал» с подсветкой текущего шага.
-
-БД, RLS, edge function config — без изменений (все таблицы уже доступны через service role в edge function).
-
-## Что НЕ делаем в этой итерации
-
-- не трогаем сам калькулятор (`calc-engine.ts`) — формулы расчёта остаются как есть;
-- не добавляем новые таблицы в БД — все нужные данные уже там;
-- не меняем UX страницы `/app/ai-calc` за пределами рендера чипов в сообщениях.
+Если ок — переключайте в build mode, реализую.
