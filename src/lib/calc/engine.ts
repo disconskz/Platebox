@@ -483,25 +483,25 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const override = Number.isFinite(input.cutsPerSheetOverride as number) && (input.cutsPerSheetOverride as number) >= 0
     ? Math.floor(input.cutsPerSheetOverride as number)
     : null;
-  let cutsPerSheet: number;
+  let finishCutsPerSheet: number;
   let cutSource: "manual" | "table" | "auto";
   let cutLabel: string;
   if (override != null) {
-    cutsPerSheet = override;
+    finishCutsPerSheet = override;
     cutSource = "manual";
-    cutLabel = `Резка (ручная корректировка, ${cutsPerSheet} рез/лист)`;
+    cutLabel = `Резка (ручная корректировка, ${finishCutsPerSheet} рез/лист)`;
   } else if (tableCuts != null) {
-    cutsPerSheet = tableCuts;
+    finishCutsPerSheet = tableCuts;
     cutSource = "table";
-    cutLabel = `Резка ${printName} → ${itemName} (справочник, ${cutsPerSheet} рез/лист)`;
+    cutLabel = `Резка ${printName} → ${itemName} (справочник, ${finishCutsPerSheet} рез/лист)`;
   } else {
-    cutsPerSheet = autoCutsFromLayout(layout);
+    finishCutsPerSheet = autoCutsFromLayout(layout);
     cutSource = "auto";
     cutLabel = layout.itemsPerSheet <= 1
       ? `Резка (авто: 1 изделие → 4 реза)`
-      : `Резка (авто: 2×(${layout.cols}+${layout.rows}) = ${cutsPerSheet} рез/лист)`;
+      : `Резка (авто: 2×(${layout.cols}+${layout.rows}) = ${finishCutsPerSheet} рез/лист)`;
   }
-  const cutQty = Math.ceil(printSheets * cutsPerSheet);
+  const cutQty = Math.ceil(printSheets * finishCutsPerSheet);
   postpress.push({
     stage: "postpress",
     name: cutLabel,
@@ -518,7 +518,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     cols: layout.cols,
     rows: layout.rows,
     itemsPerSheet: layout.itemsPerSheet,
-    cutsPerSheet,
+    cutsPerSheet: finishCutsPerSheet,
     pricePerCut: cutPrice,
     printSheets,
     total: cutQty * cutPrice,
