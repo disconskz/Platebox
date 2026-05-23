@@ -76,6 +76,10 @@ export const VARIABLE_LIST: { key: string; label: string; hint: string }[] = [
   { key: "площадь_печати", label: "Площадь печати", hint: "м² за весь тираж" },
   { key: "приладка", label: "Приладка", hint: "Листы приладки" },
   { key: "плотность", label: "Плотность бумаги", hint: "г/м²" },
+  { key: "бумага_цена", label: "Цена листа бумаги", hint: "₸ за лист выбранной бумаги" },
+  { key: "изделий_на_листе", label: "Изделий на листе", hint: "Раскладка cols × rows" },
+  { key: "лист_площадь", label: "Площадь печатного листа", hint: "м² одного листа" },
+  { key: "приладка_тираж", label: "Тираж с приладкой", hint: "тираж + приладка × изд/лист" },
 ];
 
 export const VARIABLE_KEYS = new Set(VARIABLE_LIST.map((v) => v.key));
