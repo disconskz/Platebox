@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Info } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Zap, AlertTriangle } from "lucide-react";
 import { fmtMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { HelpHint } from "@/components/HelpHint";
@@ -49,6 +49,14 @@ interface Props {
   marginPercent: number;
   vatPercent: number;
   circulation: number;
+  /** Если расчёт переопределён формулой из справочника — её разбивка по этапам. */
+  variantApplied?: {
+    name: string;
+    total: number;
+    stages: Array<{ name: string; unit: string; value: number; formulaText: string }>;
+  } | null;
+  /** Сообщение о проблеме с активной формулой (формула включена, но не сработала). */
+  variantWarning?: string | null;
 }
 
 export function PriceBreakdownTree({
@@ -57,6 +65,8 @@ export function PriceBreakdownTree({
   marginPercent,
   vatPercent,
   circulation,
+  variantApplied,
+  variantWarning,
 }: Props) {
   const grouped = useMemo(() => {
     const g: Record<string, SpecItem[]> = {};
@@ -84,6 +94,42 @@ export function PriceBreakdownTree({
           1 шт ≈ {fmtMoney(salePrice / Math.max(1, circulation))}
         </div>
       </div>
+
+      {variantApplied && (
+        <div className="border-b bg-success/5 px-3 py-2 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-xs">
+            <Zap className="h-3.5 w-3.5 text-success shrink-0" />
+            <span className="text-success font-medium">Считается по формуле:</span>
+            <span className="font-medium text-foreground truncate">{variantApplied.name}</span>
+            <span className="ml-auto tabular-nums font-semibold">{fmtMoney(variantApplied.total)}</span>
+          </div>
+          <div className="rounded border bg-background overflow-hidden">
+            <table className="w-full text-[11px]">
+              <tbody>
+                {variantApplied.stages.map((s, i) => (
+                  <tr key={i} className="border-t first:border-0">
+                    <td className="py-1 px-2">
+                      <div className="font-medium truncate">{s.name}</div>
+                      <div className="text-[10px] text-muted-foreground truncate font-mono">{s.formulaText}</div>
+                    </td>
+                    <td className="py-1 px-2 text-right tabular-nums whitespace-nowrap">{fmtMoney(s.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            Системный расчёт (бумага/печать/допечать) ниже — показан как референс.
+          </div>
+        </div>
+      )}
+
+      {variantWarning && (
+        <div className="border-b bg-destructive/5 px-3 py-2 flex items-start gap-2 text-xs">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-destructive shrink-0" />
+          <span className="text-destructive">{variantWarning}</span>
+        </div>
+      )}
 
       <div className="p-2 space-y-1">
         {stages.map((stage) => {
