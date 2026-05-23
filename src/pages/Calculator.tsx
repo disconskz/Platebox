@@ -788,25 +788,35 @@ const Calculator = () => {
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
     if (!baseResult || "error" in baseResult) return {};
+    const layout = baseResult.layout;
+    const itemsPerSheet = layout?.itemsPerSheet ?? 0;
+    const printSheets = baseResult.printSheets ?? 0;
+    const setupSheets = baseResult.setupSheets ?? 0;
+    const cutsPerSheet = (baseResult as any).cutInfo?.cutsPerSheet ?? 0;
+    const sheetAreaM2 = ((layout?.printFormat?.width ?? 0) * (layout?.printFormat?.height ?? 0)) / 1_000_000;
     return {
       тираж: circulation,
       кол_форм: baseResult.forms ?? 0,
       кол_красок: colorFront + colorBack,
       сторон: colorBack > 0 ? 2 : 1,
-      печ_листов: baseResult.printSheets ?? 0,
+      печ_листов: printSheets,
       закуп_листов: baseResult.purchaseSheets ?? 0,
-      кол_резов: 0,
+      кол_резов: cutsPerSheet * printSheets,
       кол_блоков: 0,
-      площадь_печати: ((baseResult.layout?.printFormat?.width ?? 0) * (baseResult.layout?.printFormat?.height ?? 0) * (baseResult.printSheets ?? 0)) / 1_000_000,
-      приладка: baseResult.setupSheets ?? 0,
+      площадь_печати: sheetAreaM2 * printSheets,
+      приладка: setupSheets,
       плотность: (effectiveMaterial as any)?.density ?? 0,
+      бумага_цена: (effectiveMaterial as any)?.cost_per_sheet ?? 0,
+      изделий_на_листе: itemsPerSheet,
+      лист_площадь: sheetAreaM2,
+      приладка_тираж: circulation + setupSheets * itemsPerSheet,
     };
   }, [baseResult, circulation, colorFront, colorBack, effectiveMaterial]);
 
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
     const allExtras = [...extraSpecItems, ...catalogOpsItems];
-    const spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
+    let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
     let variantApplied: null | { name: string; total: number; stages: Array<{ name: string; unit: string; value: number; formulaText: string }> } = null;
@@ -819,17 +829,48 @@ const Calculator = () => {
         for (const [k, v] of Object.entries(variableOverrides)) {
           if (Number.isFinite(v)) vars[k] = v;
         }
+        // Системные значения из движка для source="system"
+        const postpressTotal = (baseResult.postpress || []).reduce((s: number, x: any) => s + (x.total || 0), 0);
+        const prepressTotal = (baseResult.prepress || []).reduce((s: number, x: any) => s + (x.total || 0), 0);
+        const systemValues: Record<string, number> = {
+          paper_cost: baseResult.paperCost ?? 0,
+          paper_cut_cost: baseResult.paperCutCost ?? 0,
+          print_cost: baseResult.printCost ?? 0,
+          forms_cost: baseResult.formsCost ?? 0,
+          forms_prep_cost: baseResult.formsPrepCost ?? 0,
+          ink_cost: baseResult.inkCost ?? 0,
+          postpress_total: postpressTotal,
+          cuts_total: (baseResult as any).cutInfo?.total ?? 0,
+          prepress_total: prepressTotal,
+        };
         // Предварительная диагностика ссылок формулы
         const refs = collectStageRefs(activeVariantFull.stages);
         const unknownVars = [...refs.vars].filter((v) => !VARIABLE_KEYS.has(v));
         const unknownConsts = [...refs.consts].filter((s) => !(s in variantConstants));
         const zeroVars = [...refs.vars].filter((v) => VARIABLE_KEYS.has(v) && !(vars[v] > 0));
 
-        const run = runVariantFormula(activeVariantFull, { vars, consts: variantConstants });
+        const run = runVariantFormula(activeVariantFull, {
+          vars,
+          consts: variantConstants,
+          systemValues,
+          materials: variantMaterials,
+        });
         const overrideKeys = Object.keys(variableOverrides).filter((k) => refs.vars.has(k));
         variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
         // Себестоимость = формула + допоперации (которые не учитываются формулой)
         totalCost = run.total + extrasTotal;
+        // Заменяем основную спецификацию строками формулы, чтобы пользователь видел единый расчёт
+        const formulaSpec = run.stages.map((st: any) => ({
+          stage: mapSourceToStage(st.source),
+          name: st.source === "material" && st.materialName
+            ? `${st.name} · ${st.materialName}`
+            : st.name,
+          quantity: st.source === "material" ? (st.qty ?? 1) : 1,
+          unit: st.unit || (st.source === "material" ? "лист" : "₸"),
+          unitPrice: st.source === "material" ? (st.unitPrice ?? 0) : st.value,
+          total: st.value,
+        }));
+        spec = allExtras.length ? [...formulaSpec, ...allExtras] : formulaSpec;
 
         if (unknownVars.length) {
           variantWarning = `Формула «${activeVariantFull.name}» использует неизвестные переменные: ${unknownVars.join(", ")}. Откройте формулу и исправьте.`;
@@ -839,8 +880,10 @@ const Calculator = () => {
           variantWarning = `Формула вернула 0. Возможно, ещё не определены значения для: ${zeroVars.join(", ")} (заполните данные на шагах 1–4).`;
         } else if (run.total <= 0) {
           variantWarning = `Формула «${activeVariantFull.name}» вернула 0 — проверьте этапы и константы.`;
-        } else if (overrideKeys.length) {
-          variantWarning = `Применены ручные значения переменных: ${overrideKeys.join(", ")}.`;
+        } else {
+          const stageWarn = (run.stages as any[]).find((s) => s.warning)?.warning;
+          if (stageWarn) variantWarning = stageWarn;
+          else if (overrideKeys.length) variantWarning = `Применены ручные значения переменных: ${overrideKeys.join(", ")}.`;
         }
       } catch (e: any) {
         variantWarning = `Ошибка применения формулы: ${e?.message || "неизвестно"}. Используется системный расчёт.`;
@@ -861,7 +904,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariant, activeVariantFull, variantConstants, autoVars, variableOverrides, colorBack]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
