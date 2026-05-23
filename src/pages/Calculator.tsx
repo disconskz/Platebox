@@ -593,8 +593,9 @@ const Calculator = () => {
       lamPrepressSides,
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
+      cutsPerSheetOverride: cutsOverride ?? undefined,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
