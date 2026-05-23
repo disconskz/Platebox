@@ -275,14 +275,74 @@ export default function CalcVariantEditor() {
                       <Button size="sm" variant="ghost" aria-label="Удалить этап" onClick={() => removeStage(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   </div>
-                  <FormulaBuilder
-                    value={s.formula}
-                    onChange={(f) => updateStage(i, { formula: f })}
-                    constants={constants}
-                    testVars={testVars}
-                    testConsts={constMap}
-                    onConstantsChanged={async () => { const fresh = await listConstants(); setConstants(fresh); }}
-                  />
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <Label className="text-xs text-muted-foreground">Источник:</Label>
+                    <Select
+                      value={(s.source as StageSource) || "formula"}
+                      onValueChange={(v) => updateStage(i, { source: v as StageSource })}
+                    >
+                      <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="formula">Формула</SelectItem>
+                        <SelectItem value="system">Системный расчёт</SelectItem>
+                        <SelectItem value="material">Материал × формула</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {((s.source as StageSource) || "formula") === "system" && (
+                      <Select
+                        value={s.system_key || ""}
+                        onValueChange={(v) => updateStage(i, { system_key: v })}
+                      >
+                        <SelectTrigger className="h-8 w-56"><SelectValue placeholder="Выбрать значение…" /></SelectTrigger>
+                        <SelectContent>
+                          {SYSTEM_KEYS.map((k) => (
+                            <SelectItem key={k.key} value={k.key}>{k.label} ({k.key})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {((s.source as StageSource) || "formula") === "material" && (
+                      <Select
+                        value={s.material_id || ""}
+                        onValueChange={(v) => updateStage(i, { material_id: v })}
+                      >
+                        <SelectTrigger className="h-8 w-64"><SelectValue placeholder="Выбрать материал…" /></SelectTrigger>
+                        <SelectContent>
+                          {materials.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>{m.name} · {m.cost_per_sheet} ₸/лист</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  {((s.source as StageSource) || "formula") === "formula" && (
+                    <FormulaBuilder
+                      value={s.formula}
+                      onChange={(f) => updateStage(i, { formula: f })}
+                      constants={constants}
+                      testVars={testVars}
+                      testConsts={constMap}
+                      onConstantsChanged={async () => { const fresh = await listConstants(); setConstants(fresh); }}
+                    />
+                  )}
+                  {((s.source as StageSource) || "formula") === "material" && (
+                    <div className="space-y-1">
+                      <div className="text-[11px] text-muted-foreground">Формула количества (листов/единиц материала)</div>
+                      <FormulaBuilder
+                        value={s.material_formula || { num: 0 }}
+                        onChange={(f) => updateStage(i, { material_formula: f })}
+                        constants={constants}
+                        testVars={testVars}
+                        testConsts={constMap}
+                        onConstantsChanged={async () => { const fresh = await listConstants(); setConstants(fresh); }}
+                      />
+                    </div>
+                  )}
+                  {((s.source as StageSource) || "formula") === "system" && (
+                    <div className="text-[11px] text-muted-foreground">
+                      Этап возьмёт значение «{SYSTEM_KEYS.find((k) => k.key === s.system_key)?.label || s.system_key || "—"}» из системного расчёта калькулятора.
+                    </div>
+                  )}
                 </div>
               ))}
             </CardContent>
