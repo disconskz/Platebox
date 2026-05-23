@@ -1025,6 +1025,24 @@ const Calculator = () => {
                         </div>
                       );
                     })()}
+                    <div className="mt-2 rounded-md border bg-muted/30 px-2.5 py-1.5 text-[11px] flex items-center gap-2">
+                      {activeVariant ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 text-success">
+                            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                            Активная формула:
+                          </span>
+                          <Link to={`/references/variants/${activeVariant.id}`} className="font-medium text-foreground hover:underline truncate">
+                            {activeVariant.name}
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-muted-foreground">Своя формула не задана — используется системный алгоритм.</span>
+                          <Link to="/references/variants" className="ml-auto text-primary hover:underline shrink-0">Выбрать</Link>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label>
