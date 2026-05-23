@@ -1,85 +1,111 @@
-## Что меняем
+## Цель
 
-Сейчас резка считается так:
-1. Если в `cut_count_rules` есть связка «печатный→конечный» — берём оттуда.
-2. Иначе — старая модель `printSheets × itemsPerSheet × finishCutsPerItem`.
+Сделать так, чтобы вариант просчёта из справочника полностью описывал расчёт: каждый этап сам решает, откуда брать стоимость — из формулы, из системного движка, или из материала. Этапы формулы становятся обычными строками спецификации.
 
-ТЗ требует другую логику: брать **фактическую раскладку** (`cols`, `rows`), которую движок уже считает в `layoutVariants`, и применять формулу:
-- если `itemsPerSheet === 1` → `4` реза;
-- иначе → `2 × (cols + rows)`.
+## 1. Источник стоимости на уровне этапа
 
-Справочник `cut_count_rules` остаётся как опциональный override для стандартных пар (A1→A2 и т.д.); если связки нет — авто по раскладке, а **не** старая «×4 на изделие» модель.
+Расширяем `VariantStage`:
 
-## 1. Движок (`src/lib/calc/engine.ts` + `validation.ts`)
+```ts
+source: "formula" | "system" | "material"  // default "formula"
+system_key?: string | null                  // для source = "system"
+```
 
-- Новая функция `autoCutsFromLayout(layout)`:
-  ```ts
-  layout.itemsPerSheet <= 1 ? 4 : 2 * (layout.cols + layout.rows)
+`system_key` — один из:
+`paper_cost | paper_cut_cost | print_cost | forms_cost | forms_prep_cost | ink_cost | postpress_total | cuts_total | setup_cost`
+
+Миграция: в `calc_variant_stages` добавить `source text not null default 'formula'` и `system_key text`.
+
+В UI редактора этапа (`References` → редактор варианта) — селектор «Источник»:
+- «Формула» — текущее поведение, поле формулы активно.
+- «Системный расчёт» — выпадающий список `system_key`, формула скрывается.
+- «Материал» — селект `material_id` + формула количества (используем уже существующее `material_formula`).
+
+## 2. Движок: расчёт этапа
+
+В `src/lib/calc/variants/engine.ts` расширяем `EvalContext`:
+
+```ts
+type EvalContext = {
+  vars: Record<string, number>;
+  consts: Record<string, number>;
+  systemValues?: Record<string, number>;   // ключи = system_key
+  materials?: Record<string, number>;      // material_id → cost_per_sheet
+};
+```
+
+`runVariant` для каждого этапа:
+
+```text
+switch (stage.source) {
+  case "system":   value = systemValues[stage.system_key] ?? 0
+  case "material": qty = evalFormula(stage.material_formula); 
+                   value = qty * (materials[stage.material_id] ?? 0)
+  default:         value = evalFormula(stage.formula)
+}
+```
+
+Сохраняем источник и детали (qty, unit_price) в `VariantStageResult` для отображения.
+
+## 3. Calculator: подача данных и встраивание этапов в спецификацию
+
+`src/pages/Calculator.tsx`:
+
+- Собираем `systemValues` из `baseResult`:
   ```
-- В блоке «Резка печатного листа на конечный формат изделия» (engine.ts ~ст. 461–497) приоритет:
-  1. `input.cutsPerSheetOverride` (ручная корректировка) → используем как есть.
-  2. `lookupCutCount(printName, itemName)` из `cut_count_rules` → как сейчас.
-  3. Иначе → `autoCutsFromLayout(layout)`. Это **заменяет** старый fallback `finishCutsPerItem × items`.
-- В `SpecItem.name` пишем источник: `«Резка (авто 2×(cols+rows))»`, `«Резка A1→A4 (справочник)»`, `«Резка (ручная корректировка)»`.
-- Цена реза остаётся: `CUT_RULES.pricePerCut` (константа `cut_price_per_print`) с дефолтом 1₸. Никаких миграций БД не требуется — константа уже подгружается из `calc_constants`.
-- В `CalcResult` добавляем поле `cutInfo`:
-  ```ts
-  cutInfo?: {
-    source: "manual" | "table" | "auto";
-    printName: string | null;
-    itemName: string | null;
-    cols: number;
-    rows: number;
-    itemsPerSheet: number;
-    cutsPerSheet: number;
-    pricePerCut: number;
-    printSheets: number;
-    total: number;
-  }
+  paper_cost, paper_cut_cost, print_cost, forms_cost, forms_prep_cost,
+  ink_cost, postpress_total = sum(postpress), cuts_total = cutInfo.total,
+  setup_cost = baseResult.setupCost ?? 0
   ```
-
-## 2. Вход (`src/lib/calc/types.ts`)
-
-- Добавляем в `CalcInput`:
-  ```ts
-  /** Ручное переопределение количества резов на один печатный лист (по ТЗ). */
-  cutsPerSheetOverride?: number;
+- Грузим словарь `materials: Record<id, cost_per_sheet>` (один запрос, кэшируем по id используемых в активном варианте).
+- Расширяем `autoVars`:
   ```
-- В `validation.ts` (`CalcInputSchema`) — `cutsPerSheetOverride: nonNegNum.max(1000).optional()`.
+  кол_резов     ← cutInfo.cutsPerSheet × printSheets (или cutInfo.total/pricePerCut)
+  кол_блоков    ← circulation (для блочных типов — позже уточнить)
+  бумага_цена   ← effectiveMaterial.cost_per_sheet
+  приладка_тираж ← circulation + setupSheets×itemsPerSheet
+  лист_площадь  ← printFormat area, м²
+  изделий_на_листе ← layout.itemsPerSheet
+  ```
+- Передаём `systemValues` и `materials` в `runVariantFormula`.
 
-## 3. UI калькулятора (`src/pages/Calculator.tsx`)
+**Встраивание в спецификацию** (вместо `variantApplied` рядом):
 
-- Прокидываем `cutsPerSheetOverride` в `CalcInput` (новое состояние `cutsOverride: number | null`).
-- В правой панели (или в карточке «Постпечать») рендерим компактный блок «Резка», показывающий по ТЗ:
-  - печатный формат и размер готового изделия;
-  - размер изделия с bleed (`product + 2*bleed`);
-  - `cols × rows`, `itemsPerSheet`;
-  - `cutsPerSheet`, источник (авто / справочник / ручная);
-  - цена реза и итог;
-  - инпут «Изменить вручную» (только для администратора/технолога — пока без role-check, видно всем; кнопка «Сбросить на авто»).
-- Новый компонент: `src/components/calc/CutInfoCard.tsx` (читает `result.cutInfo`, отдаёт `onOverride(n|null)`).
+```text
+if (variantApplied) {
+  spec = run.stages.map(toSpecRow)   // имя этапа, единица, qty, unit_price, total
+  totalCost = run.total + extrasTotal
+}
+```
 
-## 4. Тесты (`src/lib/calc/audit.test.ts` или новый)
+Системный `baseResult.spec` скрываем, когда вариант активен (как и сейчас при override), но строки выглядят единообразно: «Бумага (формула)», «Печать (системно)», «Тиснение (материал × 4,5)». Поле `source` рендерим как маленький тэг.
 
-- `autoCutsFromLayout`: 1×1→4, 2×4→12, 4×4→16, 8×8→32.
-- Engine: при отсутствии связки в `cut_count_rules` и нестандартном изделии 100×70 на 520×360 → cuts соответствуют раскладке, total = `printSheets * cuts * price`.
-- Engine: `cutsPerSheetOverride = 7` → используется именно 7, source = `manual`.
+`PriceBreakdownTree` и таблица спецификации получают новый необязательный `source` для подписи.
 
-## 5. Что НЕ трогаем
+## 4. Дополнительно
 
-- Справочник `cut_count_rules` (UI и схема) — без изменений.
-- Резку **закупочного → печатного** (`cutsForNesting`) — без изменений.
-- Цена реза — уже в `calc_constants` (`cut_price_per_print`), отдельный справочник работ создавать не будем (ТЗ-пункт 10 уже покрыт существующей таблицей; при желании можно отдельной задачей завести `operation_catalog` запись).
+- В `FormulaWizard` показываем рядом с каждой переменной её фактическое значение из `autoVars` + источник (system_key/материал) для прозрачности.
+- Тесты: добавить в `src/lib/calc/variants/engine.test.ts` кейсы для `source: system` и `source: material`.
+- Миграция `calc_variant_stages`: новые колонки + дефолты, существующие строки получают `source='formula'` — поведение не меняется.
 
 ## Файлы
 
-```text
-src/lib/calc/engine.ts          — autoCutsFromLayout, новый приоритет, cutInfo
-src/lib/calc/types.ts           — CalcInput.cutsPerSheetOverride, CalcResult.cutInfo
-src/lib/calc/validation.ts      — схема для cutsPerSheetOverride
-src/pages/Calculator.tsx        — состояние override, передача в input, рендер CutInfoCard
-src/components/calc/CutInfoCard.tsx (new) — карточка с разбивкой и ручным вводом
-src/lib/calc/audit.test.ts      — тесты авто-расчёта и override
-```
+- Миграция: добавить `source`, `system_key` в `calc_variant_stages`.
+- `src/lib/calc/variants/types.ts` — расширить `VariantStage`, добавить enum.
+- `src/lib/calc/variants/engine.ts` — обновить `runVariant`, `VariantStageResult` (поля `source`, `qty`, `unitPrice`).
+- `src/lib/calc/variants/api.ts` — читать/писать новые поля.
+- `src/pages/Calculator.tsx` — `systemValues`, `materials`, расширенный `autoVars`, замена `spec` строками формулы.
+- Редактор варианта в `References` (компонент с этапами) — UI селектора источника + список system_key + селект материала.
+- `src/components/calc/FormulaWizard.tsx` — показ значения и источника.
+- `src/components/calc/PriceBreakdownTree.tsx` (если нужно) — тэг источника.
+- Тесты: `src/lib/calc/variants/engine.test.ts`.
 
-Если ок — переключайте в build mode, реализую.
+## Что НЕ трогаем
+
+- Текущую логику резки (`cutInfo`) и multi-SKU.
+- Структуру `calc_constants`, `calc_stage_library`.
+- Базовый системный движок `engine.ts` (только читаем результаты).
+
+## Открытый вопрос (буду подбирать сам)
+
+Переменные сверх текущих: добавлю `бумага_цена`, `изделий_на_листе`, `лист_площадь`, `приладка_тираж` — этого достаточно для большинства этапов; при необходимости легко расширить.

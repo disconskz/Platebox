@@ -20,7 +20,27 @@ export interface VariantStage {
   material_id?: string | null;
   material_formula?: FormulaNode | null;
   sort_order: number;
+  /** Источник стоимости этапа. По умолчанию — формула. */
+  source?: StageSource;
+  /** Ключ системного значения, используется когда source = "system". */
+  system_key?: string | null;
 }
+
+export type StageSource = "formula" | "system" | "material";
+
+/** Доступные системные значения — берутся из baseResult. */
+export const SYSTEM_KEYS: { key: string; label: string }[] = [
+  { key: "paper_cost", label: "Бумага" },
+  { key: "paper_cut_cost", label: "Резка закупочного" },
+  { key: "print_cost", label: "Печать" },
+  { key: "forms_cost", label: "Формы" },
+  { key: "forms_prep_cost", label: "Приладка форм" },
+  { key: "ink_cost", label: "Краска" },
+  { key: "postpress_total", label: "Постпечать (итог)" },
+  { key: "cuts_total", label: "Резка изделий" },
+  { key: "prepress_total", label: "Допечатные (итог)" },
+];
+export const SYSTEM_KEY_SET = new Set(SYSTEM_KEYS.map((k) => k.key));
 
 export interface CalcVariant {
   id: string;
@@ -56,6 +76,10 @@ export const VARIABLE_LIST: { key: string; label: string; hint: string }[] = [
   { key: "площадь_печати", label: "Площадь печати", hint: "м² за весь тираж" },
   { key: "приладка", label: "Приладка", hint: "Листы приладки" },
   { key: "плотность", label: "Плотность бумаги", hint: "г/м²" },
+  { key: "бумага_цена", label: "Цена листа бумаги", hint: "₸ за лист выбранной бумаги" },
+  { key: "изделий_на_листе", label: "Изделий на листе", hint: "Раскладка cols × rows" },
+  { key: "лист_площадь", label: "Площадь печатного листа", hint: "м² одного листа" },
+  { key: "приладка_тираж", label: "Тираж с приладкой", hint: "тираж + приладка × изд/лист" },
 ];
 
 export const VARIABLE_KEYS = new Set(VARIABLE_LIST.map((v) => v.key));

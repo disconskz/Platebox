@@ -89,3 +89,35 @@ describe("collectRefs", () => {
     expect([...refs.consts]).toEqual(["c1"]);
   });
 });
+
+describe("runVariant sources", () => {
+  const mk = (stages: any[]): CalcVariant => ({
+    id: "v", name: "T", description: "", base_product_type: "leaflet",
+    category: "other", is_active: true, sort_order: 1, stages,
+  });
+
+  it("source=system берёт значение из systemValues", () => {
+    const v = mk([{ name: "Бумага", unit: "₸", sort_order: 1, source: "system", system_key: "paper_cost", formula: { num: 0 } }]);
+    const r = runVariant(v, { vars: {}, consts: {}, systemValues: { paper_cost: 1234 } });
+    expect(r.total).toBe(1234);
+    expect(r.stages[0].source).toBe("system");
+  });
+
+  it("source=material умножает формулу количества на cost_per_sheet", () => {
+    const v = mk([{
+      name: "Бумага", unit: "лист", sort_order: 1, source: "material",
+      material_id: "m1", material_formula: { num: 10 }, formula: { num: 0 },
+    }]);
+    const r = runVariant(v, { vars: {}, consts: {}, materials: { m1: { cost_per_sheet: 25, name: "Бум" } } });
+    expect(r.total).toBe(250);
+    expect(r.stages[0].qty).toBe(10);
+    expect(r.stages[0].unitPrice).toBe(25);
+  });
+
+  it("source=material без материала помечается предупреждением", () => {
+    const v = mk([{ name: "X", unit: "лист", sort_order: 1, source: "material", material_formula: { num: 5 }, formula: { num: 0 } }]);
+    const r = runVariant(v, { vars: {}, consts: {} });
+    expect(r.total).toBe(0);
+    expect(r.stages[0].warning).toBeTruthy();
+  });
+});
