@@ -1973,6 +1973,13 @@ const Calculator = () => {
                 variantApplied={(result as any).variantApplied}
                 variantWarning={(result as any).variantWarning}
               />
+              {(result as any).cutInfo && (
+                <CutInfoCard
+                  info={(result as any).cutInfo}
+                  override={cutsOverride}
+                  onOverride={setCutsOverride}
+                />
+              )}
               <Card className="shadow-elevated">
                 <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
                 <CardContent>
