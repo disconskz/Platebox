@@ -20,7 +20,27 @@ export interface VariantStage {
   material_id?: string | null;
   material_formula?: FormulaNode | null;
   sort_order: number;
+  /** Источник стоимости этапа. По умолчанию — формула. */
+  source?: StageSource;
+  /** Ключ системного значения, используется когда source = "system". */
+  system_key?: string | null;
 }
+
+export type StageSource = "formula" | "system" | "material";
+
+/** Доступные системные значения — берутся из baseResult. */
+export const SYSTEM_KEYS: { key: string; label: string }[] = [
+  { key: "paper_cost", label: "Бумага" },
+  { key: "paper_cut_cost", label: "Резка закупочного" },
+  { key: "print_cost", label: "Печать" },
+  { key: "forms_cost", label: "Формы" },
+  { key: "forms_prep_cost", label: "Приладка форм" },
+  { key: "ink_cost", label: "Краска" },
+  { key: "postpress_total", label: "Постпечать (итог)" },
+  { key: "cuts_total", label: "Резка изделий" },
+  { key: "prepress_total", label: "Допечатные (итог)" },
+];
+export const SYSTEM_KEY_SET = new Set(SYSTEM_KEYS.map((k) => k.key));
 
 export interface CalcVariant {
   id: string;
