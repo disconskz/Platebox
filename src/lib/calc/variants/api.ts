@@ -23,6 +23,8 @@ export async function getVariant(id: string): Promise<CalcVariant | null> {
     formula: r.formula as FormulaNode,
     material_id: r.material_id,
     material_formula: r.material_formula as FormulaNode | null,
+    source: (r.source as any) || "formula",
+    system_key: r.system_key ?? null,
   }));
   return { ...(v as any), stages };
 }
@@ -61,6 +63,7 @@ export async function duplicateVariant(id: string): Promise<string> {
     const rows = v.stages.map((s) => ({
       variant_id: newId, name: s.name, unit: s.unit, formula: s.formula,
       material_id: s.material_id ?? null, material_formula: s.material_formula ?? null, sort_order: s.sort_order,
+      source: s.source ?? "formula", system_key: s.system_key ?? null,
     }));
     await sb.from("calc_variant_stages").insert(rows);
   }
@@ -74,6 +77,8 @@ export async function replaceStages(variantId: string, stages: VariantStage[]) {
     variant_id: variantId, name: s.name, unit: s.unit, formula: s.formula,
     material_id: s.material_id ?? null, material_formula: s.material_formula ?? null,
     sort_order: s.sort_order ?? (i + 1) * 10,
+    source: s.source ?? "formula",
+    system_key: s.system_key ?? null,
   }));
   const { error } = await sb.from("calc_variant_stages").insert(rows);
   if (error) throw error;
