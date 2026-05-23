@@ -759,8 +759,6 @@ const Calculator = () => {
     // Если в справочнике задана активная формула — применяем её к итоговой себестоимости
     if (useVariantOverride && activeVariantFull && activeVariantFull.stages?.length) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { runVariant } = require("@/lib/calc/variants/engine");
         const vars: Record<string, number> = {
           тираж: circulation,
           кол_форм: baseResult.forms ?? 0,
@@ -774,7 +772,7 @@ const Calculator = () => {
           приладка: baseResult.setupSheets ?? 0,
           плотность: (effectiveMaterial as any)?.density ?? 0,
         };
-        const run = runVariant(activeVariantFull, { vars, consts: variantConstants });
+        const run = runVariantFormula(activeVariantFull, { vars, consts: variantConstants });
         variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
         // Себестоимость = формула + допоперации (которые не учитываются формулой)
         totalCost = run.total + extrasTotal;
