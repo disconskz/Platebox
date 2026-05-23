@@ -1,8 +1,12 @@
-import { FormulaNode, isConst, isFn, isNum, isOp, isVar, CalcVariant, VariantStage } from "./types";
+import { FormulaNode, isConst, isFn, isNum, isOp, isVar, CalcVariant, VariantStage, StageSource } from "./types";
 
 export type EvalContext = {
   vars: Record<string, number>;
   consts: Record<string, number>;
+  /** Системные значения из baseResult (paper_cost, print_cost, …). */
+  systemValues?: Record<string, number>;
+  /** Карта material_id → cost_per_sheet. */
+  materials?: Record<string, { cost_per_sheet: number; name?: string }>;
 };
 
 /** Безопасный вычислитель AST. Никаких eval/Function. */
@@ -66,6 +70,17 @@ export interface VariantStageResult {
   unit: string;
   formulaText: string;
   value: number;
+  source: StageSource;
+  /** Для source="material": число листов/единиц материала. */
+  qty?: number;
+  /** Для source="material": цена за единицу. */
+  unitPrice?: number;
+  /** Для source="system": какой ключ использован. */
+  systemKey?: string | null;
+  /** Для source="material": имя материала, если найдено. */
+  materialName?: string | null;
+  /** Признак ошибки конфигурации этапа. */
+  warning?: string;
 }
 
 export interface VariantRunResult {
@@ -77,14 +92,59 @@ export function runVariant(variant: CalcVariant, ctx: EvalContext): VariantRunRe
   const stages: VariantStageResult[] = variant.stages
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map((s) => ({
-      name: s.name,
-      unit: s.unit,
-      formulaText: formulaToString(s.formula),
-      value: Math.max(0, evalFormula(s.formula, ctx)),
-    }));
+    .map((s) => computeStage(s, ctx));
   const total = stages.reduce((s, x) => s + x.value, 0);
   return { stages, total };
+}
+
+function computeStage(s: VariantStage, ctx: EvalContext): VariantStageResult {
+  const source: StageSource = (s.source as StageSource) || "formula";
+  if (source === "system") {
+    const key = s.system_key || "";
+    const v = ctx.systemValues?.[key];
+    return {
+      name: s.name,
+      unit: s.unit || "₸",
+      formulaText: key ? `@system.${key}` : "",
+      value: Math.max(0, Number.isFinite(v) ? Number(v) : 0),
+      source,
+      systemKey: key || null,
+      warning: !key
+        ? "Не выбран системный ключ"
+        : v === undefined
+          ? `Системный ключ "${key}" не передан движком`
+          : undefined,
+    };
+  }
+  if (source === "material") {
+    const mid = s.material_id || "";
+    const m = mid ? ctx.materials?.[mid] : undefined;
+    const qty = Math.max(0, evalFormula(s.material_formula ?? null, ctx));
+    const unitPrice = m?.cost_per_sheet ?? 0;
+    return {
+      name: s.name,
+      unit: s.unit || "шт",
+      formulaText: `${formulaToString(s.material_formula ?? null)} × ${unitPrice}`,
+      value: Math.max(0, qty * unitPrice),
+      source,
+      qty,
+      unitPrice,
+      materialName: m?.name ?? null,
+      warning: !mid
+        ? "Не выбран материал"
+        : !m
+          ? "Материал не найден в справочнике"
+          : undefined,
+    };
+  }
+  // formula
+  return {
+    name: s.name,
+    unit: s.unit,
+    formulaText: formulaToString(s.formula),
+    value: Math.max(0, evalFormula(s.formula, ctx)),
+    source: "formula",
+  };
 }
 
 /** Извлекает имена переменных и slug констант, на которые ссылается формула. */
@@ -98,6 +158,11 @@ export function collectRefs(node: FormulaNode | null | undefined, out = { vars: 
 
 export function collectStageRefs(stages: VariantStage[]) {
   const out = { vars: new Set<string>(), consts: new Set<string>() };
-  stages.forEach((s) => collectRefs(s.formula, out));
+  stages.forEach((s) => {
+    const src = (s.source as StageSource) || "formula";
+    if (src === "formula") collectRefs(s.formula, out);
+    else if (src === "material") collectRefs(s.material_formula ?? null, out);
+    // system источников переменных нет
+  });
   return out;
 }
