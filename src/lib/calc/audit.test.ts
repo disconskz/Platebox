@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runCalculation } from "./engine";
+import { runCalculation, autoCutsFromLayout, setCutRules } from "./engine";
 import { runMultiSkuCalculation } from "./multi-sku";
 import { cutsForNesting, finishCutsPerItem, validateCalcInput } from "./validation";
 import { CalcInput, FormatPair } from "./types";
