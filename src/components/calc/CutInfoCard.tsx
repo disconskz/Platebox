@@ -78,7 +78,7 @@ export function CutInfoCard({ info, override, onOverride }: CutInfoCardProps) {
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
           <Row k="Печатный лист" v={`${info.printW}×${info.printH} мм${info.printName ? ` (${info.printName})` : ""}`} />
           <Row k="Готовое изделие" v={`${info.productW}×${info.productH} мм${info.itemName ? ` (${info.itemName})` : ""}`} />
-          <Row k="С bleed (+${info.bleed} мм)" v={`${info.productWithBleedW}×${info.productWithBleedH} мм`} />
+          <Row k={`С bleed (+${info.bleed} мм)`} v={`${info.productWithBleedW}×${info.productWithBleedH} мм`} />
           <Row k="Раскладка" v={`${info.cols} × ${info.rows}`} />
           <Row k="Изделий на листе" v={fmtNum(info.itemsPerSheet)} />
           <Row k="Резов на лист" v={fmtNum(info.cutsPerSheet)} />
