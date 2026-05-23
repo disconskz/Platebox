@@ -166,6 +166,20 @@ const Calculator = () => {
       setProductType(item.base_product_type as ProductType);
     }
   }, [glossarySlug, glossary]);
+
+  // Активная формула из справочника «Варианты просчёта» для текущего типа продукции
+  const [activeVariant, setActiveVariant] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      try {
+        const { getActiveVariantFor } = await import("@/lib/calc/variants/api");
+        const v = await getActiveVariantFor(productType);
+        if (!stop) setActiveVariant(v);
+      } catch { if (!stop) setActiveVariant(null); }
+    })();
+    return () => { stop = true; };
+  }, [productType]);
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);
   const [formatType, setFormatType] = useState<FormatType>("A4");
@@ -1011,6 +1025,24 @@ const Calculator = () => {
                         </div>
                       );
                     })()}
+                    <div className="mt-2 rounded-md border bg-muted/30 px-2.5 py-1.5 text-[11px] flex items-center gap-2">
+                      {activeVariant ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 text-success">
+                            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                            Активная формула:
+                          </span>
+                          <Link to={`/references/variants/${activeVariant.id}`} className="font-medium text-foreground hover:underline truncate">
+                            {activeVariant.name}
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-muted-foreground">Своя формула не задана — используется системный алгоритм.</span>
+                          <Link to="/references/variants" className="ml-auto text-primary hover:underline shrink-0">Выбрать</Link>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label>
@@ -1058,6 +1090,39 @@ const Calculator = () => {
                       <div><Label>Высота, мм</Label><Input type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))} /></div>
                     </div>
                   )}
+                  <div>
+                    <Label>
+                      Наценка, %
+                      <HelpHint title="Наценка" learnMore="calc-margin">
+                        Можно ввести вручную или поменять слайдером в итогах справа. Цена без НДС = себестоимость × (1 + наценка/100).
+                      </HelpHint>
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={1000}
+                      step={1}
+                      value={margin}
+                      onChange={(e) => setMargin(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+                    />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[10, 20, 30, 40, 50, 70, 100].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMargin(m)}
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-xs border transition-colors",
+                            margin === m
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                          )}
+                        >
+                          {m}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="md:col-span-2">
                     <Label>
                       Красочность
