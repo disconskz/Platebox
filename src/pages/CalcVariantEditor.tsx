@@ -9,7 +9,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
 import { getVariant, updateVariant, replaceStages, listConstants, listStageLibrary, upsertConstant, setActiveVariant, deactivateVariant } from "@/lib/calc/variants/api";
-import { CalcConstant, CalcVariant, FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, VariantStage } from "@/lib/calc/variants/types";
+import { CalcConstant, CalcVariant, FormulaNode, VARIABLE_LIST, VARIABLE_KEYS, VariantStage, StageSource, SYSTEM_KEYS } from "@/lib/calc/variants/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import FormulaBuilder from "@/components/calc/FormulaBuilder";
 import { runVariant, collectStageRefs } from "@/lib/calc/variants/engine";
 import { AlertTriangle, CheckCircle2, Sparkles, Zap } from "lucide-react";
@@ -31,6 +33,13 @@ export default function CalcVariantEditor() {
   const [library, setLibrary] = useState<Awaited<ReturnType<typeof listStageLibrary>>>([]);
   const [saving, setSaving] = useState(false);
   const [testVars, setTestVars] = useState<Record<string, number>>(TEST_DEFAULTS);
+  const [materials, setMaterials] = useState<Array<{ id: string; name: string; cost_per_sheet: number }>>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any).from("materials").select("id,name,cost_per_sheet").order("name");
+      setMaterials(((data as any[]) || []).map((m) => ({ id: m.id, name: m.name, cost_per_sheet: Number(m.cost_per_sheet) || 0 })));
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
