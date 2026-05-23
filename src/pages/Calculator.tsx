@@ -166,6 +166,20 @@ const Calculator = () => {
       setProductType(item.base_product_type as ProductType);
     }
   }, [glossarySlug, glossary]);
+
+  // Активная формула из справочника «Варианты просчёта» для текущего типа продукции
+  const [activeVariant, setActiveVariant] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      try {
+        const { getActiveVariantFor } = await import("@/lib/calc/variants/api");
+        const v = await getActiveVariantFor(productType);
+        if (!stop) setActiveVariant(v);
+      } catch { if (!stop) setActiveVariant(null); }
+    })();
+    return () => { stop = true; };
+  }, [productType]);
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);
   const [formatType, setFormatType] = useState<FormatType>("A4");
