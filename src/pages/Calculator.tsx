@@ -182,6 +182,8 @@ const Calculator = () => {
   const [variantReloadTick, setVariantReloadTick] = useState(0);
   // Ручные переопределения переменных формулы (мастер формулы)
   const [variableOverrides, setVariableOverrides] = useState<Record<string, number>>({});
+  // Ручная корректировка количества резов на печатный лист (ТЗ — резка)
+  const [cutsOverride, setCutsOverride] = useState<number | null>(null);
   useEffect(() => {
     let stop = false;
     (async () => {
