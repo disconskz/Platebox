@@ -176,6 +176,8 @@ const Calculator = () => {
   // Полная активная формула со ступенями + константы — нужны для применения её в расчёте
   const [activeVariantFull, setActiveVariantFull] = useState<any | null>(null);
   const [variantConstants, setVariantConstants] = useState<Record<string, number>>({});
+  // Материалы, на которые ссылаются этапы активной формулы: id → {cost_per_sheet, name}
+  const [variantMaterials, setVariantMaterials] = useState<Record<string, { cost_per_sheet: number; name: string }>>({});
   // Применять ли формулу для итоговой себестоимости (по умолчанию — да, если активна)
   const [useVariantOverride, setUseVariantOverride] = useState(true);
   // Тик для принудительного обновления активной формулы (после правки в справочнике)
@@ -204,6 +206,25 @@ const Calculator = () => {
     })();
     return () => { stop = true; };
   }, [productType, variantReloadTick]);
+  // Подгружаем материалы, на которые ссылаются этапы формулы
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const ids: string[] = ((activeVariantFull?.stages || []) as any[])
+        .map((s) => s.material_id)
+        .filter((x: any): x is string => !!x);
+      if (!ids.length) { if (!stop) setVariantMaterials({}); return; }
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await (supabase as any).from("materials").select("id,name,cost_per_sheet").in("id", ids);
+        if (stop) return;
+        const map: Record<string, { cost_per_sheet: number; name: string }> = {};
+        ((data as any[]) || []).forEach((m) => { map[m.id] = { cost_per_sheet: Number(m.cost_per_sheet) || 0, name: m.name }; });
+        setVariantMaterials(map);
+      } catch { if (!stop) setVariantMaterials({}); }
+    })();
+    return () => { stop = true; };
+  }, [activeVariantFull]);
   // Автоподхват изменений: при возврате во вкладку перечитываем активную формулу
   useEffect(() => {
     const onFocus = () => setVariantReloadTick((t) => t + 1);
