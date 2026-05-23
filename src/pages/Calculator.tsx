@@ -15,6 +15,7 @@ import { LayoutPreview } from "@/components/calc/LayoutPreview";
 import AiOrderAssistant, { type ParsedOrder } from "@/components/calc/AiOrderAssistant";
 import { FORMAT_PRESETS, runCalculation, setCalcRules, setCutRules, setMaterialPrices } from "@/lib/calc/engine";
 import { loadCalcRules, loadCutRules, loadMaterialPrices } from "@/lib/calc/rules";
+import { runVariant as runVariantFormula } from "@/lib/calc/variants/engine";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
