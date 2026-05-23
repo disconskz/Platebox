@@ -175,6 +175,8 @@ const Calculator = () => {
   const [variantConstants, setVariantConstants] = useState<Record<string, number>>({});
   // Применять ли формулу для итоговой себестоимости (по умолчанию — да, если активна)
   const [useVariantOverride, setUseVariantOverride] = useState(true);
+  // Тик для принудительного обновления активной формулы (после правки в справочнике)
+  const [variantReloadTick, setVariantReloadTick] = useState(0);
   useEffect(() => {
     let stop = false;
     (async () => {
@@ -194,7 +196,13 @@ const Calculator = () => {
       } catch { if (!stop) setActiveVariant(null); }
     })();
     return () => { stop = true; };
-  }, [productType]);
+  }, [productType, variantReloadTick]);
+  // Автоподхват изменений: при возврате во вкладку перечитываем активную формулу
+  useEffect(() => {
+    const onFocus = () => setVariantReloadTick((t) => t + 1);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);
   const [formatType, setFormatType] = useState<FormatType>("A4");
