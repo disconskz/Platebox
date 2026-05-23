@@ -15,6 +15,7 @@ import { LayoutPreview } from "@/components/calc/LayoutPreview";
 import AiOrderAssistant, { type ParsedOrder } from "@/components/calc/AiOrderAssistant";
 import { FORMAT_PRESETS, runCalculation, setCalcRules, setCutRules, setMaterialPrices } from "@/lib/calc/engine";
 import { loadCalcRules, loadCutRules, loadMaterialPrices } from "@/lib/calc/rules";
+import { runVariant as runVariantFormula } from "@/lib/calc/variants/engine";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
@@ -169,13 +170,27 @@ const Calculator = () => {
 
   // Активная формула из справочника «Варианты просчёта» для текущего типа продукции
   const [activeVariant, setActiveVariant] = useState<{ id: string; name: string } | null>(null);
+  // Полная активная формула со ступенями + константы — нужны для применения её в расчёте
+  const [activeVariantFull, setActiveVariantFull] = useState<any | null>(null);
+  const [variantConstants, setVariantConstants] = useState<Record<string, number>>({});
+  // Применять ли формулу для итоговой себестоимости (по умолчанию — да, если активна)
+  const [useVariantOverride, setUseVariantOverride] = useState(true);
   useEffect(() => {
     let stop = false;
     (async () => {
       try {
-        const { getActiveVariantFor } = await import("@/lib/calc/variants/api");
+        const { getActiveVariantFor, getVariant, listConstants } = await import("@/lib/calc/variants/api");
         const v = await getActiveVariantFor(productType);
         if (!stop) setActiveVariant(v);
+        if (v) {
+          const [full, consts] = await Promise.all([getVariant(v.id), listConstants()]);
+          if (!stop) {
+            setActiveVariantFull(full);
+            setVariantConstants(Object.fromEntries((consts as any[]).map((c) => [c.slug, Number(c.value) || 0])));
+          }
+        } else if (!stop) {
+          setActiveVariantFull(null);
+        }
       } catch { if (!stop) setActiveVariant(null); }
     })();
     return () => { stop = true; };
@@ -736,10 +751,34 @@ const Calculator = () => {
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
     const allExtras = [...extraSpecItems, ...catalogOpsItems];
-    if (!allExtras.length) return baseResult;
-    const spec = [...baseResult.spec, ...allExtras];
+    const spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
-    const totalCost = baseResult.totalCost + extrasTotal;
+    let totalCost = baseResult.totalCost + extrasTotal;
+    let variantApplied: null | { name: string; total: number; stages: Array<{ name: string; unit: string; value: number; formulaText: string }> } = null;
+
+    // Если в справочнике задана активная формула — применяем её к итоговой себестоимости
+    if (useVariantOverride && activeVariantFull && activeVariantFull.stages?.length) {
+      try {
+        const vars: Record<string, number> = {
+          тираж: circulation,
+          кол_форм: baseResult.forms ?? 0,
+          кол_красок: colorFront + colorBack,
+          сторон: colorBack > 0 ? 2 : 1,
+          печ_листов: baseResult.printSheets ?? 0,
+          закуп_листов: baseResult.purchaseSheets ?? 0,
+          кол_резов: 0,
+          кол_блоков: 0,
+          площадь_печати: ((baseResult.layout?.printFormat?.width ?? 0) * (baseResult.layout?.printFormat?.height ?? 0) * (baseResult.printSheets ?? 0)) / 1_000_000,
+          приладка: baseResult.setupSheets ?? 0,
+          плотность: (effectiveMaterial as any)?.density ?? 0,
+        };
+        const run = runVariantFormula(activeVariantFull, { vars, consts: variantConstants });
+        variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
+        // Себестоимость = формула + допоперации (которые не учитываются формулой)
+        totalCost = run.total + extrasTotal;
+      } catch { /* fallback к baseResult.totalCost */ }
+    }
+
     const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
     return {
       ...baseResult,
@@ -747,8 +786,9 @@ const Calculator = () => {
       totalCost,
       vatAmount,
       totalWithVat: totalCost + vatAmount,
+      variantApplied,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariantFull, variantConstants, circulation, colorFront, colorBack, effectiveMaterial]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -1030,11 +1070,18 @@ const Calculator = () => {
                         <>
                           <span className="inline-flex items-center gap-1 text-success">
                             <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                            Активная формула:
+                            {useVariantOverride ? "Применяется формула:" : "Формула отключена:"}
                           </span>
                           <Link to={`/references/variants/${activeVariant.id}`} className="font-medium text-foreground hover:underline truncate">
                             {activeVariant.name}
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => setUseVariantOverride((v) => !v)}
+                            className="ml-auto text-primary hover:underline shrink-0"
+                          >
+                            {useVariantOverride ? "Отключить" : "Включить"}
+                          </button>
                         </>
                       ) : (
                         <>
