@@ -1115,6 +1115,14 @@ const Calculator = () => {
                           >
                             {useVariantOverride ? "Отключить" : "Включить"}
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setVariantReloadTick((t) => t + 1)}
+                            className="text-muted-foreground hover:text-foreground shrink-0"
+                            title="Перечитать формулу из справочника"
+                          >
+                            ↻
+                          </button>
                         </>
                       ) : (
                         <>
