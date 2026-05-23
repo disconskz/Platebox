@@ -750,10 +750,36 @@ const Calculator = () => {
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
     const allExtras = [...extraSpecItems, ...catalogOpsItems];
-    if (!allExtras.length) return baseResult;
-    const spec = [...baseResult.spec, ...allExtras];
+    const spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
-    const totalCost = baseResult.totalCost + extrasTotal;
+    let totalCost = baseResult.totalCost + extrasTotal;
+    let variantApplied: null | { name: string; total: number; stages: Array<{ name: string; unit: string; value: number; formulaText: string }> } = null;
+
+    // Если в справочнике задана активная формула — применяем её к итоговой себестоимости
+    if (useVariantOverride && activeVariantFull && activeVariantFull.stages?.length) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { runVariant } = require("@/lib/calc/variants/engine");
+        const vars: Record<string, number> = {
+          тираж: circulation,
+          кол_форм: baseResult.forms ?? 0,
+          кол_красок: colorFront + colorBack,
+          сторон: colorBack > 0 ? 2 : 1,
+          печ_листов: baseResult.printSheets ?? 0,
+          закуп_листов: baseResult.purchaseSheets ?? 0,
+          кол_резов: 0,
+          кол_блоков: 0,
+          площадь_печати: ((baseResult.layout?.printFormat?.width ?? 0) * (baseResult.layout?.printFormat?.height ?? 0) * (baseResult.printSheets ?? 0)) / 1_000_000,
+          приладка: baseResult.setupSheets ?? 0,
+          плотность: (effectiveMaterial as any)?.density ?? 0,
+        };
+        const run = runVariant(activeVariantFull, { vars, consts: variantConstants });
+        variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
+        // Себестоимость = формула + допоперации (которые не учитываются формулой)
+        totalCost = run.total + extrasTotal;
+      } catch { /* fallback к baseResult.totalCost */ }
+    }
+
     const vatAmount = totalCost * ((baseResult.vatPercent || 0) / 100);
     return {
       ...baseResult,
@@ -761,8 +787,9 @@ const Calculator = () => {
       totalCost,
       vatAmount,
       totalWithVat: totalCost + vatAmount,
+      variantApplied,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariantFull, variantConstants, circulation, colorFront, colorBack, effectiveMaterial]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
