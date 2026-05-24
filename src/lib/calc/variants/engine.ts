@@ -26,9 +26,15 @@ export function evalFormula(node: FormulaNode | null | undefined, ctx: EvalConte
     if (!args.length) return 0;
     switch (node.op) {
       case "+": return args.reduce((a, b) => a + b, 0);
-      case "-": return args.slice(1).reduce((a, b) => a - b, args[0]);
+      case "-":
+        // Унарный минус: {op:"-", args:[x]} → -x
+        if (args.length === 1) return -args[0];
+        return args.slice(1).reduce((a, b) => a - b, args[0]);
       case "*": return args.reduce((a, b) => a * b, 1);
-      case "/": return args.slice(1).reduce((a, b) => (b === 0 ? 0 : a / b), args[0]);
+      case "/":
+        // Унарный «/» интерпретируем как 1/x
+        if (args.length === 1) return args[0] === 0 ? 0 : 1 / args[0];
+        return args.slice(1).reduce((a, b) => (b === 0 ? 0 : a / b), args[0]);
     }
   }
   if (isFn(node)) {
@@ -102,11 +108,13 @@ function computeStage(s: VariantStage, ctx: EvalContext): VariantStageResult {
   if (source === "system") {
     const key = s.system_key || "";
     const v = ctx.systemValues?.[key];
+    const raw = Number.isFinite(v) ? Number(v) : 0;
     return {
       name: s.name,
       unit: s.unit || "₸",
       formulaText: key ? `@system.${key}` : "",
-      value: Math.max(0, Number.isFinite(v) ? Number(v) : 0),
+      // Системные значения могут быть отрицательными (например, скидка), не клампим.
+      value: raw,
       source,
       systemKey: key || null,
       warning: !key
@@ -119,12 +127,15 @@ function computeStage(s: VariantStage, ctx: EvalContext): VariantStageResult {
   if (source === "material") {
     const mid = s.material_id || "";
     const m = mid ? ctx.materials?.[mid] : undefined;
-    const qty = Math.max(0, evalFormula(s.material_formula ?? null, ctx));
+    const hasMaterial = !!m;
+    const qty = hasMaterial ? Math.max(0, evalFormula(s.material_formula ?? null, ctx)) : 0;
     const unitPrice = m?.cost_per_sheet ?? 0;
     return {
       name: s.name,
       unit: s.unit || "шт",
-      formulaText: `${formulaToString(s.material_formula ?? null)} × ${unitPrice}`,
+      formulaText: hasMaterial
+        ? `${formulaToString(s.material_formula ?? null)} × ${unitPrice}`
+        : "— материал не задан",
       value: Math.max(0, qty * unitPrice),
       source,
       qty,

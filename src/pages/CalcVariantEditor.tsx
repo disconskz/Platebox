@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const TEST_DEFAULTS: Record<string, number> = {
   тираж: 5000, кол_форм: 4, кол_красок: 4, сторон: 2, печ_листов: 700,
   закуп_листов: 350, кол_резов: 3, кол_блоков: 50, площадь_печати: 75, приладка: 150, плотность: 130,
+  бумага_цена: 35, изделий_на_листе: 8, лист_площадь: 0.32, приладка_тираж: 5150,
 };
 
 export default function CalcVariantEditor() {
