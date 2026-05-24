@@ -127,4 +127,14 @@ describe("runVariant sources", () => {
     expect(r.total).toBe(0);
     expect(r.stages[0].warning).toBeTruthy();
   });
+
+  it("деление на ноль в этапе формулы порождает warning", () => {
+    const v = mk([{
+      name: "X", unit: "₸", sort_order: 1,
+      formula: { op: "/", args: [{ num: 10 }, { var: "z" }] },
+    }]);
+    const r = runVariant(v, { vars: { z: 0 }, consts: {} });
+    expect(r.stages[0].value).toBe(0);
+    expect(r.stages[0].warning).toMatch(/деление на ноль/i);
+  });
 });
