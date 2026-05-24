@@ -1333,6 +1333,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      replace_variant_stages: {
+        Args: { _stages: Json; _variant_id: string }
+        Returns: undefined
+      }
+      set_active_variant: { Args: { _variant_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
