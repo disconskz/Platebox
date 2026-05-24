@@ -794,6 +794,12 @@ const Calculator = () => {
     const setupSheets = baseResult.setupSheets ?? 0;
     const cutsPerSheet = (baseResult as any).cutInfo?.cutsPerSheet ?? 0;
     const sheetAreaM2 = ((layout?.printFormat?.width ?? 0) * (layout?.printFormat?.height ?? 0)) / 1_000_000;
+    // Каноническая цена листа: фактическая, попавшая в себестоимость
+    // (paperCost / purchaseSheets). Учитывает автоподбор пары формат/материал.
+    const purchaseSheets = baseResult.purchaseSheets ?? 0;
+    const paperPricePerSheet = purchaseSheets > 0
+      ? (baseResult.paperCost ?? 0) / purchaseSheets
+      : ((effectiveMaterial as any)?.cost_per_sheet ?? 0);
     return {
       тираж: circulation,
       кол_форм: baseResult.forms ?? 0,
@@ -807,7 +813,7 @@ const Calculator = () => {
       площадь_печати: sheetAreaM2 * printSheets,
       приладка: setupSheets,
       плотность: (effectiveMaterial as any)?.density ?? 0,
-      бумага_цена: (effectiveMaterial as any)?.cost_per_sheet ?? 0,
+      бумага_цена: paperPricePerSheet,
       изделий_на_листе: itemsPerSheet,
       лист_площадь: sheetAreaM2,
       приладка_тираж: circulation + setupSheets * itemsPerSheet,
