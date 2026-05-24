@@ -801,7 +801,8 @@ const Calculator = () => {
       сторон: colorBack > 0 ? 2 : 1,
       печ_листов: printSheets,
       закуп_листов: baseResult.purchaseSheets ?? 0,
-      кол_резов: cutsPerSheet * printSheets,
+      // Резов на один печатный лист. Итог по тиражу = кол_резов × печ_листов.
+      кол_резов: cutsPerSheet,
       кол_блоков: 0,
       площадь_печати: sheetAreaM2 * printSheets,
       приладка: setupSheets,
