@@ -21,6 +21,13 @@ describe("evalFormula", () => {
   it("деление на ноль даёт 0", () => {
     expect(evalFormula({ op: "/", args: [{ num: 10 }, { num: 0 }] }, ctx)).toBe(0);
   });
+  it("унарный минус возвращает -x", () => {
+    expect(evalFormula({ op: "-", args: [{ num: 5 }] }, ctx)).toBe(-5);
+  });
+  it("унарный / возвращает 1/x", () => {
+    expect(evalFormula({ op: "/", args: [{ num: 4 }] }, ctx)).toBe(0.25);
+    expect(evalFormula({ op: "/", args: [{ num: 0 }] }, ctx)).toBe(0);
+  });
   it("неизвестная переменная даёт 0", () => {
     expect(evalFormula({ var: "несуществует" }, ctx)).toBe(0);
   });
