@@ -71,16 +71,21 @@ export async function duplicateVariant(id: string): Promise<string> {
 }
 
 export async function replaceStages(variantId: string, stages: VariantStage[]) {
-  await sb.from("calc_variant_stages").delete().eq("variant_id", variantId);
-  if (!stages.length) return;
-  const rows = stages.map((s, i) => ({
-    variant_id: variantId, name: s.name, unit: s.unit, formula: s.formula,
-    material_id: s.material_id ?? null, material_formula: s.material_formula ?? null,
+  // Атомарная замена через RPC: DELETE + INSERT в одной транзакции.
+  const payload = stages.map((s, i) => ({
+    name: s.name,
+    unit: s.unit,
+    formula: s.formula,
+    material_id: s.material_id ?? null,
+    material_formula: s.material_formula ?? null,
     sort_order: s.sort_order ?? (i + 1) * 10,
     source: s.source ?? "formula",
     system_key: s.system_key ?? null,
   }));
-  const { error } = await sb.from("calc_variant_stages").insert(rows);
+  const { error } = await sb.rpc("replace_variant_stages", {
+    _variant_id: variantId,
+    _stages: payload,
+  });
   if (error) throw error;
 }
 
@@ -112,14 +117,9 @@ export async function listStageLibrary(): Promise<Array<{ id: string; name: stri
  * Все другие варианты этого же типа становятся неактивными — активен всегда один.
  */
 export async function setActiveVariant(id: string): Promise<void> {
-  const { data: v, error: e1 } = await sb.from("calc_variants").select("base_product_type").eq("id", id).maybeSingle();
-  if (e1) throw e1;
-  if (!v) throw new Error("Вариант не найден");
-  const base = (v as any).base_product_type as string;
-  const { error: e2 } = await sb.from("calc_variants").update({ is_active: false }).eq("base_product_type", base);
-  if (e2) throw e2;
-  const { error: e3 } = await sb.from("calc_variants").update({ is_active: true }).eq("id", id);
-  if (e3) throw e3;
+  // Атомарная активация: одна транзакция, нет окна «нет активной формулы».
+  const { error } = await sb.rpc("set_active_variant", { _variant_id: id });
+  if (error) throw error;
 }
 
 /** Снять признак активности с варианта. */

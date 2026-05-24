@@ -7,6 +7,8 @@ export type EvalContext = {
   systemValues?: Record<string, number>;
   /** Карта material_id → cost_per_sheet. */
   materials?: Record<string, { cost_per_sheet: number; name?: string }>;
+  /** Внутренний флаг: устанавливается в true, если при вычислении встретилось деление на ноль. */
+  _divByZero?: { hit: boolean };
 };
 
 /** Безопасный вычислитель AST. Никаких eval/Function. */
@@ -33,8 +35,14 @@ export function evalFormula(node: FormulaNode | null | undefined, ctx: EvalConte
       case "*": return args.reduce((a, b) => a * b, 1);
       case "/":
         // Унарный «/» интерпретируем как 1/x
-        if (args.length === 1) return args[0] === 0 ? 0 : 1 / args[0];
-        return args.slice(1).reduce((a, b) => (b === 0 ? 0 : a / b), args[0]);
+        if (args.length === 1) {
+          if (args[0] === 0) { if (ctx._divByZero) ctx._divByZero.hit = true; return 0; }
+          return 1 / args[0];
+        }
+        return args.slice(1).reduce((a, b) => {
+          if (b === 0) { if (ctx._divByZero) ctx._divByZero.hit = true; return 0; }
+          return a / b;
+        }, args[0]);
     }
   }
   if (isFn(node)) {
@@ -128,8 +136,16 @@ function computeStage(s: VariantStage, ctx: EvalContext): VariantStageResult {
     const mid = s.material_id || "";
     const m = mid ? ctx.materials?.[mid] : undefined;
     const hasMaterial = !!m;
-    const qty = hasMaterial ? Math.max(0, evalFormula(s.material_formula ?? null, ctx)) : 0;
+    const flag = { hit: false };
+    const qty = hasMaterial
+      ? Math.max(0, evalFormula(s.material_formula ?? null, { ...ctx, _divByZero: flag }))
+      : 0;
     const unitPrice = m?.cost_per_sheet ?? 0;
+    const baseWarning = !mid
+      ? "Не выбран материал"
+      : !m
+        ? "Материал не найден в справочнике"
+        : (flag.hit ? "В формуле количества встретилось деление на ноль — результат может быть некорректен" : undefined);
     return {
       name: s.name,
       unit: s.unit || "шт",
@@ -141,20 +157,21 @@ function computeStage(s: VariantStage, ctx: EvalContext): VariantStageResult {
       qty,
       unitPrice,
       materialName: m?.name ?? null,
-      warning: !mid
-        ? "Не выбран материал"
-        : !m
-          ? "Материал не найден в справочнике"
-          : undefined,
+      warning: baseWarning,
     };
   }
   // formula
+  const flag = { hit: false };
+  const value = Math.max(0, evalFormula(s.formula, { ...ctx, _divByZero: flag }));
   return {
     name: s.name,
     unit: s.unit,
     formulaText: formulaToString(s.formula),
-    value: Math.max(0, evalFormula(s.formula, ctx)),
+    value,
     source: "formula",
+    warning: flag.hit
+      ? "В формуле этапа встретилось деление на ноль — результат может быть некорректен"
+      : undefined,
   };
 }
 
