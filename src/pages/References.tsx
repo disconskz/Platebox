@@ -764,11 +764,11 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
     else { toast.success("Добавлено"); setDraft({ ...spec.defaults }); setPage(1); load(); }
   };
 
-  const renderField = (col: any, value: any, onChange: (v: any) => void) => {
+  const renderField = (col: any, value: any, onChange: (v: any) => void, onCommit?: () => void) => {
     if (col.t === "ref") {
       const options = (dynOpts[col.refKey as keyof DynamicOptions] as { value: string; label: string }[]) || [];
       return (
-        <Select value={value ?? ""} onValueChange={(v) => onChange(v || null)}>
+        <Select value={value ?? ""} onValueChange={(v) => { onChange(v || null); onCommit?.(); }}>
           <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
           <SelectContent>
             {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -781,6 +781,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
       const toggle = (opt: string) => {
         const next = arr.includes(opt) ? arr.filter((x) => x !== opt) : [...arr, opt];
         onChange(next.length ? next : null);
+        onCommit?.();
       };
       return (
         <div className="flex flex-wrap gap-1 max-w-[260px]">
@@ -800,7 +801,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
     if (col.t === "select") {
       const isBool = col.opts.length === 2 && col.opts[0] === "true" && col.opts[1] === "false";
       return (
-        <Select value={String(value ?? "")} onValueChange={(v) => onChange(isBool ? v === "true" : v)}>
+        <Select value={String(value ?? "")} onValueChange={(v) => { onChange(isBool ? v === "true" : v); onCommit?.(); }}>
           <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
           <SelectContent>{col.opts.map((o: string) => <SelectItem key={o} value={o}>{optLabel(o)}</SelectItem>)}</SelectContent>
         </Select>
@@ -812,6 +813,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
         className="h-8"
         value={value ?? ""}
         onChange={(e) => onChange(col.t === "number" ? Number(e.target.value) : e.target.value)}
+        onBlur={() => onCommit?.()}
       />
     );
   };
