@@ -337,6 +337,15 @@ const Calculator = () => {
       handleSupabaseError(rulesR.error, "правила тиражей");
       handleSupabaseError(opsR.error, "операции");
       if (s?.value) setVatPercent(Number(s.value) || 0);
+      // Цена приладки за форму при печати — отдельный системный ключ.
+      try {
+        const fsR = await supabase
+          .from("system_settings")
+          .select("value")
+          .eq("key", "приладка форм при печати")
+          .maybeSingle();
+        if (fsR.data?.value) setFormSetupCostPerForm(Number(fsR.data.value) || 0);
+      } catch { /* не критично */ }
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
       setEquipment((e as Equipment[]) || []);
