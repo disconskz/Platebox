@@ -506,7 +506,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const cutQty = Math.ceil(printSheets * finishCutsPerSheet);
   postpress.push({
     stage: "postpress",
-    name: cutLabel,
+    name: `${cutLabel} — ${finishCutsPerSheet} рез/лист × ${printSheets} лист.`,
     quantity: cutQty,
     unit: "рез",
     unitPrice: cutPrice,
