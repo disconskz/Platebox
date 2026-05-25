@@ -2101,6 +2101,14 @@ const Calculator = () => {
                     circulation={circulation}
                     sheets={result && !("error" in result) ? result.printSheets : 0}
                     forms={result && !("error" in result) ? result.forms : 0}
+                    onUserToggle={(opId, nowSelected) => {
+                      setUserRemovedOpIds((prev) => {
+                        const next = new Set(prev);
+                        if (nowSelected) next.delete(opId);
+                        else next.add(opId);
+                        return next;
+                      });
+                    }}
                   />
                   <div className="pt-3 border-t mt-3 space-y-2">
                     <div className="flex items-center gap-2">
