@@ -461,6 +461,8 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   // colorFront + colorBack (для «свой оборот» обычно colorBack > 0).
   const colorsTotal = Math.max(1, (input.colorFront || 0) + (input.colorBack || 0));
   const impressions = printSheets * colorsTotal;
+  const setupImpressions = setupSheets * colorsTotal;
+  const runImpressions = netPrintSheets * colorsTotal;
   const printPerImpr = input.printCostPerImpression ?? (turnaround === "foreign" ? 5 : 3);
   const printCost = impressions * printPerImpr;
   const inkCost = 0;
@@ -658,19 +660,49 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   if (input.photoOutputUnitCost > 0) {
     prepress.push({ stage: "prepress", name: "Фотовывод", quantity: forms, unit: "шт", unitPrice: input.photoOutputUnitCost, total: forms * input.photoOutputUnitCost });
   }
-  prepress.push({ stage: "prepress", name: "Пластины (формы)", quantity: forms, unit: "шт", unitPrice: rule.formCost, total: formsCost });
+  // Вывод печатных форм (пластины) — показываем всегда, даже если цена = 0,
+  // чтобы было видно состав работ. Цена редактируется в справочнике.
+  prepress.push({ stage: "prepress", name: "Вывод печатных форм", quantity: forms, unit: "шт", unitPrice: rule.formCost, total: formsCost });
   prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: forms, unit: "форма", unitPrice: rule.formPrepCost, total: formsPrepCost });
-  if (paperCutCost > 0) {
-    prepress.push({ stage: "prepress", name: "Резка закупочного формата", quantity: cutsPerSheet * purchaseSheets, unit: "рез", unitPrice: rule.cutCostPerSheet, total: paperCutCost });
+  // Резка закупочного → печатный лист. Показываем, если режем (nesting > 1),
+  // даже когда цена реза = 0 — чтобы менеджер видел количество резов.
+  if (cutsPerSheet * purchaseSheets > 0) {
+    prepress.push({
+      stage: "prepress",
+      name: "Резка на печатный формат",
+      quantity: cutsPerSheet * purchaseSheets,
+      unit: "рез",
+      unitPrice: rule.cutCostPerSheet,
+      total: paperCutCost,
+    });
   }
 
   const materials: SpecItem[] = [
     { stage: "material", name: input.material.name, quantity: purchaseSheets, unit: "лист", unitPrice: input.material.cost_per_sheet, total: paperCost },
   ];
 
-  const printItems: SpecItem[] = [
-    { stage: "print", name: `Печать офсетная (${turnaround === "foreign" ? "чужой" : turnaround === "own" ? "свой" : "без оборота"})`, quantity: impressions, unit: "оттиск", unitPrice: printPerImpr, total: printCost },
-  ];
+  // Печать: разделяем приладку и тираж, чтобы менеджер видел стоимость
+  // приладочных оттисков отдельно от рабочего тиража.
+  const turnLabel = turnaround === "foreign" ? "чужой" : turnaround === "own" ? "свой" : "без оборота";
+  const printItems: SpecItem[] = [];
+  if (setupImpressions > 0) {
+    printItems.push({
+      stage: "print",
+      name: `Печать офсетная — приладка (${turnLabel})`,
+      quantity: setupImpressions,
+      unit: "оттиск",
+      unitPrice: printPerImpr,
+      total: setupImpressions * printPerImpr,
+    });
+  }
+  printItems.push({
+    stage: "print",
+    name: `Печать офсетная — тираж (${turnLabel})`,
+    quantity: runImpressions,
+    unit: "оттиск",
+    unitPrice: printPerImpr,
+    total: runImpressions * printPerImpr,
+  });
 
   const spec = [...prepress, ...materials, ...printItems, ...postpress, ...logistics, ...consumables];
   const totalCost = spec.reduce((s, i) => s + i.total, 0);
