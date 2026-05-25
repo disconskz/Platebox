@@ -740,6 +740,38 @@ const Calculator = () => {
     }
   }, [calcInput, advancedMode, selectedEquipment, autoMachine]);
 
+  // Авто-включение «форменных» операций из справочника (Допечать → Формы).
+  // Чтобы пользователю не приходилось вручную ставить галочку «Вывод форм CTP».
+  useEffect(() => {
+    if (!operations.length) return;
+    const forms = baseResult && !("error" in baseResult) ? (baseResult.forms ?? 0) : 0;
+    if (forms <= 0) return;
+    const autoOps = operations.filter((op) => {
+      const cat = (op.category || "").toLowerCase();
+      const sub = (op.subgroup || "").toLowerCase();
+      const name = (op.name || "").toLowerCase();
+      return cat === "prepress" && (sub.includes("форм") || name.includes("вывод форм"));
+    });
+    if (!autoOps.length) return;
+    setExtraOps((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const op of autoOps) {
+        if (userRemovedOpIds.has(op.id)) continue;
+        const cur = next[op.id];
+        if (!cur) {
+          next[op.id] = { qty: forms };
+          changed = true;
+        } else if (cur.qty !== forms) {
+          // обновляем количество только если оно совпадает с прошлым авто-значением форм
+          next[op.id] = { ...cur, qty: forms };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [operations, baseResult, userRemovedOpIds]);
+
   // Доп. строки спецификации из выбранных операций справочника
   const extraSpecItems = useMemo(() => {
     return Object.entries(extraOps)
