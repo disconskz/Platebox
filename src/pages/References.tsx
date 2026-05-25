@@ -636,6 +636,22 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
     if (error) toast.error(error.message); else toast.success("Сохранено");
   };
 
+  // Тихое автосохранение по blur/change — без toast-успеха, только ошибки.
+  const saveQuiet = async (row: AnyRow) => {
+    const { [pk]: id, created_at, ...rest } = row;
+    const { error } = await (supabase as any).from(spec.key).update(rest).eq(pk, id);
+    if (error) toast.error(error.message);
+  };
+
+  // Берём актуальную версию строки из state (после setRows) и сохраняем.
+  const commitRow = (rowId: any) => {
+    setRows((rs) => {
+      const cur = rs.find((r) => r[pk] === rowId);
+      if (cur) void saveQuiet(cur);
+      return rs;
+    });
+  };
+
   const remove = async (row: AnyRow) => {
     const { error } = await (supabase as any).from(spec.key).delete().eq(pk, row[pk]);
     if (error) toast.error(error.message); else { toast.success("Удалено"); load(); }
