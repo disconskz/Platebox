@@ -668,7 +668,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: forms, unit: "форма", unitPrice: rule.formPrepCost, total: formsPrepCost });
   // Резка закупочного → печатный лист. Показываем, если режем (nesting > 1),
   // даже когда цена реза = 0 — чтобы менеджер видел количество резов.
-  if (cutsPerSheet * purchaseSheets > 0) {
+  if (cutsPerSheet * purchaseSheets > 0 && rule.cutCostPerSheet > 0) {
     prepress.push({
       stage: "prepress",
       name: "Резка на печатный формат",
