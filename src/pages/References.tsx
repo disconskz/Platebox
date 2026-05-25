@@ -636,6 +636,22 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
     if (error) toast.error(error.message); else toast.success("Сохранено");
   };
 
+  // Тихое автосохранение по blur/change — без toast-успеха, только ошибки.
+  const saveQuiet = async (row: AnyRow) => {
+    const { [pk]: id, created_at, ...rest } = row;
+    const { error } = await (supabase as any).from(spec.key).update(rest).eq(pk, id);
+    if (error) toast.error(error.message);
+  };
+
+  // Берём актуальную версию строки из state (после setRows) и сохраняем.
+  const commitRow = (rowId: any) => {
+    setRows((rs) => {
+      const cur = rs.find((r) => r[pk] === rowId);
+      if (cur) void saveQuiet(cur);
+      return rs;
+    });
+  };
+
   const remove = async (row: AnyRow) => {
     const { error } = await (supabase as any).from(spec.key).delete().eq(pk, row[pk]);
     if (error) toast.error(error.message); else { toast.success("Удалено"); load(); }
@@ -748,11 +764,11 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
     else { toast.success("Добавлено"); setDraft({ ...spec.defaults }); setPage(1); load(); }
   };
 
-  const renderField = (col: any, value: any, onChange: (v: any) => void) => {
+  const renderField = (col: any, value: any, onChange: (v: any) => void, onCommit?: () => void) => {
     if (col.t === "ref") {
       const options = (dynOpts[col.refKey as keyof DynamicOptions] as { value: string; label: string }[]) || [];
       return (
-        <Select value={value ?? ""} onValueChange={(v) => onChange(v || null)}>
+        <Select value={value ?? ""} onValueChange={(v) => { onChange(v || null); onCommit?.(); }}>
           <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
           <SelectContent>
             {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -765,6 +781,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
       const toggle = (opt: string) => {
         const next = arr.includes(opt) ? arr.filter((x) => x !== opt) : [...arr, opt];
         onChange(next.length ? next : null);
+        onCommit?.();
       };
       return (
         <div className="flex flex-wrap gap-1 max-w-[260px]">
@@ -784,7 +801,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
     if (col.t === "select") {
       const isBool = col.opts.length === 2 && col.opts[0] === "true" && col.opts[1] === "false";
       return (
-        <Select value={String(value ?? "")} onValueChange={(v) => onChange(isBool ? v === "true" : v)}>
+        <Select value={String(value ?? "")} onValueChange={(v) => { onChange(isBool ? v === "true" : v); onCommit?.(); }}>
           <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
           <SelectContent>{col.opts.map((o: string) => <SelectItem key={o} value={o}>{optLabel(o)}</SelectItem>)}</SelectContent>
         </Select>
@@ -796,6 +813,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
         className="h-8"
         value={value ?? ""}
         onChange={(e) => onChange(col.t === "number" ? Number(e.target.value) : e.target.value)}
+        onBlur={() => onCommit?.()}
       />
     );
   };
@@ -1047,7 +1065,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
                         />
                       </td>
                       {spec.cols.map((c: any) => (
-                        <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
+                        <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v), () => commitRow(row[pk]))}</td>
                       ))}
                       <td className="p-1.5 text-right">
                         <div className="flex gap-1 justify-end">
