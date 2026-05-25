@@ -314,7 +314,22 @@ export function runMultiSkuCalculation(input: MultiSkuInput, rulesOverride?: Cal
 
   const minImpositions = Math.ceil(input.skus.length / slotsPerSheet);
 
-  const ctx = { skus: input.skus, layout, pair, purchaseNesting, rule, input, turnaround, formsPerImposition, printPerImpr };
+  // Раскладка закупочного → печатного: берём ту ориентацию, где помещается больше листов.
+  const layoutCR = (() => {
+    let best = { cols: 1, rows: 1, n: 0 };
+    for (const rotated of [false, true]) {
+      const w = rotated ? pair.print.height : pair.print.width;
+      const h = rotated ? pair.print.width : pair.print.height;
+      const cols = Math.floor(pair.purchase.width / w);
+      const rows = Math.floor(pair.purchase.height / h);
+      const n = cols * rows;
+      if (n > best.n) best = { cols, rows, n };
+    }
+    return best;
+  })();
+  const purchaseCols = Math.max(1, layoutCR.cols);
+  const purchaseRows = Math.max(1, layoutCR.rows);
+  const ctx = { skus: input.skus, layout, pair, purchaseNesting, purchaseCols, purchaseRows, rule, input, turnaround, formsPerImposition, printPerImpr };
 
   const variants: MultiSkuVariant[] = [];
   // Вариант A: минимум спусков (с возможной пустотой)
