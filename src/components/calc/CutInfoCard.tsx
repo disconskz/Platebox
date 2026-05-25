@@ -24,6 +24,9 @@ export interface CutInfo {
   productWithBleedH: number;
   printW: number;
   printH: number;
+  margins?: { left: number; right: number; top: number; bottom: number };
+  usableW?: number;
+  usableH?: number;
 }
 
 const SOURCE_LABEL: Record<CutInfo["source"], string> = {
@@ -77,6 +80,12 @@ export function CutInfoCard({ info, override, onOverride }: CutInfoCardProps) {
 
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
           <Row k="Печатный лист" v={`${info.printW}×${info.printH} мм${info.printName ? ` (${info.printName})` : ""}`} />
+          {info.usableW != null && info.usableH != null && info.margins && (
+            <Row
+              k={`Полезная область (поля ${info.margins.top}/${info.margins.bottom}/${info.margins.left}/${info.margins.right})`}
+              v={`${info.usableW}×${info.usableH} мм`}
+            />
+          )}
           <Row k="Готовое изделие" v={`${info.productW}×${info.productH} мм${info.itemName ? ` (${info.itemName})` : ""}`} />
           <Row k={`С bleed (+${info.bleed} мм)`} v={`${info.productWithBleedW}×${info.productWithBleedH} мм`} />
           <Row k="Раскладка" v={`${info.cols} × ${info.rows}`} />
