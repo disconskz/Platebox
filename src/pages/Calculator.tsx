@@ -161,6 +161,8 @@ const Calculator = () => {
   const [catalogOpsItems, setCatalogOpsItems] = useState<SpecItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [vatPercent, setVatPercent] = useState(0);
+  // Стоимость приладки за форму при печати (из справочника «Константы»).
+  const [formSetupCostPerForm, setFormSetupCostPerForm] = useState(0);
 
   // Step 1
   const [productType, setProductType] = useState<ProductType>("leaflet");
@@ -335,6 +337,15 @@ const Calculator = () => {
       handleSupabaseError(rulesR.error, "правила тиражей");
       handleSupabaseError(opsR.error, "операции");
       if (s?.value) setVatPercent(Number(s.value) || 0);
+      // Цена приладки за форму при печати — отдельный системный ключ.
+      try {
+        const fsR = await supabase
+          .from("system_settings")
+          .select("value")
+          .eq("key", "приладка форм при печати")
+          .maybeSingle();
+        if (fsR.data?.value) setFormSetupCostPerForm(Number(fsR.data.value) || 0);
+      } catch { /* не критично */ }
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
       setEquipment((e as Equipment[]) || []);
@@ -869,7 +880,19 @@ const Calculator = () => {
 
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
-    const allExtras = [...extraSpecItems, ...catalogOpsItems];
+    const forms = baseResult.forms ?? 0;
+    const formSetupItems: SpecItem[] =
+      formSetupCostPerForm > 0 && forms > 0
+        ? [{
+            stage: "print",
+            name: "Приладка форм при печати",
+            quantity: forms,
+            unit: "форма",
+            unitPrice: formSetupCostPerForm,
+            total: forms * formSetupCostPerForm,
+          }]
+        : [];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1062,7 +1085,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
