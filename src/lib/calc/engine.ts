@@ -574,8 +574,32 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   if (input.hasLamPrepress) {
     const sides = input.lamPrepressSides ?? 1;
-    postpress.push({ stage: "postpress", name: "Припрессовка плёнки (приладка)", quantity: sides, unit: "сторона", unitPrice: 1000, total: 1000 * sides });
-    postpress.push({ stage: "postpress", name: "Припрессовка плёнки", quantity: input.circulation * sides, unit: "лист", unitPrice: 8, total: input.circulation * sides * 8 });
+    // Стоимость припрессовки плёнкой:
+    //   (Ширина листа × Высота листа / 1 000 000) × Цена плёнки за м² ×
+    //   × Количество печатных листов × Количество сторон + Приладка
+    const printW = layout.printFormat.width;
+    const printH = layout.printFormat.height;
+    const areaM2 = (printW * printH) / 1_000_000;
+    const pricePerM2 = (input as any).lamPrepressPerM2 ?? (rule as any).lamPrepressPerM2 ?? 200;
+    const setup = (rule as any).operationSetupCost ?? 1500;
+    const sheets = printSheets;
+    const filmTotal = areaM2 * pricePerM2 * sheets * sides;
+    postpress.push({
+      stage: "postpress",
+      name: "Припрессовка плёнкой (приладка)",
+      quantity: 1,
+      unit: "шт",
+      unitPrice: setup,
+      total: setup,
+    });
+    postpress.push({
+      stage: "postpress",
+      name: `Припрессовка плёнкой (${printW}×${printH}, ${sides} ст.)`,
+      quantity: Math.round(areaM2 * sheets * sides * 1000) / 1000,
+      unit: "м²",
+      unitPrice: pricePerM2,
+      total: filmTotal,
+    });
   }
 
   if (input.hasLamination && input.laminationFilm) {
