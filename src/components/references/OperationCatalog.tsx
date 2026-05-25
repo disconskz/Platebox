@@ -458,7 +458,6 @@ export default function OperationCatalog() {
         onSave={async (v) => {
           if (!editor) return;
           await editor.onSave(v);
-          setEditor(null);
         }}
       />
     </div>
