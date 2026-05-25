@@ -864,20 +864,73 @@ const Calculator = () => {
         });
         const overrideKeys = Object.keys(variableOverrides).filter((k) => refs.vars.has(k));
         variantApplied = { name: activeVariantFull.name, total: run.total, stages: run.stages };
-        // Себестоимость = формула + допоперации (которые не учитываются формулой)
-        totalCost = run.total + extrasTotal;
-        // Заменяем основную спецификацию строками формулы, чтобы пользователь видел единый расчёт
+        // Smart-merge: формула ДОПОЛНЯЕТ авто-расчёт. Если этап формулы покрывает
+        // какой-то блок (например, «Резка» / «Печать» / «Бумага») — удаляем
+        // соответствующие строки из базовой спецификации, чтобы не было дубля.
+        const COVERAGE: Array<{ rx: RegExp; tag: string }> = [
+          { rx: /резк/i,                tag: "cut" },
+          { rx: /печат/i,                tag: "print" },
+          { rx: /бумаг/i,                tag: "paper" },
+          { rx: /(упаков|логист)/i,      tag: "packing" },
+          { rx: /(форм(ы|а)?|пластин)/i, tag: "forms" },
+          { rx: /приладк/i,              tag: "prep" },
+          { rx: /краск/i,                tag: "ink" },
+          { rx: /ламин/i,                tag: "lam" },
+          { rx: /тисн/i,                 tag: "stamp" },
+          { rx: /конгрев/i,              tag: "emboss" },
+          { rx: /(вырубк|биговк|нумерац|фальцовк)/i, tag: "postpress_other" },
+        ];
+        const stageTags = (name: string): Set<string> => {
+          const t = new Set<string>();
+          for (const c of COVERAGE) if (c.rx.test(name)) t.add(c.tag);
+          return t;
+        };
+        const covered = new Set<string>();
+        run.stages.forEach((st: any) => {
+          if (st.source === "system" && st.systemKey) {
+            // системные ключи → теги
+            const map: Record<string, string> = {
+              paper_cost: "paper",
+              paper_cut_cost: "cut",
+              print_cost: "print",
+              forms_cost: "forms",
+              forms_prep_cost: "prep",
+              ink_cost: "ink",
+              postpress_total: "postpress_other",
+              cuts_total: "cut",
+              prepress_total: "prep",
+            };
+            const t = map[st.systemKey];
+            if (t) covered.add(t);
+          } else {
+            stageTags(st.name || "").forEach((t) => covered.add(t));
+          }
+        });
+        // Фильтруем базовую спецификацию: убираем то, что покрыто формулой
+        const filteredBase = baseResult.spec.filter((it: any) => {
+          const tags = stageTags(it.name || "");
+          for (const t of tags) if (covered.has(t)) return false;
+          return true;
+        });
+        const removedTotal = baseResult.spec
+          .filter((it: any) => !filteredBase.includes(it))
+          .reduce((s: number, it: any) => s + (it.total || 0), 0);
+        // Себестоимость = базовая − убранное + формула + допоперации
+        totalCost = (baseResult.totalCost - removedTotal) + run.total + extrasTotal;
+        // Этапы формулы — отдельные строки, дописываются к отфильтрованной спецификации
         const formulaSpec = run.stages.map((st: any) => ({
           stage: (st.source === "material" ? "material" : st.source === "system" ? "print" : "postpress") as any,
           name: st.source === "material" && st.materialName
             ? `${st.name} · ${st.materialName}`
-            : st.name,
+            : `${st.name} (формула)`,
           quantity: st.source === "material" ? (st.qty ?? 1) : 1,
           unit: st.unit || (st.source === "material" ? "лист" : "₸"),
           unitPrice: st.source === "material" ? (st.unitPrice ?? 0) : st.value,
           total: st.value,
         }));
-        spec = allExtras.length ? [...formulaSpec, ...allExtras] : formulaSpec;
+        spec = allExtras.length
+          ? [...filteredBase, ...formulaSpec, ...allExtras]
+          : [...filteredBase, ...formulaSpec];
 
         if (unknownVars.length) {
           variantWarning = `Формула «${activeVariantFull.name}» использует неизвестные переменные: ${unknownVars.join(", ")}. Откройте формулу и исправьте.`;
