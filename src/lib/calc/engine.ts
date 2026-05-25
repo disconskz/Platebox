@@ -660,9 +660,11 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   if (input.photoOutputUnitCost > 0) {
     prepress.push({ stage: "prepress", name: "Фотовывод", quantity: forms, unit: "шт", unitPrice: input.photoOutputUnitCost, total: forms * input.photoOutputUnitCost });
   }
-  // Вывод печатных форм (пластины) — показываем всегда, даже если цена = 0,
-  // чтобы было видно состав работ. Цена редактируется в справочнике.
-  prepress.push({ stage: "prepress", name: "Вывод печатных форм", quantity: forms, unit: "шт", unitPrice: rule.formCost, total: formsCost });
+  // Вывод печатных форм (пластины). Если цена в правилах = 0, строку не добавляем —
+  // её заменит позиция «Вывод форм CTP» из справочника операций (auto-включается в UI).
+  if (rule.formCost > 0) {
+    prepress.push({ stage: "prepress", name: "Вывод печатных форм", quantity: forms, unit: "шт", unitPrice: rule.formCost, total: formsCost });
+  }
   prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: forms, unit: "форма", unitPrice: rule.formPrepCost, total: formsPrepCost });
   // Резка закупочного → печатный лист. Показываем, если режем (nesting > 1),
   // даже когда цена реза = 0 — чтобы менеджер видел количество резов.
