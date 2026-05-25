@@ -1,111 +1,76 @@
-## Цель
+## Жалобы и причины
 
-Сделать так, чтобы вариант просчёта из справочника полностью описывал расчёт: каждый этап сам решает, откуда брать стоимость — из формулы, из системного движка, или из материала. Этапы формулы становятся обычными строками спецификации.
+**Жалоба 1. «Резка на готовый формат считается неверно / резка на печатный формат исчезла».**
+В Calculator.tsx (smart-merge формулы поверх авто-расчёта) regex `/резк/i` сворачивает обе строки базовой спецификации в один тег `cut`:
+- «Резка закупочного формата» (закуп → печатный лист, prepress);
+- «Резка {print}→{item}» (печатный → конечный, cut).
 
-## 1. Источник стоимости на уровне этапа
+Если в активной формуле есть один этап «резка на готовый формат», он удаляет ОБЕ строки. Сейчас в формуле листовки оставлен ровно такой этап, поэтому «резка на печатный формат» исчезла, а итог «резки на готовый» стал в 5–8× больше ожидаемого: формула считает `кол_резов × печ_листов × @cut_cost`, где `кол_резов` — это резы только на лист (без × тиража), а юзер ожидал «только конечная резка».
 
-Расширяем `VariantStage`:
+**Жалоба 2. «Должен быть порядок: дизайн-подготовка → печать → постпечать → доставка».**
+В PriceBreakdownTree `STAGE_ORDER = [material, prepress, print, postpress, logistics]` — это корректно. Но этапы формулы маппятся в `postpress`/`print`/`material` без учёта природы этапа («резка», «формы», «приладка» уходят в postpress, хотя должны быть в prepress / cut). Из-за этого «резка» болтается в постпечати, а печать пустеет — выглядит так, будто порядок сломан.
 
+**Жалоба 3. «Формула не сохраняется в realtime».**
+В `src/components/references/FormulaBuilder.tsx` сохранение происходит только по кнопке «Сохранить» внизу диалога. Если пользователь закрывает диалог крестиком или кликом вне — изменения теряются.
+
+**Вопрос «мне тут создавать формулу?» (operation_catalog #102).**
+Это другой справочник: `operation_catalog` нужен только для ручных доп-операций из «Выбрать из справочника». Для авто-резки печатного листа на готовое изделие формулу здесь заводить НЕ нужно — она уже считается движком (`cut_count_rules` + константа). Формула нужна, только если хотите перебить движок «Вариантом просчёта».
+
+## Что меняем
+
+### 1. Разделить тег «cut» на два под-тега (Calculator.tsx)
+
+Заменить в `COVERAGE`:
 ```ts
-source: "formula" | "system" | "material"  // default "formula"
-system_key?: string | null                  // для source = "system"
+{ rx: /резк[аи]?\s+(на\s+)?(печат|закуп|на\s+печатный)/i, tag: "cut_to_print" },
+{ rx: /резк[аи]?\s+(на\s+)?(готов|конеч|издели)/i,         tag: "cut_to_final" },
+{ rx: /резк/i,                                              tag: "cut_any" }, // фолбэк
 ```
 
-`system_key` — один из:
-`paper_cost | paper_cut_cost | print_cost | forms_cost | forms_prep_cost | ink_cost | postpress_total | cuts_total | setup_cost`
+Логика покрытия:
+- `cut_to_print` → удаляет только строку «Резка закупочного формата».
+- `cut_to_final` → удаляет только строку «Резка {print}→{item}».
+- `cut_any` (общий) → если этап назван просто «Резка», удаляет ОБЕ (как сейчас).
 
-Миграция: в `calc_variant_stages` добавить `source text not null default 'formula'` и `system_key text`.
+Маппинг системных ключей:
+- `paper_cut_cost` → `cut_to_print`;
+- `cuts_total`    → `cut_to_final`.
 
-В UI редактора этапа (`References` → редактор варианта) — селектор «Источник»:
-- «Формула» — текущее поведение, поле формулы активно.
-- «Системный расчёт» — выпадающий список `system_key`, формула скрывается.
-- «Материал» — селект `material_id` + формула количества (используем уже существующее `material_formula`).
+Базовая спецификация фильтруется по конкретному тегу: убираем «Резка закупочного…» только если covered содержит `cut_to_print` или `cut_any`; «Резка {print}→{item}» — только если `cut_to_final` или `cut_any`.
 
-## 2. Движок: расчёт этапа
+### 2. Маппинг этапов формулы в правильный stage (Calculator.tsx)
 
-В `src/lib/calc/variants/engine.ts` расширяем `EvalContext`:
+Сейчас все этапы формулы (кроме `material`/`system`) уходят в `postpress`. Добавить таблицу по тегам:
+- `cut_to_print`, `paper`, `forms`, `prep`, `ink`, `cut_any` → `prepress`;
+- `print` → `print`;
+- `cut_to_final` → `postpress` или новый stage `cut` (но проще `postpress`, как сейчас в base spec);
+- `lam`, `stamp`, `emboss`, `postpress_other` → `postpress`;
+- `packing` → `logistics`.
 
-```ts
-type EvalContext = {
-  vars: Record<string, number>;
-  consts: Record<string, number>;
-  systemValues?: Record<string, number>;   // ключи = system_key
-  materials?: Record<string, number>;      // material_id → cost_per_sheet
-};
-```
+Тогда в PriceBreakdownTree этапы формулы лягут в свои группы и общий порядок прочно станет: материал → допечатные → печать → постпечать → логистика.
 
-`runVariant` для каждого этапа:
+### 3. Autosave в FormulaBuilder диалоге
 
-```text
-switch (stage.source) {
-  case "system":   value = systemValues[stage.system_key] ?? 0
-  case "material": qty = evalFormula(stage.material_formula); 
-                   value = qty * (materials[stage.material_id] ?? 0)
-  default:         value = evalFormula(stage.formula)
-}
-```
+В `src/components/references/FormulaBuilder.tsx`:
+- Добавить debounced (400 мс) эффект: при изменении `tokens` или `rawText`, если `validation.ok`, вызывать `onSave(tokensToString(tokens))` без закрытия диалога.
+- Над футером дописать тонкий статус: «Сохранено N секунд назад» / «Несохранённые правки…».
+- Кнопку «Сохранить» оставить как явный коммит + закрытие (но сделать дизейбленной, когда нет необорванных правок).
 
-Сохраняем источник и детали (qty, unit_price) в `VariantStageResult` для отображения.
+### 4. Сделать «Резка на готовое изделие» #102 необязательной (только UX-подсказка)
 
-## 3. Calculator: подача данных и встраивание этапов в спецификацию
+В `OperationCatalog.tsx` в шапке выбранной операции при пустом списке work_items для категории `print`/`postpress`, у которых уже считает движок (`резка на готовое изделие`, `резка на печатный`, `печать офсет` и т.п.), показать жёлтую подсказку:
+> «Эта операция уже считается автоматически по справочникам «Резы» / «Печатные машины». Формула здесь нужна только если хотите перебить авто-расчёт через ‘Вариант просчёта’.»
 
-`src/pages/Calculator.tsx`:
+Без изменения данных — только надпись.
 
-- Собираем `systemValues` из `baseResult`:
-  ```
-  paper_cost, paper_cut_cost, print_cost, forms_cost, forms_prep_cost,
-  ink_cost, postpress_total = sum(postpress), cuts_total = cutInfo.total,
-  setup_cost = baseResult.setupCost ?? 0
-  ```
-- Грузим словарь `materials: Record<id, cost_per_sheet>` (один запрос, кэшируем по id используемых в активном варианте).
-- Расширяем `autoVars`:
-  ```
-  кол_резов     ← cutInfo.cutsPerSheet × printSheets (или cutInfo.total/pricePerCut)
-  кол_блоков    ← circulation (для блочных типов — позже уточнить)
-  бумага_цена   ← effectiveMaterial.cost_per_sheet
-  приладка_тираж ← circulation + setupSheets×itemsPerSheet
-  лист_площадь  ← printFormat area, м²
-  изделий_на_листе ← layout.itemsPerSheet
-  ```
-- Передаём `systemValues` и `materials` в `runVariantFormula`.
+## Технические детали
 
-**Встраивание в спецификацию** (вместо `variantApplied` рядом):
-
-```text
-if (variantApplied) {
-  spec = run.stages.map(toSpecRow)   // имя этапа, единица, qty, unit_price, total
-  totalCost = run.total + extrasTotal
-}
-```
-
-Системный `baseResult.spec` скрываем, когда вариант активен (как и сейчас при override), но строки выглядят единообразно: «Бумага (формула)», «Печать (системно)», «Тиснение (материал × 4,5)». Поле `source` рендерим как маленький тэг.
-
-`PriceBreakdownTree` и таблица спецификации получают новый необязательный `source` для подписи.
-
-## 4. Дополнительно
-
-- В `FormulaWizard` показываем рядом с каждой переменной её фактическое значение из `autoVars` + источник (system_key/материал) для прозрачности.
-- Тесты: добавить в `src/lib/calc/variants/engine.test.ts` кейсы для `source: system` и `source: material`.
-- Миграция `calc_variant_stages`: новые колонки + дефолты, существующие строки получают `source='formula'` — поведение не меняется.
-
-## Файлы
-
-- Миграция: добавить `source`, `system_key` в `calc_variant_stages`.
-- `src/lib/calc/variants/types.ts` — расширить `VariantStage`, добавить enum.
-- `src/lib/calc/variants/engine.ts` — обновить `runVariant`, `VariantStageResult` (поля `source`, `qty`, `unitPrice`).
-- `src/lib/calc/variants/api.ts` — читать/писать новые поля.
-- `src/pages/Calculator.tsx` — `systemValues`, `materials`, расширенный `autoVars`, замена `spec` строками формулы.
-- Редактор варианта в `References` (компонент с этапами) — UI селектора источника + список system_key + селект материала.
-- `src/components/calc/FormulaWizard.tsx` — показ значения и источника.
-- `src/components/calc/PriceBreakdownTree.tsx` (если нужно) — тэг источника.
-- Тесты: `src/lib/calc/variants/engine.test.ts`.
+- Файлы: `src/pages/Calculator.tsx` (логика smart-merge и stage-маппинг), `src/components/calc/PriceBreakdownTree.tsx` (без правок — порядок уже верный), `src/components/references/FormulaBuilder.tsx` (autosave), `src/components/references/OperationCatalog.tsx` (UX-подсказка).
+- В `src/lib/calc/variants/engine.test.ts` добавить кейс: формула с этапом «резка на готовый» НЕ должна вычитать строку «Резка закупочного формата» из base. (Тест на хелпер тег-функцию, вынести её в отдельный модуль для тестируемости.)
+- Все 101 текущие тесты должны остаться зелёными.
 
 ## Что НЕ трогаем
 
-- Текущую логику резки (`cutInfo`) и multi-SKU.
-- Структуру `calc_constants`, `calc_stage_library`.
-- Базовый системный движок `engine.ts` (только читаем результаты).
-
-## Открытый вопрос (буду подбирать сам)
-
-Переменные сверх текущих: добавлю `бумага_цена`, `изделий_на_листе`, `лист_площадь`, `приладка_тираж` — этого достаточно для большинства этапов; при необходимости легко расширить.
+- БД и миграции.
+- Движок engine.ts (порядок резов и логика авто-резки уже корректны).
+- Справочник вариантов просчёта (CalcVariantEditor) — формулы пользователя остаются как есть.
