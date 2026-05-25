@@ -1065,7 +1065,7 @@ const RefTable = ({ spec, dynOpts, authReady }: { spec: any; dynOpts: DynamicOpt
                         />
                       </td>
                       {spec.cols.map((c: any) => (
-                        <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v))}</td>
+                        <td key={c.k} className="p-1.5">{renderField(c, row[c.k], (v) => update(row, c.k, v), () => commitRow(row[pk]))}</td>
                       ))}
                       <td className="p-1.5 text-right">
                         <div className="flex gap-1 justify-end">
