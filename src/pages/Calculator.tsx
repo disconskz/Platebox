@@ -758,13 +758,8 @@ const Calculator = () => {
       const next = { ...prev };
       for (const op of autoOps) {
         if (userRemovedOpIds.has(op.id)) continue;
-        const cur = next[op.id];
-        if (!cur) {
+        if (!next[op.id]) {
           next[op.id] = { qty: forms };
-          changed = true;
-        } else if (cur.qty !== forms) {
-          // обновляем количество только если оно совпадает с прошлым авто-значением форм
-          next[op.id] = { ...cur, qty: forms };
           changed = true;
         }
       }
