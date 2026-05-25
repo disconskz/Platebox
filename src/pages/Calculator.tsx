@@ -867,8 +867,13 @@ const Calculator = () => {
         // Smart-merge: формула ДОПОЛНЯЕТ авто-расчёт. Если этап формулы покрывает
         // какой-то блок (например, «Резка» / «Печать» / «Бумага») — удаляем
         // соответствующие строки из базовой спецификации, чтобы не было дубля.
+        // Покрытие — теги для smart-merge.
+        // Резку специально разделяем на закуп→печатный и печатный→готовый,
+        // иначе одна формула «резка на готовый» съедает обе строки base spec.
         const COVERAGE: Array<{ rx: RegExp; tag: string }> = [
-          { rx: /резк/i,                tag: "cut" },
+          { rx: /резк[аи]?[^.]{0,40}(закуп|на\s+печат|печатн\w*\s+форм)/i, tag: "cut_to_print" },
+          { rx: /резк[аи]?[^.]{0,40}(готов|конеч|издели|на\s+готов)/i,      tag: "cut_to_final" },
+          { rx: /резк/i,                                                    tag: "cut_any" },
           { rx: /печат/i,                tag: "print" },
           { rx: /бумаг/i,                tag: "paper" },
           { rx: /(упаков|логист)/i,      tag: "packing" },
@@ -883,6 +888,9 @@ const Calculator = () => {
         const stageTags = (name: string): Set<string> => {
           const t = new Set<string>();
           for (const c of COVERAGE) if (c.rx.test(name)) t.add(c.tag);
+          // Уточняем: если уже определили конкретный под-тег резки — общий "cut_any"
+          // не нужен (иначе он съест и парную строку base).
+          if ((t.has("cut_to_print") || t.has("cut_to_final")) && t.has("cut_any")) t.delete("cut_any");
           return t;
         };
         const covered = new Set<string>();
@@ -891,13 +899,13 @@ const Calculator = () => {
             // системные ключи → теги
             const map: Record<string, string> = {
               paper_cost: "paper",
-              paper_cut_cost: "cut",
+              paper_cut_cost: "cut_to_print",
               print_cost: "print",
               forms_cost: "forms",
               forms_prep_cost: "prep",
               ink_cost: "ink",
               postpress_total: "postpress_other",
-              cuts_total: "cut",
+              cuts_total: "cut_to_final",
               prepress_total: "prep",
             };
             const t = map[st.systemKey];
@@ -906,10 +914,17 @@ const Calculator = () => {
             stageTags(st.name || "").forEach((t) => covered.add(t));
           }
         });
+        // Сопоставление тег base-строки → какие covered-теги должны её удалить.
+        const removalMatch = (baseTag: string): boolean => {
+          if (baseTag === "cut_to_print") return covered.has("cut_to_print") || covered.has("cut_any");
+          if (baseTag === "cut_to_final") return covered.has("cut_to_final") || covered.has("cut_any");
+          if (baseTag === "cut_any")      return covered.has("cut_to_print") || covered.has("cut_to_final") || covered.has("cut_any");
+          return covered.has(baseTag);
+        };
         // Фильтруем базовую спецификацию: убираем то, что покрыто формулой
         const filteredBase = baseResult.spec.filter((it: any) => {
           const tags = stageTags(it.name || "");
-          for (const t of tags) if (covered.has(t)) return false;
+          for (const t of tags) if (removalMatch(t)) return false;
           return true;
         });
         const removedTotal = baseResult.spec
@@ -917,9 +932,45 @@ const Calculator = () => {
           .reduce((s: number, it: any) => s + (it.total || 0), 0);
         // Себестоимость = базовая − убранное + формула + допоперации
         totalCost = (baseResult.totalCost - removedTotal) + run.total + extrasTotal;
+        // Маппинг тегов этапа в группу спецификации (для PriceBreakdownTree).
+        const TAG_TO_STAGE: Record<string, string> = {
+          paper: "material",
+          cut_to_print: "prepress",
+          forms: "prepress",
+          prep: "prepress",
+          ink: "prepress",
+          print: "print",
+          cut_to_final: "postpress",
+          cut_any: "postpress",
+          lam: "postpress",
+          stamp: "postpress",
+          emboss: "postpress",
+          postpress_other: "postpress",
+          packing: "logistics",
+        };
+        const stageForFormulaItem = (st: any): string => {
+          if (st.source === "material") return "material";
+          if (st.source === "system" && st.systemKey) {
+            const sysMap: Record<string, string> = {
+              paper_cost: "material",
+              paper_cut_cost: "prepress",
+              print_cost: "print",
+              forms_cost: "prepress",
+              forms_prep_cost: "prepress",
+              ink_cost: "prepress",
+              postpress_total: "postpress",
+              cuts_total: "postpress",
+              prepress_total: "prepress",
+            };
+            return sysMap[st.systemKey] || "postpress";
+          }
+          const tags = stageTags(st.name || "");
+          for (const t of tags) if (TAG_TO_STAGE[t]) return TAG_TO_STAGE[t];
+          return "postpress";
+        };
         // Этапы формулы — отдельные строки, дописываются к отфильтрованной спецификации
         const formulaSpec = run.stages.map((st: any) => ({
-          stage: (st.source === "material" ? "material" : st.source === "system" ? "print" : "postpress") as any,
+          stage: stageForFormulaItem(st) as any,
           name: st.source === "material" && st.materialName
             ? `${st.name} · ${st.materialName}`
             : `${st.name} (формула)`,

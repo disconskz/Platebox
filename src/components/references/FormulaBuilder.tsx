@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,10 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
   const [rawText, setRawText] = useState("");
   const [numInput, setNumInput] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const lastSavedRef = useRef<string>("");
+  const skipNextAutosaveRef = useRef<boolean>(true);
 
   useEffect(() => {
     if (!open) return;
@@ -52,6 +56,10 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
       setTokens(parsed);
     }
     setNumInput("");
+    lastSavedRef.current = (initialValue || "").trim();
+    skipNextAutosaveRef.current = true;
+    setDirty(false);
+    setSavedAt(null);
   }, [open, initialValue, constants]);
 
   const allVars = useMemo(() => {
@@ -63,6 +71,37 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
 
   const validation = validateTokens(tokens);
   const preview = previewValue(tokens, variables);
+
+  // Debounced autosave — пишем в реальном времени, без закрытия диалога.
+  useEffect(() => {
+    if (!open) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+    const current = rawMode ? rawText.trim() : (validation.ok ? tokensToString(tokens) : null);
+    if (current === null) {
+      setDirty(true);
+      return;
+    }
+    if (current === lastSavedRef.current) {
+      setDirty(false);
+      return;
+    }
+    setDirty(true);
+    const handle = setTimeout(() => {
+      try {
+        onSave(current);
+        lastSavedRef.current = current;
+        setSavedAt(Date.now());
+        setDirty(false);
+      } catch {
+        /* ignore — кнопка «Сохранить» остаётся доступной */
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens, rawText, rawMode, validation.ok, open]);
 
   const append = (t: Token) => setTokens((s) => [...s, t]);
   const removeAt = (i: number) => setTokens((s) => s.filter((_, idx) => idx !== i));
@@ -86,11 +125,21 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
 
   const handleSave = () => {
     if (rawMode) {
-      onSave(rawText.trim());
+      const v = rawText.trim();
+      onSave(v);
+      lastSavedRef.current = v;
+      setSavedAt(Date.now());
+      setDirty(false);
+      onClose();
       return;
     }
     if (!validation.ok) return;
-    onSave(tokensToString(tokens));
+    const v = tokensToString(tokens);
+    onSave(v);
+    lastSavedRef.current = v;
+    setSavedAt(Date.now());
+    setDirty(false);
+    onClose();
   };
 
   return (
@@ -253,8 +302,15 @@ export function FormulaBuilder({ open, title, initialValue, variables, constants
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Отмена</Button>
-          <Button onClick={handleSave} disabled={!rawMode && !validation.ok}>Сохранить</Button>
+          <div className="mr-auto text-[11px] text-muted-foreground">
+            {dirty
+              ? <span className="text-amber-600">Несохранённые правки…</span>
+              : savedAt
+                ? <span className="text-emerald-600">Автосохранено</span>
+                : <span>Сохраняется автоматически</span>}
+          </div>
+          <Button variant="outline" onClick={onClose}>Закрыть</Button>
+          <Button onClick={handleSave} disabled={!rawMode && !validation.ok}>Сохранить и закрыть</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
