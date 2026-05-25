@@ -529,6 +529,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     productWithBleedH: input.formatHeight + bleed * 2,
     printW: layout.printFormat.width,
     printH: layout.printFormat.height,
+    margins: layout.margins,
+    usableW: Math.max(0, layout.printFormat.width - layout.margins.left - layout.margins.right),
+    usableH: Math.max(0, layout.printFormat.height - layout.margins.top - layout.margins.bottom),
   };
 
   if (isBooklet && input.hasFold) {
