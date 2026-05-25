@@ -247,7 +247,7 @@ export function rankPairs(
     if (!variants.length) continue;
     const nesting = Math.max(
       1,
-      nestingPurchaseToPrint(p.purchase.width, p.purchase.height, p.print.width, p.print.height)
+      nestingPurchaseToPrint(p.purchase.width, p.purchase.height, p.print.width, p.print.height).nesting
     );
     for (const l of variants) {
       out.push({ layout: l, pair: p, itemsPerPurchase: l.itemsPerSheet * nesting, nesting });
