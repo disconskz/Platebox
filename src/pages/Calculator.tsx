@@ -155,6 +155,8 @@ const Calculator = () => {
   const [operations, setOperations] = useState<OperationRow[]>([]);
   // выбранные операции из справочника: id -> { qty, price }
   const [extraOps, setExtraOps] = useState<Record<string, ExtraOpState>>({});
+  // id операций, которые пользователь снял вручную — авто-включение их не вернёт
+  const [userRemovedOpIds, setUserRemovedOpIds] = useState<Set<string>>(new Set());
   // строки спецификации из справочника операций (operation_catalog + work_items)
   const [catalogOpsItems, setCatalogOpsItems] = useState<SpecItem[]>([]);
   const [saving, setSaving] = useState(false);
@@ -737,6 +739,33 @@ const Calculator = () => {
       return { error: e.message } as any;
     }
   }, [calcInput, advancedMode, selectedEquipment, autoMachine]);
+
+  // Авто-включение «форменных» операций из справочника (Допечать → Формы).
+  // Чтобы пользователю не приходилось вручную ставить галочку «Вывод форм CTP».
+  useEffect(() => {
+    if (!operations.length) return;
+    const forms = baseResult && !("error" in baseResult) ? (baseResult.forms ?? 0) : 0;
+    if (forms <= 0) return;
+    const autoOps = operations.filter((op) => {
+      const cat = (op.category || "").toLowerCase();
+      const sub = (op.subgroup || "").toLowerCase();
+      const name = (op.name || "").toLowerCase();
+      return cat === "prepress" && (sub.includes("форм") || name.includes("вывод форм"));
+    });
+    if (!autoOps.length) return;
+    setExtraOps((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const op of autoOps) {
+        if (userRemovedOpIds.has(op.id)) continue;
+        if (!next[op.id]) {
+          next[op.id] = { qty: forms };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [operations, baseResult, userRemovedOpIds]);
 
   // Доп. строки спецификации из выбранных операций справочника
   const extraSpecItems = useMemo(() => {
@@ -2072,6 +2101,14 @@ const Calculator = () => {
                     circulation={circulation}
                     sheets={result && !("error" in result) ? result.printSheets : 0}
                     forms={result && !("error" in result) ? result.forms : 0}
+                    onUserToggle={(opId, nowSelected) => {
+                      setUserRemovedOpIds((prev) => {
+                        const next = new Set(prev);
+                        if (nowSelected) next.delete(opId);
+                        else next.add(opId);
+                        return next;
+                      });
+                    }}
                   />
                   <div className="pt-3 border-t mt-3 space-y-2">
                     <div className="flex items-center gap-2">
@@ -2322,6 +2359,7 @@ const ExtraOpsPicker = ({
   circulation,
   sheets,
   forms,
+  onUserToggle,
 }: {
   operations: OperationRow[];
   extraOps: Record<string, ExtraOpState>;
@@ -2329,6 +2367,7 @@ const ExtraOpsPicker = ({
   circulation: number;
   sheets: number;
   forms: number;
+  onUserToggle?: (opId: string, nowSelected: boolean) => void;
 }) => {
   // Группируем по категории → подгруппе
   const tree = useMemo(() => {
@@ -2351,12 +2390,14 @@ const ExtraOpsPicker = ({
 
   const toggle = (op: OperationRow) => {
     const next = { ...extraOps };
+    const nowSelected = !next[op.id];
     if (next[op.id]) {
       delete next[op.id];
     } else {
       next[op.id] = { qty: defaultQty(op.unit) };
     }
     setExtraOps(next);
+    onUserToggle?.(op.id, nowSelected);
   };
 
   const update = (id: string, patch: Partial<ExtraOpState>) => {
