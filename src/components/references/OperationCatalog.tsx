@@ -284,6 +284,14 @@ export default function OperationCatalog() {
                   <div className="mt-2 text-base font-semibold">{active.name}</div>
                 </div>
 
+                {/^(резка|печат)/i.test(active.name) && (counts[active.code]?.w || 0) === 0 && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-xs text-amber-800 dark:bg-amber-950/20 dark:text-amber-200 dark:border-amber-900">
+                    <b>Формулу здесь заводить не обязательно.</b> Эта операция уже считается автоматически по справочникам
+                    «Резы (печатный → конечный)» и «Печатные машины». Создавайте формулу только если хотите перебить
+                    авто-расчёт через раздел «Виды работ (формулы)» → «Варианты просчёта».
+                  </div>
+                )}
+
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="text-xs uppercase tracking-wider text-muted-foreground">Параметры</div>
