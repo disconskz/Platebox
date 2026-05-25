@@ -880,7 +880,19 @@ const Calculator = () => {
 
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
-    const allExtras = [...extraSpecItems, ...catalogOpsItems];
+    const forms = baseResult.forms ?? 0;
+    const formSetupItems: SpecItem[] =
+      formSetupCostPerForm > 0 && forms > 0
+        ? [{
+            stage: "print",
+            name: "Приладка форм при печати",
+            quantity: forms,
+            unit: "форма",
+            unitPrice: formSetupCostPerForm,
+            total: forms * formSetupCostPerForm,
+          }]
+        : [];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
