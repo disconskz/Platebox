@@ -161,6 +161,8 @@ const Calculator = () => {
   const [catalogOpsItems, setCatalogOpsItems] = useState<SpecItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [vatPercent, setVatPercent] = useState(0);
+  // Стоимость приладки за форму при печати (из справочника «Константы»).
+  const [formSetupCostPerForm, setFormSetupCostPerForm] = useState(0);
 
   // Step 1
   const [productType, setProductType] = useState<ProductType>("leaflet");
