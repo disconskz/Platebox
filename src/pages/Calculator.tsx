@@ -745,13 +745,28 @@ const Calculator = () => {
   useEffect(() => {
     if (!operations.length) return;
     const forms = baseResult && !("error" in baseResult) ? (baseResult.forms ?? 0) : 0;
-    if (forms <= 0) return;
-    const autoOps = operations.filter((op) => {
-      const cat = (op.category || "").toLowerCase();
-      const sub = (op.subgroup || "").toLowerCase();
-      const name = (op.name || "").toLowerCase();
-      return cat === "prepress" && (sub.includes("форм") || name.includes("вывод форм"));
-    });
+    const printSheets = baseResult && !("error" in baseResult) ? (baseResult.printSheets ?? 0) : 0;
+    const qtyForUnit = (unit: string | null): number => {
+      if (unit === "лист" || unit === "оттиск" || unit === "сгиб") return printSheets || circulation || 1;
+      if (unit === "форма") return forms || 1;
+      return circulation || 1;
+    };
+    const matchers: Array<(op: OperationRow) => boolean> = [
+      // Допечать → Формы (Вывод форм CTP)
+      (op) => {
+        if (forms <= 0) return false;
+        const sub = (op.subgroup || "").toLowerCase();
+        const name = (op.name || "").toLowerCase();
+        return (op.category || "").toLowerCase() === "prepress" && (sub.includes("форм") || name.includes("вывод форм"));
+      },
+      // Допечать → Резка (Резка на печатный формат)
+      (op) => {
+        const sub = (op.subgroup || "").toLowerCase();
+        const name = (op.name || "").toLowerCase();
+        return (op.category || "").toLowerCase() === "prepress" && (sub.includes("резк") || name.includes("резка"));
+      },
+    ];
+    const autoOps = operations.filter((op) => matchers.some((m) => m(op)));
     if (!autoOps.length) return;
     setExtraOps((prev) => {
       let changed = false;
@@ -759,13 +774,16 @@ const Calculator = () => {
       for (const op of autoOps) {
         if (userRemovedOpIds.has(op.id)) continue;
         if (!next[op.id]) {
-          next[op.id] = { qty: forms };
-          changed = true;
+          const q = qtyForUnit(op.unit);
+          if (q > 0) {
+            next[op.id] = { qty: q };
+            changed = true;
+          }
         }
       }
       return changed ? next : prev;
     });
-  }, [operations, baseResult, userRemovedOpIds]);
+  }, [operations, baseResult, userRemovedOpIds, circulation]);
 
   // Доп. строки спецификации из выбранных операций справочника
   const extraSpecItems = useMemo(() => {
