@@ -2359,6 +2359,7 @@ const ExtraOpsPicker = ({
   circulation,
   sheets,
   forms,
+  onUserToggle,
 }: {
   operations: OperationRow[];
   extraOps: Record<string, ExtraOpState>;
@@ -2366,6 +2367,7 @@ const ExtraOpsPicker = ({
   circulation: number;
   sheets: number;
   forms: number;
+  onUserToggle?: (opId: string, nowSelected: boolean) => void;
 }) => {
   // Группируем по категории → подгруппе
   const tree = useMemo(() => {
@@ -2388,12 +2390,14 @@ const ExtraOpsPicker = ({
 
   const toggle = (op: OperationRow) => {
     const next = { ...extraOps };
+    const nowSelected = !next[op.id];
     if (next[op.id]) {
       delete next[op.id];
     } else {
       next[op.id] = { qty: defaultQty(op.unit) };
     }
     setExtraOps(next);
+    onUserToggle?.(op.id, nowSelected);
   };
 
   const update = (id: string, patch: Partial<ExtraOpState>) => {
