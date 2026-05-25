@@ -116,7 +116,14 @@ export interface CalcInput {
    * Если задано — используется как есть, ни справочник, ни авто-формула не применяются.
    */
   cutsPerSheetOverride?: number;
+  /**
+   * Ручное переопределение количества резов на ОДИН закупочный лист
+   * (резка закупочного формата на печатный). Если не задано — авто-расчёт
+   * по раскладке (cols + rows − 2).
+   */
+  paperCutsPerSheetOverride?: number;
 }
+
 
 export interface SpecItem {
   stage: "prepress" | "material" | "print" | "postpress" | "logistics";

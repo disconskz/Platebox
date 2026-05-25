@@ -1,7 +1,8 @@
 import { bestPair, calculateForms, determineTurnaround, getCalcRules, rankPairs, setCalcRules } from "./engine";
 import { CalcInput, CalcResult, FormatPair, LayoutResult, PrintFormat, ProductType, SpecItem, Turnaround } from "./types";
 import type { CalcRules } from "./rules";
-import { cutsForNesting, finishCutsPerItem, validateMultiSkuInput } from "./validation";
+import { finishCutsPerItem, validateMultiSkuInput } from "./validation";
+import { cutsForPurchaseLayout } from "./engine";
 
 export interface SkuItem {
   /** Произвольное имя дизайна/SKU. */
@@ -131,6 +132,8 @@ function buildVariant(
     layout: LayoutResult;
     pair: { print: PrintFormat; purchase: PrintFormat };
     purchaseNesting: number;
+    purchaseCols: number;
+    purchaseRows: number;
     rule: CalcRules;
     input: MultiSkuInput;
     turnaround: Turnaround;
@@ -138,7 +141,7 @@ function buildVariant(
     printPerImpr: number;
   }
 ): MultiSkuVariant {
-  const { skus, layout, pair, purchaseNesting, rule, input, turnaround, formsPerImposition, printPerImpr } = ctx;
+  const { skus, layout, pair, purchaseNesting, purchaseCols, purchaseRows, rule, input, turnaround, formsPerImposition, printPerImpr } = ctx;
   const { skusPerImposition, emptySlots } = distributeSkus(skus.length, layout.itemsPerSheet, impositions, fillEmpty);
 
   // Группировать SKU по спускам и считать тираж спуска = max тираж среди его SKU
@@ -172,8 +175,9 @@ function buildVariant(
   const purchaseSheetsTotal = Math.ceil(printSheetsTotal / Math.max(1, purchaseNesting));
   const paperCost = purchaseSheetsTotal * input.material.cost_per_sheet;
 
-  // Резка закупочного → печатного (единая модель с runCalculation).
-  const cutsPerSheet = cutsForNesting(purchaseNesting);
+  // Резка закупочного → печатного (единая модель с runCalculation):
+  // cuts = cols + rows − 2 по фактической раскладке.
+  const cutsPerSheet = cutsForPurchaseLayout(purchaseCols, purchaseRows);
   const paperCutCost = cutsPerSheet * purchaseSheetsTotal * rule.cutCostPerSheet;
 
   const formsCost = formsTotal * rule.formCost;
@@ -185,8 +189,15 @@ function buildVariant(
   const prepress: SpecItem[] = [];
   prepress.push({ stage: "prepress", name: "Пластины (формы)", quantity: formsTotal, unit: "шт", unitPrice: rule.formCost, total: formsCost });
   prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: formsTotal, unit: "форма", unitPrice: rule.formPrepCost, total: formsPrepCost });
-  if (paperCutCost > 0) {
-    prepress.push({ stage: "prepress", name: "Резка закупочного формата", quantity: cutsPerSheet * purchaseSheetsTotal, unit: "рез", unitPrice: rule.cutCostPerSheet, total: paperCutCost });
+  if (cutsPerSheet * purchaseSheetsTotal > 0) {
+    prepress.push({
+      stage: "prepress",
+      name: `Резка закупочного ${pair.purchase.width}×${pair.purchase.height} → печатный ${pair.print.width}×${pair.print.height} (${purchaseCols}×${purchaseRows})`,
+      quantity: cutsPerSheet * purchaseSheetsTotal,
+      unit: "рез",
+      unitPrice: rule.cutCostPerSheet,
+      total: paperCutCost,
+    });
   }
 
   const materials: SpecItem[] = [
@@ -303,7 +314,22 @@ export function runMultiSkuCalculation(input: MultiSkuInput, rulesOverride?: Cal
 
   const minImpositions = Math.ceil(input.skus.length / slotsPerSheet);
 
-  const ctx = { skus: input.skus, layout, pair, purchaseNesting, rule, input, turnaround, formsPerImposition, printPerImpr };
+  // Раскладка закупочного → печатного: берём ту ориентацию, где помещается больше листов.
+  const layoutCR = (() => {
+    let best = { cols: 1, rows: 1, n: 0 };
+    for (const rotated of [false, true]) {
+      const w = rotated ? pair.print.height : pair.print.width;
+      const h = rotated ? pair.print.width : pair.print.height;
+      const cols = Math.floor(pair.purchase.width / w);
+      const rows = Math.floor(pair.purchase.height / h);
+      const n = cols * rows;
+      if (n > best.n) best = { cols, rows, n };
+    }
+    return best;
+  })();
+  const purchaseCols = Math.max(1, layoutCR.cols);
+  const purchaseRows = Math.max(1, layoutCR.rows);
+  const ctx = { skus: input.skus, layout, pair, purchaseNesting, purchaseCols, purchaseRows, rule, input, turnaround, formsPerImposition, printPerImpr };
 
   const variants: MultiSkuVariant[] = [];
   // Вариант A: минимум спусков (с возможной пустотой)
