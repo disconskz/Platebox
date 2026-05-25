@@ -342,18 +342,34 @@ export function calculateForms(colorFront: number, colorBack: number, t: Turnaro
   return colorFront + colorBack;
 }
 
-function nestingPurchaseToPrint(purchaseW: number, purchaseH: number, printW: number, printH: number) {
+function nestingPurchaseToPrint(
+  purchaseW: number,
+  purchaseH: number,
+  printW: number,
+  printH: number,
+): { nesting: number; cols: number; rows: number } {
   // count print sheets per purchase sheet (try both orientations)
-  let best = 0;
+  let best = { nesting: 0, cols: 0, rows: 0 };
   for (const rotated of [false, true]) {
     const w = rotated ? printH : printW;
     const h = rotated ? printW : printH;
     const cols = Math.floor(purchaseW / w);
     const rows = Math.floor(purchaseH / h);
     const n = cols * rows;
-    if (n > best) best = n;
+    if (n > best.nesting) best = { nesting: n, cols, rows };
   }
   return best;
+}
+
+/**
+ * Технологическая резка закупочного листа на печатные.
+ * cuts = cols + rows - 2 (гильотинная схема: вдоль и поперёк).
+ * Если печатный лист один (cols=rows=1) — резов 0.
+ */
+export function cutsForPurchaseLayout(cols: number, rows: number): number {
+  const c = Math.max(1, Math.floor(cols));
+  const r = Math.max(1, Math.floor(rows));
+  return Math.max(0, c + r - 2);
 }
 
 function laminationKey(productW: number, productH: number): "up_to_a4_plus" | "a4_plus_to_a3_plus" | "a3_plus_to_a2_plus" | "a2_plus_to_a1" {
@@ -438,10 +454,10 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   // Purchase sheets — закупочный формат берём из пары (если есть), иначе из материала
   const purchaseW = pickedPurchase?.width ?? input.material.format_width;
   const purchaseH = pickedPurchase?.height ?? input.material.format_height;
-  const purchaseNesting = Math.max(
-    1,
-    nestingPurchaseToPrint(purchaseW, purchaseH, layout.printFormat.width, layout.printFormat.height)
-  );
+  const nestingInfo = nestingPurchaseToPrint(purchaseW, purchaseH, layout.printFormat.width, layout.printFormat.height);
+  const purchaseNesting = Math.max(1, nestingInfo.nesting);
+  const purchaseCols = Math.max(1, nestingInfo.cols);
+  const purchaseRows = Math.max(1, nestingInfo.rows);
   const purchaseSheets = Math.ceil(printSheets / purchaseNesting);
   const paperCost = purchaseSheets * input.material.cost_per_sheet;
 
@@ -449,8 +465,16 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     warnings.push("Стоимость бумаги = 0. Проверьте выбор закупочного формата.");
   }
 
-  // Cuts purchase -> print (бинарная гильотина, см. cutsForNesting)
-  const cutsPerSheet = cutsForNesting(purchaseNesting);
+  // Резка закупочного → печатный лист.
+  // Формула: cuts = cols + rows - 2 (гильотинная резка стопы).
+  // Цена реза берётся из rule.cutCostPerSheet (по умолчанию 1 тг).
+  // Технолог может переопределить количество резов через paperCutsPerSheetOverride.
+  const autoPaperCutsPerSheet = cutsForPurchaseLayout(purchaseCols, purchaseRows);
+  const paperCutsOverride =
+    Number.isFinite(input.paperCutsPerSheetOverride as number) && (input.paperCutsPerSheetOverride as number) >= 0
+      ? Math.floor(input.paperCutsPerSheetOverride as number)
+      : null;
+  const cutsPerSheet = paperCutsOverride ?? autoPaperCutsPerSheet;
   const paperCutCost = cutsPerSheet * purchaseSheets * rule.cutCostPerSheet;
 
   const formsCost = forms * rule.formCost;
@@ -666,12 +690,13 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     prepress.push({ stage: "prepress", name: "Вывод печатных форм", quantity: forms, unit: "шт", unitPrice: rule.formCost, total: formsCost });
   }
   prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: forms, unit: "форма", unitPrice: rule.formPrepCost, total: formsPrepCost });
-  // Резка закупочного → печатный лист. Показываем, если режем (nesting > 1),
-  // даже когда цена реза = 0 — чтобы менеджер видел количество резов.
-  if (cutsPerSheet * purchaseSheets > 0 && rule.cutCostPerSheet > 0) {
+  // Резка закупочного → печатный лист. Показываем всегда, когда есть резы (>0),
+  // включая случай rule.cutCostPerSheet=0 — чтобы менеджер видел количество.
+  if (cutsPerSheet * purchaseSheets > 0) {
+    const srcLabel = paperCutsOverride != null ? "ручная корректировка" : `авто: ${purchaseCols}+${purchaseRows}−2`;
     prepress.push({
       stage: "prepress",
-      name: "Резка на печатный формат",
+      name: `Резка закупочного ${purchaseW}×${purchaseH} → печатный ${layout.printFormat.width}×${layout.printFormat.height} (${purchaseCols}×${purchaseRows}, ${srcLabel})`,
       quantity: cutsPerSheet * purchaseSheets,
       unit: "рез",
       unitPrice: rule.cutCostPerSheet,
