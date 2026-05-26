@@ -2197,6 +2197,8 @@ const Calculator = () => {
                     {dieCutEnabled && (
                       <p className="text-[11px] text-muted-foreground">
                         Авто-цена по материалу: картон 5 ₸/лист · микрогофра 10 · поролон 20 · переплётный картон 10 · пластик 7. Приладка 5 000 ₸. Текущий материал: <b>{dieCutMaterialLabel(effectiveMaterial)}</b> ({pickDieCutPrice(effectiveMaterial)} ₸/лист).
+                        <br />
+                        Авто-добавляется «Выдергивание облоя после высечки»: печ.листов × изделий_на_листе × {wastePickPerItem} ₸/изделие (правится в Справочниках → Константы формул, ключ <code>diecut_waste_pick_per_item</code>).
                       </p>
                     )}
                   </div>
