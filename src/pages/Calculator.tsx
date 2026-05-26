@@ -381,6 +381,48 @@ const SEWING_MACHINE_LABEL: Record<string, string> = {
   manual: "Ручное",
 };
 
+// Доработка 16: справочник форзацев.
+type EndpaperRow = {
+  id: string;
+  name: string;
+  endpaper_type: string;        // standard | designer | printed | custom
+  paper_name: string;
+  paper_density: number;
+  paper_calc_mode: string;      // per_m2 | per_sheet
+  paper_price_per_m2: number;
+  paper_price_per_sheet: number;
+  sheet_width: number;
+  sheet_height: number;
+  endpapers_per_item: number;
+  needs_print: boolean;
+  print_price_per_sheet: number;
+  fold_price: number;
+  crease_price: number;
+  density_threshold: number;
+  glue_price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard: number;
+  coef_printed: number;
+  coef_heavy_paper: number;
+  coef_designer_paper: number;
+  coef_nonstandard_format: number;
+  coef_manual_glue: number;
+  heavy_paper_threshold: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const ENDPAPER_TYPE_LABEL: Record<string, string> = {
+  standard: "Стандартный",
+  designer: "Дизайнерская бумага",
+  printed: "Печатный",
+  custom: "Особый",
+};
+// Продукты, для которых актуальны форзацы (книги в твёрдом переплёте, ежедневники-блокноты, альбомы).
+const ENDPAPER_PRODUCT_TYPES = new Set<string>([
+  "book", "notepad", "catalog",
+]);
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
