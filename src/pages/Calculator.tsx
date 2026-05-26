@@ -2092,16 +2092,70 @@ const Calculator = () => {
                       </p>
                     )}
                   </div>
-                  {productType === "bag" && (
+                  <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
-                      <Label htmlFor="lp" className="flex-1">Припрессовка плёнки</Label>
-                      <Select value={String(lamPrepressSides)} onValueChange={(v) => setLamPrepressSides(Number(v) as 1 | 2)}>
+                      <Label htmlFor="lp" className="flex-1 font-medium">Припресс плёнкой</Label>
+                      <Select
+                        value={filmId}
+                        onValueChange={(v) => { setFilmId(v); setFilmPriceOverride(""); setFilmSetupOverride(""); }}
+                        disabled={!hasLamPrepress || films.length === 0}
+                      >
+                        <SelectTrigger className="w-48"><SelectValue placeholder="Тип плёнки" /></SelectTrigger>
+                        <SelectContent>
+                          {films.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={String(lamPrepressSides)} onValueChange={(v) => setLamPrepressSides(Number(v) as 1 | 2)} disabled={!hasLamPrepress}>
                         <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                         <SelectContent><SelectItem value="1">1 сторона</SelectItem><SelectItem value="2">2 стороны</SelectItem></SelectContent>
                       </Select>
                     </div>
-                  )}
+                    {hasLamPrepress && (() => {
+                      const film = films.find((f) => f.id === filmId);
+                      const price = filmPriceOverride !== "" ? Number(filmPriceOverride) : (film?.price_per_m2 ?? 0);
+                      const setup = filmSetupOverride !== "" ? Number(filmSetupOverride) : (film?.setup_cost ?? 0);
+                      const printW = result && !("error" in result) ? result.layout.printFormat.width : 0;
+                      const printH = result && !("error" in result) ? result.layout.printFormat.height : 0;
+                      const sheets = result && !("error" in result) ? result.printSheets : 0;
+                      const area = (printW * printH) / 1_000_000;
+                      const filmCost = area * price * sheets * lamPrepressSides;
+                      const total = Math.max(filmCost + setup, film?.min_cost ?? 0);
+                      return (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Цена плёнки, ₸/м²</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={filmPriceOverride === "" ? (film?.price_per_m2 ?? 0) : filmPriceOverride}
+                                onChange={(e) => setFilmPriceOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={filmSetupOverride === "" ? (film?.setup_cost ?? 0) : filmSetupOverride}
+                                onChange={(e) => setFilmSetupOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div className="col-span-2 sm:col-span-2 text-[11px] text-muted-foreground self-end">
+                              Лист {printW}×{printH} мм · {area.toFixed(4)} м² · {sheets} л. · {lamPrepressSides} ст.<br />
+                              Расчёт: {area.toFixed(4)} × {price} × {sheets} × {lamPrepressSides} + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Формула: <code>(Ш × В / 1 000 000) × цена_м² × печ.листов × сторон + приладка</code>. Цена и приладка берутся из справочника «Плёнки для припресса»; при необходимости можно перебить вручную.
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
