@@ -516,6 +516,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "thermal_binding_prices", title: "Термобиндер (КБС)", desc: "Тип клея (EVA/PUR), цена клея за 1 мм, работа, приладка и допустимая толщина блока. Используется для авто-расчёта клеевого бесшвейного скрепления.", countKey: "thermal_binding_prices", relatedKeys: ["paper_thickness"] },
       { key: "signature_folding_prices", title: "Фальцовка тетрадей", desc: "Тип фальцовки, тип оборудования (ручная/машинная), цена за сгиб и тетрадь, коэффициенты сложности и ограничения. Используется для авто-расчёта фальцовки многополосных изделий.", countKey: "signature_folding_prices" },
       { key: "signature_collation_prices", title: "Подборка тетрадей", desc: "Цена подборки одной тетради, коэффициенты сложности (формат, оборудование, последовательность, вкладки, тонкая бумага), ограничения. Используется для авто-расчёта операции подборки тетрадей.", countKey: "signature_collation_prices", relatedKeys: ["signature_folding_prices"] },
+      { key: "block_sewing_prices", title: "Шитьё блока", desc: "Тип шитья и оборудования, цена шитья тетради, нитки (на изделие или тетрадь), марля/каптал/форзацы, коэффициенты сложности и ограничения. Используется для авто-расчёта операции шитья книжного блока.", countKey: "block_sewing_prices", relatedKeys: ["signature_folding_prices", "signature_collation_prices", "paper_thickness"] },
     ],
   },
   {
