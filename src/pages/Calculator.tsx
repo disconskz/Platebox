@@ -39,6 +39,15 @@ import { CutInfoCard } from "@/components/calc/CutInfoCard";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
+type FilmPriceRow = {
+  id: string;
+  name: string;
+  film_type: string;
+  price_per_m2: number;
+  setup_cost: number;
+  min_cost: number;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
