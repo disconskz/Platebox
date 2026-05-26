@@ -883,6 +883,7 @@ const Calculator = () => {
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
     const forms = baseResult.forms ?? 0;
+    const printSheets = baseResult.printSheets ?? 0;
     const formSetupItems: SpecItem[] =
       formSetupCostPerForm > 0 && forms > 0
         ? [{
@@ -894,7 +895,30 @@ const Calculator = () => {
             total: forms * formSetupCostPerForm,
           }]
         : [];
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems];
+    // Доработка 5: единая «Биговка/Фальцовка» по плотности бумаги.
+    const density = Number((effectiveMaterial as any)?.density ?? 0);
+    const foldItems: SpecItem[] = (() => {
+      if (!(foldsPerItem > 0) || !(circulation > 0)) return [];
+      const isFold = !(density > 150); // ≤150 г/м² → фальцовка
+      const unitPrice = isFold ? 1 : 2;
+      const label = isFold ? "Фальцовка (≤150 г/м²)" : "Биговка (>150 г/м²)";
+      const qty = foldsPerItem * circulation;
+      return [{ stage: "postpress", name: label, quantity: qty, unit: "сгиб", unitPrice, total: qty * unitPrice }];
+    })();
+    // Доработка 7: единая «Высечка» с авто-ценой по типу материала + приладка + (опц.) штамп.
+    const dieCutItems: SpecItem[] = (() => {
+      if (!dieCutEnabled || !(printSheets > 0)) return [];
+      const price = pickDieCutPrice(effectiveMaterial);
+      const items: SpecItem[] = [
+        { stage: "postpress", name: "Высечка (приладка)", quantity: 1, unit: "шт", unitPrice: 5000, total: 5000 },
+        { stage: "postpress", name: `Высечка (${dieCutMaterialLabel(effectiveMaterial)})`, quantity: printSheets, unit: "лист", unitPrice: price, total: printSheets * price },
+      ];
+      if (dieCutStampMode === "new" && dieCutStampCost > 0) {
+        items.push({ stage: "postpress", name: "Изготовление штампа для высечки", quantity: 1, unit: "шт", unitPrice: dieCutStampCost, total: dieCutStampCost });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
