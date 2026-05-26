@@ -724,6 +724,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load thermal_binding_prices failed", e);
       }
+      // Доработка 13: справочник фальцовки тетрадей.
+      try {
+        const sfR = await (supabase as any)
+          .from("signature_folding_prices")
+          .select("*")
+          .order("sort_order");
+        setSignatureRows(((sfR.data as SignatureFoldingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load signature_folding_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
