@@ -204,6 +204,9 @@ const Calculator = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
   const [films, setFilms] = useState<FilmPriceRow[]>([]);
+  const [pouches, setPouches] = useState<PouchLamRow[]>([]);
+  // Цена выдергивания облоя за 1 изделие (Доработка 8) — из calc_constants.
+  const [wastePickPerItem, setWastePickPerItem] = useState<number>(1);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
@@ -338,6 +341,12 @@ const Calculator = () => {
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
   const [filmPriceOverride, setFilmPriceOverride] = useState<number | "">("");
   const [filmSetupOverride, setFilmSetupOverride] = useState<number | "">("");
+  // Доработка 9: пакетная ламинация.
+  const [pouchEnabled, setPouchEnabled] = useState(false);
+  // null = авто-подбор; иначе id выбранного пакета.
+  const [pouchManualId, setPouchManualId] = useState<string | null>(null);
+  const [pouchPriceOverride, setPouchPriceOverride] = useState<number | "">("");
+  const [pouchMinOverride, setPouchMinOverride] = useState<number | "">("");
 
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
