@@ -1136,7 +1136,41 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems];
+    // Доработка 10: переменная печать (нумерация / штрихкод / QR / персонализация / Excel-CSV).
+    const varPrintItems: SpecItem[] = (() => {
+      if (!(circulation > 0) || !variablePrintRows.length) return [];
+      const out: SpecItem[] = [];
+      for (const row of variablePrintRows) {
+        const sel = varPrintSel[row.kind];
+        if (!sel?.enabled) continue;
+        const elements = Math.max(0, Math.floor(sel.elementsPerItem || 0));
+        if (!elements) continue;
+        const price = sel.priceOverride !== "" ? Number(sel.priceOverride) : row.price_per_apply;
+        const setup = sel.setupOverride !== "" ? Number(sel.setupOverride) : row.setup_cost;
+        const minCost = sel.minOverride !== "" ? Number(sel.minOverride) : row.min_cost;
+        const complexity = sel.complexityOverride !== "" ? Number(sel.complexityOverride) : (row.complexity || 1);
+        const applies = circulation * elements;
+        const apply = applies * price * complexity;
+        const raw = setup + apply;
+        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+        if (setup > 0) {
+          out.push({ stage: "postpress", name: `${row.name} (приладка)`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+        }
+        out.push({
+          stage: "postpress",
+          name: complexity !== 1 ? `${row.name} (×${complexity})` : row.name,
+          quantity: applies,
+          unit: "нанесение",
+          unitPrice: price * complexity,
+          total: apply,
+        });
+        if (total > raw) {
+          out.push({ stage: "postpress", name: `${row.name} (доплата до минимума)`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+        }
+      }
+      return out;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
