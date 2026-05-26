@@ -460,6 +460,22 @@ const Calculator = () => {
   const [pouchPriceOverride, setPouchPriceOverride] = useState<number | "">("");
   const [pouchMinOverride, setPouchMinOverride] = useState<number | "">("");
 
+  // Доработка 11: металлическая пружина (Wire-O).
+  const [springs, setSprings] = useState<WireSpringRow[]>([]);
+  const [paperThickness, setPaperThickness] = useState<PaperThicknessRow[]>([]);
+  const [springEnabled, setSpringEnabled] = useState(false);
+  const [springBlockSheets, setSpringBlockSheets] = useState<number>(50);
+  const [springSide, setSpringSide] = useState<"short" | "long">("short");
+  const [springManualId, setSpringManualId] = useState<string | null>(null);
+  // Ручные переопределения параметров пружины.
+  const [springLoopsOverride, setSpringLoopsOverride] = useState<number | "">("");
+  const [springPitchOverride, setSpringPitchOverride] = useState<number | "">("");
+  const [springDiameterOverride, setSpringDiameterOverride] = useState<number | "">("");
+  const [springPricePerLoopOverride, setSpringPricePerLoopOverride] = useState<number | "">("");
+  const [springWorkOverride, setSpringWorkOverride] = useState<number | "">("");
+  const [springSetupOverride, setSpringSetupOverride] = useState<number | "">("");
+  const [springPaperThicknessOverride, setSpringPaperThicknessOverride] = useState<number | "">("");
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
