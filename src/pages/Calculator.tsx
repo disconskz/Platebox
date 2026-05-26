@@ -2354,7 +2354,7 @@ const ExtraOpsPicker = ({
         Отметьте нужные. Цены подтянуты из справочника, можно перебить вручную.
       </div>
       <div className="space-y-3">
-        {Object.entries(tree).map(([cat, subs]) => (
+        {orderedTree.map(([cat, subs]) => (
           <details key={cat} className="rounded-md border bg-card">
             <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground">
               {CATEGORY_LABEL[cat] || cat}
