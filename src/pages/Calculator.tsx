@@ -1816,7 +1816,113 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems];
+    // Доработка 15: шитьё блока.
+    const sewingItems: SpecItem[] = (() => {
+      if (!sewEnabled || !(circulation > 0)) return [];
+      if (!sewRows.length) return [];
+      const active = sewRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const autoSignatures = sigPagesPerSignature > 0
+        ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature))
+        : 0;
+      const signatures = sewSigOverride !== ""
+        ? Math.max(0, Math.floor(Number(sewSigOverride) || 0))
+        : autoSignatures;
+      const ptRow = paperThickness.find((p) => p.density === density);
+      const sheetThickness = sewPaperThicknessOverride !== ""
+        ? Number(sewPaperThicknessOverride)
+        : Number(ptRow?.thickness_mm ?? 0);
+      const sheets = Math.max(0, Math.floor(sigPages / 2));
+      const autoBlockThickness = sheets * sheetThickness;
+      const blockThickness = sewBlockThicknessOverride !== ""
+        ? Number(sewBlockThicknessOverride)
+        : autoBlockThickness;
+      // Авто-подбор записи: фильтр по диапазонам, иначе fallback по тиражу/толщине.
+      const fits = active.filter((r) =>
+        shortSide >= r.min_format_short && longSide <= r.max_format_long &&
+        density >= r.min_density && density <= r.max_density &&
+        circulation >= r.min_circulation && circulation <= r.max_circulation &&
+        signatures <= r.max_signatures &&
+        blockThickness >= r.min_block_thickness && blockThickness <= r.max_block_thickness,
+      );
+      const pool = fits.length ? fits : active;
+      const smallRun = circulation < 300 || blockThickness > 0;
+      const autoRow = (circulation >= 300 && pool.find((r) => r.machine_type === "auto"))
+        || pool.find((r) => r.machine_type === "semi_auto")
+        || pool.find((r) => r.machine_type === "manual")
+        || pool[0];
+      const row = (sewManualId && active.find((r) => r.id === sewManualId)) || autoRow;
+      if (!row) return [];
+      const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long
+        && density >= row.min_density && density <= row.max_density;
+      const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+      const thickCoef = blockThickness > row.thick_block_threshold ? row.coef_thick_block : 1;
+      const manualCoef = row.machine_type === "manual" || row.sewing_type === "manual" ? row.coef_manual : 1;
+      const thinPaperCoef = density > 0 && density <= 70 ? row.coef_thin_paper : 1;
+      const heavyPaperCoef = density >= 150 ? row.coef_heavy_paper : 1;
+      const manySigCoef = signatures > 16 ? row.coef_many_signatures : 1;
+      const autoCoef = formatCoef * thickCoef * manualCoef * thinPaperCoef * heavyPaperCoef * manySigCoef;
+      const coef = sewCoefOverride !== "" ? Math.max(0, Number(sewCoefOverride)) : autoCoef;
+      const price = sewPriceOverride !== "" ? Number(sewPriceOverride) : row.price_per_signature;
+      const threadPrice = sewThreadPriceOverride !== "" ? Number(sewThreadPriceOverride) : row.thread_price;
+      const setup = sewSetupOverride !== "" ? Number(sewSetupOverride) : row.setup_cost;
+      const minCost = sewMinOverride !== "" ? Number(sewMinOverride) : row.min_cost;
+      const sewCost = circulation * signatures * price * coef;
+      const threadCost = row.thread_calc_mode === "per_signature"
+        ? circulation * signatures * threadPrice
+        : circulation * threadPrice;
+      const gauzeCost = sewUseGauze ? circulation * row.gauze_price : 0;
+      const headbandCost = sewUseHeadband ? circulation * row.headband_price : 0;
+      const endpaperCost = sewUseEndpaper ? circulation * row.endpaper_price : 0;
+      const raw = sewCost + threadCost + gauzeCost + headbandCost + endpaperCost + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${SEWING_TYPE_LABEL[row.sewing_type] || row.sewing_type} · ${SEWING_MACHINE_LABEL[row.machine_type] || row.machine_type}`;
+      if (sewCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Шитьё блока (${signatures} тетр. × ${price} ₸ × коэф. ${coef.toFixed(2)}) — ${label}`,
+          quantity: circulation * signatures,
+          unit: "тетр",
+          unitPrice: price * coef,
+          total: sewCost,
+        });
+      }
+      if (threadCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: row.thread_calc_mode === "per_signature"
+            ? `Шитьё блока — нитки (${threadPrice} ₸/тетрадь)`
+            : `Шитьё блока — нитки (${threadPrice} ₸/изделие)`,
+          quantity: row.thread_calc_mode === "per_signature" ? circulation * signatures : circulation,
+          unit: row.thread_calc_mode === "per_signature" ? "тетр" : "шт",
+          unitPrice: threadPrice,
+          total: threadCost,
+        });
+      }
+      if (gauzeCost > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — марля (${row.gauze_price} ₸/изд)`, quantity: circulation, unit: "шт", unitPrice: row.gauze_price, total: gauzeCost });
+      }
+      if (headbandCost > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — каптал (${row.headband_price} ₸/изд)`, quantity: circulation, unit: "шт", unitPrice: row.headband_price, total: headbandCost });
+      }
+      if (endpaperCost > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — форзацы (${row.endpaper_price} ₸/изд)`, quantity: circulation, unit: "шт", unitPrice: row.endpaper_price, total: endpaperCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — приладка (${label})`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Шитьё блока — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      // suppress unused-warning for smallRun (used only in auto choice)
+      void smallRun;
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
