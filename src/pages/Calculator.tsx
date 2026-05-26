@@ -1515,7 +1515,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
