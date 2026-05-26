@@ -203,6 +203,21 @@ const TABLES = [
     defaults: { name: "", width: 154, height: 216, film_type: "gloss", film_thickness: 75, price_per_item: 25, min_cost: 3000, sort_order: 100 },
   },
   {
+    key: "variable_print_prices",
+    title: "Переменная печать",
+    cols: [
+      { k: "kind", t: "select", label: "Тип", opts: ["numbering", "barcode", "qrcode", "personalization", "data_import"] },
+      { k: "name", t: "text", label: "Название" },
+      { k: "price_per_apply", t: "number", label: "₸/нанесение" },
+      { k: "setup_cost", t: "number", label: "Приладка, ₸" },
+      { k: "min_cost", t: "number", label: "Мин. стоимость, ₸" },
+      { k: "complexity", t: "number", label: "Коэф. сложности" },
+      { k: "is_active", t: "select", label: "Активна", opts: ["true", "false"] },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { kind: "numbering", name: "Нумерация", price_per_apply: 0.5, setup_cost: 1000, min_cost: 0, complexity: 1, is_active: true, sort_order: 100 },
+  },
+  {
     key: "system_settings",
     title: "Константы",
     cols: [
