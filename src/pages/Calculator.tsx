@@ -202,6 +202,41 @@ function pickPouchFor(
   return sorted[0] || null;
 }
 
+// Доработка 11: подобрать пружину по толщине блока.
+// Алгоритм: фильтруем по диапазону min/max thickness; если несколько подходят —
+// берём с наименьшим диаметром; если ни одна не подходит — ближайшую большую по диаметру.
+function pickSpringFor(
+  springs: WireSpringRow[],
+  blockThickness: number,
+  manualId: string | null,
+): WireSpringRow | null {
+  if (!springs.length) return null;
+  if (manualId) {
+    const s = springs.find((x) => x.id === manualId);
+    if (s) return s;
+  }
+  const active = springs.filter((s) => s.is_active !== false);
+  const fits = active.filter(
+    (s) => blockThickness > s.min_block_thickness - 1e-9 && blockThickness <= s.max_block_thickness + 1e-9,
+  );
+  if (fits.length) {
+    return fits.slice().sort((a, b) => a.diameter_mm - b.diameter_mm)[0];
+  }
+  const bigger = active.filter((s) => s.max_block_thickness >= blockThickness);
+  if (bigger.length) return bigger.slice().sort((a, b) => a.diameter_mm - b.diameter_mm)[0];
+  return active.slice().sort((a, b) => b.diameter_mm - a.diameter_mm)[0] || null;
+}
+
+const SPRING_PRODUCT_TYPES = new Set<string>([
+  "notepad", "book", "magazine", "brochure",
+  "calendar_wall", "calendar_desk", "calendar_quarter",
+]);
+
+const SPRING_TYPE_LABEL: Record<string, string> = {
+  wire_o_3_1: "Wire-O 3:1",
+  wire_o_2_1: "Wire-O 2:1",
+};
+
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
   let best = 0;
