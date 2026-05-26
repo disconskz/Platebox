@@ -572,8 +572,8 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     postpress.push({ stage: "postpress", name: "Высечка", quantity: input.circulation, unit: "шт", unitPrice: 2, total: input.circulation * 2 });
   }
 
-  if (input.hasLamPrepress) {
-    const sides = input.lamPrepressSides ?? 1;
+  if (input.hasLamPrepress || input.hasLamination) {
+    const sides = input.lamPrepressSides ?? input.laminationSides ?? 1;
     // Стоимость припрессовки плёнкой:
     //   (Ширина листа × Высота листа / 1 000 000) × Цена плёнки за м² ×
     //   × Количество печатных листов × Количество сторон + Приладка
@@ -586,7 +586,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     const filmTotal = areaM2 * pricePerM2 * sheets * sides;
     postpress.push({
       stage: "postpress",
-      name: "Припрессовка плёнкой (приладка)",
+      name: "Припресс плёнкой (приладка)",
       quantity: 1,
       unit: "шт",
       unitPrice: setup,
@@ -594,21 +594,12 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     });
     postpress.push({
       stage: "postpress",
-      name: `Припрессовка плёнкой (${printW}×${printH}, ${sides} ст.)`,
+      name: `Припресс плёнкой (${printW}×${printH}, ${sides} ст.)`,
       quantity: Math.round(areaM2 * sheets * sides * 1000) / 1000,
       unit: "м²",
       unitPrice: pricePerM2,
       total: filmTotal,
     });
-  }
-
-  if (input.hasLamination && input.laminationFilm) {
-    const key = laminationKey(input.formatWidth, input.formatHeight);
-    const mapKey = `${input.laminationFilm}:${key}`;
-    const price = input.laminationPriceMap?.[mapKey] ?? 25;
-    const sides = input.laminationSides ?? 1;
-    postpress.push({ stage: "postpress", name: "Ламинация (приладка)", quantity: sides, unit: "сторона", unitPrice: (rule as any).operationSetupCost ?? 1500, total: ((rule as any).operationSetupCost ?? 1500) * sides });
-    postpress.push({ stage: "postpress", name: `Ламинация ${input.laminationFilm} (${sides} ст.)`, quantity: input.circulation * sides, unit: "сторона", unitPrice: price, total: input.circulation * sides * price });
   }
 
   if (input.hasNumbering && input.numbersPerSheet) {
