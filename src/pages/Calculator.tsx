@@ -90,6 +90,20 @@ type WireSpringRow = {
   sort_order: number;
 };
 type PaperThicknessRow = { density: number; thickness_mm: number };
+// Доработка 12: справочник термобиндера (клеевое бесшвейное скрепление).
+type ThermalBindingRow = {
+  id: string;
+  name: string;
+  glue_type: string; // 'eva' | 'pur'
+  price_per_mm: number;
+  work_price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  is_active: boolean;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
@@ -236,6 +250,31 @@ const SPRING_TYPE_LABEL: Record<string, string> = {
   wire_o_3_1: "Wire-O 3:1",
   wire_o_2_1: "Wire-O 2:1",
 };
+
+// Доработка 12: продукты, для которых доступен термобиндер.
+const THERMAL_PRODUCT_TYPES = new Set<string>([
+  "notepad", "book", "magazine", "brochure", "catalog",
+]);
+const GLUE_TYPE_LABEL: Record<string, string> = { eva: "EVA", pur: "PUR" };
+
+// Доработка 12: подобрать запись термобиндера по толщине блока.
+function pickThermalFor(
+  rows: ThermalBindingRow[],
+  blockThickness: number,
+  manualId: string | null,
+): ThermalBindingRow | null {
+  if (!rows.length) return null;
+  if (manualId) {
+    const r = rows.find((x) => x.id === manualId);
+    if (r) return r;
+  }
+  const active = rows.filter((r) => r.is_active !== false);
+  const fits = active.filter(
+    (r) => blockThickness >= r.min_block_thickness - 1e-9 && blockThickness <= r.max_block_thickness + 1e-9,
+  );
+  if (fits.length) return fits.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+  return active.slice().sort((a, b) => a.sort_order - b.sort_order)[0] || null;
+}
 
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
@@ -476,6 +515,19 @@ const Calculator = () => {
   const [springSetupOverride, setSpringSetupOverride] = useState<number | "">("");
   const [springPaperThicknessOverride, setSpringPaperThicknessOverride] = useState<number | "">("");
 
+  // Доработка 12: термобиндер (клеевое бесшвейное скрепление).
+  const [thermals, setThermals] = useState<ThermalBindingRow[]>([]);
+  const [thermalEnabled, setThermalEnabled] = useState(false);
+  const [thermalBlockSheets, setThermalBlockSheets] = useState<number>(100);
+  const [thermalCoverSheets, setThermalCoverSheets] = useState<number>(1);
+  const [thermalExtraThickness, setThermalExtraThickness] = useState<number>(0); // мм (форзацы/картон/вкладки)
+  const [thermalManualId, setThermalManualId] = useState<string | null>(null);
+  const [thermalBlockThicknessOverride, setThermalBlockThicknessOverride] = useState<number | "">("");
+  const [thermalPaperThicknessOverride, setThermalPaperThicknessOverride] = useState<number | "">("");
+  const [thermalPricePerMmOverride, setThermalPricePerMmOverride] = useState<number | "">("");
+  const [thermalWorkOverride, setThermalWorkOverride] = useState<number | "">("");
+  const [thermalSetupOverride, setThermalSetupOverride] = useState<number | "">("");
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -605,6 +657,16 @@ const Calculator = () => {
         setPaperThickness(((ptR.data as PaperThicknessRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load wire_spring/paper_thickness failed", e);
+      }
+      // Доработка 12: справочник термобиндера.
+      try {
+        const tbR = await (supabase as any)
+          .from("thermal_binding_prices")
+          .select("*")
+          .order("sort_order");
+        setThermals(((tbR.data as ThermalBindingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load thermal_binding_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -1322,7 +1384,76 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems];
+    // Доработка 12: термобиндер (КБС).
+    const thermalItems: SpecItem[] = (() => {
+      if (!thermalEnabled || !(circulation > 0)) return [];
+      if (!thermals.length) return [];
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const ptRow = paperThickness.find((p) => p.density === density);
+      const sheetThickness = thermalPaperThicknessOverride !== ""
+        ? Number(thermalPaperThicknessOverride)
+        : (ptRow?.thickness_mm ?? 0);
+      const sheets = Math.max(0, Math.floor(thermalBlockSheets || 0));
+      const cover = Math.max(0, Math.floor(thermalCoverSheets || 0));
+      const extra = Math.max(0, Number(thermalExtraThickness) || 0);
+      const autoBlockThickness = (sheets + cover) * sheetThickness + extra;
+      const blockThickness = thermalBlockThicknessOverride !== ""
+        ? Math.max(0, Number(thermalBlockThicknessOverride))
+        : autoBlockThickness;
+      const row = pickThermalFor(thermals, blockThickness, thermalManualId);
+      if (!row) return [];
+      const pricePerMm = thermalPricePerMmOverride !== "" ? Number(thermalPricePerMmOverride) : row.price_per_mm;
+      const workPrice = thermalWorkOverride !== "" ? Number(thermalWorkOverride) : row.work_price_per_item;
+      const setup = thermalSetupOverride !== "" ? Number(thermalSetupOverride) : row.setup_cost;
+      const glueCost = circulation * blockThickness * pricePerMm;
+      const workCost = circulation * workPrice;
+      const raw = glueCost + workCost + setup;
+      const total = row.min_cost > 0 ? Math.max(raw, row.min_cost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${GLUE_TYPE_LABEL[row.glue_type] || row.glue_type.toUpperCase()} (${blockThickness.toFixed(2)} мм)`;
+      if (glueCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — клей`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: blockThickness * pricePerMm,
+          total: glueCost,
+        });
+      }
+      if (workCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — работа`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: workPrice,
+          total: workCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — приладка`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: setup,
+          total: setup,
+        });
+      }
+      if (total > raw) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — доплата до минимума`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: total - raw,
+          total: total - raw,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1515,7 +1646,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -2794,6 +2925,134 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(тираж × витков × ₸/виток) + (тираж × ₸/работа) + приладка</code>. Диаметр пружины подбирается по толщине блока; количество витков = CEIL(длина навивки / шаг).
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 12: Термобиндер (КБС) */}
+                  {THERMAL_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={thermalEnabled} onCheckedChange={(v) => setThermalEnabled(!!v)} id="thermal" />
+                        <Label htmlFor="thermal" className="flex-1 font-medium">Термобиндер (клеевое бесшвейное скрепление)</Label>
+                        <Select
+                          value={thermalManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setThermalManualId(v === "auto" ? null : v);
+                            setThermalPricePerMmOverride(""); setThermalWorkOverride(""); setThermalSetupOverride("");
+                          }}
+                          disabled={!thermalEnabled || thermals.length === 0}
+                        >
+                          <SelectTrigger className="w-72"><SelectValue placeholder="Тип клея" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто-подбор по толщине блока</SelectItem>
+                            {thermals.filter((t) => t.is_active !== false).map((t) => (
+                              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {thermalEnabled && (() => {
+                        if (!thermals.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Термобиндер» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const ptRow = paperThickness.find((p) => p.density === density);
+                        const sheetThickness = thermalPaperThicknessOverride !== ""
+                          ? Number(thermalPaperThicknessOverride)
+                          : (ptRow?.thickness_mm ?? 0);
+                        const sheets = Math.max(0, Math.floor(thermalBlockSheets || 0));
+                        const cover = Math.max(0, Math.floor(thermalCoverSheets || 0));
+                        const extra = Math.max(0, Number(thermalExtraThickness) || 0);
+                        const autoBlockThickness = (sheets + cover) * sheetThickness + extra;
+                        const blockThickness = thermalBlockThicknessOverride !== ""
+                          ? Math.max(0, Number(thermalBlockThicknessOverride))
+                          : autoBlockThickness;
+                        const row = pickThermalFor(thermals, blockThickness, thermalManualId);
+                        if (!row) {
+                          return <p className="text-[11px] text-destructive">Не найдена запись термобиндера для толщины блока {blockThickness.toFixed(2)} мм.</p>;
+                        }
+                        const outOfRange = blockThickness < row.min_block_thickness - 1e-9 || blockThickness > row.max_block_thickness + 1e-9;
+                        const pricePerMm = thermalPricePerMmOverride !== "" ? Number(thermalPricePerMmOverride) : row.price_per_mm;
+                        const workPrice = thermalWorkOverride !== "" ? Number(thermalWorkOverride) : row.work_price_per_item;
+                        const setup = thermalSetupOverride !== "" ? Number(thermalSetupOverride) : row.setup_cost;
+                        const glueCost = circulation * blockThickness * pricePerMm;
+                        const workCost = circulation * workPrice;
+                        const raw = glueCost + workCost + setup;
+                        const total = row.min_cost > 0 ? Math.max(raw, row.min_cost) : raw;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Листов в блоке</Label>
+                                <Input type="number" inputMode="numeric" min={1}
+                                  value={thermalBlockSheets}
+                                  onChange={(e) => setThermalBlockSheets(Math.max(0, Number(e.target.value) || 0))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Листов обложки/форзацев</Label>
+                                <Input type="number" inputMode="numeric" min={0}
+                                  value={thermalCoverSheets}
+                                  onChange={(e) => setThermalCoverSheets(Math.max(0, Number(e.target.value) || 0))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина листа, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={thermalPaperThicknessOverride === "" ? (ptRow?.thickness_mm ?? 0) : thermalPaperThicknessOverride}
+                                  onChange={(e) => setThermalPaperThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Доп. толщина (картон/вкладки), мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={thermalExtraThickness}
+                                  onChange={(e) => setThermalExtraThickness(Math.max(0, Number(e.target.value) || 0))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина блока, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={thermalBlockThicknessOverride === "" ? Number(autoBlockThickness.toFixed(2)) : thermalBlockThicknessOverride}
+                                  onChange={(e) => setThermalBlockThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸ клея за 1 мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={thermalPricePerMmOverride === "" ? row.price_per_mm : thermalPricePerMmOverride}
+                                  onChange={(e) => setThermalPricePerMmOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/работа за изделие</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={thermalWorkOverride === "" ? row.work_price_per_item : thermalWorkOverride}
+                                  onChange={(e) => setThermalWorkOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={thermalSetupOverride === "" ? row.setup_cost : thermalSetupOverride}
+                                  onChange={(e) => setThermalSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Плотность {density} г/м² · толщина листа {sheetThickness.toFixed(2)} мм · ({sheets} + {cover}) листов + {extra} мм → <b>толщина блока {blockThickness.toFixed(2)} мм</b>
+                              </div>
+                              <div>
+                                Подобран: <b>{row.name}</b> ({GLUE_TYPE_LABEL[row.glue_type] || row.glue_type.toUpperCase()}, диапазон {row.min_block_thickness}–{row.max_block_thickness} мм)
+                              </div>
+                              {outOfRange && (
+                                <div className="text-destructive">
+                                  ⚠ Толщина блока вне допустимого диапазона ({row.min_block_thickness}–{row.max_block_thickness} мм) — термобиндер технологически невозможен.
+                                </div>
+                              )}
+                              <div>
+                                Расчёт: ({circulation} × {blockThickness.toFixed(2)} × {pricePerMm}) + ({circulation} × {workPrice}) + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {row.min_cost > 0 && raw < row.min_cost && <> (доплата до мин. {row.min_cost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(тираж × толщина блока × ₸/мм клея) + (тираж × ₸/работа) + приладка</code>. Толщина блока = (листов блока + обложки) × толщина листа + доп. толщина.
                             </p>
                           </div>
                         );
