@@ -79,6 +79,117 @@ export type Database = {
         }
         Relationships: []
       }
+      block_sewing_prices: {
+        Row: {
+          coef_heavy_paper: number
+          coef_manual: number
+          coef_many_signatures: number
+          coef_nonstandard_format: number
+          coef_standard_format: number
+          coef_thick_block: number
+          coef_thin_paper: number
+          created_at: string
+          endpaper_price: number
+          gauze_price: number
+          headband_price: number
+          id: string
+          is_active: boolean
+          machine_type: string
+          max_block_thickness: number
+          max_circulation: number
+          max_density: number
+          max_format_long: number
+          max_signatures: number
+          min_block_thickness: number
+          min_circulation: number
+          min_cost: number
+          min_density: number
+          min_format_short: number
+          name: string
+          price_per_signature: number
+          setup_cost: number
+          sewing_type: string
+          sort_order: number
+          thick_block_threshold: number
+          thread_calc_mode: string
+          thread_price: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coef_heavy_paper?: number
+          coef_manual?: number
+          coef_many_signatures?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_block?: number
+          coef_thin_paper?: number
+          created_at?: string
+          endpaper_price?: number
+          gauze_price?: number
+          headband_price?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_block_thickness?: number
+          max_circulation?: number
+          max_density?: number
+          max_format_long?: number
+          max_signatures?: number
+          min_block_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_density?: number
+          min_format_short?: number
+          name: string
+          price_per_signature?: number
+          setup_cost?: number
+          sewing_type?: string
+          sort_order?: number
+          thick_block_threshold?: number
+          thread_calc_mode?: string
+          thread_price?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coef_heavy_paper?: number
+          coef_manual?: number
+          coef_many_signatures?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_block?: number
+          coef_thin_paper?: number
+          created_at?: string
+          endpaper_price?: number
+          gauze_price?: number
+          headband_price?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_block_thickness?: number
+          max_circulation?: number
+          max_density?: number
+          max_format_long?: number
+          max_signatures?: number
+          min_block_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_density?: number
+          min_format_short?: number
+          name?: string
+          price_per_signature?: number
+          setup_cost?: number
+          sewing_type?: string
+          sort_order?: number
+          thick_block_threshold?: number
+          thread_calc_mode?: string
+          thread_price?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       calc_constants: {
         Row: {
           created_at: string
