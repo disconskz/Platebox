@@ -277,6 +277,14 @@ const Calculator = () => {
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
 
+  // Доработка 5: единый блок «Кол-во сгибов на изделии».
+  // Цена за сгиб выбирается автоматически по плотности бумаги.
+  const [foldsPerItem, setFoldsPerItem] = useState(0);
+  // Доработка 7: единый блок «Высечка».
+  const [dieCutEnabled, setDieCutEnabled] = useState(false);
+  const [dieCutStampMode, setDieCutStampMode] = useState<"existing" | "new">("existing");
+  const [dieCutStampCost, setDieCutStampCost] = useState(0);
+
   // Step 6
   const [margin, setMargin] = useState(30);
 
