@@ -678,6 +678,22 @@ const Calculator = () => {
   const [colComplexSequence, setColComplexSequence] = useState(false);
   const [colHasInserts, setColHasInserts] = useState(false);
 
+  // Доработка 15: шитьё блока.
+  const [sewRows, setSewRows] = useState<BlockSewingRow[]>([]);
+  const [sewEnabled, setSewEnabled] = useState(false);
+  const [sewManualId, setSewManualId] = useState<string | null>(null);
+  const [sewSigOverride, setSewSigOverride] = useState<number | "">("");
+  const [sewBlockThicknessOverride, setSewBlockThicknessOverride] = useState<number | "">("");
+  const [sewPaperThicknessOverride, setSewPaperThicknessOverride] = useState<number | "">("");
+  const [sewPriceOverride, setSewPriceOverride] = useState<number | "">("");
+  const [sewThreadPriceOverride, setSewThreadPriceOverride] = useState<number | "">("");
+  const [sewCoefOverride, setSewCoefOverride] = useState<number | "">("");
+  const [sewSetupOverride, setSewSetupOverride] = useState<number | "">("");
+  const [sewMinOverride, setSewMinOverride] = useState<number | "">("");
+  const [sewUseGauze, setSewUseGauze] = useState(true);
+  const [sewUseHeadband, setSewUseHeadband] = useState(true);
+  const [sewUseEndpaper, setSewUseEndpaper] = useState(true);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
