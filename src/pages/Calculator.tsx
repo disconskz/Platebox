@@ -104,6 +104,29 @@ type ThermalBindingRow = {
   is_active: boolean;
   sort_order: number;
 };
+// Доработка 13: справочник фальцовки тетрадей.
+type SignatureFoldingRow = {
+  id: string;
+  name: string;
+  fold_type: string;        // parallel/perpendicular/combined/window/accordion/engineering
+  machine_type: string;     // manual | machine
+  price_per_fold: number;
+  price_per_signature: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_density_light: number;
+  coef_density_medium: number;
+  coef_density_heavy: number;
+  coef_manual: number;
+  coef_nonstandard_format: number;
+  min_density: number;
+  max_density: number;
+  min_format_short: number;
+  max_format_long: number;
+  max_folds: number;
+  is_active: boolean;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
