@@ -2421,6 +2421,11 @@ const SpecTable = ({ result }: { result: any }) => {
     (acc[it.stage] ||= []).push(it);
     return acc;
   }, {});
+  // Доработка 4: фиксированный порядок этапов: допечать → материалы → печать → постпечать → логистика
+  const STAGE_ORDER = ["prepress", "material", "print", "postpress", "logistics"] as const;
+  const ordered = STAGE_ORDER
+    .filter((s) => grouped[s]?.length)
+    .map((s) => [s, grouped[s]] as const);
   return (
     <div className="scroll-x overflow-x-auto rounded-md border">
       <table className="w-full text-sm">
@@ -2434,7 +2439,7 @@ const SpecTable = ({ result }: { result: any }) => {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(grouped).map(([stage, items]: any) => (
+          {ordered.map(([stage, items]: any) => (
             <Fragment key={stage}>
               <tr className="bg-secondary/40">
                 <td colSpan={5} className="p-2 text-xs font-semibold uppercase tracking-wide text-foreground">{STAGE_LABELS[stage]}</td>
