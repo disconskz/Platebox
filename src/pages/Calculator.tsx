@@ -407,6 +407,17 @@ const Calculator = () => {
       } catch { /* не критично */ }
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
+      try {
+        const fpR = await (supabase as any)
+          .from("film_prices")
+          .select("id,name,film_type,price_per_m2,setup_cost,min_cost,sort_order")
+          .order("sort_order");
+        const fpRows = ((fpR.data as FilmPriceRow[]) || []);
+        setFilms(fpRows);
+        if (fpRows.length && !filmId) setFilmId(fpRows[0].id);
+      } catch (e) {
+        console.warn("[Calculator] load film_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
