@@ -1384,7 +1384,76 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems];
+    // Доработка 12: термобиндер (КБС).
+    const thermalItems: SpecItem[] = (() => {
+      if (!thermalEnabled || !(circulation > 0)) return [];
+      if (!thermals.length) return [];
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const ptRow = paperThickness.find((p) => p.density === density);
+      const sheetThickness = thermalPaperThicknessOverride !== ""
+        ? Number(thermalPaperThicknessOverride)
+        : (ptRow?.thickness_mm ?? 0);
+      const sheets = Math.max(0, Math.floor(thermalBlockSheets || 0));
+      const cover = Math.max(0, Math.floor(thermalCoverSheets || 0));
+      const extra = Math.max(0, Number(thermalExtraThickness) || 0);
+      const autoBlockThickness = (sheets + cover) * sheetThickness + extra;
+      const blockThickness = thermalBlockThicknessOverride !== ""
+        ? Math.max(0, Number(thermalBlockThicknessOverride))
+        : autoBlockThickness;
+      const row = pickThermalFor(thermals, blockThickness, thermalManualId);
+      if (!row) return [];
+      const pricePerMm = thermalPricePerMmOverride !== "" ? Number(thermalPricePerMmOverride) : row.price_per_mm;
+      const workPrice = thermalWorkOverride !== "" ? Number(thermalWorkOverride) : row.work_price_per_item;
+      const setup = thermalSetupOverride !== "" ? Number(thermalSetupOverride) : row.setup_cost;
+      const glueCost = circulation * blockThickness * pricePerMm;
+      const workCost = circulation * workPrice;
+      const raw = glueCost + workCost + setup;
+      const total = row.min_cost > 0 ? Math.max(raw, row.min_cost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${GLUE_TYPE_LABEL[row.glue_type] || row.glue_type.toUpperCase()} (${blockThickness.toFixed(2)} мм)`;
+      if (glueCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — клей`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: blockThickness * pricePerMm,
+          total: glueCost,
+        });
+      }
+      if (workCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — работа`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: workPrice,
+          total: workCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — приладка`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: setup,
+          total: setup,
+        });
+      }
+      if (total > raw) {
+        items.push({
+          stage: "postpress",
+          name: `Термобиндер ${label} — доплата до минимума`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: total - raw,
+          total: total - raw,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
