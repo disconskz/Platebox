@@ -90,6 +90,20 @@ type WireSpringRow = {
   sort_order: number;
 };
 type PaperThicknessRow = { density: number; thickness_mm: number };
+// Доработка 12: справочник термобиндера (клеевое бесшвейное скрепление).
+type ThermalBindingRow = {
+  id: string;
+  name: string;
+  glue_type: string; // 'eva' | 'pur'
+  price_per_mm: number;
+  work_price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  is_active: boolean;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
