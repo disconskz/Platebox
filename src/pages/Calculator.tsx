@@ -3498,6 +3498,161 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 14: Подборка тетрадей */}
+                  {SIGNATURE_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={colEnabled} onCheckedChange={(v) => setColEnabled(!!v)} id="sigcol" />
+                        <Label htmlFor="sigcol" className="flex-1 font-medium">Подборка тетрадей</Label>
+                        <Select
+                          value={colManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setColManualId(v === "auto" ? null : v);
+                            setColPriceOverride(""); setColSetupOverride(""); setColCoefOverride(""); setColMinOverride("");
+                          }}
+                          disabled={!colEnabled || collationRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто-подбор по тиражу и формату</SelectItem>
+                            {collationRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {colEnabled && (() => {
+                        if (!collationRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Подборка тетрадей» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = collationRows.filter((r) => r.is_active !== false);
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const autoSignatures = sigPagesPerSignature > 0 ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature)) : 0;
+                        const signatures = colSignaturesOverride !== "" ? Math.max(0, Math.floor(Number(colSignaturesOverride) || 0)) : autoSignatures;
+                        const wantType = colTypeOverride || "";
+                        const fits = active.filter((r) =>
+                          shortSide >= r.min_format_short && longSide <= r.max_format_long &&
+                          density >= r.min_density && density <= r.max_density &&
+                          circulation >= r.min_circulation && circulation <= r.max_circulation &&
+                          signatures <= r.max_signatures,
+                        );
+                        const smallRun = circulation < 300;
+                        const pool = fits.length ? fits : active;
+                        const autoRow = smallRun
+                          ? (pool.find((r) => r.collation_type === "manual") || pool[0])
+                          : (pool.find((r) => r.collation_type === "machine") || pool[0]);
+                        const row = (colManualId && active.find((r) => r.id === colManualId))
+                          || (wantType && active.find((r) => r.collation_type === wantType))
+                          || autoRow;
+                        if (!row) {
+                          return <p className="text-[11px] text-destructive">Не найдена подходящая запись подборки.</p>;
+                        }
+                        const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long
+                          && density >= row.min_density && density <= row.max_density;
+                        const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+                        const machineCoef = row.collation_type === "manual" ? row.coef_manual : row.coef_machine;
+                        const thinPaperCoef = density > 0 && density <= 80 ? row.coef_thin_paper : 1;
+                        const manySigCoef = signatures > 16 ? row.coef_many_signatures : 1;
+                        const seqCoef = colComplexSequence ? row.coef_complex_sequence : 1;
+                        const insertCoef = (colHasInserts || row.collation_type === "machine_inserts") ? row.coef_inserts : 1;
+                        const autoCoef = formatCoef * machineCoef * thinPaperCoef * manySigCoef * seqCoef * insertCoef;
+                        const coef = colCoefOverride !== "" ? Math.max(0, Number(colCoefOverride)) : autoCoef;
+                        const price = colPriceOverride !== "" ? Number(colPriceOverride) : row.price_per_signature;
+                        const setup = colSetupOverride !== "" ? Number(colSetupOverride) : row.setup_cost;
+                        const minCost = colMinOverride !== "" ? Number(colMinOverride) : row.min_cost;
+                        const workCost = circulation * signatures * price * coef;
+                        const raw = workCost + setup;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const pagesMismatch = sigPagesPerSignature > 0 && (sigPages % sigPagesPerSignature !== 0);
+                        const outOfFormat = !isStandardFormat;
+                        const outOfCirc = circulation < row.min_circulation || circulation > row.max_circulation;
+                        const tooManySig = signatures > row.max_signatures;
+                        const machineNotFit = row.collation_type !== "manual" && (outOfFormat || outOfCirc || tooManySig);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тетрадей</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={colSignaturesOverride === "" ? autoSignatures : colSignaturesOverride}
+                                  onChange={(e) => setColSignaturesOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тип подборки</Label>
+                                <Select value={colTypeOverride || "auto"} onValueChange={(v) => setColTypeOverride(v === "auto" ? "" : (v as any))}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="auto">Авто</SelectItem>
+                                    <SelectItem value="manual">Ручная</SelectItem>
+                                    <SelectItem value="machine">Машинная</SelectItem>
+                                    <SelectItem value="machine_inserts">Машинная + вкладки</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/тетрадь</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={colPriceOverride === "" ? row.price_per_signature : colPriceOverride}
+                                  onChange={(e) => setColPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={colCoefOverride === "" ? Number(autoCoef.toFixed(3)) : colCoefOverride}
+                                  onChange={(e) => setColCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={colSetupOverride === "" ? row.setup_cost : colSetupOverride}
+                                  onChange={(e) => setColSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={colMinOverride === "" ? row.min_cost : colMinOverride}
+                                  onChange={(e) => setColMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="col-seq" checked={colComplexSequence} onCheckedChange={(v) => setColComplexSequence(!!v)} />
+                                <Label htmlFor="col-seq" className="text-[12px]">Сложная последовательность</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="col-ins" checked={colHasInserts} onCheckedChange={(v) => setColHasInserts(!!v)} />
+                                <Label htmlFor="col-ins" className="text-[12px]">Вкладки / вставки</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({COLLATION_TYPE_LABEL[row.collation_type] || row.collation_type})
+                              </div>
+                              <div>
+                                {sigPages} стр / {sigPagesPerSignature} = <b>{autoSignatures} тетр.</b> · коэф. формата {formatCoef} × оборуд. {machineCoef} × тонк. бум. {thinPaperCoef} × много тетр. {manySigCoef} × послед. {seqCoef} × вкладки {insertCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              {pagesMismatch && (
+                                <div className="text-destructive">⚠ {sigPages} страниц не делится ровно на {sigPagesPerSignature} полос. Проверьте раскладку.</div>
+                              )}
+                              {machineNotFit && (
+                                <div className="text-destructive">⚠ Параметры не подходят под машинную подборку (формат/тираж/кол-во тетрадей) — рекомендуется ручная.</div>
+                              )}
+                              {tooManySig && (
+                                <div className="text-destructive">⚠ Тетрадей {signatures} больше, чем поддерживает оборудование ({row.max_signatures}).</div>
+                              )}
+                              <div>
+                                Расчёт: {circulation} × {signatures} × {price} × {coef.toFixed(2)} + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>тираж × тетрадей × ₸/тетрадь × коэф + приладка</code>, итог = <code>MAX(расчёт, мин. стоимость)</code>. Количество тетрадей берётся из «Фальцовки тетрадей».
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
