@@ -1364,6 +1364,93 @@ export type Database = {
         }
         Relationships: []
       }
+      signature_collation_prices: {
+        Row: {
+          coef_complex_sequence: number
+          coef_inserts: number
+          coef_machine: number
+          coef_manual: number
+          coef_many_signatures: number
+          coef_nonstandard_format: number
+          coef_standard_format: number
+          coef_thin_paper: number
+          collation_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          max_circulation: number
+          max_density: number
+          max_format_long: number
+          max_signatures: number
+          min_circulation: number
+          min_cost: number
+          min_density: number
+          min_format_short: number
+          name: string
+          price_per_signature: number
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coef_complex_sequence?: number
+          coef_inserts?: number
+          coef_machine?: number
+          coef_manual?: number
+          coef_many_signatures?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thin_paper?: number
+          collation_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_circulation?: number
+          max_density?: number
+          max_format_long?: number
+          max_signatures?: number
+          min_circulation?: number
+          min_cost?: number
+          min_density?: number
+          min_format_short?: number
+          name: string
+          price_per_signature?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coef_complex_sequence?: number
+          coef_inserts?: number
+          coef_machine?: number
+          coef_manual?: number
+          coef_many_signatures?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thin_paper?: number
+          collation_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_circulation?: number
+          max_density?: number
+          max_format_long?: number
+          max_signatures?: number
+          min_circulation?: number
+          min_cost?: number
+          min_density?: number
+          min_format_short?: number
+          name?: string
+          price_per_signature?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       signature_folding_prices: {
         Row: {
           coef_density_heavy: number
