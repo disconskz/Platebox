@@ -89,6 +89,42 @@ function inferCategory(type: string): string {
   return "other";
 }
 
+/**
+ * Доработка 7. Определение типа материала для высечки и его цены за лист.
+ * Цены: картон 5, микрогофра 10, поролон 20, переплётный картон 10, пластик 7.
+ */
+function detectDieCutMaterial(m: any): "binding_cardboard" | "microflute" | "foam" | "plastic" | "cardboard" | "unknown" {
+  if (!m) return "unknown";
+  const blob = [m.type, m.subgroup, m.name].filter(Boolean).join(" ").toLowerCase();
+  if (!blob) return "unknown";
+  if (/переплет|переплёт|binding/.test(blob)) return "binding_cardboard";
+  if (/микрогофр|microflute|гофрокартон|гофро/.test(blob)) return "microflute";
+  if (/поролон|foam/.test(blob)) return "foam";
+  if (/пластик|plastic|pet\b|pvc\b/.test(blob)) return "plastic";
+  if (/картон|cardboard/.test(blob)) return "cardboard";
+  return "unknown";
+}
+function pickDieCutPrice(m: any): number {
+  switch (detectDieCutMaterial(m)) {
+    case "cardboard": return 5;
+    case "microflute": return 10;
+    case "foam": return 20;
+    case "binding_cardboard": return 10;
+    case "plastic": return 7;
+    default: return 5;
+  }
+}
+function dieCutMaterialLabel(m: any): string {
+  switch (detectDieCutMaterial(m)) {
+    case "cardboard": return "картон";
+    case "microflute": return "микрогофра";
+    case "foam": return "поролон";
+    case "binding_cardboard": return "переплётный картон";
+    case "plastic": return "пластик";
+    default: return "материал по умолчанию";
+  }
+}
+
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
   let best = 0;
