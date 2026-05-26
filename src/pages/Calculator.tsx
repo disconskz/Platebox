@@ -244,6 +244,24 @@ const Calculator = () => {
   const [lam, setLam] = useState<LamRow[]>([]);
   const [films, setFilms] = useState<FilmPriceRow[]>([]);
   const [pouches, setPouches] = useState<PouchLamRow[]>([]);
+  // Доработка 10: переменная печать
+  const [variablePrintRows, setVariablePrintRows] = useState<VariablePrintRow[]>([]);
+  // выбор пользователя по типам: enabled + перебиваемые поля.
+  type VarPrintSel = {
+    enabled: boolean;
+    elementsPerItem: number;
+    priceOverride: number | "";
+    setupOverride: number | "";
+    minOverride: number | "";
+    complexityOverride: number | "";
+  };
+  const [varPrintSel, setVarPrintSel] = useState<Record<VariablePrintKind, VarPrintSel>>({
+    numbering:       { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    barcode:         { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    qrcode:          { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    personalization: { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    data_import:     { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+  });
   // Цена выдергивания облоя за 1 изделие (Доработка 8) — из calc_constants.
   const [wastePickPerItem, setWastePickPerItem] = useState<number>(1);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
