@@ -2316,6 +2316,12 @@ const ExtraOpsPicker = ({
     return t;
   }, [operations]);
 
+  // Доработка 4: фиксированный порядок групп.
+  const CATEGORY_ORDER = ["prepress", "print", "postpress", "logistics"] as const;
+  const orderedTree = CATEGORY_ORDER
+    .filter((c) => tree[c])
+    .map((c) => [c, tree[c]] as const);
+
   const defaultQty = (unit: string | null): number => {
     if (!unit) return circulation || 1;
     if (unit === "лист" || unit === "оттиск" || unit === "сгиб") return sheets || circulation || 1;
