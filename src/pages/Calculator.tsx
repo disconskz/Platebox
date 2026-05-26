@@ -736,6 +736,23 @@ const Calculator = () => {
   const [sewUseHeadband, setSewUseHeadband] = useState(true);
   const [sewUseEndpaper, setSewUseEndpaper] = useState(true);
 
+  // Доработка 16: форзацы.
+  const [endpaperRows, setEndpaperRows] = useState<EndpaperRow[]>([]);
+  const [epEnabled, setEpEnabled] = useState(false);
+  const [epManualId, setEpManualId] = useState<string | null>(null);
+  const [epCountOverride, setEpCountOverride] = useState<number | "">("");
+  const [epWidthOverride, setEpWidthOverride] = useState<number | "">("");
+  const [epHeightOverride, setEpHeightOverride] = useState<number | "">("");
+  const [epPaperPriceOverride, setEpPaperPriceOverride] = useState<number | "">("");
+  const [epPrintPriceOverride, setEpPrintPriceOverride] = useState<number | "">("");
+  const [epFoldCreasePriceOverride, setEpFoldCreasePriceOverride] = useState<number | "">("");
+  const [epGluePriceOverride, setEpGluePriceOverride] = useState<number | "">("");
+  const [epCoefOverride, setEpCoefOverride] = useState<number | "">("");
+  const [epSetupOverride, setEpSetupOverride] = useState<number | "">("");
+  const [epMinOverride, setEpMinOverride] = useState<number | "">("");
+  const [epNeedsPrintOverride, setEpNeedsPrintOverride] = useState<"" | "yes" | "no">("");
+  const [epManualGlue, setEpManualGlue] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
