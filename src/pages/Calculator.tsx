@@ -89,6 +89,42 @@ function inferCategory(type: string): string {
   return "other";
 }
 
+/**
+ * Доработка 7. Определение типа материала для высечки и его цены за лист.
+ * Цены: картон 5, микрогофра 10, поролон 20, переплётный картон 10, пластик 7.
+ */
+function detectDieCutMaterial(m: any): "binding_cardboard" | "microflute" | "foam" | "plastic" | "cardboard" | "unknown" {
+  if (!m) return "unknown";
+  const blob = [m.type, m.subgroup, m.name].filter(Boolean).join(" ").toLowerCase();
+  if (!blob) return "unknown";
+  if (/переплет|переплёт|binding/.test(blob)) return "binding_cardboard";
+  if (/микрогофр|microflute|гофрокартон|гофро/.test(blob)) return "microflute";
+  if (/поролон|foam/.test(blob)) return "foam";
+  if (/пластик|plastic|pet\b|pvc\b/.test(blob)) return "plastic";
+  if (/картон|cardboard/.test(blob)) return "cardboard";
+  return "unknown";
+}
+function pickDieCutPrice(m: any): number {
+  switch (detectDieCutMaterial(m)) {
+    case "cardboard": return 5;
+    case "microflute": return 10;
+    case "foam": return 20;
+    case "binding_cardboard": return 10;
+    case "plastic": return 7;
+    default: return 5;
+  }
+}
+function dieCutMaterialLabel(m: any): string {
+  switch (detectDieCutMaterial(m)) {
+    case "cardboard": return "картон";
+    case "microflute": return "микрогофра";
+    case "foam": return "поролон";
+    case "binding_cardboard": return "переплётный картон";
+    case "plastic": return "пластик";
+    default: return "материал по умолчанию";
+  }
+}
+
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
   let best = 0;
@@ -276,6 +312,14 @@ const Calculator = () => {
   const [embossCliches, setEmbossCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
+
+  // Доработка 5: единый блок «Кол-во сгибов на изделии».
+  // Цена за сгиб выбирается автоматически по плотности бумаги.
+  const [foldsPerItem, setFoldsPerItem] = useState(0);
+  // Доработка 7: единый блок «Высечка».
+  const [dieCutEnabled, setDieCutEnabled] = useState(false);
+  const [dieCutStampMode, setDieCutStampMode] = useState<"existing" | "new">("existing");
+  const [dieCutStampCost, setDieCutStampCost] = useState(0);
 
   // Step 6
   const [margin, setMargin] = useState(30);
@@ -770,12 +814,6 @@ const Calculator = () => {
         const name = (op.name || "").toLowerCase();
         return (op.category || "").toLowerCase() === "prepress" && (sub.includes("форм") || name.includes("вывод форм"));
       },
-      // Допечать → Резка (Резка на печатный формат)
-      (op) => {
-        const sub = (op.subgroup || "").toLowerCase();
-        const name = (op.name || "").toLowerCase();
-        return (op.category || "").toLowerCase() === "prepress" && (sub.includes("резк") || name.includes("резка"));
-      },
     ];
     const autoOps = operations.filter((op) => matchers.some((m) => m(op)));
     if (!autoOps.length) return;
@@ -881,6 +919,7 @@ const Calculator = () => {
   const result = useMemo(() => {
     if (!baseResult || "error" in baseResult) return baseResult;
     const forms = baseResult.forms ?? 0;
+    const printSheets = baseResult.printSheets ?? 0;
     const formSetupItems: SpecItem[] =
       formSetupCostPerForm > 0 && forms > 0
         ? [{
@@ -892,7 +931,30 @@ const Calculator = () => {
             total: forms * formSetupCostPerForm,
           }]
         : [];
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems];
+    // Доработка 5: единая «Биговка/Фальцовка» по плотности бумаги.
+    const density = Number((effectiveMaterial as any)?.density ?? 0);
+    const foldItems: SpecItem[] = (() => {
+      if (!(foldsPerItem > 0) || !(circulation > 0)) return [];
+      const isFold = !(density > 150); // ≤150 г/м² → фальцовка
+      const unitPrice = isFold ? 1 : 2;
+      const label = isFold ? "Фальцовка (≤150 г/м²)" : "Биговка (>150 г/м²)";
+      const qty = foldsPerItem * circulation;
+      return [{ stage: "postpress", name: label, quantity: qty, unit: "сгиб", unitPrice, total: qty * unitPrice }];
+    })();
+    // Доработка 7: единая «Высечка» с авто-ценой по типу материала + приладка + (опц.) штамп.
+    const dieCutItems: SpecItem[] = (() => {
+      if (!dieCutEnabled || !(printSheets > 0)) return [];
+      const price = pickDieCutPrice(effectiveMaterial);
+      const items: SpecItem[] = [
+        { stage: "postpress", name: "Высечка (приладка)", quantity: 1, unit: "шт", unitPrice: 5000, total: 5000 },
+        { stage: "postpress", name: `Высечка (${dieCutMaterialLabel(effectiveMaterial)})`, quantity: printSheets, unit: "лист", unitPrice: price, total: printSheets * price },
+      ];
+      if (dieCutStampMode === "new" && dieCutStampCost > 0) {
+        items.push({ stage: "postpress", name: "Изготовление штампа для высечки", quantity: 1, unit: "шт", unitPrice: dieCutStampCost, total: dieCutStampCost });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1085,7 +1147,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -1941,22 +2003,58 @@ const Calculator = () => {
                       </div>
                     );
                   })()}
-                  {productType === "booklet" && (
+                  {/* Доработка 5: единый блок «Кол-во сгибов на изделии». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
-                      <Checkbox checked={hasFold} onCheckedChange={(v) => setHasFold(!!v)} id="fold" />
-                      <Label htmlFor="fold" className="flex-1">Фальцовка</Label>
-                      <Select value={String(foldCount)} onValueChange={(v) => setFoldCount(Number(v))}>
-                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="1">1 сгиб</SelectItem><SelectItem value="2">2 сгиба</SelectItem></SelectContent>
+                      <Label className="flex-1">Кол-во сгибов на изделии</Label>
+                      <Select value={String(foldsPerItem)} onValueChange={(v) => setFoldsPerItem(Number(v))}>
+                        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {[0, 1, 2, 3, 4, 5].map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n === 0 ? "Без сгибов" : `${n} сгиб${n === 1 ? "" : n < 5 ? "а" : "ов"}`}</SelectItem>
+                          ))}
+                        </SelectContent>
                       </Select>
                     </div>
-                  )}
-                  {(productType === "leaflet_diecut" || productType === "sticker_diecut" || productType === "bag") && (
-                    <div className="flex items-center gap-3">
-                      <Checkbox checked={hasDieCut} onCheckedChange={(v) => setHasDieCut(!!v)} id="dc" />
-                      <Label htmlFor="dc">Высечка</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      До 150 г/м² — фальцовка (1 ₸/сгиб). Выше 150 г/м² — биговка (2 ₸/сгиб). Цена выбирается автоматически по плотности бумаги.
+                    </p>
+                  </div>
+                  {/* Доработка 7: единый блок «Высечка» с авто-ценой по типу материала. */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={dieCutEnabled} onCheckedChange={(v) => setDieCutEnabled(!!v)} id="diecut" />
+                      <Label htmlFor="diecut" className="flex-1">Высечка</Label>
+                      {dieCutEnabled && (
+                        <Select value={dieCutStampMode} onValueChange={(v) => setDieCutStampMode(v as "existing" | "new")}>
+                          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="existing">Штамп: есть готовый</SelectItem>
+                            <SelectItem value="new">Штамп: изготовить новый</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
-                  )}
+                    {dieCutEnabled && dieCutStampMode === "new" && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Label htmlFor="stampcost" className="flex-1">Стоимость нового штампа, ₸</Label>
+                        <Input
+                          id="stampcost"
+                          type="number"
+                          inputMode="decimal"
+                          className="w-36"
+                          value={dieCutStampCost || ""}
+                          onChange={(e) => setDieCutStampCost(Number(e.target.value) || 0)}
+                          placeholder="0"
+                        />
+                      </div>
+                    )}
+                    {dieCutEnabled && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Авто-цена по материалу: картон 5 ₸/лист · микрогофра 10 · поролон 20 · переплётный картон 10 · пластик 7. Приладка 5 000 ₸. Текущий материал: <b>{dieCutMaterialLabel(effectiveMaterial)}</b> ({pickDieCutPrice(effectiveMaterial)} ₸/лист).
+                      </p>
+                    )}
+                  </div>
                   {productType === "bag" && (
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
@@ -1968,7 +2066,16 @@ const Calculator = () => {
                     </div>
                   )}
                   <ExtraOpsPicker
-                    operations={operations.filter((o) => o.category === "postpress" || o.category === "logistics" || o.category === "print" || o.category === "prepress")}
+                    operations={operations.filter((o) => {
+                      const cat = (o.category || "").toLowerCase();
+                      if (!(cat === "postpress" || cat === "logistics" || cat === "print" || cat === "prepress")) return false;
+                      // Доработка 5/7: эти категории справочника теперь представлены едиными блоками выше.
+                      const sub = (o.subgroup || "").toLowerCase();
+                      const name = (o.name || "").toLowerCase();
+                      if (/биговк|фальцовк/.test(sub) || /биговк|фальцовк/.test(name)) return false;
+                      if (/высечк|выдергиван/.test(sub) || /высечк|выдергиван/.test(name)) return false;
+                      return true;
+                    })}
                     extraOps={extraOps}
                     setExtraOps={setExtraOps}
                     circulation={circulation}
@@ -2254,6 +2361,12 @@ const ExtraOpsPicker = ({
     return t;
   }, [operations]);
 
+  // Доработка 4: фиксированный порядок групп.
+  const CATEGORY_ORDER = ["prepress", "print", "postpress", "logistics"] as const;
+  const orderedTree = CATEGORY_ORDER
+    .filter((c) => tree[c])
+    .map((c) => [c, tree[c]] as const);
+
   const defaultQty = (unit: string | null): number => {
     if (!unit) return circulation || 1;
     if (unit === "лист" || unit === "оттиск" || unit === "сгиб") return sheets || circulation || 1;
@@ -2286,7 +2399,7 @@ const ExtraOpsPicker = ({
         Отметьте нужные. Цены подтянуты из справочника, можно перебить вручную.
       </div>
       <div className="space-y-3">
-        {Object.entries(tree).map(([cat, subs]) => (
+        {orderedTree.map(([cat, subs]) => (
           <details key={cat} className="rounded-md border bg-card">
             <summary className="cursor-pointer px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground">
               {CATEGORY_LABEL[cat] || cat}
@@ -2359,6 +2472,11 @@ const SpecTable = ({ result }: { result: any }) => {
     (acc[it.stage] ||= []).push(it);
     return acc;
   }, {});
+  // Доработка 4: фиксированный порядок этапов: допечать → материалы → печать → постпечать → логистика
+  const STAGE_ORDER = ["prepress", "material", "print", "postpress", "logistics"] as const;
+  const ordered = STAGE_ORDER
+    .filter((s) => grouped[s]?.length)
+    .map((s) => [s, grouped[s]] as const);
   return (
     <div className="scroll-x overflow-x-auto rounded-md border">
       <table className="w-full text-sm">
@@ -2372,7 +2490,7 @@ const SpecTable = ({ result }: { result: any }) => {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(grouped).map(([stage, items]: any) => (
+          {ordered.map(([stage, items]: any) => (
             <Fragment key={stage}>
               <tr className="bg-secondary/40">
                 <td colSpan={5} className="p-2 text-xs font-semibold uppercase tracking-wide text-foreground">{STAGE_LABELS[stage]}</td>

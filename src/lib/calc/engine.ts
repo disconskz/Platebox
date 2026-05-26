@@ -560,17 +560,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     usableH: Math.max(0, layout.printFormat.height - layout.margins.top - layout.margins.bottom),
   };
 
-  if (isBooklet && input.hasFold) {
-    const folds = (input.foldCount ?? 1) * input.circulation;
-    const u = (input.foldCount ?? 1) === 1 ? 1.5 : 2.5;
-    postpress.push({ stage: "postpress", name: "Фальцовка (приладка)", quantity: 1, unit: "шт", unitPrice: (rule as any).operationSetupCost ?? 1500, total: (rule as any).operationSetupCost ?? 1500 });
-    postpress.push({ stage: "postpress", name: `Фальцовка (${input.foldCount ?? 1} сг.)`, quantity: folds, unit: "сгиб", unitPrice: u, total: folds * u });
-  }
-
-  if (isDieCut && input.hasDieCut !== false) {
-    postpress.push({ stage: "postpress", name: "Высечка (приладка)", quantity: 1, unit: "шт", unitPrice: 2000, total: 2000 });
-    postpress.push({ stage: "postpress", name: "Высечка", quantity: input.circulation, unit: "шт", unitPrice: 2, total: input.circulation * 2 });
-  }
+  // Доработка 5 и 7: устаревшие жёсткие блоки фальцовки и высечки удалены —
+  // теперь они собираются в Calculator.tsx (единый блок «сгибы» по плотности
+  // и единый блок «высечка» по типу материала со штампом).
 
   if (input.hasLamPrepress || input.hasLamination) {
     const sides = input.lamPrepressSides ?? input.laminationSides ?? 1;
