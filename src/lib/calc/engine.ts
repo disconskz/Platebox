@@ -566,16 +566,19 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   if (input.hasLamPrepress || input.hasLamination) {
     const sides = input.lamPrepressSides ?? input.laminationSides ?? 1;
-    // Стоимость припрессовки плёнкой:
-    //   (Ширина листа × Высота листа / 1 000 000) × Цена плёнки за м² ×
-    //   × Количество печатных листов × Количество сторон + Приладка
     const printW = layout.printFormat.width;
     const printH = layout.printFormat.height;
     const areaM2 = (printW * printH) / 1_000_000;
     const pricePerM2 = (input as any).lamPrepressPerM2 ?? (rule as any).lamPrepressPerM2 ?? 200;
-    const setup = (rule as any).operationSetupCost ?? 1500;
+    const setup = input.lamPrepressSetup ?? (rule as any).operationSetupCost ?? 1500;
+    const minCost = input.lamPrepressMinCost ?? 0;
+    const filmLabel = input.lamPrepressFilmLabel ? ` ${input.lamPrepressFilmLabel},` : "";
     const sheets = printSheets;
-    const filmTotal = areaM2 * pricePerM2 * sheets * sides;
+    let filmTotal = areaM2 * pricePerM2 * sheets * sides;
+    let minAdjust = 0;
+    if (minCost > 0 && filmTotal + setup < minCost) {
+      minAdjust = minCost - (filmTotal + setup);
+    }
     postpress.push({
       stage: "postpress",
       name: "Припресс плёнкой (приладка)",
@@ -586,12 +589,22 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     });
     postpress.push({
       stage: "postpress",
-      name: `Припресс плёнкой (${printW}×${printH}, ${sides} ст.)`,
+      name: `Припресс плёнкой (${printW}×${printH},${filmLabel} ${sides} ст.)`,
       quantity: Math.round(areaM2 * sheets * sides * 1000) / 1000,
       unit: "м²",
       unitPrice: pricePerM2,
       total: filmTotal,
     });
+    if (minAdjust > 0) {
+      postpress.push({
+        stage: "postpress",
+        name: "Припресс плёнкой (доплата до минимума)",
+        quantity: 1,
+        unit: "шт",
+        unitPrice: minAdjust,
+        total: minAdjust,
+      });
+    }
   }
 
   if (input.hasNumbering && input.numbersPerSheet) {
