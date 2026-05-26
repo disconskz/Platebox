@@ -371,6 +371,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "lamination_prices", title: "Ламинация", desc: "Цены за сторону по плёнке и размеру.", countKey: "lamination_prices" },
       { key: "film_prices", title: "Плёнки для припресса", desc: "Каталог плёнок: цена за м², приладка, минимальная стоимость. Используется для авто-расчёта припресса.", countKey: "film_prices" },
       { key: "pouch_lamination_prices", title: "Пакетная ламинация", desc: "Форматы пакетов и цена за 1 изделие. Используется для авто-расчёта пакетной ламинации.", countKey: "pouch_lamination_prices" },
+      { key: "variable_print_prices", title: "Переменная печать", desc: "Нумерация, штрихкоды, QR, персонализация: цена/нанесение, приладка, минимальная стоимость, коэф. сложности.", countKey: "variable_print_prices" },
     ],
   },
   {
