@@ -2401,6 +2401,96 @@ const Calculator = () => {
                       );
                     })()}
                   </div>
+                  {/* Доработка 10: Переменная печать */}
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="font-medium text-sm">Переменная печать (нумерация / штрихкоды / QR / персонализация)</div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Формула: <code>MAX(приладка + тираж × элементов × цена × сложность, мин. стоимость)</code>. Цены и приладка берутся из справочника «Переменная печать»; при необходимости поля можно перебить вручную.
+                    </p>
+                    {variablePrintRows.length === 0 ? (
+                      <p className="text-[11px] text-destructive">Справочник «Переменная печать» пуст — добавьте записи в Справочниках.</p>
+                    ) : variablePrintRows.map((row) => {
+                      const sel = varPrintSel[row.kind];
+                      if (!sel) return null;
+                      const price = sel.priceOverride !== "" ? Number(sel.priceOverride) : row.price_per_apply;
+                      const setup = sel.setupOverride !== "" ? Number(sel.setupOverride) : row.setup_cost;
+                      const minCost = sel.minOverride !== "" ? Number(sel.minOverride) : row.min_cost;
+                      const complexity = sel.complexityOverride !== "" ? Number(sel.complexityOverride) : (row.complexity || 1);
+                      const elements = Math.max(0, Math.floor(sel.elementsPerItem || 0));
+                      const applies = circulation * elements;
+                      const raw = setup + applies * price * complexity;
+                      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                      const update = (patch: Partial<VarPrintSel>) =>
+                        setVarPrintSel((prev) => ({ ...prev, [row.kind]: { ...prev[row.kind], ...patch } }));
+                      return (
+                        <div key={row.id} className="rounded border p-2 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Checkbox checked={sel.enabled} onCheckedChange={(v) => update({ enabled: !!v })} id={`vp-${row.kind}`} />
+                            <Label htmlFor={`vp-${row.kind}`} className="flex-1 font-medium">{row.name}</Label>
+                            <span className="text-[11px] text-muted-foreground">
+                              {row.price_per_apply} ₸/нанесение · приладка {row.setup_cost} ₸
+                            </span>
+                          </div>
+                          {sel.enabled && (
+                            <>
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Элементов на изделии</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    value={sel.elementsPerItem}
+                                    onChange={(e) => update({ elementsPerItem: Math.max(0, Number(e.target.value) || 0) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">₸/нанесение</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={sel.priceOverride === "" ? row.price_per_apply : sel.priceOverride}
+                                    onChange={(e) => update({ priceOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={sel.setupOverride === "" ? row.setup_cost : sel.setupOverride}
+                                    onChange={(e) => update({ setupOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={sel.minOverride === "" ? row.min_cost : sel.minOverride}
+                                    onChange={(e) => update({ minOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.1"
+                                    value={sel.complexityOverride === "" ? (row.complexity || 1) : sel.complexityOverride}
+                                    onChange={(e) => update({ complexityOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground">
+                                Нанесений: {circulation} × {elements} = <b>{applies}</b> · Расчёт: MAX({setup} + {applies} × {price} × {complexity}, {minCost}) = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
