@@ -152,11 +152,30 @@ export function CatalogOperationsPicker({ circulation, onChange }: Props) {
             <SelectValue placeholder="Добавить операцию из справочника…" />
           </SelectTrigger>
           <SelectContent>
-            {calculableCatalog.map((op) => (
-              <SelectItem key={op.code} value={String(op.code)}>
-                {op.name}
-              </SelectItem>
-            ))}
+            <div className="sticky top-0 z-10 bg-popover p-2 border-b">
+              <Input
+                autoFocus
+                placeholder="Поиск операции…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="h-8"
+              />
+            </div>
+            {(() => {
+              const q = query.trim().toLowerCase();
+              const list = q
+                ? calculableCatalog.filter((op) => op.name.toLowerCase().includes(q))
+                : calculableCatalog;
+              if (!list.length) {
+                return <div className="px-3 py-4 text-xs text-muted-foreground">Ничего не найдено</div>;
+              }
+              return list.map((op) => (
+                <SelectItem key={op.code} value={String(op.code)}>
+                  {op.name}
+                </SelectItem>
+              ));
+            })()}
           </SelectContent>
         </Select>
         <Plus className="h-4 w-4 text-muted-foreground" />
