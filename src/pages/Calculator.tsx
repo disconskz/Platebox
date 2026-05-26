@@ -854,6 +854,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load signature_collation_prices failed", e);
       }
+      // Доработка 15: справочник шитья блока.
+      try {
+        const bsR = await (supabase as any)
+          .from("block_sewing_prices")
+          .select("*")
+          .order("sort_order");
+        setSewRows(((bsR.data as BlockSewingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load block_sewing_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
