@@ -1382,6 +1382,57 @@ export type Database = {
         }
         Relationships: []
       }
+      thermal_binding_prices: {
+        Row: {
+          created_at: string
+          glue_type: string
+          id: string
+          is_active: boolean
+          max_block_thickness: number
+          min_block_thickness: number
+          min_cost: number
+          name: string
+          price_per_mm: number
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+          work_price_per_item: number
+        }
+        Insert: {
+          created_at?: string
+          glue_type?: string
+          id?: string
+          is_active?: boolean
+          max_block_thickness?: number
+          min_block_thickness?: number
+          min_cost?: number
+          name: string
+          price_per_mm?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          work_price_per_item?: number
+        }
+        Update: {
+          created_at?: string
+          glue_type?: string
+          id?: string
+          is_active?: boolean
+          max_block_thickness?: number
+          min_block_thickness?: number
+          min_cost?: number
+          name?: string
+          price_per_mm?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          work_price_per_item?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
