@@ -104,6 +104,29 @@ type ThermalBindingRow = {
   is_active: boolean;
   sort_order: number;
 };
+// Доработка 13: справочник фальцовки тетрадей.
+type SignatureFoldingRow = {
+  id: string;
+  name: string;
+  fold_type: string;        // parallel/perpendicular/combined/window/accordion/engineering
+  machine_type: string;     // manual | machine
+  price_per_fold: number;
+  price_per_signature: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_density_light: number;
+  coef_density_medium: number;
+  coef_density_heavy: number;
+  coef_manual: number;
+  coef_nonstandard_format: number;
+  min_density: number;
+  max_density: number;
+  min_format_short: number;
+  max_format_long: number;
+  max_folds: number;
+  is_active: boolean;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
@@ -256,6 +279,26 @@ const THERMAL_PRODUCT_TYPES = new Set<string>([
   "notepad", "book", "magazine", "brochure", "catalog",
 ]);
 const GLUE_TYPE_LABEL: Record<string, string> = { eva: "EVA", pur: "PUR" };
+
+// Доработка 13: продукты, для которых доступна фальцовка тетрадей (многополосные).
+const SIGNATURE_PRODUCT_TYPES = new Set<string>([
+  "book", "magazine", "brochure", "notepad", "catalog",
+]);
+const FOLD_TYPE_LABEL: Record<string, string> = {
+  parallel: "Параллельная",
+  perpendicular: "Перпендикулярная",
+  combined: "Комбинированная",
+  window: "Оконная",
+  accordion: "Гармошка",
+  engineering: "Инженерная",
+};
+const FOLD_MACHINE_LABEL: Record<string, string> = { machine: "Машинная", manual: "Ручная" };
+const SIGNATURE_PAGES_OPTIONS = [8, 16, 32] as const;
+// 8 → 2 сгиба, 16 → 3, 32 → 4. Общая формула: log2(pages) - 1.
+function foldsForSignature(pagesPerSignature: number): number {
+  if (!(pagesPerSignature > 0)) return 0;
+  return Math.max(1, Math.round(Math.log2(pagesPerSignature) - 1));
+}
 
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
@@ -528,6 +571,19 @@ const Calculator = () => {
   const [thermalWorkOverride, setThermalWorkOverride] = useState<number | "">("");
   const [thermalSetupOverride, setThermalSetupOverride] = useState<number | "">("");
 
+  // Доработка 13: фальцовка тетрадей.
+  const [signatureRows, setSignatureRows] = useState<SignatureFoldingRow[]>([]);
+  const [sigEnabled, setSigEnabled] = useState(false);
+  const [sigPages, setSigPages] = useState<number>(160);
+  const [sigPagesPerSignature, setSigPagesPerSignature] = useState<8 | 16 | 32>(16);
+  const [sigManualId, setSigManualId] = useState<string | null>(null);
+  const [sigFoldsOverride, setSigFoldsOverride] = useState<number | "">("");
+  const [sigSignaturesOverride, setSigSignaturesOverride] = useState<number | "">("");
+  const [sigCoefOverride, setSigCoefOverride] = useState<number | "">("");
+  const [sigPricePerFoldOverride, setSigPricePerFoldOverride] = useState<number | "">("");
+  const [sigPricePerSignatureOverride, setSigPricePerSignatureOverride] = useState<number | "">("");
+  const [sigSetupOverride, setSigSetupOverride] = useState<number | "">("");
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -667,6 +723,16 @@ const Calculator = () => {
         setThermals(((tbR.data as ThermalBindingRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load thermal_binding_prices failed", e);
+      }
+      // Доработка 13: справочник фальцовки тетрадей.
+      try {
+        const sfR = await (supabase as any)
+          .from("signature_folding_prices")
+          .select("*")
+          .order("sort_order");
+        setSignatureRows(((sfR.data as SignatureFoldingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load signature_folding_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -1453,7 +1519,88 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems];
+    // Доработка 13: фальцовка тетрадей.
+    const signatureItems: SpecItem[] = (() => {
+      if (!sigEnabled || !(circulation > 0)) return [];
+      if (!signatureRows.length) return [];
+      const active = signatureRows.filter((r) => r.is_active !== false);
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const row = (sigManualId && active.find((r) => r.id === sigManualId))
+        || active.find((r) => density >= r.min_density && density <= r.max_density
+                            && shortSide >= r.min_format_short && longSide <= r.max_format_long)
+        || active[0];
+      if (!row) return [];
+      const autoFolds = foldsForSignature(sigPagesPerSignature);
+      const folds = sigFoldsOverride !== ""
+        ? Math.max(0, Math.floor(Number(sigFoldsOverride) || 0))
+        : autoFolds;
+      const autoSignatures = sigPagesPerSignature > 0
+        ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature))
+        : 0;
+      const signatures = sigSignaturesOverride !== ""
+        ? Math.max(0, Math.floor(Number(sigSignaturesOverride) || 0))
+        : autoSignatures;
+      const densityCoef = density <= 130 ? row.coef_density_light
+        : density <= 200 ? row.coef_density_medium
+        : row.coef_density_heavy;
+      const manualCoef = row.machine_type === "manual" ? row.coef_manual : 1;
+      const isStandardFormat = density >= row.min_density && density <= row.max_density
+        && shortSide >= row.min_format_short && longSide <= row.max_format_long;
+      const formatCoef = isStandardFormat ? 1 : row.coef_nonstandard_format;
+      const autoCoef = densityCoef * manualCoef * formatCoef;
+      const coef = sigCoefOverride !== "" ? Math.max(0, Number(sigCoefOverride)) : autoCoef;
+      const pricePerFold = sigPricePerFoldOverride !== "" ? Number(sigPricePerFoldOverride) : row.price_per_fold;
+      const pricePerSignature = sigPricePerSignatureOverride !== "" ? Number(sigPricePerSignatureOverride) : row.price_per_signature;
+      const setup = sigSetupOverride !== "" ? Number(sigSetupOverride) : row.setup_cost;
+      // Базовый расчёт: предпочитаем pricePerFold; иначе — pricePerSignature.
+      let workCost = 0;
+      let workName = "";
+      if (pricePerFold > 0 && folds > 0) {
+        workCost = circulation * signatures * folds * pricePerFold * coef;
+        workName = `Фальцовка тетрадей (${signatures} тетр. × ${folds} сгиб. × ${pricePerFold} ₸ × коэф. ${coef.toFixed(2)})`;
+      } else if (pricePerSignature > 0) {
+        workCost = circulation * signatures * pricePerSignature * coef;
+        workName = `Фальцовка тетрадей (${signatures} тетр. × ${pricePerSignature} ₸ × коэф. ${coef.toFixed(2)})`;
+      }
+      const raw = workCost + setup;
+      const total = row.min_cost > 0 ? Math.max(raw, row.min_cost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${FOLD_TYPE_LABEL[row.fold_type] || row.fold_type} · ${FOLD_MACHINE_LABEL[row.machine_type] || row.machine_type}`;
+      if (workCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `${workName} — ${label}`,
+          quantity: circulation * signatures * (pricePerFold > 0 ? folds : 1),
+          unit: pricePerFold > 0 ? "сгиб" : "тетр",
+          unitPrice: pricePerFold > 0 ? pricePerFold * coef : pricePerSignature * coef,
+          total: workCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Фальцовка тетрадей — приладка (${label})`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: setup,
+          total: setup,
+        });
+      }
+      if (total > raw) {
+        items.push({
+          stage: "postpress",
+          name: `Фальцовка тетрадей — доплата до минимума`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: total - raw,
+          total: total - raw,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1646,7 +1793,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -3053,6 +3200,157 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(тираж × толщина блока × ₸/мм клея) + (тираж × ₸/работа) + приладка</code>. Толщина блока = (листов блока + обложки) × толщина листа + доп. толщина.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 13: Фальцовка тетрадей */}
+                  {SIGNATURE_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={sigEnabled} onCheckedChange={(v) => setSigEnabled(!!v)} id="sigfold" />
+                        <Label htmlFor="sigfold" className="flex-1 font-medium">Фальцовка тетрадей</Label>
+                        <Select
+                          value={sigManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setSigManualId(v === "auto" ? null : v);
+                            setSigPricePerFoldOverride(""); setSigPricePerSignatureOverride("");
+                            setSigSetupOverride(""); setSigCoefOverride("");
+                          }}
+                          disabled={!sigEnabled || signatureRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Тип фальцовки" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто-подбор по формату и плотности</SelectItem>
+                            {signatureRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {sigEnabled && (() => {
+                        if (!signatureRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Фальцовка тетрадей» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = signatureRows.filter((r) => r.is_active !== false);
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const row = (sigManualId && active.find((r) => r.id === sigManualId))
+                          || active.find((r) => density >= r.min_density && density <= r.max_density
+                                              && shortSide >= r.min_format_short && longSide <= r.max_format_long)
+                          || active[0];
+                        if (!row) {
+                          return <p className="text-[11px] text-destructive">Не найдена подходящая запись фальцовки.</p>;
+                        }
+                        const autoFolds = foldsForSignature(sigPagesPerSignature);
+                        const folds = sigFoldsOverride !== "" ? Math.max(0, Math.floor(Number(sigFoldsOverride) || 0)) : autoFolds;
+                        const autoSignatures = sigPagesPerSignature > 0 ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature)) : 0;
+                        const signatures = sigSignaturesOverride !== "" ? Math.max(0, Math.floor(Number(sigSignaturesOverride) || 0)) : autoSignatures;
+                        const densityCoef = density <= 130 ? row.coef_density_light : density <= 200 ? row.coef_density_medium : row.coef_density_heavy;
+                        const manualCoef = row.machine_type === "manual" ? row.coef_manual : 1;
+                        const isStandardFormat = density >= row.min_density && density <= row.max_density
+                          && shortSide >= row.min_format_short && longSide <= row.max_format_long;
+                        const formatCoef = isStandardFormat ? 1 : row.coef_nonstandard_format;
+                        const autoCoef = densityCoef * manualCoef * formatCoef;
+                        const coef = sigCoefOverride !== "" ? Math.max(0, Number(sigCoefOverride)) : autoCoef;
+                        const pricePerFold = sigPricePerFoldOverride !== "" ? Number(sigPricePerFoldOverride) : row.price_per_fold;
+                        const pricePerSignature = sigPricePerSignatureOverride !== "" ? Number(sigPricePerSignatureOverride) : row.price_per_signature;
+                        const setup = sigSetupOverride !== "" ? Number(sigSetupOverride) : row.setup_cost;
+                        const usesFold = pricePerFold > 0 && folds > 0;
+                        const workCost = usesFold
+                          ? circulation * signatures * folds * pricePerFold * coef
+                          : circulation * signatures * pricePerSignature * coef;
+                        const raw = workCost + setup;
+                        const total = row.min_cost > 0 ? Math.max(raw, row.min_cost) : raw;
+                        const tooManyFolds = folds > row.max_folds;
+                        const outOfDensity = density > 0 && (density < row.min_density || density > row.max_density);
+                        const outOfFormat = !(shortSide >= row.min_format_short && longSide <= row.max_format_long);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Страниц в изделии</Label>
+                                <Input type="number" inputMode="numeric" min={1}
+                                  value={sigPages}
+                                  onChange={(e) => setSigPages(Math.max(0, Number(e.target.value) || 0))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Полос в тетради</Label>
+                                <Select value={String(sigPagesPerSignature)} onValueChange={(v) => setSigPagesPerSignature(Number(v) as 8 | 16 | 32)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {SIGNATURE_PAGES_OPTIONS.map((n) => (
+                                      <SelectItem key={n} value={String(n)}>{n} полос</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тетрадей</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={sigSignaturesOverride === "" ? autoSignatures : sigSignaturesOverride}
+                                  onChange={(e) => setSigSignaturesOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сгибов в тетради</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={sigFoldsOverride === "" ? autoFolds : sigFoldsOverride}
+                                  onChange={(e) => setSigFoldsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sigCoefOverride === "" ? Number(autoCoef.toFixed(3)) : sigCoefOverride}
+                                  onChange={(e) => setSigCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/сгиб</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sigPricePerFoldOverride === "" ? row.price_per_fold : sigPricePerFoldOverride}
+                                  onChange={(e) => setSigPricePerFoldOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/тетрадь</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sigPricePerSignatureOverride === "" ? row.price_per_signature : sigPricePerSignatureOverride}
+                                  onChange={(e) => setSigPricePerSignatureOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={sigSetupOverride === "" ? row.setup_cost : sigSetupOverride}
+                                  onChange={(e) => setSigSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({FOLD_TYPE_LABEL[row.fold_type] || row.fold_type}, {FOLD_MACHINE_LABEL[row.machine_type] || row.machine_type})
+                              </div>
+                              <div>
+                                {sigPages} стр / {sigPagesPerSignature} = <b>{autoSignatures} тетр.</b> · сгибов {folds} · плотность {density} г/м² → коэф.{" "}
+                                {densityCoef}×{manualCoef === 1 ? "1" : manualCoef + " (ручная)"}×{formatCoef === 1 ? "1" : formatCoef + " (нестанд.)"} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              {tooManyFolds && (
+                                <div className="text-destructive">⚠ Количество сгибов ({folds}) превышает максимум оборудования ({row.max_folds}).</div>
+                              )}
+                              {outOfDensity && (
+                                <div className="text-destructive">⚠ Плотность {density} г/м² вне допустимого диапазона ({row.min_density}–{row.max_density}).</div>
+                              )}
+                              {outOfFormat && (
+                                <div className="text-destructive">⚠ Формат {shortSide}×{longSide} мм вне допустимого диапазона (короткая ≥ {row.min_format_short}, длинная ≤ {row.max_format_long}).</div>
+                              )}
+                              <div>
+                                Расчёт: {usesFold
+                                  ? `${circulation} × ${signatures} × ${folds} × ${pricePerFold} × ${coef.toFixed(2)}`
+                                  : `${circulation} × ${signatures} × ${pricePerSignature} × ${coef.toFixed(2)}`} + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {row.min_cost > 0 && raw < row.min_cost && <> (доплата до мин. {row.min_cost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>тираж × тетрадей × сгибов × ₸/сгиб × коэф + приладка</code>. Если ₸/сгиб не задан — используется <code>тираж × тетрадей × ₸/тетрадь × коэф + приладка</code>.
                             </p>
                           </div>
                         );
