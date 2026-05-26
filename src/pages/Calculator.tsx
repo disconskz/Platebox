@@ -658,6 +658,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load wire_spring/paper_thickness failed", e);
       }
+      // Доработка 12: справочник термобиндера.
+      try {
+        const tbR = await (supabase as any)
+          .from("thermal_binding_prices")
+          .select("*")
+          .order("sort_order");
+        setThermals(((tbR.data as ThermalBindingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load thermal_binding_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
