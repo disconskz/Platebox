@@ -1036,6 +1036,48 @@ export type Database = {
         }
         Relationships: []
       }
+      pouch_lamination_prices: {
+        Row: {
+          created_at: string
+          film_thickness: number
+          film_type: string
+          height: number
+          id: string
+          min_cost: number
+          name: string
+          price_per_item: number
+          sort_order: number
+          updated_at: string
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          film_thickness?: number
+          film_type?: string
+          height: number
+          id?: string
+          min_cost?: number
+          name: string
+          price_per_item?: number
+          sort_order?: number
+          updated_at?: string
+          width: number
+        }
+        Update: {
+          created_at?: string
+          film_thickness?: number
+          film_type?: string
+          height?: number
+          id?: string
+          min_cost?: number
+          name?: string
+          price_per_item?: number
+          sort_order?: number
+          updated_at?: string
+          width?: number
+        }
+        Relationships: []
+      }
       press_machines: {
         Row: {
           cost_per_impression: number

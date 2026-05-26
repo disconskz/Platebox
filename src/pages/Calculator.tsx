@@ -48,6 +48,17 @@ type FilmPriceRow = {
   min_cost: number;
   sort_order: number;
 };
+type PouchLamRow = {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  film_type: string;
+  film_thickness: number;
+  price_per_item: number;
+  min_cost: number;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
@@ -134,6 +145,32 @@ function dieCutMaterialLabel(m: any): string {
   }
 }
 
+// Доработка 9: подобрать ближайший пакет, в который помещается изделие.
+// Алгоритм: нормализуем стороны (макс, мин) и для каждого пакета также;
+// пакет подходит, если оба измерения изделия ≤ обоих измерений пакета.
+// Среди подходящих берём пакет с минимальной площадью.
+function pickPouchFor(
+  pouches: Array<{ id: string; name: string; width: number; height: number; price_per_item: number; min_cost: number; film_type: string; film_thickness: number }>,
+  productW: number,
+  productH: number,
+  manualId: string | null,
+): { id: string; name: string; width: number; height: number; price_per_item: number; min_cost: number; film_type: string; film_thickness: number } | null {
+  if (!pouches.length) return null;
+  if (manualId) {
+    const p = pouches.find((x) => x.id === manualId);
+    if (p) return p;
+  }
+  const pMax = Math.max(productW, productH);
+  const pMin = Math.min(productW, productH);
+  const fits = pouches.filter((x) => {
+    const xMax = Math.max(x.width, x.height);
+    const xMin = Math.min(x.width, x.height);
+    return xMax >= pMax && xMin >= pMin;
+  });
+  const sorted = (fits.length ? fits : [...pouches]).slice().sort((a, b) => (a.width * a.height) - (b.width * b.height));
+  return sorted[0] || null;
+}
+
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
   let best = 0;
@@ -193,6 +230,9 @@ const Calculator = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
   const [films, setFilms] = useState<FilmPriceRow[]>([]);
+  const [pouches, setPouches] = useState<PouchLamRow[]>([]);
+  // Цена выдергивания облоя за 1 изделие (Доработка 8) — из calc_constants.
+  const [wastePickPerItem, setWastePickPerItem] = useState<number>(1);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
@@ -327,6 +367,12 @@ const Calculator = () => {
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
   const [filmPriceOverride, setFilmPriceOverride] = useState<number | "">("");
   const [filmSetupOverride, setFilmSetupOverride] = useState<number | "">("");
+  // Доработка 9: пакетная ламинация.
+  const [pouchEnabled, setPouchEnabled] = useState(false);
+  // null = авто-подбор; иначе id выбранного пакета.
+  const [pouchManualId, setPouchManualId] = useState<string | null>(null);
+  const [pouchPriceOverride, setPouchPriceOverride] = useState<number | "">("");
+  const [pouchMinOverride, setPouchMinOverride] = useState<number | "">("");
 
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
@@ -417,6 +463,26 @@ const Calculator = () => {
         if (fpRows.length && !filmId) setFilmId(fpRows[0].id);
       } catch (e) {
         console.warn("[Calculator] load film_prices failed", e);
+      }
+      try {
+        const plR = await (supabase as any)
+          .from("pouch_lamination_prices")
+          .select("id,name,width,height,film_type,film_thickness,price_per_item,min_cost,sort_order")
+          .order("sort_order");
+        setPouches(((plR.data as PouchLamRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load pouch_lamination_prices failed", e);
+      }
+      try {
+        const wR = await (supabase as any)
+          .from("calc_constants")
+          .select("value")
+          .eq("slug", "diecut_waste_pick_per_item")
+          .maybeSingle();
+        const v = Number((wR.data as any)?.value);
+        if (Number.isFinite(v) && v > 0) setWastePickPerItem(v);
+      } catch (e) {
+        console.warn("[Calculator] load diecut_waste_pick_per_item failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -986,9 +1052,51 @@ const Calculator = () => {
       if (dieCutStampMode === "new" && dieCutStampCost > 0) {
         items.push({ stage: "postpress", name: "Изготовление штампа для высечки", quantity: 1, unit: "шт", unitPrice: dieCutStampCost, total: dieCutStampCost });
       }
+      // Доработка 8: автоматическое выдергивание облоя после высечки.
+      //   qty = печ.листов × изделий_на_листе, ₸ за 1 изделие — из calc_constants.
+      const ips = baseResult.layout?.itemsPerSheet ?? 0;
+      if (ips > 0 && wastePickPerItem > 0) {
+        const qty = printSheets * ips;
+        items.push({
+          stage: "postpress",
+          name: "Выдергивание облоя после высечки",
+          quantity: qty,
+          unit: "изделие",
+          unitPrice: wastePickPerItem,
+          total: qty * wastePickPerItem,
+        });
+      }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems];
+    // Доработка 9: пакетная ламинация — поштучно по формату пакета.
+    const pouchItems: SpecItem[] = (() => {
+      if (!pouchEnabled || !(circulation > 0) || !pouches.length) return [];
+      const pouch = pickPouchFor(pouches, dims.w, dims.h, pouchManualId);
+      if (!pouch) return [];
+      const price = pouchPriceOverride !== "" ? Number(pouchPriceOverride) : pouch.price_per_item;
+      const minCost = pouchMinOverride !== "" ? Number(pouchMinOverride) : pouch.min_cost;
+      const total = circulation * price;
+      const items: SpecItem[] = [{
+        stage: "postpress",
+        name: `Пакетная ламинация (${pouch.name} ${pouch.width}×${pouch.height}, ${pouch.film_type} ${pouch.film_thickness} мкм)`,
+        quantity: circulation,
+        unit: "шт",
+        unitPrice: price,
+        total,
+      }];
+      if (minCost > 0 && total < minCost) {
+        items.push({
+          stage: "postpress",
+          name: "Пакетная ламинация (доплата до минимума)",
+          quantity: 1,
+          unit: "шт",
+          unitPrice: minCost - total,
+          total: minCost - total,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1181,7 +1289,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -2089,6 +2197,8 @@ const Calculator = () => {
                     {dieCutEnabled && (
                       <p className="text-[11px] text-muted-foreground">
                         Авто-цена по материалу: картон 5 ₸/лист · микрогофра 10 · поролон 20 · переплётный картон 10 · пластик 7. Приладка 5 000 ₸. Текущий материал: <b>{dieCutMaterialLabel(effectiveMaterial)}</b> ({pickDieCutPrice(effectiveMaterial)} ₸/лист).
+                        <br />
+                        Авто-добавляется «Выдергивание облоя после высечки»: печ.листов × изделий_на_листе × {wastePickPerItem} ₸/изделие (правится в Справочниках → Константы формул, ключ <code>diecut_waste_pick_per_item</code>).
                       </p>
                     )}
                   </div>
@@ -2151,6 +2261,67 @@ const Calculator = () => {
                           </div>
                           <p className="text-[11px] text-muted-foreground">
                             Формула: <code>(Ш × В / 1 000 000) × цена_м² × печ.листов × сторон + приладка</code>. Цена и приладка берутся из справочника «Плёнки для припресса»; при необходимости можно перебить вручную.
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  {/* Доработка 9: Пакетная ламинация */}
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={pouchEnabled} onCheckedChange={(v) => setPouchEnabled(!!v)} id="pouch" />
+                      <Label htmlFor="pouch" className="flex-1 font-medium">Пакетная ламинация</Label>
+                      <Select
+                        value={pouchManualId ?? "auto"}
+                        onValueChange={(v) => { setPouchManualId(v === "auto" ? null : v); setPouchPriceOverride(""); setPouchMinOverride(""); }}
+                        disabled={!pouchEnabled || pouches.length === 0}
+                      >
+                        <SelectTrigger className="w-60"><SelectValue placeholder="Формат пакета" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">Авто-подбор по размеру изделия</SelectItem>
+                          {pouches.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.width}×{p.height})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {pouchEnabled && (() => {
+                      const pouch = pickPouchFor(pouches, dims.w, dims.h, pouchManualId);
+                      if (!pouch) return (
+                        <p className="text-[11px] text-destructive">Не найден подходящий пакет — добавьте записи в Справочник «Пакетная ламинация».</p>
+                      );
+                      const price = pouchPriceOverride !== "" ? Number(pouchPriceOverride) : pouch.price_per_item;
+                      const minCost = pouchMinOverride !== "" ? Number(pouchMinOverride) : pouch.min_cost;
+                      const raw = circulation * price;
+                      const total = Math.max(raw, minCost);
+                      return (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Цена за пакет, ₸</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={pouchPriceOverride === "" ? pouch.price_per_item : pouchPriceOverride}
+                                onChange={(e) => setPouchPriceOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={pouchMinOverride === "" ? pouch.min_cost : pouchMinOverride}
+                                onChange={(e) => setPouchMinOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div className="col-span-2 text-[11px] text-muted-foreground self-end">
+                              Изделие {dims.w}×{dims.h} мм → пакет <b>{pouch.name}</b> ({pouch.width}×{pouch.height}, {pouch.film_type} {pouch.film_thickness} мкм)<br />
+                              Расчёт: MAX({circulation} × {price}, {minCost}) = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Стоимость считается поштучно по выбранному пакету; вторая сторона не удорожает (ламинируется одним пакетом). Авто-подбор берёт ближайший больший формат, в который помещается изделие.
                           </p>
                         </div>
                       );

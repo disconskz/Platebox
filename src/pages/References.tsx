@@ -188,6 +188,21 @@ const TABLES = [
     defaults: { name: "", film_type: "gloss", price_per_m2: 100, setup_cost: 3000, min_cost: 0, sort_order: 100 },
   },
   {
+    key: "pouch_lamination_prices",
+    title: "Пакетная ламинация",
+    cols: [
+      { k: "name", t: "text", label: "Формат" },
+      { k: "width", t: "number", label: "Шир., мм" },
+      { k: "height", t: "number", label: "Выс., мм" },
+      { k: "film_type", t: "select", label: "Тип плёнки", opts: ["gloss", "matte", "velvet", "soft_touch", "gold", "silver", "color"] },
+      { k: "film_thickness", t: "number", label: "Толщина, мкм" },
+      { k: "price_per_item", t: "number", label: "₸/изделие" },
+      { k: "min_cost", t: "number", label: "Мин. стоимость, ₸" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { name: "", width: 154, height: 216, film_type: "gloss", film_thickness: 75, price_per_item: 25, min_cost: 3000, sort_order: 100 },
+  },
+  {
     key: "system_settings",
     title: "Константы",
     cols: [
@@ -340,6 +355,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "press_machines", title: "Печатные машины", desc: "Печатные машины, форматы, приладка, типы продукции.", countKey: "press_machines", relatedKeys: ["print_formats", "product_circulation_rules"] },
       { key: "lamination_prices", title: "Ламинация", desc: "Цены за сторону по плёнке и размеру.", countKey: "lamination_prices" },
       { key: "film_prices", title: "Плёнки для припресса", desc: "Каталог плёнок: цена за м², приладка, минимальная стоимость. Используется для авто-расчёта припресса.", countKey: "film_prices" },
+      { key: "pouch_lamination_prices", title: "Пакетная ламинация", desc: "Форматы пакетов и цена за 1 изделие. Используется для авто-расчёта пакетной ламинации.", countKey: "pouch_lamination_prices" },
     ],
   },
   {
