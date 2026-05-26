@@ -300,6 +300,38 @@ function foldsForSignature(pagesPerSignature: number): number {
   return Math.max(1, Math.round(Math.log2(pagesPerSignature) - 1));
 }
 
+// Доработка 14: справочник подборки тетрадей.
+type SignatureCollationRow = {
+  id: string;
+  name: string;
+  collation_type: string; // manual | machine | machine_inserts
+  price_per_signature: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_manual: number;
+  coef_machine: number;
+  coef_complex_sequence: number;
+  coef_inserts: number;
+  coef_thin_paper: number;
+  coef_many_signatures: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_density: number;
+  max_density: number;
+  min_circulation: number;
+  max_circulation: number;
+  max_signatures: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const COLLATION_TYPE_LABEL: Record<string, string> = {
+  manual: "Ручная",
+  machine: "Машинная",
+  machine_inserts: "Машинная с вкладками",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
