@@ -332,6 +332,55 @@ const COLLATION_TYPE_LABEL: Record<string, string> = {
   machine_inserts: "Машинная с вкладками",
 };
 
+// Доработка 15: справочник шитья блока.
+type BlockSewingRow = {
+  id: string;
+  name: string;
+  sewing_type: string;        // thread | manual | thread_glue | combined | stab | thread_gauze | thread_no_gauze
+  machine_type: string;       // auto | semi_auto | manual
+  price_per_signature: number;
+  setup_cost: number;
+  min_cost: number;
+  thread_calc_mode: string;   // per_item | per_signature
+  thread_price: number;
+  gauze_price: number;
+  headband_price: number;
+  endpaper_price: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_thick_block: number;
+  coef_manual: number;
+  coef_thin_paper: number;
+  coef_heavy_paper: number;
+  coef_many_signatures: number;
+  thick_block_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  min_density: number;
+  max_density: number;
+  min_circulation: number;
+  max_circulation: number;
+  max_signatures: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const SEWING_TYPE_LABEL: Record<string, string> = {
+  thread: "Ниткошвейное",
+  manual: "Ручное",
+  thread_glue: "Клеешвейное",
+  combined: "Комбинированное",
+  stab: "Втачку",
+  thread_gauze: "На марлю",
+  thread_no_gauze: "Без марли",
+};
+const SEWING_MACHINE_LABEL: Record<string, string> = {
+  auto: "Автомат",
+  semi_auto: "Полуавтомат",
+  manual: "Ручное",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
@@ -629,6 +678,22 @@ const Calculator = () => {
   const [colComplexSequence, setColComplexSequence] = useState(false);
   const [colHasInserts, setColHasInserts] = useState(false);
 
+  // Доработка 15: шитьё блока.
+  const [sewRows, setSewRows] = useState<BlockSewingRow[]>([]);
+  const [sewEnabled, setSewEnabled] = useState(false);
+  const [sewManualId, setSewManualId] = useState<string | null>(null);
+  const [sewSigOverride, setSewSigOverride] = useState<number | "">("");
+  const [sewBlockThicknessOverride, setSewBlockThicknessOverride] = useState<number | "">("");
+  const [sewPaperThicknessOverride, setSewPaperThicknessOverride] = useState<number | "">("");
+  const [sewPriceOverride, setSewPriceOverride] = useState<number | "">("");
+  const [sewThreadPriceOverride, setSewThreadPriceOverride] = useState<number | "">("");
+  const [sewCoefOverride, setSewCoefOverride] = useState<number | "">("");
+  const [sewSetupOverride, setSewSetupOverride] = useState<number | "">("");
+  const [sewMinOverride, setSewMinOverride] = useState<number | "">("");
+  const [sewUseGauze, setSewUseGauze] = useState(true);
+  const [sewUseHeadband, setSewUseHeadband] = useState(true);
+  const [sewUseEndpaper, setSewUseEndpaper] = useState(true);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -788,6 +853,16 @@ const Calculator = () => {
         setCollationRows(((scR.data as SignatureCollationRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load signature_collation_prices failed", e);
+      }
+      // Доработка 15: справочник шитья блока.
+      try {
+        const bsR = await (supabase as any)
+          .from("block_sewing_prices")
+          .select("*")
+          .order("sort_order");
+        setSewRows(((bsR.data as BlockSewingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load block_sewing_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -1741,7 +1816,113 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems];
+    // Доработка 15: шитьё блока.
+    const sewingItems: SpecItem[] = (() => {
+      if (!sewEnabled || !(circulation > 0)) return [];
+      if (!sewRows.length) return [];
+      const active = sewRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const autoSignatures = sigPagesPerSignature > 0
+        ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature))
+        : 0;
+      const signatures = sewSigOverride !== ""
+        ? Math.max(0, Math.floor(Number(sewSigOverride) || 0))
+        : autoSignatures;
+      const ptRow = paperThickness.find((p) => p.density === density);
+      const sheetThickness = sewPaperThicknessOverride !== ""
+        ? Number(sewPaperThicknessOverride)
+        : Number(ptRow?.thickness_mm ?? 0);
+      const sheets = Math.max(0, Math.floor(sigPages / 2));
+      const autoBlockThickness = sheets * sheetThickness;
+      const blockThickness = sewBlockThicknessOverride !== ""
+        ? Number(sewBlockThicknessOverride)
+        : autoBlockThickness;
+      // Авто-подбор записи: фильтр по диапазонам, иначе fallback по тиражу/толщине.
+      const fits = active.filter((r) =>
+        shortSide >= r.min_format_short && longSide <= r.max_format_long &&
+        density >= r.min_density && density <= r.max_density &&
+        circulation >= r.min_circulation && circulation <= r.max_circulation &&
+        signatures <= r.max_signatures &&
+        blockThickness >= r.min_block_thickness && blockThickness <= r.max_block_thickness,
+      );
+      const pool = fits.length ? fits : active;
+      const smallRun = circulation < 300 || blockThickness > 0;
+      const autoRow = (circulation >= 300 && pool.find((r) => r.machine_type === "auto"))
+        || pool.find((r) => r.machine_type === "semi_auto")
+        || pool.find((r) => r.machine_type === "manual")
+        || pool[0];
+      const row = (sewManualId && active.find((r) => r.id === sewManualId)) || autoRow;
+      if (!row) return [];
+      const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long
+        && density >= row.min_density && density <= row.max_density;
+      const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+      const thickCoef = blockThickness > row.thick_block_threshold ? row.coef_thick_block : 1;
+      const manualCoef = row.machine_type === "manual" || row.sewing_type === "manual" ? row.coef_manual : 1;
+      const thinPaperCoef = density > 0 && density <= 70 ? row.coef_thin_paper : 1;
+      const heavyPaperCoef = density >= 150 ? row.coef_heavy_paper : 1;
+      const manySigCoef = signatures > 16 ? row.coef_many_signatures : 1;
+      const autoCoef = formatCoef * thickCoef * manualCoef * thinPaperCoef * heavyPaperCoef * manySigCoef;
+      const coef = sewCoefOverride !== "" ? Math.max(0, Number(sewCoefOverride)) : autoCoef;
+      const price = sewPriceOverride !== "" ? Number(sewPriceOverride) : row.price_per_signature;
+      const threadPrice = sewThreadPriceOverride !== "" ? Number(sewThreadPriceOverride) : row.thread_price;
+      const setup = sewSetupOverride !== "" ? Number(sewSetupOverride) : row.setup_cost;
+      const minCost = sewMinOverride !== "" ? Number(sewMinOverride) : row.min_cost;
+      const sewCost = circulation * signatures * price * coef;
+      const threadCost = row.thread_calc_mode === "per_signature"
+        ? circulation * signatures * threadPrice
+        : circulation * threadPrice;
+      const gauzeCost = sewUseGauze ? circulation * row.gauze_price : 0;
+      const headbandCost = sewUseHeadband ? circulation * row.headband_price : 0;
+      const endpaperCost = sewUseEndpaper ? circulation * row.endpaper_price : 0;
+      const raw = sewCost + threadCost + gauzeCost + headbandCost + endpaperCost + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${SEWING_TYPE_LABEL[row.sewing_type] || row.sewing_type} · ${SEWING_MACHINE_LABEL[row.machine_type] || row.machine_type}`;
+      if (sewCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Шитьё блока (${signatures} тетр. × ${price} ₸ × коэф. ${coef.toFixed(2)}) — ${label}`,
+          quantity: circulation * signatures,
+          unit: "тетр",
+          unitPrice: price * coef,
+          total: sewCost,
+        });
+      }
+      if (threadCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: row.thread_calc_mode === "per_signature"
+            ? `Шитьё блока — нитки (${threadPrice} ₸/тетрадь)`
+            : `Шитьё блока — нитки (${threadPrice} ₸/изделие)`,
+          quantity: row.thread_calc_mode === "per_signature" ? circulation * signatures : circulation,
+          unit: row.thread_calc_mode === "per_signature" ? "тетр" : "шт",
+          unitPrice: threadPrice,
+          total: threadCost,
+        });
+      }
+      if (gauzeCost > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — марля (${row.gauze_price} ₸/изд)`, quantity: circulation, unit: "шт", unitPrice: row.gauze_price, total: gauzeCost });
+      }
+      if (headbandCost > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — каптал (${row.headband_price} ₸/изд)`, quantity: circulation, unit: "шт", unitPrice: row.headband_price, total: headbandCost });
+      }
+      if (endpaperCost > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — форзацы (${row.endpaper_price} ₸/изд)`, quantity: circulation, unit: "шт", unitPrice: row.endpaper_price, total: endpaperCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Шитьё блока — приладка (${label})`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Шитьё блока — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      // suppress unused-warning for smallRun (used only in auto choice)
+      void smallRun;
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1934,7 +2115,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -3647,6 +3828,196 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>тираж × тетрадей × ₸/тетрадь × коэф + приладка</code>, итог = <code>MAX(расчёт, мин. стоимость)</code>. Количество тетрадей берётся из «Фальцовки тетрадей».
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 15: Шитьё блока */}
+                  {SIGNATURE_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={sewEnabled} onCheckedChange={(v) => setSewEnabled(!!v)} id="sew" />
+                        <Label htmlFor="sew" className="flex-1 font-medium">Шитьё блока</Label>
+                        <Select
+                          value={sewManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setSewManualId(v === "auto" ? null : v);
+                            setSewPriceOverride(""); setSewSetupOverride(""); setSewCoefOverride(""); setSewMinOverride(""); setSewThreadPriceOverride("");
+                          }}
+                          disabled={!sewEnabled || sewRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто-подбор по тиражу, формату и толщине блока</SelectItem>
+                            {sewRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {sewEnabled && (() => {
+                        if (!sewRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Шитьё блока» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = sewRows.filter((r) => r.is_active !== false);
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const autoSignatures = sigPagesPerSignature > 0 ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature)) : 0;
+                        const signatures = sewSigOverride !== "" ? Math.max(0, Math.floor(Number(sewSigOverride) || 0)) : autoSignatures;
+                        const ptRow = paperThickness.find((p) => p.density === density);
+                        const sheetThickness = sewPaperThicknessOverride !== "" ? Number(sewPaperThicknessOverride) : Number(ptRow?.thickness_mm ?? 0);
+                        const sheets = Math.max(0, Math.floor(sigPages / 2));
+                        const autoBlockThickness = sheets * sheetThickness;
+                        const blockThickness = sewBlockThicknessOverride !== "" ? Number(sewBlockThicknessOverride) : autoBlockThickness;
+                        const fits = active.filter((r) =>
+                          shortSide >= r.min_format_short && longSide <= r.max_format_long &&
+                          density >= r.min_density && density <= r.max_density &&
+                          circulation >= r.min_circulation && circulation <= r.max_circulation &&
+                          signatures <= r.max_signatures &&
+                          blockThickness >= r.min_block_thickness && blockThickness <= r.max_block_thickness,
+                        );
+                        const pool = fits.length ? fits : active;
+                        const autoRow = (circulation >= 300 && pool.find((r) => r.machine_type === "auto"))
+                          || pool.find((r) => r.machine_type === "semi_auto")
+                          || pool.find((r) => r.machine_type === "manual")
+                          || pool[0];
+                        const row = (sewManualId && active.find((r) => r.id === sewManualId)) || autoRow;
+                        if (!row) {
+                          return <p className="text-[11px] text-destructive">Не найдена подходящая запись шитья блока.</p>;
+                        }
+                        const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long
+                          && density >= row.min_density && density <= row.max_density;
+                        const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+                        const thickCoef = blockThickness > row.thick_block_threshold ? row.coef_thick_block : 1;
+                        const manualCoef = row.machine_type === "manual" || row.sewing_type === "manual" ? row.coef_manual : 1;
+                        const thinPaperCoef = density > 0 && density <= 70 ? row.coef_thin_paper : 1;
+                        const heavyPaperCoef = density >= 150 ? row.coef_heavy_paper : 1;
+                        const manySigCoef = signatures > 16 ? row.coef_many_signatures : 1;
+                        const autoCoef = formatCoef * thickCoef * manualCoef * thinPaperCoef * heavyPaperCoef * manySigCoef;
+                        const coef = sewCoefOverride !== "" ? Math.max(0, Number(sewCoefOverride)) : autoCoef;
+                        const price = sewPriceOverride !== "" ? Number(sewPriceOverride) : row.price_per_signature;
+                        const threadPrice = sewThreadPriceOverride !== "" ? Number(sewThreadPriceOverride) : row.thread_price;
+                        const setup = sewSetupOverride !== "" ? Number(sewSetupOverride) : row.setup_cost;
+                        const minCost = sewMinOverride !== "" ? Number(sewMinOverride) : row.min_cost;
+                        const sewCost = circulation * signatures * price * coef;
+                        const threadCost = row.thread_calc_mode === "per_signature"
+                          ? circulation * signatures * threadPrice
+                          : circulation * threadPrice;
+                        const gauzeCost = sewUseGauze ? circulation * row.gauze_price : 0;
+                        const headbandCost = sewUseHeadband ? circulation * row.headband_price : 0;
+                        const endpaperCost = sewUseEndpaper ? circulation * row.endpaper_price : 0;
+                        const raw = sewCost + threadCost + gauzeCost + headbandCost + endpaperCost + setup;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const outOfFormat = !isStandardFormat;
+                        const outOfCirc = circulation < row.min_circulation || circulation > row.max_circulation;
+                        const tooManySig = signatures > row.max_signatures;
+                        const outOfThickness = blockThickness < row.min_block_thickness || blockThickness > row.max_block_thickness;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тетрадей</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={sewSigOverride === "" ? autoSignatures : sewSigOverride}
+                                  onChange={(e) => setSewSigOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина листа, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sewPaperThicknessOverride === "" ? sheetThickness : sewPaperThicknessOverride}
+                                  onChange={(e) => setSewPaperThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина блока, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sewBlockThicknessOverride === "" ? Number(autoBlockThickness.toFixed(2)) : sewBlockThicknessOverride}
+                                  onChange={(e) => setSewBlockThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/тетрадь</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sewPriceOverride === "" ? row.price_per_signature : sewPriceOverride}
+                                  onChange={(e) => setSewPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">
+                                  Нитки, ₸/{row.thread_calc_mode === "per_signature" ? "тетр" : "изд"}
+                                </Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sewThreadPriceOverride === "" ? row.thread_price : sewThreadPriceOverride}
+                                  onChange={(e) => setSewThreadPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sewCoefOverride === "" ? Number(autoCoef.toFixed(3)) : sewCoefOverride}
+                                  onChange={(e) => setSewCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={sewSetupOverride === "" ? row.setup_cost : sewSetupOverride}
+                                  onChange={(e) => setSewSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={sewMinOverride === "" ? row.min_cost : sewMinOverride}
+                                  onChange={(e) => setSewMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="sew-gauze" checked={sewUseGauze} onCheckedChange={(v) => setSewUseGauze(!!v)} />
+                                <Label htmlFor="sew-gauze" className="text-[12px]">Марля ({row.gauze_price} ₸/изд)</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="sew-hb" checked={sewUseHeadband} onCheckedChange={(v) => setSewUseHeadband(!!v)} />
+                                <Label htmlFor="sew-hb" className="text-[12px]">Каптал ({row.headband_price} ₸/изд)</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="sew-ep" checked={sewUseEndpaper} onCheckedChange={(v) => setSewUseEndpaper(!!v)} />
+                                <Label htmlFor="sew-ep" className="text-[12px]">Форзацы ({row.endpaper_price} ₸/изд)</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({SEWING_TYPE_LABEL[row.sewing_type] || row.sewing_type} · {SEWING_MACHINE_LABEL[row.machine_type] || row.machine_type})
+                              </div>
+                              <div>
+                                {sigPages} стр → {sheets} листов × {sheetThickness.toFixed(2)} мм = <b>толщина блока {blockThickness.toFixed(2)} мм</b> · тетрадей <b>{signatures}</b>
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × толщ. {thickCoef} × ручн. {manualCoef} × тонк. {thinPaperCoef} × плотн. {heavyPaperCoef} × много тетр. {manySigCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              {outOfFormat && (
+                                <div className="text-destructive">⚠ Формат {shortSide}×{longSide} мм / плотность {density} вне допустимого диапазона для этого оборудования.</div>
+                              )}
+                              {outOfCirc && (
+                                <div className="text-destructive">⚠ Тираж {circulation} вне диапазона ({row.min_circulation}–{row.max_circulation}).</div>
+                              )}
+                              {tooManySig && (
+                                <div className="text-destructive">⚠ Тетрадей {signatures} больше, чем поддерживает оборудование ({row.max_signatures}).</div>
+                              )}
+                              {outOfThickness && (
+                                <div className="text-destructive">⚠ Толщина блока {blockThickness.toFixed(2)} мм вне диапазона ({row.min_block_thickness}–{row.max_block_thickness} мм).</div>
+                              )}
+                              <div>
+                                Шитьё: {circulation}×{signatures}×{price}×{coef.toFixed(2)} = <b>{Math.round(sewCost).toLocaleString("ru-RU")} ₸</b>
+                                {threadCost > 0 && <> · нитки <b>{Math.round(threadCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {gauzeCost > 0 && <> · марля <b>{Math.round(gauzeCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {headbandCost > 0 && <> · каптал <b>{Math.round(headbandCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {endpaperCost > 0 && <> · форзацы <b>{Math.round(endpaperCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {setup > 0 && <> · приладка <b>{setup} ₸</b></>}
+                              </div>
+                              <div>
+                                Итог: <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(тираж × тетрадей × ₸/тетрадь × коэф) + нитки + марля + каптал + форзацы + приладка</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>.
                             </p>
                           </div>
                         );
