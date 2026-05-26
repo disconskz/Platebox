@@ -1991,7 +1991,108 @@ const Calculator = () => {
       void smallRun;
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems];
+    // Доработка 16: форзацы.
+    const endpaperItems: SpecItem[] = (() => {
+      if (!epEnabled || !(circulation > 0)) return [];
+      if (!endpaperRows.length) return [];
+      const active = endpaperRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const row = (epManualId && active.find((r) => r.id === epManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const perItem = epCountOverride !== "" ? Math.max(0, Math.floor(Number(epCountOverride) || 0)) : row.endpapers_per_item;
+      const epWidth = epWidthOverride !== "" ? Number(epWidthOverride) : dims.w * 2;
+      const epHeight = epHeightOverride !== "" ? Number(epHeightOverride) : dims.h;
+      const area = Math.max(0, (epWidth * epHeight) / 1_000_000);
+      const totalCount = circulation * perItem;
+      const density = row.paper_density;
+      // Бумага.
+      let paperCost = 0;
+      if (row.paper_calc_mode === "per_sheet") {
+        const sheetArea = Math.max(0.0001, (row.sheet_width * row.sheet_height) / 1_000_000);
+        const sheets = Math.ceil((area * totalCount) / sheetArea);
+        const price = epPaperPriceOverride !== "" ? Number(epPaperPriceOverride) : row.paper_price_per_sheet;
+        paperCost = sheets * price;
+      } else {
+        const price = epPaperPriceOverride !== "" ? Number(epPaperPriceOverride) : row.paper_price_per_m2;
+        paperCost = area * price * totalCount;
+      }
+      // Печать.
+      const needsPrint = epNeedsPrintOverride === "yes" ? true : epNeedsPrintOverride === "no" ? false : row.needs_print;
+      const printPricePerSheet = epPrintPriceOverride !== "" ? Number(epPrintPriceOverride) : row.print_price_per_sheet;
+      const printCost = needsPrint ? totalCount * printPricePerSheet : 0;
+      // Фальцовка/биговка: <= threshold → фальцовка, иначе биговка.
+      const useCrease = density > row.density_threshold;
+      const foldPrice = useCrease
+        ? (epFoldCreasePriceOverride !== "" ? Number(epFoldCreasePriceOverride) : row.crease_price)
+        : (epFoldCreasePriceOverride !== "" ? Number(epFoldCreasePriceOverride) : row.fold_price);
+      const foldCost = totalCount * foldPrice;
+      // Приклейка.
+      const gluePrice = epGluePriceOverride !== "" ? Number(epGluePriceOverride) : row.glue_price_per_item;
+      const glueCost = totalCount * gluePrice;
+      const setup = epSetupOverride !== "" ? Number(epSetupOverride) : row.setup_cost;
+      const minCost = epMinOverride !== "" ? Number(epMinOverride) : row.min_cost;
+      // Коэффициенты сложности.
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const isStandardFormat = shortSide >= 70 && longSide <= 1200;
+      const printedCoef = needsPrint ? row.coef_printed : 1;
+      const designerCoef = row.endpaper_type === "designer" ? row.coef_designer_paper : 1;
+      const heavyCoef = density >= row.heavy_paper_threshold ? row.coef_heavy_paper : 1;
+      const formatCoef = isStandardFormat ? row.coef_standard : row.coef_nonstandard_format;
+      const manualGlueCoef = epManualGlue ? row.coef_manual_glue : 1;
+      const autoCoef = printedCoef * designerCoef * heavyCoef * formatCoef * manualGlueCoef;
+      const coef = epCoefOverride !== "" ? Math.max(0, Number(epCoefOverride)) : autoCoef;
+      const baseSum = paperCost + printCost + foldCost + glueCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (paperCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Форзацы — бумага (${row.paper_name || ENDPAPER_TYPE_LABEL[row.endpaper_type] || ""} ${density} г/м²)`,
+          quantity: totalCount,
+          unit: "шт",
+          unitPrice: paperCost / Math.max(1, totalCount),
+          total: paperCost,
+        });
+      }
+      if (printCost > 0) {
+        items.push({ stage: "postpress", name: `Форзацы — печать (${printPricePerSheet} ₸/шт)`, quantity: totalCount, unit: "шт", unitPrice: printPricePerSheet, total: printCost });
+      }
+      if (foldCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Форзацы — ${useCrease ? "биговка" : "фальцовка"} (${foldPrice} ₸/шт)`,
+          quantity: totalCount,
+          unit: "шт",
+          unitPrice: foldPrice,
+          total: foldCost,
+        });
+      }
+      if (glueCost > 0) {
+        items.push({ stage: "postpress", name: `Форзацы — приклейка (${gluePrice} ₸/шт)`, quantity: totalCount, unit: "шт", unitPrice: gluePrice, total: glueCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Форзацы — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = raw - baseSum;
+        items.push({
+          stage: "postpress",
+          name: `Форзацы — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Форзацы — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
