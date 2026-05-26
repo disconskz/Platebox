@@ -280,6 +280,26 @@ const THERMAL_PRODUCT_TYPES = new Set<string>([
 ]);
 const GLUE_TYPE_LABEL: Record<string, string> = { eva: "EVA", pur: "PUR" };
 
+// Доработка 13: продукты, для которых доступна фальцовка тетрадей (многополосные).
+const SIGNATURE_PRODUCT_TYPES = new Set<string>([
+  "book", "magazine", "brochure", "notepad", "catalog",
+]);
+const FOLD_TYPE_LABEL: Record<string, string> = {
+  parallel: "Параллельная",
+  perpendicular: "Перпендикулярная",
+  combined: "Комбинированная",
+  window: "Оконная",
+  accordion: "Гармошка",
+  engineering: "Инженерная",
+};
+const FOLD_MACHINE_LABEL: Record<string, string> = { machine: "Машинная", manual: "Ручная" };
+const SIGNATURE_PAGES_OPTIONS = [8, 16, 32] as const;
+// 8 → 2 сгиба, 16 → 3, 32 → 4. Общая формула: log2(pages/4).
+function foldsForSignature(pagesPerSignature: number): number {
+  if (!(pagesPerSignature > 0)) return 0;
+  return Math.max(1, Math.round(Math.log2(pagesPerSignature / 2)));
+}
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
