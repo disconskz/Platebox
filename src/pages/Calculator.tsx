@@ -2266,6 +2266,67 @@ const Calculator = () => {
                       );
                     })()}
                   </div>
+                  {/* Доработка 9: Пакетная ламинация */}
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={pouchEnabled} onCheckedChange={(v) => setPouchEnabled(!!v)} id="pouch" />
+                      <Label htmlFor="pouch" className="flex-1 font-medium">Пакетная ламинация</Label>
+                      <Select
+                        value={pouchManualId ?? "auto"}
+                        onValueChange={(v) => { setPouchManualId(v === "auto" ? null : v); setPouchPriceOverride(""); setPouchMinOverride(""); }}
+                        disabled={!pouchEnabled || pouches.length === 0}
+                      >
+                        <SelectTrigger className="w-60"><SelectValue placeholder="Формат пакета" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">Авто-подбор по размеру изделия</SelectItem>
+                          {pouches.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.width}×{p.height})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {pouchEnabled && (() => {
+                      const pouch = pickPouchFor(pouches, dims.w, dims.h, pouchManualId);
+                      if (!pouch) return (
+                        <p className="text-[11px] text-destructive">Не найден подходящий пакет — добавьте записи в Справочник «Пакетная ламинация».</p>
+                      );
+                      const price = pouchPriceOverride !== "" ? Number(pouchPriceOverride) : pouch.price_per_item;
+                      const minCost = pouchMinOverride !== "" ? Number(pouchMinOverride) : pouch.min_cost;
+                      const raw = circulation * price;
+                      const total = Math.max(raw, minCost);
+                      return (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Цена за пакет, ₸</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={pouchPriceOverride === "" ? pouch.price_per_item : pouchPriceOverride}
+                                onChange={(e) => setPouchPriceOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={pouchMinOverride === "" ? pouch.min_cost : pouchMinOverride}
+                                onChange={(e) => setPouchMinOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div className="col-span-2 text-[11px] text-muted-foreground self-end">
+                              Изделие {dims.w}×{dims.h} мм → пакет <b>{pouch.name}</b> ({pouch.width}×{pouch.height}, {pouch.film_type} {pouch.film_thickness} мкм)<br />
+                              Расчёт: MAX({circulation} × {price}, {minCost}) = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Стоимость считается поштучно по выбранному пакету; вторая сторона не удорожает (ламинируется одним пакетом). Авто-подбор берёт ближайший больший формат, в который помещается изделие.
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
