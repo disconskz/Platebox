@@ -59,6 +59,19 @@ type PouchLamRow = {
   min_cost: number;
   sort_order: number;
 };
+// Доработка 10: справочник переменной печати (нумерация / штрихкод / QR / персонализация / Excel-CSV).
+type VariablePrintKind = "numbering" | "barcode" | "qrcode" | "personalization" | "data_import";
+type VariablePrintRow = {
+  id: string;
+  kind: VariablePrintKind;
+  name: string;
+  price_per_apply: number;
+  setup_cost: number;
+  min_cost: number;
+  complexity: number;
+  is_active: boolean;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
