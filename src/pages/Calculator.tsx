@@ -239,6 +239,8 @@ const Calculator = () => {
   const [step, setStep] = useState(1);
   const { items: glossary } = useProductGlossary();
   const [glossarySlug, setGlossarySlug] = useState<string>("leaflet");
+  // Поиск по виду продукции в выпадающем списке.
+  const [glossaryQuery, setGlossaryQuery] = useState("");
   const [maxReached, setMaxReached] = useState(1);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
@@ -1614,8 +1616,21 @@ const Calculator = () => {
                     <Select value={glossarySlug} onValueChange={setGlossarySlug}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent className="max-h-[400px]">
+                        <div className="sticky top-0 z-10 bg-popover p-2 border-b">
+                          <Input
+                            autoFocus
+                            placeholder="Поиск вида продукции…"
+                            value={glossaryQuery}
+                            onChange={(e) => setGlossaryQuery(e.target.value)}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            className="h-8"
+                          />
+                        </div>
                         {(Object.keys(CATEGORY_LABELS) as GlossaryCategory[]).map((cat) => {
-                          const its = glossary.filter((g) => g.category === cat);
+                          const q = glossaryQuery.trim().toLowerCase();
+                          const its = glossary.filter((g) =>
+                            g.category === cat && (!q || g.name.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q))
+                          );
                           if (!its.length) return null;
                           return (
                             <Fragment key={cat}>
@@ -1631,6 +1646,13 @@ const Calculator = () => {
                             </Fragment>
                           );
                         })}
+                        {(() => {
+                          const q = glossaryQuery.trim().toLowerCase();
+                          if (!q) return null;
+                          const any = glossary.some((g) => g.name.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q));
+                          if (any) return null;
+                          return <div className="px-3 py-4 text-xs text-muted-foreground">Ничего не найдено</div>;
+                        })()}
                       </SelectContent>
                     </Select>
                     {(() => {
