@@ -695,11 +695,19 @@ const Calculator = () => {
       embossingCliches: embossCliches,
       hasLamPrepress,
       lamPrepressSides,
+      lamPrepressPerM2: hasLamPrepress
+        ? (filmPriceOverride !== "" ? Number(filmPriceOverride) : films.find((f) => f.id === filmId)?.price_per_m2)
+        : undefined,
+      lamPrepressSetup: hasLamPrepress
+        ? (filmSetupOverride !== "" ? Number(filmSetupOverride) : films.find((f) => f.id === filmId)?.setup_cost)
+        : undefined,
+      lamPrepressMinCost: hasLamPrepress ? films.find((f) => f.id === filmId)?.min_cost : undefined,
+      lamPrepressFilmLabel: hasLamPrepress ? films.find((f) => f.id === filmId)?.name : undefined,
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
       cutsPerSheetOverride: cutsOverride ?? undefined,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, filmId, films, filmPriceOverride, filmSetupOverride, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
