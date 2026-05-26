@@ -438,6 +438,26 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load film_prices failed", e);
       }
+      try {
+        const plR = await (supabase as any)
+          .from("pouch_lamination_prices")
+          .select("id,name,width,height,film_type,film_thickness,price_per_item,min_cost,sort_order")
+          .order("sort_order");
+        setPouches(((plR.data as PouchLamRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load pouch_lamination_prices failed", e);
+      }
+      try {
+        const wR = await (supabase as any)
+          .from("calc_constants")
+          .select("value")
+          .eq("slug", "diecut_waste_pick_per_item")
+          .maybeSingle();
+        const v = Number((wR.data as any)?.value);
+        if (Number.isFinite(v) && v > 0) setWastePickPerItem(v);
+      } catch (e) {
+        console.warn("[Calculator] load diecut_waste_pick_per_item failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
