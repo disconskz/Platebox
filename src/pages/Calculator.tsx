@@ -779,6 +779,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load signature_folding_prices failed", e);
       }
+      // Доработка 14: справочник подборки тетрадей.
+      try {
+        const scR = await (supabase as any)
+          .from("signature_collation_prices")
+          .select("*")
+          .order("sort_order");
+        setCollationRows(((scR.data as SignatureCollationRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load signature_collation_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
