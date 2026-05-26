@@ -402,6 +402,8 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "film_prices", title: "Плёнки для припресса", desc: "Каталог плёнок: цена за м², приладка, минимальная стоимость. Используется для авто-расчёта припресса.", countKey: "film_prices" },
       { key: "pouch_lamination_prices", title: "Пакетная ламинация", desc: "Форматы пакетов и цена за 1 изделие. Используется для авто-расчёта пакетной ламинации.", countKey: "pouch_lamination_prices" },
       { key: "variable_print_prices", title: "Переменная печать", desc: "Нумерация, штрихкоды, QR, персонализация: цена/нанесение, приладка, минимальная стоимость, коэф. сложности.", countKey: "variable_print_prices" },
+      { key: "wire_spring_prices", title: "Металлическая пружина (Wire-O)", desc: "Диаметры, шаг, цена за виток, работа и приладка. Используется для авто-расчёта навивки.", countKey: "wire_spring_prices", relatedKeys: ["paper_thickness"] },
+      { key: "paper_thickness", title: "Толщина бумаги", desc: "Толщина одного листа по плотности — нужна для авто-расчёта толщины блока при навивке.", countKey: "paper_thickness", relatedKeys: ["wire_spring_prices", "materials"] },
     ],
   },
   {
