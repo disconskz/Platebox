@@ -778,12 +778,6 @@ const Calculator = () => {
         const name = (op.name || "").toLowerCase();
         return (op.category || "").toLowerCase() === "prepress" && (sub.includes("форм") || name.includes("вывод форм"));
       },
-      // Допечать → Резка (Резка на печатный формат)
-      (op) => {
-        const sub = (op.subgroup || "").toLowerCase();
-        const name = (op.name || "").toLowerCase();
-        return (op.category || "").toLowerCase() === "prepress" && (sub.includes("резк") || name.includes("резка"));
-      },
     ];
     const autoOps = operations.filter((op) => matchers.some((m) => m(op)));
     if (!autoOps.length) return;
