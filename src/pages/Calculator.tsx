@@ -251,6 +251,31 @@ const SPRING_TYPE_LABEL: Record<string, string> = {
   wire_o_2_1: "Wire-O 2:1",
 };
 
+// Доработка 12: продукты, для которых доступен термобиндер.
+const THERMAL_PRODUCT_TYPES = new Set<string>([
+  "notepad", "book", "magazine", "brochure", "catalog",
+]);
+const GLUE_TYPE_LABEL: Record<string, string> = { eva: "EVA", pur: "PUR" };
+
+// Доработка 12: подобрать запись термобиндера по толщине блока.
+function pickThermalFor(
+  rows: ThermalBindingRow[],
+  blockThickness: number,
+  manualId: string | null,
+): ThermalBindingRow | null {
+  if (!rows.length) return null;
+  if (manualId) {
+    const r = rows.find((x) => x.id === manualId);
+    if (r) return r;
+  }
+  const active = rows.filter((r) => r.is_active !== false);
+  const fits = active.filter(
+    (r) => blockThickness >= r.min_block_thickness - 1e-9 && blockThickness <= r.max_block_thickness + 1e-9,
+  );
+  if (fits.length) return fits.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+  return active.slice().sort((a, b) => a.sort_order - b.sort_order)[0] || null;
+}
+
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
   let best = 0;
