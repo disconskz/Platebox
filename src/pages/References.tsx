@@ -175,6 +175,19 @@ const TABLES = [
     defaults: { film_type: "gloss", size_range: "up_to_a4_plus", cost_per_side: 17 },
   },
   {
+    key: "film_prices",
+    title: "Плёнки для припресса",
+    cols: [
+      { k: "name", t: "text", label: "Название" },
+      { k: "film_type", t: "select", label: "Тип", opts: ["gloss", "matte", "velvet", "soft_touch", "gold", "silver", "color"] },
+      { k: "price_per_m2", t: "number", label: "₸/м²" },
+      { k: "setup_cost", t: "number", label: "Приладка, ₸" },
+      { k: "min_cost", t: "number", label: "Мин. стоимость, ₸" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { name: "", film_type: "gloss", price_per_m2: 100, setup_cost: 3000, min_cost: 0, sort_order: 100 },
+  },
+  {
     key: "system_settings",
     title: "Константы",
     cols: [
