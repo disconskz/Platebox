@@ -1252,7 +1252,77 @@ const Calculator = () => {
       }
       return out;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems];
+    // Доработка 11: металлическая пружина (Wire-O) из бобины.
+    const wireItems: SpecItem[] = (() => {
+      if (!springEnabled || !(circulation > 0)) return [];
+      if (!springs.length) return [];
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const ptRow = paperThickness.find((p) => p.density === density);
+      const sheetThickness = springPaperThicknessOverride !== ""
+        ? Number(springPaperThicknessOverride)
+        : (ptRow?.thickness_mm ?? 0);
+      const sheets = Math.max(0, Math.floor(springBlockSheets || 0));
+      const blockThickness = sheets * sheetThickness;
+      const spring = pickSpringFor(springs, blockThickness, springManualId);
+      if (!spring) return [];
+      const bindingLength = springSide === "short" ? Math.min(dims.w, dims.h) : Math.max(dims.w, dims.h);
+      const pitch = springPitchOverride !== "" ? Number(springPitchOverride) : spring.pitch_mm;
+      const diameter = springDiameterOverride !== "" ? Number(springDiameterOverride) : spring.diameter_mm;
+      const loops = springLoopsOverride !== ""
+        ? Math.max(0, Math.floor(Number(springLoopsOverride) || 0))
+        : (pitch > 0 ? Math.ceil(bindingLength / pitch) : 0);
+      const pricePerLoop = springPricePerLoopOverride !== "" ? Number(springPricePerLoopOverride) : spring.price_per_loop;
+      const workPrice = springWorkOverride !== "" ? Number(springWorkOverride) : spring.work_price_per_item;
+      const setup = springSetupOverride !== "" ? Number(springSetupOverride) : spring.setup_cost;
+      const materialCost = circulation * loops * pricePerLoop;
+      const workCost = circulation * workPrice;
+      const raw = materialCost + workCost + setup;
+      const total = spring.min_cost > 0 ? Math.max(raw, spring.min_cost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${SPRING_TYPE_LABEL[spring.spring_type] || spring.spring_type} ⌀${diameter} мм`;
+      if (materialCost > 0 && loops > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Пружина ${label} (материал, ${loops} вит. × ${pricePerLoop} ₸)`,
+          quantity: circulation * loops,
+          unit: "виток",
+          unitPrice: pricePerLoop,
+          total: materialCost,
+        });
+      }
+      if (workCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Навивка ${label} (работа)`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: workPrice,
+          total: workCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Навивка ${label} (приладка)`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: setup,
+          total: setup,
+        });
+      }
+      if (total > raw) {
+        items.push({
+          stage: "postpress",
+          name: `Навивка ${label} (доплата до минимума)`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: total - raw,
+          total: total - raw,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
