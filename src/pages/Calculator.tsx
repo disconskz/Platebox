@@ -1519,7 +1519,88 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems];
+    // Доработка 13: фальцовка тетрадей.
+    const signatureItems: SpecItem[] = (() => {
+      if (!sigEnabled || !(circulation > 0)) return [];
+      if (!signatureRows.length) return [];
+      const active = signatureRows.filter((r) => r.is_active !== false);
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const row = (sigManualId && active.find((r) => r.id === sigManualId))
+        || active.find((r) => density >= r.min_density && density <= r.max_density
+                            && shortSide >= r.min_format_short && longSide <= r.max_format_long)
+        || active[0];
+      if (!row) return [];
+      const autoFolds = foldsForSignature(sigPagesPerSignature);
+      const folds = sigFoldsOverride !== ""
+        ? Math.max(0, Math.floor(Number(sigFoldsOverride) || 0))
+        : autoFolds;
+      const autoSignatures = sigPagesPerSignature > 0
+        ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature))
+        : 0;
+      const signatures = sigSignaturesOverride !== ""
+        ? Math.max(0, Math.floor(Number(sigSignaturesOverride) || 0))
+        : autoSignatures;
+      const densityCoef = density <= 130 ? row.coef_density_light
+        : density <= 200 ? row.coef_density_medium
+        : row.coef_density_heavy;
+      const manualCoef = row.machine_type === "manual" ? row.coef_manual : 1;
+      const isStandardFormat = density >= row.min_density && density <= row.max_density
+        && shortSide >= row.min_format_short && longSide <= row.max_format_long;
+      const formatCoef = isStandardFormat ? 1 : row.coef_nonstandard_format;
+      const autoCoef = densityCoef * manualCoef * formatCoef;
+      const coef = sigCoefOverride !== "" ? Math.max(0, Number(sigCoefOverride)) : autoCoef;
+      const pricePerFold = sigPricePerFoldOverride !== "" ? Number(sigPricePerFoldOverride) : row.price_per_fold;
+      const pricePerSignature = sigPricePerSignatureOverride !== "" ? Number(sigPricePerSignatureOverride) : row.price_per_signature;
+      const setup = sigSetupOverride !== "" ? Number(sigSetupOverride) : row.setup_cost;
+      // Базовый расчёт: предпочитаем pricePerFold; иначе — pricePerSignature.
+      let workCost = 0;
+      let workName = "";
+      if (pricePerFold > 0 && folds > 0) {
+        workCost = circulation * signatures * folds * pricePerFold * coef;
+        workName = `Фальцовка тетрадей (${signatures} тетр. × ${folds} сгиб. × ${pricePerFold} ₸ × коэф. ${coef.toFixed(2)})`;
+      } else if (pricePerSignature > 0) {
+        workCost = circulation * signatures * pricePerSignature * coef;
+        workName = `Фальцовка тетрадей (${signatures} тетр. × ${pricePerSignature} ₸ × коэф. ${coef.toFixed(2)})`;
+      }
+      const raw = workCost + setup;
+      const total = row.min_cost > 0 ? Math.max(raw, row.min_cost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${FOLD_TYPE_LABEL[row.fold_type] || row.fold_type} · ${FOLD_MACHINE_LABEL[row.machine_type] || row.machine_type}`;
+      if (workCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `${workName} — ${label}`,
+          quantity: circulation * signatures * (pricePerFold > 0 ? folds : 1),
+          unit: pricePerFold > 0 ? "сгиб" : "тетр",
+          unitPrice: pricePerFold > 0 ? pricePerFold * coef : pricePerSignature * coef,
+          total: workCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Фальцовка тетрадей — приладка (${label})`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: setup,
+          total: setup,
+        });
+      }
+      if (total > raw) {
+        items.push({
+          stage: "postpress",
+          name: `Фальцовка тетрадей — доплата до минимума`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: total - raw,
+          total: total - raw,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
