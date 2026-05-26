@@ -515,6 +515,19 @@ const Calculator = () => {
   const [springSetupOverride, setSpringSetupOverride] = useState<number | "">("");
   const [springPaperThicknessOverride, setSpringPaperThicknessOverride] = useState<number | "">("");
 
+  // Доработка 12: термобиндер (клеевое бесшвейное скрепление).
+  const [thermals, setThermals] = useState<ThermalBindingRow[]>([]);
+  const [thermalEnabled, setThermalEnabled] = useState(false);
+  const [thermalBlockSheets, setThermalBlockSheets] = useState<number>(100);
+  const [thermalCoverSheets, setThermalCoverSheets] = useState<number>(1);
+  const [thermalExtraThickness, setThermalExtraThickness] = useState<number>(0); // мм (форзацы/картон/вкладки)
+  const [thermalManualId, setThermalManualId] = useState<string | null>(null);
+  const [thermalBlockThicknessOverride, setThermalBlockThicknessOverride] = useState<number | "">("");
+  const [thermalPaperThicknessOverride, setThermalPaperThicknessOverride] = useState<number | "">("");
+  const [thermalPricePerMmOverride, setThermalPricePerMmOverride] = useState<number | "">("");
+  const [thermalWorkOverride, setThermalWorkOverride] = useState<number | "">("");
+  const [thermalSetupOverride, setThermalSetupOverride] = useState<number | "">("");
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
