@@ -2663,6 +2663,143 @@ const Calculator = () => {
                       );
                     })}
                   </div>
+                  {/* Доработка 11: Металлическая пружина (Wire-O) */}
+                  {SPRING_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={springEnabled} onCheckedChange={(v) => setSpringEnabled(!!v)} id="spring" />
+                        <Label htmlFor="spring" className="flex-1 font-medium">Металлическая пружина (Wire-O)</Label>
+                        <Select
+                          value={springManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setSpringManualId(v === "auto" ? null : v);
+                            setSpringLoopsOverride(""); setSpringPitchOverride(""); setSpringDiameterOverride("");
+                            setSpringPricePerLoopOverride(""); setSpringWorkOverride(""); setSpringSetupOverride("");
+                          }}
+                          disabled={!springEnabled || springs.length === 0}
+                        >
+                          <SelectTrigger className="w-72"><SelectValue placeholder="Тип пружины" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто-подбор по толщине блока</SelectItem>
+                            {springs.filter((s) => s.is_active !== false).map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {springEnabled && (() => {
+                        if (!springs.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Металлическая пружина» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const ptRow = paperThickness.find((p) => p.density === density);
+                        const sheetThickness = springPaperThicknessOverride !== ""
+                          ? Number(springPaperThicknessOverride)
+                          : (ptRow?.thickness_mm ?? 0);
+                        const sheets = Math.max(0, Math.floor(springBlockSheets || 0));
+                        const blockThickness = sheets * sheetThickness;
+                        const spring = pickSpringFor(springs, blockThickness, springManualId);
+                        if (!spring) {
+                          return <p className="text-[11px] text-destructive">Не найдена подходящая пружина для толщины блока {blockThickness.toFixed(2)} мм.</p>;
+                        }
+                        const bindingLength = springSide === "short" ? Math.min(dims.w, dims.h) : Math.max(dims.w, dims.h);
+                        const pitch = springPitchOverride !== "" ? Number(springPitchOverride) : spring.pitch_mm;
+                        const diameter = springDiameterOverride !== "" ? Number(springDiameterOverride) : spring.diameter_mm;
+                        const loops = springLoopsOverride !== ""
+                          ? Math.max(0, Math.floor(Number(springLoopsOverride) || 0))
+                          : (pitch > 0 ? Math.ceil(bindingLength / pitch) : 0);
+                        const pricePerLoop = springPricePerLoopOverride !== "" ? Number(springPricePerLoopOverride) : spring.price_per_loop;
+                        const workPrice = springWorkOverride !== "" ? Number(springWorkOverride) : spring.work_price_per_item;
+                        const setup = springSetupOverride !== "" ? Number(springSetupOverride) : spring.setup_cost;
+                        const materialCost = circulation * loops * pricePerLoop;
+                        const workCost = circulation * workPrice;
+                        const raw = materialCost + workCost + setup;
+                        const total = spring.min_cost > 0 ? Math.max(raw, spring.min_cost) : raw;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Листов в блоке</Label>
+                                <Input type="number" inputMode="numeric" min={1}
+                                  value={springBlockSheets}
+                                  onChange={(e) => setSpringBlockSheets(Math.max(0, Number(e.target.value) || 0))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина листа, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={springPaperThicknessOverride === "" ? (ptRow?.thickness_mm ?? 0) : springPaperThicknessOverride}
+                                  onChange={(e) => setSpringPaperThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сторона навивки</Label>
+                                <Select value={springSide} onValueChange={(v) => setSpringSide(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="short">Короткая ({Math.min(dims.w, dims.h)} мм)</SelectItem>
+                                    <SelectItem value="long">Длинная ({Math.max(dims.w, dims.h)} мм)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Диаметр, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={springDiameterOverride === "" ? spring.diameter_mm : springDiameterOverride}
+                                  onChange={(e) => setSpringDiameterOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Шаг пружины, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={springPitchOverride === "" ? spring.pitch_mm : springPitchOverride}
+                                  onChange={(e) => setSpringPitchOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Витков</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={springLoopsOverride === "" ? loops : springLoopsOverride}
+                                  onChange={(e) => setSpringLoopsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/виток</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={springPricePerLoopOverride === "" ? spring.price_per_loop : springPricePerLoopOverride}
+                                  onChange={(e) => setSpringPricePerLoopOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/работа за изделие</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={springWorkOverride === "" ? spring.work_price_per_item : springWorkOverride}
+                                  onChange={(e) => setSpringWorkOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={springSetupOverride === "" ? spring.setup_cost : springSetupOverride}
+                                  onChange={(e) => setSpringSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Плотность {density} г/м² · толщина листа {sheetThickness.toFixed(2)} мм · листов {sheets} → <b>толщина блока {blockThickness.toFixed(2)} мм</b>
+                              </div>
+                              <div>
+                                Подобрана: <b>{spring.name}</b> ({SPRING_TYPE_LABEL[spring.spring_type] || spring.spring_type}, ⌀{spring.diameter_mm} мм, шаг {spring.pitch_mm} мм)
+                              </div>
+                              <div>
+                                Длина навивки {bindingLength} мм / шаг {pitch} мм → CEIL = <b>{loops} витков</b>
+                              </div>
+                              <div>
+                                Расчёт: ({circulation} × {loops} × {pricePerLoop}) + ({circulation} × {workPrice}) + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {spring.min_cost > 0 && raw < spring.min_cost && <> (доплата до мин. {spring.min_cost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(тираж × витков × ₸/виток) + (тираж × ₸/работа) + приладка</code>. Диаметр пружины подбирается по толщине блока; количество витков = CEIL(длина навивки / шаг).
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
