@@ -332,6 +332,55 @@ const COLLATION_TYPE_LABEL: Record<string, string> = {
   machine_inserts: "Машинная с вкладками",
 };
 
+// Доработка 15: справочник шитья блока.
+type BlockSewingRow = {
+  id: string;
+  name: string;
+  sewing_type: string;        // thread | manual | thread_glue | combined | stab | thread_gauze | thread_no_gauze
+  machine_type: string;       // auto | semi_auto | manual
+  price_per_signature: number;
+  setup_cost: number;
+  min_cost: number;
+  thread_calc_mode: string;   // per_item | per_signature
+  thread_price: number;
+  gauze_price: number;
+  headband_price: number;
+  endpaper_price: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_thick_block: number;
+  coef_manual: number;
+  coef_thin_paper: number;
+  coef_heavy_paper: number;
+  coef_many_signatures: number;
+  thick_block_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  min_density: number;
+  max_density: number;
+  min_circulation: number;
+  max_circulation: number;
+  max_signatures: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const SEWING_TYPE_LABEL: Record<string, string> = {
+  thread: "Ниткошвейное",
+  manual: "Ручное",
+  thread_glue: "Клеешвейное",
+  combined: "Комбинированное",
+  stab: "Втачку",
+  thread_gauze: "На марлю",
+  thread_no_gauze: "Без марли",
+};
+const SEWING_MACHINE_LABEL: Record<string, string> = {
+  auto: "Автомат",
+  semi_auto: "Полуавтомат",
+  manual: "Ручное",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
