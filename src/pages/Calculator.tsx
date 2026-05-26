@@ -923,6 +923,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load block_sewing_prices failed", e);
       }
+      // Доработка 16: справочник форзацев.
+      try {
+        const epR = await (supabase as any)
+          .from("endpaper_prices")
+          .select("*")
+          .order("sort_order");
+        setEndpaperRows(((epR.data as EndpaperRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load endpaper_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
