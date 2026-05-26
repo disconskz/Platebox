@@ -2003,22 +2003,58 @@ const Calculator = () => {
                       </div>
                     );
                   })()}
-                  {productType === "booklet" && (
+                  {/* Доработка 5: единый блок «Кол-во сгибов на изделии». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
-                      <Checkbox checked={hasFold} onCheckedChange={(v) => setHasFold(!!v)} id="fold" />
-                      <Label htmlFor="fold" className="flex-1">Фальцовка</Label>
-                      <Select value={String(foldCount)} onValueChange={(v) => setFoldCount(Number(v))}>
-                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="1">1 сгиб</SelectItem><SelectItem value="2">2 сгиба</SelectItem></SelectContent>
+                      <Label className="flex-1">Кол-во сгибов на изделии</Label>
+                      <Select value={String(foldsPerItem)} onValueChange={(v) => setFoldsPerItem(Number(v))}>
+                        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {[0, 1, 2, 3, 4, 5].map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n === 0 ? "Без сгибов" : `${n} сгиб${n === 1 ? "" : n < 5 ? "а" : "ов"}`}</SelectItem>
+                          ))}
+                        </SelectContent>
                       </Select>
                     </div>
-                  )}
-                  {(productType === "leaflet_diecut" || productType === "sticker_diecut" || productType === "bag") && (
-                    <div className="flex items-center gap-3">
-                      <Checkbox checked={hasDieCut} onCheckedChange={(v) => setHasDieCut(!!v)} id="dc" />
-                      <Label htmlFor="dc">Высечка</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      До 150 г/м² — фальцовка (1 ₸/сгиб). Выше 150 г/м² — биговка (2 ₸/сгиб). Цена выбирается автоматически по плотности бумаги.
+                    </p>
+                  </div>
+                  {/* Доработка 7: единый блок «Высечка» с авто-ценой по типу материала. */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={dieCutEnabled} onCheckedChange={(v) => setDieCutEnabled(!!v)} id="diecut" />
+                      <Label htmlFor="diecut" className="flex-1">Высечка</Label>
+                      {dieCutEnabled && (
+                        <Select value={dieCutStampMode} onValueChange={(v) => setDieCutStampMode(v as "existing" | "new")}>
+                          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="existing">Штамп: есть готовый</SelectItem>
+                            <SelectItem value="new">Штамп: изготовить новый</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
-                  )}
+                    {dieCutEnabled && dieCutStampMode === "new" && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Label htmlFor="stampcost" className="flex-1">Стоимость нового штампа, ₸</Label>
+                        <Input
+                          id="stampcost"
+                          type="number"
+                          inputMode="decimal"
+                          className="w-36"
+                          value={dieCutStampCost || ""}
+                          onChange={(e) => setDieCutStampCost(Number(e.target.value) || 0)}
+                          placeholder="0"
+                        />
+                      </div>
+                    )}
+                    {dieCutEnabled && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Авто-цена по материалу: картон 5 ₸/лист · микрогофра 10 · поролон 20 · переплётный картон 10 · пластик 7. Приладка 5 000 ₸. Текущий материал: <b>{dieCutMaterialLabel(effectiveMaterial)}</b> ({pickDieCutPrice(effectiveMaterial)} ₸/лист).
+                      </p>
+                    )}
+                  </div>
                   {productType === "bag" && (
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
@@ -2030,7 +2066,16 @@ const Calculator = () => {
                     </div>
                   )}
                   <ExtraOpsPicker
-                    operations={operations.filter((o) => o.category === "postpress" || o.category === "logistics" || o.category === "print" || o.category === "prepress")}
+                    operations={operations.filter((o) => {
+                      const cat = (o.category || "").toLowerCase();
+                      if (!(cat === "postpress" || cat === "logistics" || cat === "print" || cat === "prepress")) return false;
+                      // Доработка 5/7: эти категории справочника теперь представлены едиными блоками выше.
+                      const sub = (o.subgroup || "").toLowerCase();
+                      const name = (o.name || "").toLowerCase();
+                      if (/биговк|фальцовк/.test(sub) || /биговк|фальцовк/.test(name)) return false;
+                      if (/высечк|выдергиван/.test(sub) || /высечк|выдергиван/.test(name)) return false;
+                      return true;
+                    })}
                     extraOps={extraOps}
                     setExtraOps={setExtraOps}
                     circulation={circulation}
