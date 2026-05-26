@@ -192,6 +192,7 @@ const Calculator = () => {
   const [maxReached, setMaxReached] = useState(1);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
+  const [films, setFilms] = useState<FilmPriceRow[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
@@ -321,6 +322,11 @@ const Calculator = () => {
   const [embossCliches, setEmbossCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
+  // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
+  const [filmId, setFilmId] = useState<string>("");
+  // Ручные переопределения (по умолчанию пусто = берём из справочника)
+  const [filmPriceOverride, setFilmPriceOverride] = useState<number | "">("");
+  const [filmSetupOverride, setFilmSetupOverride] = useState<number | "">("");
 
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
