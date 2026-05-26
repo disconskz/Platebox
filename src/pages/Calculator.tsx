@@ -3206,6 +3206,157 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 13: Фальцовка тетрадей */}
+                  {SIGNATURE_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={sigEnabled} onCheckedChange={(v) => setSigEnabled(!!v)} id="sigfold" />
+                        <Label htmlFor="sigfold" className="flex-1 font-medium">Фальцовка тетрадей</Label>
+                        <Select
+                          value={sigManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setSigManualId(v === "auto" ? null : v);
+                            setSigPricePerFoldOverride(""); setSigPricePerSignatureOverride("");
+                            setSigSetupOverride(""); setSigCoefOverride("");
+                          }}
+                          disabled={!sigEnabled || signatureRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Тип фальцовки" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто-подбор по формату и плотности</SelectItem>
+                            {signatureRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {sigEnabled && (() => {
+                        if (!signatureRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Фальцовка тетрадей» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = signatureRows.filter((r) => r.is_active !== false);
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const row = (sigManualId && active.find((r) => r.id === sigManualId))
+                          || active.find((r) => density >= r.min_density && density <= r.max_density
+                                              && shortSide >= r.min_format_short && longSide <= r.max_format_long)
+                          || active[0];
+                        if (!row) {
+                          return <p className="text-[11px] text-destructive">Не найдена подходящая запись фальцовки.</p>;
+                        }
+                        const autoFolds = foldsForSignature(sigPagesPerSignature);
+                        const folds = sigFoldsOverride !== "" ? Math.max(0, Math.floor(Number(sigFoldsOverride) || 0)) : autoFolds;
+                        const autoSignatures = sigPagesPerSignature > 0 ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature)) : 0;
+                        const signatures = sigSignaturesOverride !== "" ? Math.max(0, Math.floor(Number(sigSignaturesOverride) || 0)) : autoSignatures;
+                        const densityCoef = density <= 130 ? row.coef_density_light : density <= 200 ? row.coef_density_medium : row.coef_density_heavy;
+                        const manualCoef = row.machine_type === "manual" ? row.coef_manual : 1;
+                        const isStandardFormat = density >= row.min_density && density <= row.max_density
+                          && shortSide >= row.min_format_short && longSide <= row.max_format_long;
+                        const formatCoef = isStandardFormat ? 1 : row.coef_nonstandard_format;
+                        const autoCoef = densityCoef * manualCoef * formatCoef;
+                        const coef = sigCoefOverride !== "" ? Math.max(0, Number(sigCoefOverride)) : autoCoef;
+                        const pricePerFold = sigPricePerFoldOverride !== "" ? Number(sigPricePerFoldOverride) : row.price_per_fold;
+                        const pricePerSignature = sigPricePerSignatureOverride !== "" ? Number(sigPricePerSignatureOverride) : row.price_per_signature;
+                        const setup = sigSetupOverride !== "" ? Number(sigSetupOverride) : row.setup_cost;
+                        const usesFold = pricePerFold > 0 && folds > 0;
+                        const workCost = usesFold
+                          ? circulation * signatures * folds * pricePerFold * coef
+                          : circulation * signatures * pricePerSignature * coef;
+                        const raw = workCost + setup;
+                        const total = row.min_cost > 0 ? Math.max(raw, row.min_cost) : raw;
+                        const tooManyFolds = folds > row.max_folds;
+                        const outOfDensity = density > 0 && (density < row.min_density || density > row.max_density);
+                        const outOfFormat = !(shortSide >= row.min_format_short && longSide <= row.max_format_long);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Страниц в изделии</Label>
+                                <Input type="number" inputMode="numeric" min={1}
+                                  value={sigPages}
+                                  onChange={(e) => setSigPages(Math.max(0, Number(e.target.value) || 0))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Полос в тетради</Label>
+                                <Select value={String(sigPagesPerSignature)} onValueChange={(v) => setSigPagesPerSignature(Number(v) as 8 | 16 | 32)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {SIGNATURE_PAGES_OPTIONS.map((n) => (
+                                      <SelectItem key={n} value={String(n)}>{n} полос</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тетрадей</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={sigSignaturesOverride === "" ? autoSignatures : sigSignaturesOverride}
+                                  onChange={(e) => setSigSignaturesOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сгибов в тетради</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={sigFoldsOverride === "" ? autoFolds : sigFoldsOverride}
+                                  onChange={(e) => setSigFoldsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sigCoefOverride === "" ? Number(autoCoef.toFixed(3)) : sigCoefOverride}
+                                  onChange={(e) => setSigCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/сгиб</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sigPricePerFoldOverride === "" ? row.price_per_fold : sigPricePerFoldOverride}
+                                  onChange={(e) => setSigPricePerFoldOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/тетрадь</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={sigPricePerSignatureOverride === "" ? row.price_per_signature : sigPricePerSignatureOverride}
+                                  onChange={(e) => setSigPricePerSignatureOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={sigSetupOverride === "" ? row.setup_cost : sigSetupOverride}
+                                  onChange={(e) => setSigSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({FOLD_TYPE_LABEL[row.fold_type] || row.fold_type}, {FOLD_MACHINE_LABEL[row.machine_type] || row.machine_type})
+                              </div>
+                              <div>
+                                {sigPages} стр / {sigPagesPerSignature} = <b>{autoSignatures} тетр.</b> · сгибов {folds} · плотность {density} г/м² → коэф.{" "}
+                                {densityCoef}×{manualCoef === 1 ? "1" : manualCoef + " (ручная)"}×{formatCoef === 1 ? "1" : formatCoef + " (нестанд.)"} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              {tooManyFolds && (
+                                <div className="text-destructive">⚠ Количество сгибов ({folds}) превышает максимум оборудования ({row.max_folds}).</div>
+                              )}
+                              {outOfDensity && (
+                                <div className="text-destructive">⚠ Плотность {density} г/м² вне допустимого диапазона ({row.min_density}–{row.max_density}).</div>
+                              )}
+                              {outOfFormat && (
+                                <div className="text-destructive">⚠ Формат {shortSide}×{longSide} мм вне допустимого диапазона (короткая ≥ {row.min_format_short}, длинная ≤ {row.max_format_long}).</div>
+                              )}
+                              <div>
+                                Расчёт: {usesFold
+                                  ? `${circulation} × ${signatures} × ${folds} × ${pricePerFold} × ${coef.toFixed(2)}`
+                                  : `${circulation} × ${signatures} × ${pricePerSignature} × ${coef.toFixed(2)}`} + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {row.min_cost > 0 && raw < row.min_cost && <> (доплата до мин. {row.min_cost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>тираж × тетрадей × сгибов × ₸/сгиб × коэф + приладка</code>. Если ₸/сгиб не задан — используется <code>тираж × тетрадей × ₸/тетрадь × коэф + приладка</code>.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
