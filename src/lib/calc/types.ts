@@ -94,6 +94,14 @@ export interface CalcInput {
   embossingNotebook?: boolean;
   hasLamPrepress?: boolean; // припрессовка для пакетов
   lamPrepressSides?: 1 | 2;
+  /** Цена плёнки за м² (из справочника film_prices, выбранной плёнки). */
+  lamPrepressPerM2?: number;
+  /** Стоимость приладки припресса плёнкой (из справочника). */
+  lamPrepressSetup?: number;
+  /** Минимальная стоимость припресса плёнкой (из справочника). */
+  lamPrepressMinCost?: number;
+  /** Название/тип выбранной плёнки — для подписи в спецификации. */
+  lamPrepressFilmLabel?: string;
   // print pricing
   printCostPerImpression?: number; // tg per impression
   inkCostPerSet?: number;

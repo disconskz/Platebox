@@ -735,6 +735,42 @@ export type Database = {
         }
         Relationships: []
       }
+      film_prices: {
+        Row: {
+          created_at: string
+          film_type: string
+          id: string
+          min_cost: number
+          name: string
+          price_per_m2: number
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          film_type: string
+          id?: string
+          min_cost?: number
+          name: string
+          price_per_m2?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          film_type?: string
+          id?: string
+          min_cost?: number
+          name?: string
+          price_per_m2?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       format_presets: {
         Row: {
           category: string | null

@@ -39,6 +39,15 @@ import { CutInfoCard } from "@/components/calc/CutInfoCard";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
+type FilmPriceRow = {
+  id: string;
+  name: string;
+  film_type: string;
+  price_per_m2: number;
+  setup_cost: number;
+  min_cost: number;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
@@ -183,6 +192,7 @@ const Calculator = () => {
   const [maxReached, setMaxReached] = useState(1);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
+  const [films, setFilms] = useState<FilmPriceRow[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [printFormats, setPrintFormats] = useState<PrintFormatRow[]>([]);
   const [purchaseFormats, setPurchaseFormats] = useState<PurchaseFormatRow[]>([]);
@@ -312,6 +322,11 @@ const Calculator = () => {
   const [embossCliches, setEmbossCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
+  // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
+  const [filmId, setFilmId] = useState<string>("");
+  // Ручные переопределения (по умолчанию пусто = берём из справочника)
+  const [filmPriceOverride, setFilmPriceOverride] = useState<number | "">("");
+  const [filmSetupOverride, setFilmSetupOverride] = useState<number | "">("");
 
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
@@ -392,6 +407,17 @@ const Calculator = () => {
       } catch { /* не критично */ }
       setMaterials((m as Material[]) || []);
       setLam((l as LamRow[]) || []);
+      try {
+        const fpR = await (supabase as any)
+          .from("film_prices")
+          .select("id,name,film_type,price_per_m2,setup_cost,min_cost,sort_order")
+          .order("sort_order");
+        const fpRows = ((fpR.data as FilmPriceRow[]) || []);
+        setFilms(fpRows);
+        if (fpRows.length && !filmId) setFilmId(fpRows[0].id);
+      } catch (e) {
+        console.warn("[Calculator] load film_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
@@ -669,11 +695,19 @@ const Calculator = () => {
       embossingCliches: embossCliches,
       hasLamPrepress,
       lamPrepressSides,
+      lamPrepressPerM2: hasLamPrepress
+        ? (filmPriceOverride !== "" ? Number(filmPriceOverride) : films.find((f) => f.id === filmId)?.price_per_m2)
+        : undefined,
+      lamPrepressSetup: hasLamPrepress
+        ? (filmSetupOverride !== "" ? Number(filmSetupOverride) : films.find((f) => f.id === filmId)?.setup_cost)
+        : undefined,
+      lamPrepressMinCost: hasLamPrepress ? films.find((f) => f.id === filmId)?.min_cost : undefined,
+      lamPrepressFilmLabel: hasLamPrepress ? films.find((f) => f.id === filmId)?.name : undefined,
       printCostPerImpression: undefined, // подставится ниже после автоподбора машины
       vatPercent,
       cutsPerSheetOverride: cutsOverride ?? undefined,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
+  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, filmId, films, filmPriceOverride, filmSetupOverride, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
@@ -2058,16 +2092,70 @@ const Calculator = () => {
                       </p>
                     )}
                   </div>
-                  {productType === "bag" && (
+                  <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
-                      <Label htmlFor="lp" className="flex-1">Припрессовка плёнки</Label>
-                      <Select value={String(lamPrepressSides)} onValueChange={(v) => setLamPrepressSides(Number(v) as 1 | 2)}>
+                      <Label htmlFor="lp" className="flex-1 font-medium">Припресс плёнкой</Label>
+                      <Select
+                        value={filmId}
+                        onValueChange={(v) => { setFilmId(v); setFilmPriceOverride(""); setFilmSetupOverride(""); }}
+                        disabled={!hasLamPrepress || films.length === 0}
+                      >
+                        <SelectTrigger className="w-48"><SelectValue placeholder="Тип плёнки" /></SelectTrigger>
+                        <SelectContent>
+                          {films.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={String(lamPrepressSides)} onValueChange={(v) => setLamPrepressSides(Number(v) as 1 | 2)} disabled={!hasLamPrepress}>
                         <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                         <SelectContent><SelectItem value="1">1 сторона</SelectItem><SelectItem value="2">2 стороны</SelectItem></SelectContent>
                       </Select>
                     </div>
-                  )}
+                    {hasLamPrepress && (() => {
+                      const film = films.find((f) => f.id === filmId);
+                      const price = filmPriceOverride !== "" ? Number(filmPriceOverride) : (film?.price_per_m2 ?? 0);
+                      const setup = filmSetupOverride !== "" ? Number(filmSetupOverride) : (film?.setup_cost ?? 0);
+                      const printW = result && !("error" in result) ? result.layout.printFormat.width : 0;
+                      const printH = result && !("error" in result) ? result.layout.printFormat.height : 0;
+                      const sheets = result && !("error" in result) ? result.printSheets : 0;
+                      const area = (printW * printH) / 1_000_000;
+                      const filmCost = area * price * sheets * lamPrepressSides;
+                      const total = Math.max(filmCost + setup, film?.min_cost ?? 0);
+                      return (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Цена плёнки, ₸/м²</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={filmPriceOverride === "" ? (film?.price_per_m2 ?? 0) : filmPriceOverride}
+                                onChange={(e) => setFilmPriceOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                value={filmSetupOverride === "" ? (film?.setup_cost ?? 0) : filmSetupOverride}
+                                onChange={(e) => setFilmSetupOverride(e.target.value === "" ? "" : Number(e.target.value))}
+                              />
+                            </div>
+                            <div className="col-span-2 sm:col-span-2 text-[11px] text-muted-foreground self-end">
+                              Лист {printW}×{printH} мм · {area.toFixed(4)} м² · {sheets} л. · {lamPrepressSides} ст.<br />
+                              Расчёт: {area.toFixed(4)} × {price} × {sheets} × {lamPrepressSides} + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Формула: <code>(Ш × В / 1 000 000) × цена_м² × печ.листов × сторон + приладка</code>. Цена и приладка берутся из справочника «Плёнки для припресса»; при необходимости можно перебить вручную.
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
