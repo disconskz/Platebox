@@ -505,6 +505,15 @@ const Calculator = () => {
         console.warn("[Calculator] load pouch_lamination_prices failed", e);
       }
       try {
+        const vpR = await (supabase as any)
+          .from("variable_print_prices")
+          .select("id,kind,name,price_per_apply,setup_cost,min_cost,complexity,is_active,sort_order")
+          .order("sort_order");
+        setVariablePrintRows(((vpR.data as VariablePrintRow[]) || []).filter((r) => r.is_active !== false));
+      } catch (e) {
+        console.warn("[Calculator] load variable_print_prices failed", e);
+      }
+      try {
         const wR = await (supabase as any)
           .from("calc_constants")
           .select("value")
