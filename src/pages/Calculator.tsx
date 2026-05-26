@@ -239,6 +239,8 @@ const Calculator = () => {
   const [step, setStep] = useState(1);
   const { items: glossary } = useProductGlossary();
   const [glossarySlug, setGlossarySlug] = useState<string>("leaflet");
+  // Поиск по виду продукции в выпадающем списке.
+  const [glossaryQuery, setGlossaryQuery] = useState("");
   const [maxReached, setMaxReached] = useState(1);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [lam, setLam] = useState<LamRow[]>([]);
