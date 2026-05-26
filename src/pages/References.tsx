@@ -218,6 +218,36 @@ const TABLES = [
     defaults: { kind: "numbering", name: "Нумерация", price_per_apply: 0.5, setup_cost: 1000, min_cost: 0, complexity: 1, is_active: true, sort_order: 100 },
   },
   {
+    key: "wire_spring_prices",
+    title: "Металлическая пружина (Wire-O)",
+    cols: [
+      { k: "name", t: "text", label: "Название" },
+      { k: "spring_type", t: "select", label: "Тип", opts: ["wire_o_3_1", "wire_o_2_1"] },
+      { k: "color", t: "select", label: "Цвет", opts: ["silver", "white", "black", "gold", "bronze", "color"] },
+      { k: "diameter_mm", t: "number", label: "Диаметр, мм" },
+      { k: "pitch_mm", t: "number", label: "Шаг, мм" },
+      { k: "min_block_thickness", t: "number", label: "Толщина блока от, мм" },
+      { k: "max_block_thickness", t: "number", label: "Толщина блока до, мм" },
+      { k: "price_per_loop", t: "number", label: "₸/виток" },
+      { k: "work_price_per_item", t: "number", label: "₸/работа за изделие" },
+      { k: "setup_cost", t: "number", label: "Приладка, ₸" },
+      { k: "min_cost", t: "number", label: "Мин. стоимость, ₸" },
+      { k: "is_active", t: "select", label: "Активна", opts: ["true", "false"] },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { name: "Wire-O 3:1 ⌀8 мм", spring_type: "wire_o_3_1", color: "silver", diameter_mm: 8, pitch_mm: 8, min_block_thickness: 4, max_block_thickness: 6, price_per_loop: 1.4, work_price_per_item: 20, setup_cost: 3000, min_cost: 0, is_active: true, sort_order: 100 },
+  },
+  {
+    key: "paper_thickness",
+    title: "Толщина бумаги по плотности",
+    cols: [
+      { k: "density", t: "number", label: "Плотность, г/м²" },
+      { k: "thickness_mm", t: "number", label: "Толщина листа, мм" },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { density: 80, thickness_mm: 0.10, sort_order: 100 },
+  },
+  {
     key: "system_settings",
     title: "Константы",
     cols: [
@@ -372,6 +402,8 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "film_prices", title: "Плёнки для припресса", desc: "Каталог плёнок: цена за м², приладка, минимальная стоимость. Используется для авто-расчёта припресса.", countKey: "film_prices" },
       { key: "pouch_lamination_prices", title: "Пакетная ламинация", desc: "Форматы пакетов и цена за 1 изделие. Используется для авто-расчёта пакетной ламинации.", countKey: "pouch_lamination_prices" },
       { key: "variable_print_prices", title: "Переменная печать", desc: "Нумерация, штрихкоды, QR, персонализация: цена/нанесение, приладка, минимальная стоимость, коэф. сложности.", countKey: "variable_print_prices" },
+      { key: "wire_spring_prices", title: "Металлическая пружина (Wire-O)", desc: "Диаметры, шаг, цена за виток, работа и приладка. Используется для авто-расчёта навивки.", countKey: "wire_spring_prices", relatedKeys: ["paper_thickness"] },
+      { key: "paper_thickness", title: "Толщина бумаги", desc: "Толщина одного листа по плотности — нужна для авто-расчёта толщины блока при навивке.", countKey: "paper_thickness", relatedKeys: ["wire_spring_prices", "materials"] },
     ],
   },
   {

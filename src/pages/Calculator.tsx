@@ -72,6 +72,24 @@ type VariablePrintRow = {
   is_active: boolean;
   sort_order: number;
 };
+// Доработка 11: справочник металлических пружин (Wire-O) и толщин бумаги.
+type WireSpringRow = {
+  id: string;
+  name: string;
+  spring_type: string; // wire_o_3_1 / wire_o_2_1
+  color: string;
+  diameter_mm: number;
+  pitch_mm: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  price_per_loop: number;
+  work_price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  is_active: boolean;
+  sort_order: number;
+};
+type PaperThicknessRow = { density: number; thickness_mm: number };
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
@@ -183,6 +201,41 @@ function pickPouchFor(
   const sorted = (fits.length ? fits : [...pouches]).slice().sort((a, b) => (a.width * a.height) - (b.width * b.height));
   return sorted[0] || null;
 }
+
+// Доработка 11: подобрать пружину по толщине блока.
+// Алгоритм: фильтруем по диапазону min/max thickness; если несколько подходят —
+// берём с наименьшим диаметром; если ни одна не подходит — ближайшую большую по диаметру.
+function pickSpringFor(
+  springs: WireSpringRow[],
+  blockThickness: number,
+  manualId: string | null,
+): WireSpringRow | null {
+  if (!springs.length) return null;
+  if (manualId) {
+    const s = springs.find((x) => x.id === manualId);
+    if (s) return s;
+  }
+  const active = springs.filter((s) => s.is_active !== false);
+  const fits = active.filter(
+    (s) => blockThickness > s.min_block_thickness - 1e-9 && blockThickness <= s.max_block_thickness + 1e-9,
+  );
+  if (fits.length) {
+    return fits.slice().sort((a, b) => a.diameter_mm - b.diameter_mm)[0];
+  }
+  const bigger = active.filter((s) => s.max_block_thickness >= blockThickness);
+  if (bigger.length) return bigger.slice().sort((a, b) => a.diameter_mm - b.diameter_mm)[0];
+  return active.slice().sort((a, b) => b.diameter_mm - a.diameter_mm)[0] || null;
+}
+
+const SPRING_PRODUCT_TYPES = new Set<string>([
+  "notepad", "book", "magazine", "brochure",
+  "calendar_wall", "calendar_desk", "calendar_quarter",
+]);
+
+const SPRING_TYPE_LABEL: Record<string, string> = {
+  wire_o_3_1: "Wire-O 3:1",
+  wire_o_2_1: "Wire-O 2:1",
+};
 
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
@@ -407,6 +460,22 @@ const Calculator = () => {
   const [pouchPriceOverride, setPouchPriceOverride] = useState<number | "">("");
   const [pouchMinOverride, setPouchMinOverride] = useState<number | "">("");
 
+  // Доработка 11: металлическая пружина (Wire-O).
+  const [springs, setSprings] = useState<WireSpringRow[]>([]);
+  const [paperThickness, setPaperThickness] = useState<PaperThicknessRow[]>([]);
+  const [springEnabled, setSpringEnabled] = useState(false);
+  const [springBlockSheets, setSpringBlockSheets] = useState<number>(50);
+  const [springSide, setSpringSide] = useState<"short" | "long">("short");
+  const [springManualId, setSpringManualId] = useState<string | null>(null);
+  // Ручные переопределения параметров пружины.
+  const [springLoopsOverride, setSpringLoopsOverride] = useState<number | "">("");
+  const [springPitchOverride, setSpringPitchOverride] = useState<number | "">("");
+  const [springDiameterOverride, setSpringDiameterOverride] = useState<number | "">("");
+  const [springPricePerLoopOverride, setSpringPricePerLoopOverride] = useState<number | "">("");
+  const [springWorkOverride, setSpringWorkOverride] = useState<number | "">("");
+  const [springSetupOverride, setSpringSetupOverride] = useState<number | "">("");
+  const [springPaperThicknessOverride, setSpringPaperThicknessOverride] = useState<number | "">("");
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -525,6 +594,17 @@ const Calculator = () => {
         if (Number.isFinite(v) && v > 0) setWastePickPerItem(v);
       } catch (e) {
         console.warn("[Calculator] load diecut_waste_pick_per_item failed", e);
+      }
+      // Доработка 11: справочник пружин + толщина бумаги.
+      try {
+        const [wsR, ptR] = await Promise.all([
+          (supabase as any).from("wire_spring_prices").select("*").order("sort_order"),
+          (supabase as any).from("paper_thickness").select("density,thickness_mm").order("density"),
+        ]);
+        setSprings(((wsR.data as WireSpringRow[]) || []));
+        setPaperThickness(((ptR.data as PaperThicknessRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load wire_spring/paper_thickness failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -1172,7 +1252,77 @@ const Calculator = () => {
       }
       return out;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems];
+    // Доработка 11: металлическая пружина (Wire-O) из бобины.
+    const wireItems: SpecItem[] = (() => {
+      if (!springEnabled || !(circulation > 0)) return [];
+      if (!springs.length) return [];
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const ptRow = paperThickness.find((p) => p.density === density);
+      const sheetThickness = springPaperThicknessOverride !== ""
+        ? Number(springPaperThicknessOverride)
+        : (ptRow?.thickness_mm ?? 0);
+      const sheets = Math.max(0, Math.floor(springBlockSheets || 0));
+      const blockThickness = sheets * sheetThickness;
+      const spring = pickSpringFor(springs, blockThickness, springManualId);
+      if (!spring) return [];
+      const bindingLength = springSide === "short" ? Math.min(dims.w, dims.h) : Math.max(dims.w, dims.h);
+      const pitch = springPitchOverride !== "" ? Number(springPitchOverride) : spring.pitch_mm;
+      const diameter = springDiameterOverride !== "" ? Number(springDiameterOverride) : spring.diameter_mm;
+      const loops = springLoopsOverride !== ""
+        ? Math.max(0, Math.floor(Number(springLoopsOverride) || 0))
+        : (pitch > 0 ? Math.ceil(bindingLength / pitch) : 0);
+      const pricePerLoop = springPricePerLoopOverride !== "" ? Number(springPricePerLoopOverride) : spring.price_per_loop;
+      const workPrice = springWorkOverride !== "" ? Number(springWorkOverride) : spring.work_price_per_item;
+      const setup = springSetupOverride !== "" ? Number(springSetupOverride) : spring.setup_cost;
+      const materialCost = circulation * loops * pricePerLoop;
+      const workCost = circulation * workPrice;
+      const raw = materialCost + workCost + setup;
+      const total = spring.min_cost > 0 ? Math.max(raw, spring.min_cost) : raw;
+      const items: SpecItem[] = [];
+      const label = `${SPRING_TYPE_LABEL[spring.spring_type] || spring.spring_type} ⌀${diameter} мм`;
+      if (materialCost > 0 && loops > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Пружина ${label} (материал, ${loops} вит. × ${pricePerLoop} ₸)`,
+          quantity: circulation * loops,
+          unit: "виток",
+          unitPrice: pricePerLoop,
+          total: materialCost,
+        });
+      }
+      if (workCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Навивка ${label} (работа)`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: workPrice,
+          total: workCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Навивка ${label} (приладка)`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: setup,
+          total: setup,
+        });
+      }
+      if (total > raw) {
+        items.push({
+          stage: "postpress",
+          name: `Навивка ${label} (доплата до минимума)`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: total - raw,
+          total: total - raw,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1365,7 +1515,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -2513,6 +2663,143 @@ const Calculator = () => {
                       );
                     })}
                   </div>
+                  {/* Доработка 11: Металлическая пружина (Wire-O) */}
+                  {SPRING_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={springEnabled} onCheckedChange={(v) => setSpringEnabled(!!v)} id="spring" />
+                        <Label htmlFor="spring" className="flex-1 font-medium">Металлическая пружина (Wire-O)</Label>
+                        <Select
+                          value={springManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setSpringManualId(v === "auto" ? null : v);
+                            setSpringLoopsOverride(""); setSpringPitchOverride(""); setSpringDiameterOverride("");
+                            setSpringPricePerLoopOverride(""); setSpringWorkOverride(""); setSpringSetupOverride("");
+                          }}
+                          disabled={!springEnabled || springs.length === 0}
+                        >
+                          <SelectTrigger className="w-72"><SelectValue placeholder="Тип пружины" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто-подбор по толщине блока</SelectItem>
+                            {springs.filter((s) => s.is_active !== false).map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {springEnabled && (() => {
+                        if (!springs.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Металлическая пружина» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const ptRow = paperThickness.find((p) => p.density === density);
+                        const sheetThickness = springPaperThicknessOverride !== ""
+                          ? Number(springPaperThicknessOverride)
+                          : (ptRow?.thickness_mm ?? 0);
+                        const sheets = Math.max(0, Math.floor(springBlockSheets || 0));
+                        const blockThickness = sheets * sheetThickness;
+                        const spring = pickSpringFor(springs, blockThickness, springManualId);
+                        if (!spring) {
+                          return <p className="text-[11px] text-destructive">Не найдена подходящая пружина для толщины блока {blockThickness.toFixed(2)} мм.</p>;
+                        }
+                        const bindingLength = springSide === "short" ? Math.min(dims.w, dims.h) : Math.max(dims.w, dims.h);
+                        const pitch = springPitchOverride !== "" ? Number(springPitchOverride) : spring.pitch_mm;
+                        const diameter = springDiameterOverride !== "" ? Number(springDiameterOverride) : spring.diameter_mm;
+                        const loops = springLoopsOverride !== ""
+                          ? Math.max(0, Math.floor(Number(springLoopsOverride) || 0))
+                          : (pitch > 0 ? Math.ceil(bindingLength / pitch) : 0);
+                        const pricePerLoop = springPricePerLoopOverride !== "" ? Number(springPricePerLoopOverride) : spring.price_per_loop;
+                        const workPrice = springWorkOverride !== "" ? Number(springWorkOverride) : spring.work_price_per_item;
+                        const setup = springSetupOverride !== "" ? Number(springSetupOverride) : spring.setup_cost;
+                        const materialCost = circulation * loops * pricePerLoop;
+                        const workCost = circulation * workPrice;
+                        const raw = materialCost + workCost + setup;
+                        const total = spring.min_cost > 0 ? Math.max(raw, spring.min_cost) : raw;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Листов в блоке</Label>
+                                <Input type="number" inputMode="numeric" min={1}
+                                  value={springBlockSheets}
+                                  onChange={(e) => setSpringBlockSheets(Math.max(0, Number(e.target.value) || 0))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина листа, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={springPaperThicknessOverride === "" ? (ptRow?.thickness_mm ?? 0) : springPaperThicknessOverride}
+                                  onChange={(e) => setSpringPaperThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сторона навивки</Label>
+                                <Select value={springSide} onValueChange={(v) => setSpringSide(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="short">Короткая ({Math.min(dims.w, dims.h)} мм)</SelectItem>
+                                    <SelectItem value="long">Длинная ({Math.max(dims.w, dims.h)} мм)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Диаметр, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={springDiameterOverride === "" ? spring.diameter_mm : springDiameterOverride}
+                                  onChange={(e) => setSpringDiameterOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Шаг пружины, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={springPitchOverride === "" ? spring.pitch_mm : springPitchOverride}
+                                  onChange={(e) => setSpringPitchOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Витков</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={springLoopsOverride === "" ? loops : springLoopsOverride}
+                                  onChange={(e) => setSpringLoopsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/виток</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={springPricePerLoopOverride === "" ? spring.price_per_loop : springPricePerLoopOverride}
+                                  onChange={(e) => setSpringPricePerLoopOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">₸/работа за изделие</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={springWorkOverride === "" ? spring.work_price_per_item : springWorkOverride}
+                                  onChange={(e) => setSpringWorkOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={springSetupOverride === "" ? spring.setup_cost : springSetupOverride}
+                                  onChange={(e) => setSpringSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Плотность {density} г/м² · толщина листа {sheetThickness.toFixed(2)} мм · листов {sheets} → <b>толщина блока {blockThickness.toFixed(2)} мм</b>
+                              </div>
+                              <div>
+                                Подобрана: <b>{spring.name}</b> ({SPRING_TYPE_LABEL[spring.spring_type] || spring.spring_type}, ⌀{spring.diameter_mm} мм, шаг {spring.pitch_mm} мм)
+                              </div>
+                              <div>
+                                Длина навивки {bindingLength} мм / шаг {pitch} мм → CEIL = <b>{loops} витков</b>
+                              </div>
+                              <div>
+                                Расчёт: ({circulation} × {loops} × {pricePerLoop}) + ({circulation} × {workPrice}) + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {spring.min_cost > 0 && raw < spring.min_cost && <> (доплата до мин. {spring.min_cost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(тираж × витков × ₸/виток) + (тираж × ₸/работа) + приладка</code>. Диаметр пружины подбирается по толщине блока; количество витков = CEIL(длина навивки / шаг).
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();

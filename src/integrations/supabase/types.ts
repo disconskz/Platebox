@@ -1036,6 +1036,33 @@ export type Database = {
         }
         Relationships: []
       }
+      paper_thickness: {
+        Row: {
+          created_at: string
+          density: number
+          id: string
+          sort_order: number
+          thickness_mm: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          density: number
+          id?: string
+          sort_order?: number
+          thickness_mm?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          density?: number
+          id?: string
+          sort_order?: number
+          thickness_mm?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pouch_lamination_prices: {
         Row: {
           created_at: string
@@ -1418,6 +1445,66 @@ export type Database = {
           sort_order?: number
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      wire_spring_prices: {
+        Row: {
+          color: string
+          created_at: string
+          diameter_mm: number
+          id: string
+          is_active: boolean
+          max_block_thickness: number
+          min_block_thickness: number
+          min_cost: number
+          name: string
+          pitch_mm: number
+          price_per_loop: number
+          setup_cost: number
+          sort_order: number
+          spring_type: string
+          updated_at: string
+          updated_by: string | null
+          work_price_per_item: number
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          diameter_mm?: number
+          id?: string
+          is_active?: boolean
+          max_block_thickness?: number
+          min_block_thickness?: number
+          min_cost?: number
+          name: string
+          pitch_mm?: number
+          price_per_loop?: number
+          setup_cost?: number
+          sort_order?: number
+          spring_type?: string
+          updated_at?: string
+          updated_by?: string | null
+          work_price_per_item?: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          diameter_mm?: number
+          id?: string
+          is_active?: boolean
+          max_block_thickness?: number
+          min_block_thickness?: number
+          min_cost?: number
+          name?: string
+          pitch_mm?: number
+          price_per_loop?: number
+          setup_cost?: number
+          sort_order?: number
+          spring_type?: string
+          updated_at?: string
+          updated_by?: string | null
+          work_price_per_item?: number
         }
         Relationships: []
       }
