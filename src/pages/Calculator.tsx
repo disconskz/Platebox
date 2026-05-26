@@ -381,6 +381,48 @@ const SEWING_MACHINE_LABEL: Record<string, string> = {
   manual: "Ручное",
 };
 
+// Доработка 16: справочник форзацев.
+type EndpaperRow = {
+  id: string;
+  name: string;
+  endpaper_type: string;        // standard | designer | printed | custom
+  paper_name: string;
+  paper_density: number;
+  paper_calc_mode: string;      // per_m2 | per_sheet
+  paper_price_per_m2: number;
+  paper_price_per_sheet: number;
+  sheet_width: number;
+  sheet_height: number;
+  endpapers_per_item: number;
+  needs_print: boolean;
+  print_price_per_sheet: number;
+  fold_price: number;
+  crease_price: number;
+  density_threshold: number;
+  glue_price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard: number;
+  coef_printed: number;
+  coef_heavy_paper: number;
+  coef_designer_paper: number;
+  coef_nonstandard_format: number;
+  coef_manual_glue: number;
+  heavy_paper_threshold: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const ENDPAPER_TYPE_LABEL: Record<string, string> = {
+  standard: "Стандартный",
+  designer: "Дизайнерская бумага",
+  printed: "Печатный",
+  custom: "Особый",
+};
+// Продукты, для которых актуальны форзацы (книги в твёрдом переплёте, ежедневники-блокноты, альбомы).
+const ENDPAPER_PRODUCT_TYPES = new Set<string>([
+  "book", "notepad", "catalog",
+]);
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
@@ -694,6 +736,23 @@ const Calculator = () => {
   const [sewUseHeadband, setSewUseHeadband] = useState(true);
   const [sewUseEndpaper, setSewUseEndpaper] = useState(true);
 
+  // Доработка 16: форзацы.
+  const [endpaperRows, setEndpaperRows] = useState<EndpaperRow[]>([]);
+  const [epEnabled, setEpEnabled] = useState(false);
+  const [epManualId, setEpManualId] = useState<string | null>(null);
+  const [epCountOverride, setEpCountOverride] = useState<number | "">("");
+  const [epWidthOverride, setEpWidthOverride] = useState<number | "">("");
+  const [epHeightOverride, setEpHeightOverride] = useState<number | "">("");
+  const [epPaperPriceOverride, setEpPaperPriceOverride] = useState<number | "">("");
+  const [epPrintPriceOverride, setEpPrintPriceOverride] = useState<number | "">("");
+  const [epFoldCreasePriceOverride, setEpFoldCreasePriceOverride] = useState<number | "">("");
+  const [epGluePriceOverride, setEpGluePriceOverride] = useState<number | "">("");
+  const [epCoefOverride, setEpCoefOverride] = useState<number | "">("");
+  const [epSetupOverride, setEpSetupOverride] = useState<number | "">("");
+  const [epMinOverride, setEpMinOverride] = useState<number | "">("");
+  const [epNeedsPrintOverride, setEpNeedsPrintOverride] = useState<"" | "yes" | "no">("");
+  const [epManualGlue, setEpManualGlue] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -863,6 +922,16 @@ const Calculator = () => {
         setSewRows(((bsR.data as BlockSewingRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load block_sewing_prices failed", e);
+      }
+      // Доработка 16: справочник форзацев.
+      try {
+        const epR = await (supabase as any)
+          .from("endpaper_prices")
+          .select("*")
+          .order("sort_order");
+        setEndpaperRows(((epR.data as EndpaperRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load endpaper_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -1922,7 +1991,108 @@ const Calculator = () => {
       void smallRun;
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems];
+    // Доработка 16: форзацы.
+    const endpaperItems: SpecItem[] = (() => {
+      if (!epEnabled || !(circulation > 0)) return [];
+      if (!endpaperRows.length) return [];
+      const active = endpaperRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const row = (epManualId && active.find((r) => r.id === epManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const perItem = epCountOverride !== "" ? Math.max(0, Math.floor(Number(epCountOverride) || 0)) : row.endpapers_per_item;
+      const epWidth = epWidthOverride !== "" ? Number(epWidthOverride) : dims.w * 2;
+      const epHeight = epHeightOverride !== "" ? Number(epHeightOverride) : dims.h;
+      const area = Math.max(0, (epWidth * epHeight) / 1_000_000);
+      const totalCount = circulation * perItem;
+      const density = row.paper_density;
+      // Бумага.
+      let paperCost = 0;
+      if (row.paper_calc_mode === "per_sheet") {
+        const sheetArea = Math.max(0.0001, (row.sheet_width * row.sheet_height) / 1_000_000);
+        const sheets = Math.ceil((area * totalCount) / sheetArea);
+        const price = epPaperPriceOverride !== "" ? Number(epPaperPriceOverride) : row.paper_price_per_sheet;
+        paperCost = sheets * price;
+      } else {
+        const price = epPaperPriceOverride !== "" ? Number(epPaperPriceOverride) : row.paper_price_per_m2;
+        paperCost = area * price * totalCount;
+      }
+      // Печать.
+      const needsPrint = epNeedsPrintOverride === "yes" ? true : epNeedsPrintOverride === "no" ? false : row.needs_print;
+      const printPricePerSheet = epPrintPriceOverride !== "" ? Number(epPrintPriceOverride) : row.print_price_per_sheet;
+      const printCost = needsPrint ? totalCount * printPricePerSheet : 0;
+      // Фальцовка/биговка: <= threshold → фальцовка, иначе биговка.
+      const useCrease = density > row.density_threshold;
+      const foldPrice = useCrease
+        ? (epFoldCreasePriceOverride !== "" ? Number(epFoldCreasePriceOverride) : row.crease_price)
+        : (epFoldCreasePriceOverride !== "" ? Number(epFoldCreasePriceOverride) : row.fold_price);
+      const foldCost = totalCount * foldPrice;
+      // Приклейка.
+      const gluePrice = epGluePriceOverride !== "" ? Number(epGluePriceOverride) : row.glue_price_per_item;
+      const glueCost = totalCount * gluePrice;
+      const setup = epSetupOverride !== "" ? Number(epSetupOverride) : row.setup_cost;
+      const minCost = epMinOverride !== "" ? Number(epMinOverride) : row.min_cost;
+      // Коэффициенты сложности.
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const isStandardFormat = shortSide >= 70 && longSide <= 1200;
+      const printedCoef = needsPrint ? row.coef_printed : 1;
+      const designerCoef = row.endpaper_type === "designer" ? row.coef_designer_paper : 1;
+      const heavyCoef = density >= row.heavy_paper_threshold ? row.coef_heavy_paper : 1;
+      const formatCoef = isStandardFormat ? row.coef_standard : row.coef_nonstandard_format;
+      const manualGlueCoef = epManualGlue ? row.coef_manual_glue : 1;
+      const autoCoef = printedCoef * designerCoef * heavyCoef * formatCoef * manualGlueCoef;
+      const coef = epCoefOverride !== "" ? Math.max(0, Number(epCoefOverride)) : autoCoef;
+      const baseSum = paperCost + printCost + foldCost + glueCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (paperCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Форзацы — бумага (${row.paper_name || ENDPAPER_TYPE_LABEL[row.endpaper_type] || ""} ${density} г/м²)`,
+          quantity: totalCount,
+          unit: "шт",
+          unitPrice: paperCost / Math.max(1, totalCount),
+          total: paperCost,
+        });
+      }
+      if (printCost > 0) {
+        items.push({ stage: "postpress", name: `Форзацы — печать (${printPricePerSheet} ₸/шт)`, quantity: totalCount, unit: "шт", unitPrice: printPricePerSheet, total: printCost });
+      }
+      if (foldCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Форзацы — ${useCrease ? "биговка" : "фальцовка"} (${foldPrice} ₸/шт)`,
+          quantity: totalCount,
+          unit: "шт",
+          unitPrice: foldPrice,
+          total: foldCost,
+        });
+      }
+      if (glueCost > 0) {
+        items.push({ stage: "postpress", name: `Форзацы — приклейка (${gluePrice} ₸/шт)`, quantity: totalCount, unit: "шт", unitPrice: gluePrice, total: glueCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Форзацы — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = raw - baseSum;
+        items.push({
+          stage: "postpress",
+          name: `Форзацы — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Форзацы — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -2115,7 +2285,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -4018,6 +4188,194 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(тираж × тетрадей × ₸/тетрадь × коэф) + нитки + марля + каптал + форзацы + приладка</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 16: Форзацы */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={epEnabled} onCheckedChange={(v) => setEpEnabled(!!v)} id="ep" />
+                        <Label htmlFor="ep" className="flex-1 font-medium">Форзацы</Label>
+                        <Select
+                          value={epManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setEpManualId(v === "auto" ? null : v);
+                            setEpPaperPriceOverride(""); setEpPrintPriceOverride(""); setEpFoldCreasePriceOverride("");
+                            setEpGluePriceOverride(""); setEpCoefOverride(""); setEpSetupOverride(""); setEpMinOverride("");
+                            setEpCountOverride(""); setEpWidthOverride(""); setEpHeightOverride("");
+                          }}
+                          disabled={!epEnabled || endpaperRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (первая активная запись)</SelectItem>
+                            {endpaperRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {epEnabled && (() => {
+                        if (!endpaperRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Форзацы» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = endpaperRows.filter((r) => r.is_active !== false);
+                        const row = (epManualId && active.find((r) => r.id === epManualId)) || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const perItem = epCountOverride !== "" ? Math.max(0, Math.floor(Number(epCountOverride) || 0)) : row.endpapers_per_item;
+                        const epWidth = epWidthOverride !== "" ? Number(epWidthOverride) : dims.w * 2;
+                        const epHeight = epHeightOverride !== "" ? Number(epHeightOverride) : dims.h;
+                        const area = Math.max(0, (epWidth * epHeight) / 1_000_000);
+                        const totalCount = circulation * perItem;
+                        const density = row.paper_density;
+                        const needsPrint = epNeedsPrintOverride === "yes" ? true : epNeedsPrintOverride === "no" ? false : row.needs_print;
+                        const useCrease = density > row.density_threshold;
+                        const defaultFoldPrice = useCrease ? row.crease_price : row.fold_price;
+                        const foldPrice = epFoldCreasePriceOverride !== "" ? Number(epFoldCreasePriceOverride) : defaultFoldPrice;
+                        const printPricePerSheet = epPrintPriceOverride !== "" ? Number(epPrintPriceOverride) : row.print_price_per_sheet;
+                        const gluePrice = epGluePriceOverride !== "" ? Number(epGluePriceOverride) : row.glue_price_per_item;
+                        const setup = epSetupOverride !== "" ? Number(epSetupOverride) : row.setup_cost;
+                        const minCost = epMinOverride !== "" ? Number(epMinOverride) : row.min_cost;
+                        let paperCost = 0;
+                        let paperHint = "";
+                        if (row.paper_calc_mode === "per_sheet") {
+                          const sheetArea = Math.max(0.0001, (row.sheet_width * row.sheet_height) / 1_000_000);
+                          const sheets = Math.ceil((area * totalCount) / sheetArea);
+                          const price = epPaperPriceOverride !== "" ? Number(epPaperPriceOverride) : row.paper_price_per_sheet;
+                          paperCost = sheets * price;
+                          paperHint = `${sheets} лист(ов) × ${price} ₸`;
+                        } else {
+                          const price = epPaperPriceOverride !== "" ? Number(epPaperPriceOverride) : row.paper_price_per_m2;
+                          paperCost = area * price * totalCount;
+                          paperHint = `${area.toFixed(4)} м² × ${price} ₸ × ${totalCount}`;
+                        }
+                        const printCost = needsPrint ? totalCount * printPricePerSheet : 0;
+                        const foldCost = totalCount * foldPrice;
+                        const glueCost = totalCount * gluePrice;
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const isStandardFormat = shortSide >= 70 && longSide <= 1200;
+                        const printedCoef = needsPrint ? row.coef_printed : 1;
+                        const designerCoef = row.endpaper_type === "designer" ? row.coef_designer_paper : 1;
+                        const heavyCoef = density >= row.heavy_paper_threshold ? row.coef_heavy_paper : 1;
+                        const formatCoef = isStandardFormat ? row.coef_standard : row.coef_nonstandard_format;
+                        const manualGlueCoef = epManualGlue ? row.coef_manual_glue : 1;
+                        const autoCoef = printedCoef * designerCoef * heavyCoef * formatCoef * manualGlueCoef;
+                        const coef = epCoefOverride !== "" ? Math.max(0, Number(epCoefOverride)) : autoCoef;
+                        const baseSum = paperCost + printCost + foldCost + glueCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Форзацев на изделие</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={epCountOverride === "" ? row.endpapers_per_item : epCountOverride}
+                                  onChange={(e) => setEpCountOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Ширина форзаца, мм</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={epWidthOverride === "" ? dims.w * 2 : epWidthOverride}
+                                  onChange={(e) => setEpWidthOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Высота форзаца, мм</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={epHeightOverride === "" ? dims.h : epHeightOverride}
+                                  onChange={(e) => setEpHeightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Печать форзаца</Label>
+                                <Select value={epNeedsPrintOverride || "auto"} onValueChange={(v) => setEpNeedsPrintOverride(v === "auto" ? "" : (v as any))}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="auto">Авто ({row.needs_print ? "да" : "нет"})</SelectItem>
+                                    <SelectItem value="yes">Да</SelectItem>
+                                    <SelectItem value="no">Нет</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">
+                                  Бумага, ₸/{row.paper_calc_mode === "per_sheet" ? "лист" : "м²"}
+                                </Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={epPaperPriceOverride === "" ? (row.paper_calc_mode === "per_sheet" ? row.paper_price_per_sheet : row.paper_price_per_m2) : epPaperPriceOverride}
+                                  onChange={(e) => setEpPaperPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Печать, ₸/шт</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={epPrintPriceOverride === "" ? row.print_price_per_sheet : epPrintPriceOverride}
+                                  onChange={(e) => setEpPrintPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">
+                                  {useCrease ? "Биговка" : "Фальцовка"}, ₸/шт
+                                </Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={epFoldCreasePriceOverride === "" ? defaultFoldPrice : epFoldCreasePriceOverride}
+                                  onChange={(e) => setEpFoldCreasePriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приклейка, ₸/шт</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={epGluePriceOverride === "" ? row.glue_price_per_item : epGluePriceOverride}
+                                  onChange={(e) => setEpGluePriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={epCoefOverride === "" ? Number(autoCoef.toFixed(3)) : epCoefOverride}
+                                  onChange={(e) => setEpCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={epSetupOverride === "" ? row.setup_cost : epSetupOverride}
+                                  onChange={(e) => setEpSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={epMinOverride === "" ? row.min_cost : epMinOverride}
+                                  onChange={(e) => setEpMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="ep-manual" checked={epManualGlue} onCheckedChange={(v) => setEpManualGlue(!!v)} />
+                                <Label htmlFor="ep-manual" className="text-[12px]">Ручная приклейка</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({ENDPAPER_TYPE_LABEL[row.endpaper_type] || row.endpaper_type}, {row.paper_name} {density} г/м²)
+                              </div>
+                              <div>
+                                Формат книги {dims.w}×{dims.h} → форзац <b>{epWidth}×{epHeight} мм</b> · площадь <b>{area.toFixed(4)} м²</b> · всего <b>{totalCount} шт</b> ({circulation} × {perItem})
+                              </div>
+                              <div>
+                                Бумага: {paperHint} = <b>{Math.round(paperCost).toLocaleString("ru-RU")} ₸</b>
+                                {printCost > 0 && <> · печать <b>{Math.round(printCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {foldCost > 0 && <> · {useCrease ? "биговка" : "фальцовка"} <b>{Math.round(foldCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {glueCost > 0 && <> · приклейка <b>{Math.round(glueCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {setup > 0 && <> · приладка <b>{setup} ₸</b></>}
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × печать {printedCoef} × плотн. {heavyCoef} × дизайн. {designerCoef} × ручн. {manualGlueCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(бумага + печать + {useCrease ? "биговка" : "фальцовка"} + приклейка + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Размер форзаца: <code>ширина × 2</code> от формата книги.
                             </p>
                           </div>
                         );
