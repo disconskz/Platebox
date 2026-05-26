@@ -616,6 +616,19 @@ const Calculator = () => {
   const [sigPricePerSignatureOverride, setSigPricePerSignatureOverride] = useState<number | "">("");
   const [sigSetupOverride, setSigSetupOverride] = useState<number | "">("");
 
+  // Доработка 14: подборка тетрадей.
+  const [collationRows, setCollationRows] = useState<SignatureCollationRow[]>([]);
+  const [colEnabled, setColEnabled] = useState(false);
+  const [colManualId, setColManualId] = useState<string | null>(null);
+  const [colTypeOverride, setColTypeOverride] = useState<"" | "manual" | "machine" | "machine_inserts">("");
+  const [colSignaturesOverride, setColSignaturesOverride] = useState<number | "">("");
+  const [colPriceOverride, setColPriceOverride] = useState<number | "">("");
+  const [colCoefOverride, setColCoefOverride] = useState<number | "">("");
+  const [colSetupOverride, setColSetupOverride] = useState<number | "">("");
+  const [colMinOverride, setColMinOverride] = useState<number | "">("");
+  const [colComplexSequence, setColComplexSequence] = useState(false);
+  const [colHasInserts, setColHasInserts] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
