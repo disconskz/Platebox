@@ -478,6 +478,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "paper_thickness", title: "Толщина бумаги", desc: "Толщина одного листа по плотности — нужна для авто-расчёта толщины блока при навивке.", countKey: "paper_thickness", relatedKeys: ["wire_spring_prices", "materials"] },
       { key: "thermal_binding_prices", title: "Термобиндер (КБС)", desc: "Тип клея (EVA/PUR), цена клея за 1 мм, работа, приладка и допустимая толщина блока. Используется для авто-расчёта клеевого бесшвейного скрепления.", countKey: "thermal_binding_prices", relatedKeys: ["paper_thickness"] },
       { key: "signature_folding_prices", title: "Фальцовка тетрадей", desc: "Тип фальцовки, тип оборудования (ручная/машинная), цена за сгиб и тетрадь, коэффициенты сложности и ограничения. Используется для авто-расчёта фальцовки многополосных изделий.", countKey: "signature_folding_prices" },
+      { key: "signature_collation_prices", title: "Подборка тетрадей", desc: "Цена подборки одной тетради, коэффициенты сложности (формат, оборудование, последовательность, вкладки, тонкая бумага), ограничения. Используется для авто-расчёта операции подборки тетрадей.", countKey: "signature_collation_prices", relatedKeys: ["signature_folding_prices"] },
     ],
   },
   {
