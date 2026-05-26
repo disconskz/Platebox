@@ -1376,6 +1376,51 @@ export type Database = {
         }
         Relationships: []
       }
+      variable_print_prices: {
+        Row: {
+          complexity: number
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          min_cost: number
+          name: string
+          price_per_apply: number
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          complexity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          min_cost?: number
+          name: string
+          price_per_apply?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          complexity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          min_cost?: number
+          name?: string
+          price_per_apply?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

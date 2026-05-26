@@ -59,6 +59,19 @@ type PouchLamRow = {
   min_cost: number;
   sort_order: number;
 };
+// Доработка 10: справочник переменной печати (нумерация / штрихкод / QR / персонализация / Excel-CSV).
+type VariablePrintKind = "numbering" | "barcode" | "qrcode" | "personalization" | "data_import";
+type VariablePrintRow = {
+  id: string;
+  kind: VariablePrintKind;
+  name: string;
+  price_per_apply: number;
+  setup_cost: number;
+  min_cost: number;
+  complexity: number;
+  is_active: boolean;
+  sort_order: number;
+};
 type Equipment = { id: string; name: string; type: string; max_format_width: number | null; max_format_height: number | null; cost_per_impression: number | null };
 type PrintFormatRow = { id: string; width: number; height: number; sort_order: number; purchase_format_id: string | null };
 type PurchaseFormatRow = { id: string; width: number; height: number; material_category: string; sort_order: number };
@@ -231,6 +244,24 @@ const Calculator = () => {
   const [lam, setLam] = useState<LamRow[]>([]);
   const [films, setFilms] = useState<FilmPriceRow[]>([]);
   const [pouches, setPouches] = useState<PouchLamRow[]>([]);
+  // Доработка 10: переменная печать
+  const [variablePrintRows, setVariablePrintRows] = useState<VariablePrintRow[]>([]);
+  // выбор пользователя по типам: enabled + перебиваемые поля.
+  type VarPrintSel = {
+    enabled: boolean;
+    elementsPerItem: number;
+    priceOverride: number | "";
+    setupOverride: number | "";
+    minOverride: number | "";
+    complexityOverride: number | "";
+  };
+  const [varPrintSel, setVarPrintSel] = useState<Record<VariablePrintKind, VarPrintSel>>({
+    numbering:       { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    barcode:         { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    qrcode:          { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    personalization: { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+    data_import:     { enabled: false, elementsPerItem: 1, priceOverride: "", setupOverride: "", minOverride: "", complexityOverride: "" },
+  });
   // Цена выдергивания облоя за 1 изделие (Доработка 8) — из calc_constants.
   const [wastePickPerItem, setWastePickPerItem] = useState<number>(1);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -472,6 +503,15 @@ const Calculator = () => {
         setPouches(((plR.data as PouchLamRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load pouch_lamination_prices failed", e);
+      }
+      try {
+        const vpR = await (supabase as any)
+          .from("variable_print_prices")
+          .select("id,kind,name,price_per_apply,setup_cost,min_cost,complexity,is_active,sort_order")
+          .order("sort_order");
+        setVariablePrintRows(((vpR.data as VariablePrintRow[]) || []).filter((r) => r.is_active !== false));
+      } catch (e) {
+        console.warn("[Calculator] load variable_print_prices failed", e);
       }
       try {
         const wR = await (supabase as any)
@@ -1096,7 +1136,41 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems];
+    // Доработка 10: переменная печать (нумерация / штрихкод / QR / персонализация / Excel-CSV).
+    const varPrintItems: SpecItem[] = (() => {
+      if (!(circulation > 0) || !variablePrintRows.length) return [];
+      const out: SpecItem[] = [];
+      for (const row of variablePrintRows) {
+        const sel = varPrintSel[row.kind];
+        if (!sel?.enabled) continue;
+        const elements = Math.max(0, Math.floor(sel.elementsPerItem || 0));
+        if (!elements) continue;
+        const price = sel.priceOverride !== "" ? Number(sel.priceOverride) : row.price_per_apply;
+        const setup = sel.setupOverride !== "" ? Number(sel.setupOverride) : row.setup_cost;
+        const minCost = sel.minOverride !== "" ? Number(sel.minOverride) : row.min_cost;
+        const complexity = sel.complexityOverride !== "" ? Number(sel.complexityOverride) : (row.complexity || 1);
+        const applies = circulation * elements;
+        const apply = applies * price * complexity;
+        const raw = setup + apply;
+        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+        if (setup > 0) {
+          out.push({ stage: "postpress", name: `${row.name} (приладка)`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+        }
+        out.push({
+          stage: "postpress",
+          name: complexity !== 1 ? `${row.name} (×${complexity})` : row.name,
+          quantity: applies,
+          unit: "нанесение",
+          unitPrice: price * complexity,
+          total: apply,
+        });
+        if (total > raw) {
+          out.push({ stage: "postpress", name: `${row.name} (доплата до минимума)`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+        }
+      }
+      return out;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -1289,7 +1363,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -2326,6 +2400,96 @@ const Calculator = () => {
                         </div>
                       );
                     })()}
+                  </div>
+                  {/* Доработка 10: Переменная печать */}
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="font-medium text-sm">Переменная печать (нумерация / штрихкоды / QR / персонализация)</div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Формула: <code>MAX(приладка + тираж × элементов × цена × сложность, мин. стоимость)</code>. Цены и приладка берутся из справочника «Переменная печать»; при необходимости поля можно перебить вручную.
+                    </p>
+                    {variablePrintRows.length === 0 ? (
+                      <p className="text-[11px] text-destructive">Справочник «Переменная печать» пуст — добавьте записи в Справочниках.</p>
+                    ) : variablePrintRows.map((row) => {
+                      const sel = varPrintSel[row.kind];
+                      if (!sel) return null;
+                      const price = sel.priceOverride !== "" ? Number(sel.priceOverride) : row.price_per_apply;
+                      const setup = sel.setupOverride !== "" ? Number(sel.setupOverride) : row.setup_cost;
+                      const minCost = sel.minOverride !== "" ? Number(sel.minOverride) : row.min_cost;
+                      const complexity = sel.complexityOverride !== "" ? Number(sel.complexityOverride) : (row.complexity || 1);
+                      const elements = Math.max(0, Math.floor(sel.elementsPerItem || 0));
+                      const applies = circulation * elements;
+                      const raw = setup + applies * price * complexity;
+                      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                      const update = (patch: Partial<VarPrintSel>) =>
+                        setVarPrintSel((prev) => ({ ...prev, [row.kind]: { ...prev[row.kind], ...patch } }));
+                      return (
+                        <div key={row.id} className="rounded border p-2 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Checkbox checked={sel.enabled} onCheckedChange={(v) => update({ enabled: !!v })} id={`vp-${row.kind}`} />
+                            <Label htmlFor={`vp-${row.kind}`} className="flex-1 font-medium">{row.name}</Label>
+                            <span className="text-[11px] text-muted-foreground">
+                              {row.price_per_apply} ₸/нанесение · приладка {row.setup_cost} ₸
+                            </span>
+                          </div>
+                          {sel.enabled && (
+                            <>
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Элементов на изделии</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    value={sel.elementsPerItem}
+                                    onChange={(e) => update({ elementsPerItem: Math.max(0, Number(e.target.value) || 0) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">₸/нанесение</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={sel.priceOverride === "" ? row.price_per_apply : sel.priceOverride}
+                                    onChange={(e) => update({ priceOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={sel.setupOverride === "" ? row.setup_cost : sel.setupOverride}
+                                    onChange={(e) => update({ setupOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={sel.minOverride === "" ? row.min_cost : sel.minOverride}
+                                    onChange={(e) => update({ minOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.1"
+                                    value={sel.complexityOverride === "" ? (row.complexity || 1) : sel.complexityOverride}
+                                    onChange={(e) => update({ complexityOverride: e.target.value === "" ? "" : Number(e.target.value) })}
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground">
+                                Нанесений: {circulation} × {elements} = <b>{applies}</b> · Расчёт: MAX({setup} + {applies} × {price} × {complexity}, {minCost}) = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
