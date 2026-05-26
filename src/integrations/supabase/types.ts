@@ -780,6 +780,108 @@ export type Database = {
         }
         Relationships: []
       }
+      endpaper_prices: {
+        Row: {
+          coef_designer_paper: number
+          coef_heavy_paper: number
+          coef_manual_glue: number
+          coef_nonstandard_format: number
+          coef_printed: number
+          coef_standard: number
+          crease_price: number
+          created_at: string
+          density_threshold: number
+          endpaper_type: string
+          endpapers_per_item: number
+          fold_price: number
+          glue_price_per_item: number
+          heavy_paper_threshold: number
+          id: string
+          is_active: boolean
+          min_cost: number
+          name: string
+          needs_print: boolean
+          paper_calc_mode: string
+          paper_density: number
+          paper_name: string
+          paper_price_per_m2: number
+          paper_price_per_sheet: number
+          print_price_per_sheet: number
+          setup_cost: number
+          sheet_height: number
+          sheet_width: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coef_designer_paper?: number
+          coef_heavy_paper?: number
+          coef_manual_glue?: number
+          coef_nonstandard_format?: number
+          coef_printed?: number
+          coef_standard?: number
+          crease_price?: number
+          created_at?: string
+          density_threshold?: number
+          endpaper_type?: string
+          endpapers_per_item?: number
+          fold_price?: number
+          glue_price_per_item?: number
+          heavy_paper_threshold?: number
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name: string
+          needs_print?: boolean
+          paper_calc_mode?: string
+          paper_density?: number
+          paper_name?: string
+          paper_price_per_m2?: number
+          paper_price_per_sheet?: number
+          print_price_per_sheet?: number
+          setup_cost?: number
+          sheet_height?: number
+          sheet_width?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coef_designer_paper?: number
+          coef_heavy_paper?: number
+          coef_manual_glue?: number
+          coef_nonstandard_format?: number
+          coef_printed?: number
+          coef_standard?: number
+          crease_price?: number
+          created_at?: string
+          density_threshold?: number
+          endpaper_type?: string
+          endpapers_per_item?: number
+          fold_price?: number
+          glue_price_per_item?: number
+          heavy_paper_threshold?: number
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name?: string
+          needs_print?: boolean
+          paper_calc_mode?: string
+          paper_density?: number
+          paper_name?: string
+          paper_price_per_m2?: number
+          paper_price_per_sheet?: number
+          print_price_per_sheet?: number
+          setup_cost?: number
+          sheet_height?: number
+          sheet_width?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       envelope_formats: {
         Row: {
           created_at: string
