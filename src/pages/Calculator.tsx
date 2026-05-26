@@ -145,6 +145,32 @@ function dieCutMaterialLabel(m: any): string {
   }
 }
 
+// Доработка 9: подобрать ближайший пакет, в который помещается изделие.
+// Алгоритм: нормализуем стороны (макс, мин) и для каждого пакета также;
+// пакет подходит, если оба измерения изделия ≤ обоих измерений пакета.
+// Среди подходящих берём пакет с минимальной площадью.
+function pickPouchFor(
+  pouches: Array<{ id: string; name: string; width: number; height: number; price_per_item: number; min_cost: number; film_type: string; film_thickness: number }>,
+  productW: number,
+  productH: number,
+  manualId: string | null,
+): { id: string; name: string; width: number; height: number; price_per_item: number; min_cost: number; film_type: string; film_thickness: number } | null {
+  if (!pouches.length) return null;
+  if (manualId) {
+    const p = pouches.find((x) => x.id === manualId);
+    if (p) return p;
+  }
+  const pMax = Math.max(productW, productH);
+  const pMin = Math.min(productW, productH);
+  const fits = pouches.filter((x) => {
+    const xMax = Math.max(x.width, x.height);
+    const xMin = Math.min(x.width, x.height);
+    return xMax >= pMax && xMin >= pMin;
+  });
+  const sorted = (fits.length ? fits : [...pouches]).slice().sort((a, b) => (a.width * a.height) - (b.width * b.height));
+  return sorted[0] || null;
+}
+
 // Сколько раз печатный лист помещается в закупочный (с учётом обоих поворотов)
 function nestingFit(purchaseW: number, purchaseH: number, printW: number, printH: number): number {
   let best = 0;
