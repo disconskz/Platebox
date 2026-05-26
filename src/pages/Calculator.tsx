@@ -294,10 +294,10 @@ const FOLD_TYPE_LABEL: Record<string, string> = {
 };
 const FOLD_MACHINE_LABEL: Record<string, string> = { machine: "Машинная", manual: "Ручная" };
 const SIGNATURE_PAGES_OPTIONS = [8, 16, 32] as const;
-// 8 → 2 сгиба, 16 → 3, 32 → 4. Общая формула: log2(pages/4).
+// 8 → 2 сгиба, 16 → 3, 32 → 4. Общая формула: log2(pages) - 1.
 function foldsForSignature(pagesPerSignature: number): number {
   if (!(pagesPerSignature > 0)) return 0;
-  return Math.max(1, Math.round(Math.log2(pagesPerSignature / 2)));
+  return Math.max(1, Math.round(Math.log2(pagesPerSignature) - 1));
 }
 
 // Доработка 12: подобрать запись термобиндера по толщине блока.
