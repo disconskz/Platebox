@@ -1655,7 +1655,93 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems];
+    // Доработка 14: подборка тетрадей.
+    const collationItems: SpecItem[] = (() => {
+      if (!colEnabled || !(circulation > 0)) return [];
+      if (!collationRows.length) return [];
+      const active = collationRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const density = Number((effectiveMaterial as any)?.density ?? 0);
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const autoSignatures = sigPagesPerSignature > 0
+        ? Math.max(1, Math.ceil(sigPages / sigPagesPerSignature))
+        : 0;
+      const signatures = colSignaturesOverride !== ""
+        ? Math.max(0, Math.floor(Number(colSignaturesOverride) || 0))
+        : autoSignatures;
+      // Авто-выбор: учитываем тип-override, ограничения формата/плотности/тиража/тетрадей.
+      const wantType = colTypeOverride || "";
+      const pickAuto = () => {
+        const fits = active.filter((r) =>
+          shortSide >= r.min_format_short && longSide <= r.max_format_long &&
+          density >= r.min_density && density <= r.max_density &&
+          circulation >= r.min_circulation && circulation <= r.max_circulation &&
+          signatures <= r.max_signatures,
+        );
+        // Если тираж/формат маленький — предпочтём ручную.
+        const smallRun = circulation < 300 || signatures > 0 && fits.every((r) => r.collation_type === "manual");
+        const pool = fits.length ? fits : active;
+        if (smallRun) {
+          return pool.find((r) => r.collation_type === "manual") || pool[0];
+        }
+        return pool.find((r) => r.collation_type === "machine") || pool[0];
+      };
+      const row = (colManualId && active.find((r) => r.id === colManualId))
+        || (wantType && active.find((r) => r.collation_type === wantType))
+        || pickAuto();
+      if (!row) return [];
+      const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long
+        && density >= row.min_density && density <= row.max_density;
+      const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+      const machineCoef = row.collation_type === "manual" ? row.coef_manual : row.coef_machine;
+      const thinPaperCoef = density > 0 && density <= 80 ? row.coef_thin_paper : 1;
+      const manySigCoef = signatures > 16 ? row.coef_many_signatures : 1;
+      const seqCoef = colComplexSequence ? row.coef_complex_sequence : 1;
+      const insertCoef = (colHasInserts || row.collation_type === "machine_inserts") ? row.coef_inserts : 1;
+      const autoCoef = formatCoef * machineCoef * thinPaperCoef * manySigCoef * seqCoef * insertCoef;
+      const coef = colCoefOverride !== "" ? Math.max(0, Number(colCoefOverride)) : autoCoef;
+      const price = colPriceOverride !== "" ? Number(colPriceOverride) : row.price_per_signature;
+      const setup = colSetupOverride !== "" ? Number(colSetupOverride) : row.setup_cost;
+      const minCost = colMinOverride !== "" ? Number(colMinOverride) : row.min_cost;
+      const workCost = circulation * signatures * price * coef;
+      const raw = workCost + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      const label = COLLATION_TYPE_LABEL[row.collation_type] || row.collation_type;
+      if (workCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Подборка тетрадей (${signatures} тетр. × ${price} ₸ × коэф. ${coef.toFixed(2)}) — ${label}`,
+          quantity: circulation * signatures,
+          unit: "тетр",
+          unitPrice: price * coef,
+          total: workCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Подборка тетрадей — приладка (${label})`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: setup,
+          total: setup,
+        });
+      }
+      if (total > raw) {
+        items.push({
+          stage: "postpress",
+          name: `Подборка тетрадей — доплата до минимума`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: total - raw,
+          total: total - raw,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
