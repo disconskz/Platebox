@@ -51,6 +51,7 @@ export function CatalogOperationsPicker({ circulation, onChange }: Props) {
   const [params, setParams] = useState<ParamRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SelectedOp[]>([]);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     (async () => {
