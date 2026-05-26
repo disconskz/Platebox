@@ -248,6 +248,23 @@ const TABLES = [
     defaults: { density: 80, thickness_mm: 0.10, sort_order: 100 },
   },
   {
+    key: "thermal_binding_prices",
+    title: "Термобиндер (КБС)",
+    cols: [
+      { k: "name", t: "text", label: "Название" },
+      { k: "glue_type", t: "select", label: "Тип клея", opts: ["eva", "pur"] },
+      { k: "price_per_mm", t: "number", label: "₸ клея за 1 мм" },
+      { k: "work_price_per_item", t: "number", label: "₸/работа за изделие" },
+      { k: "setup_cost", t: "number", label: "Приладка, ₸" },
+      { k: "min_cost", t: "number", label: "Мин. стоимость, ₸" },
+      { k: "min_block_thickness", t: "number", label: "Толщина блока от, мм" },
+      { k: "max_block_thickness", t: "number", label: "Толщина блока до, мм" },
+      { k: "is_active", t: "select", label: "Активна", opts: ["true", "false"] },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { name: "EVA — стандарт", glue_type: "eva", price_per_mm: 1.5, work_price_per_item: 35, setup_cost: 3000, min_cost: 0, min_block_thickness: 2, max_block_thickness: 50, is_active: true, sort_order: 100 },
+  },
+  {
     key: "system_settings",
     title: "Константы",
     cols: [
@@ -404,6 +421,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "variable_print_prices", title: "Переменная печать", desc: "Нумерация, штрихкоды, QR, персонализация: цена/нанесение, приладка, минимальная стоимость, коэф. сложности.", countKey: "variable_print_prices" },
       { key: "wire_spring_prices", title: "Металлическая пружина (Wire-O)", desc: "Диаметры, шаг, цена за виток, работа и приладка. Используется для авто-расчёта навивки.", countKey: "wire_spring_prices", relatedKeys: ["paper_thickness"] },
       { key: "paper_thickness", title: "Толщина бумаги", desc: "Толщина одного листа по плотности — нужна для авто-расчёта толщины блока при навивке.", countKey: "paper_thickness", relatedKeys: ["wire_spring_prices", "materials"] },
+      { key: "thermal_binding_prices", title: "Термобиндер (КБС)", desc: "Тип клея (EVA/PUR), цена клея за 1 мм, работа, приладка и допустимая толщина блока. Используется для авто-расчёта клеевого бесшвейного скрепления.", countKey: "thermal_binding_prices", relatedKeys: ["paper_thickness"] },
     ],
   },
   {
