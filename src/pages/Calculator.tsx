@@ -1026,9 +1026,51 @@ const Calculator = () => {
       if (dieCutStampMode === "new" && dieCutStampCost > 0) {
         items.push({ stage: "postpress", name: "Изготовление штампа для высечки", quantity: 1, unit: "шт", unitPrice: dieCutStampCost, total: dieCutStampCost });
       }
+      // Доработка 8: автоматическое выдергивание облоя после высечки.
+      //   qty = печ.листов × изделий_на_листе, ₸ за 1 изделие — из calc_constants.
+      const ips = baseResult.layout?.itemsPerSheet ?? 0;
+      if (ips > 0 && wastePickPerItem > 0) {
+        const qty = printSheets * ips;
+        items.push({
+          stage: "postpress",
+          name: "Выдергивание облоя после высечки",
+          quantity: qty,
+          unit: "изделие",
+          unitPrice: wastePickPerItem,
+          total: qty * wastePickPerItem,
+        });
+      }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems];
+    // Доработка 9: пакетная ламинация — поштучно по формату пакета.
+    const pouchItems: SpecItem[] = (() => {
+      if (!pouchEnabled || !(circulation > 0) || !pouches.length) return [];
+      const pouch = pickPouchFor(pouches, dims.w, dims.h, pouchManualId);
+      if (!pouch) return [];
+      const price = pouchPriceOverride !== "" ? Number(pouchPriceOverride) : pouch.price_per_item;
+      const minCost = pouchMinOverride !== "" ? Number(pouchMinOverride) : pouch.min_cost;
+      const total = circulation * price;
+      const items: SpecItem[] = [{
+        stage: "postpress",
+        name: `Пакетная ламинация (${pouch.name} ${pouch.width}×${pouch.height}, ${pouch.film_type} ${pouch.film_thickness} мкм)`,
+        quantity: circulation,
+        unit: "шт",
+        unitPrice: price,
+        total,
+      }];
+      if (minCost > 0 && total < minCost) {
+        items.push({
+          stage: "postpress",
+          name: "Пакетная ламинация (доплата до минимума)",
+          quantity: 1,
+          unit: "шт",
+          unitPrice: minCost - total,
+          total: minCost - total,
+        });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
