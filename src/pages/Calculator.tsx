@@ -1308,6 +1308,9 @@ const Calculator = () => {
     if (typeof o.has_fold === "boolean") setHasFold(o.has_fold);
     if (typeof o.fold_count === "number") setFoldCount(o.fold_count);
     if (typeof o.has_die_cut === "boolean") setHasDieCut(o.has_die_cut);
+    // Совместимость с легаси-флагами AI-импорта: переносим в новые единые блоки.
+    if (typeof o.fold_count === "number" && o.has_fold) setFoldsPerItem(Math.max(0, Math.min(5, o.fold_count)));
+    if (typeof o.has_die_cut === "boolean") setDieCutEnabled(o.has_die_cut);
     if (typeof o.has_lamination === "boolean") setHasLamination(o.has_lamination);
     if (o.lamination_film === "gloss" || o.lamination_film === "matte" || o.lamination_film === "velvet") setLaminationFilm(o.lamination_film);
     if (o.lamination_sides === 1 || o.lamination_sides === 2) setLaminationSides(o.lamination_sides);
