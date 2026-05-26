@@ -571,6 +571,19 @@ const Calculator = () => {
   const [thermalWorkOverride, setThermalWorkOverride] = useState<number | "">("");
   const [thermalSetupOverride, setThermalSetupOverride] = useState<number | "">("");
 
+  // Доработка 13: фальцовка тетрадей.
+  const [signatureRows, setSignatureRows] = useState<SignatureFoldingRow[]>([]);
+  const [sigEnabled, setSigEnabled] = useState(false);
+  const [sigPages, setSigPages] = useState<number>(160);
+  const [sigPagesPerSignature, setSigPagesPerSignature] = useState<8 | 16 | 32>(16);
+  const [sigManualId, setSigManualId] = useState<string | null>(null);
+  const [sigFoldsOverride, setSigFoldsOverride] = useState<number | "">("");
+  const [sigSignaturesOverride, setSigSignaturesOverride] = useState<number | "">("");
+  const [sigCoefOverride, setSigCoefOverride] = useState<number | "">("");
+  const [sigPricePerFoldOverride, setSigPricePerFoldOverride] = useState<number | "">("");
+  const [sigPricePerSignatureOverride, setSigPricePerSignatureOverride] = useState<number | "">("");
+  const [sigSetupOverride, setSigSetupOverride] = useState<number | "">("");
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
