@@ -595,6 +595,17 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load diecut_waste_pick_per_item failed", e);
       }
+      // Доработка 11: справочник пружин + толщина бумаги.
+      try {
+        const [wsR, ptR] = await Promise.all([
+          (supabase as any).from("wire_spring_prices").select("*").order("sort_order"),
+          (supabase as any).from("paper_thickness").select("density,thickness_mm").order("density"),
+        ]);
+        setSprings(((wsR.data as WireSpringRow[]) || []));
+        setPaperThickness(((ptR.data as PaperThicknessRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load wire_spring/paper_thickness failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
