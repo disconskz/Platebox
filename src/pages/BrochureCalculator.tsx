@@ -58,30 +58,32 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 ];
 
 export interface BrochureLikeProps {
-  mode?: "brochure" | "catalog";
+  mode?: "brochure" | "catalog" | "magazine";
 }
 
 export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
   const isCatalog = mode === "catalog";
-  const BINDINGS = isCatalog ? [...BINDINGS_BASE, ...BINDINGS_CATALOG_EXTRA] : BINDINGS_BASE;
+  const isMagazine = mode === "magazine";
+  const isCatalogLike = isCatalog || isMagazine;
+  const BINDINGS = isCatalogLike ? [...BINDINGS_BASE, ...BINDINGS_CATALOG_EXTRA] : BINDINGS_BASE;
   // Основные параметры
-  const [presetKey, setPresetKey] = useState(isCatalog ? "A4" : "A5");
+  const [presetKey, setPresetKey] = useState(isCatalogLike ? "A4" : "A5");
   const [customW, setCustomW] = useState(148);
   const [customH, setCustomH] = useState(210);
-  const [circulation, setCirculation] = useState(isCatalog ? 1000 : 500);
-  const [pages, setPages] = useState(isCatalog ? 64 : 16);
+  const [circulation, setCirculation] = useState(isMagazine ? 3000 : isCatalog ? 1000 : 500);
+  const [pages, setPages] = useState(isMagazine ? 48 : isCatalog ? 64 : 16);
   const [colorBlockFront, setColorBlockFront] = useState(4);
   const [colorBlockBack, setColorBlockBack] = useState(4);
   const [colorCoverFront, setColorCoverFront] = useState(4);
   const [colorCoverBack, setColorCoverBack] = useState(0);
-  const [blockPaperKey, setBlockPaperKey] = useState(isCatalog ? "coated130" : "coated115");
-  const [coverPaperKey, setCoverPaperKey] = useState(isCatalog ? "coated300" : "coated250");
+  const [blockPaperKey, setBlockPaperKey] = useState(isCatalogLike ? "coated130" : "coated115");
+  const [coverPaperKey, setCoverPaperKey] = useState(isCatalogLike ? "coated300" : "coated250");
   const [bindingKind, setBindingKind] = useState<BindingKind>(isCatalog ? "kbs" : "staple");
   const [printMode, setPrintMode] = useState<"auto" | "offset" | "digital">("auto");
   const [hasDesign, setHasDesign] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
-  const [margin, setMargin] = useState(isCatalog ? 40 : 30);
+  const [margin, setMargin] = useState(isMagazine ? 35 : isCatalog ? 40 : 30);
   const [vatPercent] = useState(16);
   const [ownTurn, setOwnTurn] = useState(true);
 
@@ -105,6 +107,16 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [optRound, setOptRound] = useState(false);
   const [roundCorners, setRoundCorners] = useState(4);
 
+  // Журнал: серия / выпуск / периодичность / вложения / адресация / термоусадка
+  const [issueNumber, setIssueNumber] = useState("01");
+  const [periodicity, setPeriodicity] = useState<"weekly" | "monthly" | "quarterly" | "oneoff">("monthly");
+  const [optInserts, setOptInserts] = useState(false);
+  const [insertCount, setInsertCount] = useState(1);
+  const [insertAuto, setInsertAuto] = useState(true);
+  const [optAddress, setOptAddress] = useState(false);
+  const [addressMode, setAddressMode] = useState<"sticker" | "print" | "personal">("print");
+  const [optShrink, setOptShrink] = useState(false);
+
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[1], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
   const itemH = format.value === "custom" ? customH : format.h;
@@ -123,22 +135,28 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
 
   // Каталог: для больших объёмов автоматически предлагаем КБС/шитьё
   useEffect(() => {
-    if (!isCatalog) return;
-    if (pages >= 96 && (bindingKind === "staple" || bindingKind === "eurostaple")) {
+    if (!isCatalogLike) return;
+    const kbsThreshold = isMagazine ? 80 : 96;
+    if (pages >= kbsThreshold && (bindingKind === "staple" || bindingKind === "eurostaple")) {
       setBindingKind("kbs");
     }
+    // Журнал: до 64 → скоба
+    if (isMagazine && pages <= 64 && bindingKind === "kbs") {
+      // оставляем выбор за пользователем — только подсказка
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCatalog, pages]);
+  }, [isCatalogLike, isMagazine, pages]);
 
   // Премиальный коэффициент сложности
   const premiumCoef = useMemo(() => {
     let k = 1.0;
-    if (isCatalog) k += 0.1;
+    if (isCatalogLike) k += 0.1;
     if (optSoftTouch) k += 0.1;
     if (optStamp || optEmboss) k += 0.1;
+    if (optSpotVarnish) k += 0.05;
     if (coverPaper.density >= 300) k += 0.05;
     return +k.toFixed(2);
-  }, [isCatalog, optSoftTouch, optStamp, optEmboss, coverPaper.density]);
+  }, [isCatalogLike, optSoftTouch, optStamp, optEmboss, optSpotVarnish, coverPaper.density]);
 
   // Кратность страниц
   const pagesValid = useMemo(() => {
@@ -196,7 +214,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
 
-    if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", isCatalog ? 25000 : 12000);
+    if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", isMagazine ? 20000 : isCatalog ? 25000 : 12000);
     push("Препресс", "Проверка макета и спуск полос", signatures + 1, "форма", 600);
 
     // Бумага
@@ -297,12 +315,26 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
 
     // Обрезка готового изделия (3 стороны)
     push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.5);
+
+    // Журнал: вложения / адресация / термоусадка
+    if (isMagazine && optInserts && insertCount > 0) {
+      const pricePerInsert = insertAuto ? 1.2 : 2.5;
+      push("Тиражные", `Вкладка (${insertAuto ? "авто" : "ручная"})`, circulation * insertCount, "шт.", pricePerInsert);
+    }
+    if (isMagazine && optAddress) {
+      const priceAddr = addressMode === "sticker" ? 2.5 : addressMode === "print" ? 1.2 : 3.5;
+      push("Тиражные", `Адресация: ${addressMode === "sticker" ? "наклейка" : addressMode === "print" ? "печать" : "персонализация"}`,
+        circulation, "адрес", priceAddr);
+      if (addressMode === "personal") push("Тиражные", "Подготовка персонализации", 1, "усл.", 3000);
+    }
+    if (isMagazine && optShrink) push("Тиражные", "Термоусадка", circulation, "шт.", 2.5);
+
     push("Логистика", "Контроль качества", 1, "усл.", 1500);
     push("Логистика", "Упаковка", circulation, "шт.", 4);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [isCatalog, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, hasDelivery, deliveryCost]);
+  }, [isCatalog, isMagazine, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, hasDelivery, deliveryCost]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -334,10 +366,14 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     if (offset || pages > 4) s.push("Фальцовка тетрадей");
     if (signatures > 1 || bindingKind !== "staple") s.push("Подборка блока");
     s.push(`Скрепление: ${BINDINGS.find((b) => b.value === bindingKind)?.label}`);
-    s.push("Обрезка готового изделия", "Контроль качества", "Упаковка");
+    s.push("Обрезка готового изделия");
+    if (isMagazine && optInserts) s.push("Вкладка");
+    if (isMagazine && optAddress) s.push("Адресация");
+    if (isMagazine && optShrink) s.push("Термоусадка");
+    s.push("Контроль качества", "Упаковка");
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, hasDelivery, BINDINGS]);
+  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, optInserts, optAddress, optShrink, hasDelivery, BINDINGS]);
 
   return (
     <PageShell>
@@ -349,15 +385,17 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isCatalog ? "Каталог" : "Брошюра"}</h1>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
               <p className="text-[11px] text-muted-foreground truncate">
-                {isCatalog
+                {isMagazine
+                  ? "Периодическое издание — выпуски, вложения, адресация, термоусадка"
+                  : isCatalog
                   ? "Премиальный многостраничный каталог — КБС/шитьё, премиальная обложка, премиум-постпечать"
                   : "Многостраничное изделие — блок + обложка, авто-расчёт тетрадей и скрепления"}
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка {isCatalog ? 49 : 48}</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
@@ -497,13 +535,56 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(+e.target.value || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </Row>
-                  {isCatalog && (
+                  {isCatalogLike && (
                     <div className="text-xs text-muted-foreground pt-1">
                       Коэф. сложности обложки: <span className="font-medium">×{premiumCoef.toFixed(2)}</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {isMagazine && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">5. Выпуск, вложения и адресация</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div><Label>Номер выпуска</Label><Input value={issueNumber} onChange={(e) => setIssueNumber(e.target.value)} /></div>
+                    <div>
+                      <Label>Периодичность</Label>
+                      <Select value={periodicity} onValueChange={(v) => setPeriodicity(v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">Еженедельно</SelectItem>
+                          <SelectItem value="monthly">Ежемесячно</SelectItem>
+                          <SelectItem value="quarterly">Ежеквартально</SelectItem>
+                          <SelectItem value="oneoff">Разовый</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2 space-y-2 text-sm">
+                      <Row label="Вложения / вкладка образцов" checked={optInserts} onChange={setOptInserts}>
+                        <Input className="h-8 w-20" type="number" min={1} value={insertCount} onChange={(e) => setInsertCount(+e.target.value || 1)} />
+                        <span className="text-xs text-muted-foreground">вложений/изд.</span>
+                        <Checkbox id="insertauto" checked={insertAuto} onCheckedChange={(v) => setInsertAuto(!!v)} />
+                        <Label htmlFor="insertauto" className="cursor-pointer text-xs">авто-вкладка</Label>
+                      </Row>
+                      <Row label="Адресация (почтовая)" checked={optAddress} onChange={setOptAddress}>
+                        <Select value={addressMode} onValueChange={(v) => setAddressMode(v as any)}>
+                          <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sticker">Наклейка адресов</SelectItem>
+                            <SelectItem value="print">Печать адресов</SelectItem>
+                            <SelectItem value="personal">Персонализация</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Row>
+                      <Row label="Термоусадка" checked={optShrink} onChange={setOptShrink} />
+                    </div>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
+                      Шаблон выпуска №{issueNumber} ({periodicity}) — параметры сохраняются для повторных тиражей.
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">5. Упаковка и доставка</CardTitle></CardHeader>
