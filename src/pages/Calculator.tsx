@@ -23,6 +23,7 @@ import { calcTape, type TapeRule, type TapeCalcMode } from "@/lib/calc/tape";
 import { calcWindow, type WindowRule, type WindowCalcMode, type WindowShape } from "@/lib/calc/window";
 import { calcFlashRemoval, type FlashRemovalRule, type FlashRemovalCalcMode, type FlashContour, type FlashMaterial } from "@/lib/calc/flash_removal";
 import { calcRigel, type RigelRule, type RigelCalcMode } from "@/lib/calc/rigel";
+import { calcEmbossing, type EmbossingRule, type EmbossingType } from "@/lib/calc/embossing";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
@@ -1294,6 +1295,22 @@ const Calculator = () => {
   const [rigelHangerIncludedOverride, setRigelHangerIncludedOverride] = useState<"" | "yes" | "no">("");
   const [rigelNonstandardColor, setRigelNonstandardColor] = useState<boolean>(false);
   const [rigelComplexPosition, setRigelComplexPosition] = useState<boolean>(false);
+  // Доработка 34: «Тиснение».
+  const [embossRows, setEmbossRows] = useState<EmbossingRule[]>([]);
+  const [embossEnabled, setEmbossEnabled] = useState(false);
+  const [embossManualId, setEmbossManualId] = useState<string>("");
+  const [embossWidthCm, setEmbossWidthCm] = useState<string>("10");
+  const [embossHeightCm, setEmbossHeightCm] = useState<string>("5");
+  const [embossLeather, setEmbossLeather] = useState<boolean>(false);
+  const [embossComplexPos, setEmbossComplexPos] = useState<boolean>(false);
+  const [embossUsesFoilOverride, setEmbossUsesFoilOverride] = useState<"" | "yes" | "no">("");
+  const [embossClicheCostOverride, setEmbossClicheCostOverride] = useState<string>("");
+  const [embossClichePriceOverride, setEmbossClichePriceOverride] = useState<string>("");
+  const [embossSetupOverride, setEmbossSetupOverride] = useState<string>("");
+  const [embossPriceImpOverride, setEmbossPriceImpOverride] = useState<string>("");
+  const [embossFoilPriceOverride, setEmbossFoilPriceOverride] = useState<string>("");
+  const [embossCoefOverride, setEmbossCoefOverride] = useState<string>("");
+  const [embossMinCostOverride, setEmbossMinCostOverride] = useState<string>("");
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
@@ -1842,6 +1859,16 @@ const Calculator = () => {
         setRigelRows(((rgR.data as RigelRule[]) || []));
       } catch (e) {
         console.warn("[Calculator] load rigel_prices failed", e);
+      }
+      // Доработка 34: справочник «Тиснение».
+      try {
+        const emR = await (supabase as any)
+          .from("embossing_prices")
+          .select("*")
+          .order("sort_order");
+        setEmbossRows(((emR.data as EmbossingRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load embossing_prices failed", e);
       }
       // Доработка 21: справочник переплётного картона.
       try {
@@ -2590,6 +2617,40 @@ const Calculator = () => {
     rigelCalcModeOverride, rigelLengthOverride,
     rigelPriceItemOverride, rigelPriceMeterOverride, rigelHangerPriceOverride, rigelInstallPriceOverride,
     rigelCoefOverride, rigelSetupOverride, rigelMinCostOverride,
+  ]);
+
+  // Доработка 34: ряд «Тиснение».
+  const embossItems = useMemo(() => {
+    if (!embossEnabled) return [] as any[];
+    const active = embossRows.filter((r) => (r as any).is_active !== false);
+    const rule = (embossManualId ? embossRows.find((r) => r.id === embossManualId) : active[0]) as EmbossingRule | undefined;
+    if (!rule) return [];
+    const r = calcEmbossing(rule, {
+      circulation,
+      clicheWidthCm: Number(embossWidthCm) || 0,
+      clicheHeightCm: Number(embossHeightCm) || 0,
+      leather: embossLeather,
+      complexPosition: embossComplexPos,
+      usesFoilOverride: embossUsesFoilOverride === "" ? undefined : embossUsesFoilOverride === "yes",
+      clicheCostOverride: embossClicheCostOverride !== "" ? Number(embossClicheCostOverride) : undefined,
+      clichePricePerCm2Override: embossClichePriceOverride !== "" ? Number(embossClichePriceOverride) : undefined,
+      setupOverride: embossSetupOverride !== "" ? Number(embossSetupOverride) : undefined,
+      pricePerImpressionOverride: embossPriceImpOverride !== "" ? Number(embossPriceImpOverride) : undefined,
+      foilPricePerCm2Override: embossFoilPriceOverride !== "" ? Number(embossFoilPriceOverride) : undefined,
+      complexityCoefOverride: embossCoefOverride !== "" ? Number(embossCoefOverride) : undefined,
+      minCostOverride: embossMinCostOverride !== "" ? Number(embossMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Тиснение (${rule.name || rule.embossing_type}${r.usesFoil ? `, ${rule.foil_type}` : ", без фольги"})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    embossEnabled, embossRows, embossManualId, circulation,
+    embossWidthCm, embossHeightCm, embossLeather, embossComplexPos,
+    embossUsesFoilOverride, embossClicheCostOverride, embossClichePriceOverride,
+    embossSetupOverride, embossPriceImpOverride, embossFoilPriceOverride,
+    embossCoefOverride, embossMinCostOverride,
   ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
@@ -4374,7 +4435,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems, ...embossItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4567,7 +4628,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems, rigelItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems, rigelItems, embossItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -6141,6 +6202,115 @@ const Calculator = () => {
                               <div>Ригель: <b>{r.rigelCost.toFixed(0)} ₸</b> · подвес: <b>{r.hangerCost.toFixed(0)} ₸</b> · установка: <b>{r.installCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef}</b></div>
                               <div>Расчёт: {r.breakdown}</div>
                               <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                  {/* Доработка 34: блок «Тиснение». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={embossEnabled} onCheckedChange={(v) => setEmbossEnabled(!!v)} id="emboss" />
+                      <Label htmlFor="emboss" className="flex-1 font-medium">Тиснение</Label>
+                      {embossEnabled && (
+                        <Select value={embossManualId} onValueChange={setEmbossManualId} disabled={embossRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={embossRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {embossRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {embossEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Ширина клише, см</Label>
+                            <Input type="number" step="0.1" min={0} value={embossWidthCm} onChange={(e) => setEmbossWidthCm(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Высота клише, см</Label>
+                            <Input type="number" step="0.1" min={0} value={embossHeightCm} onChange={(e) => setEmbossHeightCm(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Используется фольга?</Label>
+                            <Select value={embossUsesFoilOverride || "__auto"} onValueChange={(v) => setEmbossUsesFoilOverride(v === "__auto" ? "" : (v as "yes" | "no"))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="yes">Да</SelectItem>
+                                <SelectItem value="no">Нет</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={embossCoefOverride} placeholder="авто" onChange={(e) => setEmbossCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена клише, ₸/см²</Label>
+                            <Input type="number" step="0.1" value={embossClichePriceOverride} placeholder="из справочника" onChange={(e) => setEmbossClichePriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Стоимость клише, ₸ (override)</Label>
+                            <Input type="number" step="1" value={embossClicheCostOverride} placeholder="авто" onChange={(e) => setEmbossClicheCostOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена оттиска, ₸</Label>
+                            <Input type="number" step="0.1" value={embossPriceImpOverride} placeholder="из справочника" onChange={(e) => setEmbossPriceImpOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена фольги, ₸/см²</Label>
+                            <Input type="number" step="0.001" value={embossFoilPriceOverride} placeholder="из справочника" onChange={(e) => setEmbossFoilPriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={embossSetupOverride} placeholder="из справочника" onChange={(e) => setEmbossSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={embossMinCostOverride} placeholder="из справочника" onChange={(e) => setEmbossMinCostOverride(e.target.value)} />
+                          </div>
+                          <div className="flex items-end gap-3 sm:col-span-2">
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={embossLeather} onCheckedChange={(v) => setEmbossLeather(!!v)} />
+                              Кожа / кожзам
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={embossComplexPos} onCheckedChange={(v) => setEmbossComplexPos(!!v)} />
+                              Сложное позиционирование
+                            </label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (embossManualId ? embossRows.find((r) => r.id === embossManualId) : embossRows.filter((r: any) => r.is_active !== false)[0]) as EmbossingRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Тиснение».</p>;
+                          const r = calcEmbossing(rule, {
+                            circulation,
+                            clicheWidthCm: Number(embossWidthCm) || 0,
+                            clicheHeightCm: Number(embossHeightCm) || 0,
+                            leather: embossLeather,
+                            complexPosition: embossComplexPos,
+                            usesFoilOverride: embossUsesFoilOverride === "" ? undefined : embossUsesFoilOverride === "yes",
+                            clicheCostOverride: embossClicheCostOverride !== "" ? Number(embossClicheCostOverride) : undefined,
+                            clichePricePerCm2Override: embossClichePriceOverride !== "" ? Number(embossClichePriceOverride) : undefined,
+                            setupOverride: embossSetupOverride !== "" ? Number(embossSetupOverride) : undefined,
+                            pricePerImpressionOverride: embossPriceImpOverride !== "" ? Number(embossPriceImpOverride) : undefined,
+                            foilPricePerCm2Override: embossFoilPriceOverride !== "" ? Number(embossFoilPriceOverride) : undefined,
+                            complexityCoefOverride: embossCoefOverride !== "" ? Number(embossCoefOverride) : undefined,
+                            minCostOverride: embossMinCostOverride !== "" ? Number(embossMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Тип: <b>{rule.embossing_type}</b> · фольга: <b>{r.usesFoil ? rule.foil_type : "нет"}</b> · клише: <b>{Number(embossWidthCm) || 0}×{Number(embossHeightCm) || 0} см</b> = <b>{r.clicheAreaCm2.toFixed(2)} см²</b> · тираж: <b>{circulation}</b></div>
+                              <div>Клише: <b>{r.clicheCost.toFixed(0)} ₸</b> · приладка: <b>{r.setupCost.toFixed(0)} ₸</b> · нанесение: <b>{r.impressionCost.toFixed(0)} ₸</b> · фольга: <b>{r.foilCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Мин. стоимость: <b>{r.minCost} ₸</b></div>
                               <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
                               {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
                             </div>

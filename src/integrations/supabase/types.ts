@@ -1692,6 +1692,81 @@ export type Database = {
         }
         Relationships: []
       }
+      embossing_prices: {
+        Row: {
+          cliche_min_cost: number
+          cliche_price_per_cm2: number
+          coef_complex_position: number
+          coef_congrev: number
+          coef_double: number
+          coef_leather: number
+          coef_standard: number
+          complexity_coef: number
+          created_at: string
+          embossing_type: string
+          foil_price_per_cm2: number
+          foil_type: string
+          id: string
+          is_active: boolean
+          min_cost: number
+          name: string
+          price_per_impression: number
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+          uses_foil: boolean
+        }
+        Insert: {
+          cliche_min_cost?: number
+          cliche_price_per_cm2?: number
+          coef_complex_position?: number
+          coef_congrev?: number
+          coef_double?: number
+          coef_leather?: number
+          coef_standard?: number
+          complexity_coef?: number
+          created_at?: string
+          embossing_type?: string
+          foil_price_per_cm2?: number
+          foil_type?: string
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name: string
+          price_per_impression?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          uses_foil?: boolean
+        }
+        Update: {
+          cliche_min_cost?: number
+          cliche_price_per_cm2?: number
+          coef_complex_position?: number
+          coef_congrev?: number
+          coef_double?: number
+          coef_leather?: number
+          coef_standard?: number
+          complexity_coef?: number
+          created_at?: string
+          embossing_type?: string
+          foil_price_per_cm2?: number
+          foil_type?: string
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name?: string
+          price_per_impression?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          uses_foil?: boolean
+        }
+        Relationships: []
+      }
       endpaper_prices: {
         Row: {
           coef_designer_paper: number
