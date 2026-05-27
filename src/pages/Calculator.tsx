@@ -2297,6 +2297,44 @@ const Calculator = () => {
       ;
   }, [extraOps, operations]);
 
+  // Доработка 29: ряд «Перфорация» — собирается отдельно и подмешивается в allExtras.
+  const perforationItems = useMemo(() => {
+    if (!perfEnabled) return [] as any[];
+    const active = perfRows.filter((r) => (r as any).is_active !== false);
+    const rule = (perfManualId ? perfRows.find((r) => r.id === perfManualId) : active[0]) as PerforationRule | undefined;
+    if (!rule) return [];
+    const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+    const density = Number((effectiveMaterial as any)?.density ?? 0);
+    const matKind: "paper" | "cardboard" | "plastic" =
+      ((effectiveMaterial as any)?.type ?? "").toString().toLowerCase().includes("cardboard") ? "cardboard"
+      : ((effectiveMaterial as any)?.type ?? "").toString().toLowerCase().includes("plastic") ? "plastic"
+      : "paper";
+    const r = calcPerforation(rule, {
+      circulation,
+      printSheets,
+      lineLengthMm: perfLineLengthMm,
+      linesPerItem: perfLinesPerItem,
+      passes: perfPasses,
+      paperDensity: density,
+      materialKind: matKind,
+      formatShortMm: Math.min(dims.width, dims.height),
+      formatLongMm: Math.max(dims.width, dims.height),
+      calcModeOverride: perfCalcModeOverride || undefined,
+      materialCoefOverride: perfMaterialCoefOverride !== "" ? Number(perfMaterialCoefOverride) : undefined,
+      complexityCoefOverride: perfComplexityCoefOverride !== "" ? Number(perfComplexityCoefOverride) : undefined,
+      includedInDieCut: perfIncludedInDieCut,
+    });
+    if (perfIncludedInDieCut || r.finalCost <= 0) return [];
+    const label = `Перфорация (${rule.name || rule.perforation_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    perfEnabled, perfRows, perfManualId, perfLineLengthMm, perfLinesPerItem, perfPasses,
+    perfCalcModeOverride, perfMaterialCoefOverride, perfComplexityCoefOverride, perfIncludedInDieCut,
+    baseResult, effectiveMaterial, circulation, dims.width, dims.height,
+  ]);
+
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
