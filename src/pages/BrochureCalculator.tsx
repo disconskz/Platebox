@@ -120,6 +120,18 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [hcOptSlipcase, setHcOptSlipcase] = useState(false);
   const [hcOptShubr, setHcOptShubr] = useState(false);
 
+  // Ежедневник: персонализация и фурнитура
+  const [plDated, setPlDated] = useState(true);
+  const [plOptElastic, setPlOptElastic] = useState(true);
+  const [plOptMagnet, setPlOptMagnet] = useState(false);
+  const [plOptPocket, setPlOptPocket] = useState(true);
+  const [plOptPenLoop, setPlOptPenLoop] = useState(true);
+  const [plOptCorners, setPlOptCorners] = useState(false);
+  const [plCornersCount, setPlCornersCount] = useState(4);
+  const [plOptNameplate, setPlOptNameplate] = useState(false);
+  const [plOptPersonalize, setPlOptPersonalize] = useState(false);
+  const [plOptGiftBox, setPlOptGiftBox] = useState(false);
+
   // Журнал: серия / выпуск / периодичность / вложения / адресация / термоусадка
   const [issueNumber, setIssueNumber] = useState("01");
   const [periodicity, setPeriodicity] = useState<"weekly" | "monthly" | "quarterly" | "oneoff">("monthly");
@@ -378,6 +390,36 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
       }
     }
 
+    // ===== Ежедневник: фурнитура и персонализация =====
+    if (isPlanner) {
+      if (plOptElastic) {
+        push("Фурнитура", "Пробивка под резинку", circulation * 2, "отв.", 0.8);
+        push("Фурнитура", "Установка резинки", circulation, "шт.", 4);
+      }
+      if (plOptMagnet) {
+        push("Фурнитура", "Магнит (материал)", circulation, "шт.", 8);
+        push("Фурнитура", "Установка магнита", circulation, "шт.", 5);
+      }
+      if (plOptPocket) push("Фурнитура", "Карман (установка)", circulation, "шт.", 6);
+      if (plOptPenLoop) push("Фурнитура", "Петля под ручку", circulation, "шт.", 3.5);
+      if (plOptCorners) {
+        push("Фурнитура", "Металлические уголки", circulation * plCornersCount, "уг.", 4);
+        push("Фурнитура", "Ручная установка уголков", circulation, "шт.", 6);
+      }
+      if (plOptNameplate) {
+        push("Фурнитура", "Шильдик (металл)", circulation, "шт.", 18);
+        push("Фурнитура", "Установка шильдика", circulation, "шт.", 5);
+      }
+      if (plOptPersonalize) {
+        push("Персонализация", "Подготовка персонализации", 1, "усл.", 3500);
+        push("Персонализация", "Тиснение имени/логотипа", circulation, "шт.", 14 * premiumCoef);
+      }
+      if (plOptGiftBox) {
+        push("Упаковка", "Индивидуальная подарочная упаковка", circulation, "шт.", 65);
+      }
+      if (plDated) push("Препресс", "Календарная сетка (датировка)", 1, "усл.", 2500);
+    }
+
     // Журнал: вложения / адресация / термоусадка
     if (isMagazine && optInserts && insertCount > 0) {
       const pricePerInsert = insertAuto ? 1.2 : 2.5;
@@ -396,7 +438,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [isCatalog, isMagazine, isHardcover, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, hasDelivery, deliveryCost]);
+  }, [isCatalog, isMagazine, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, hasDelivery, deliveryCost]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -439,13 +481,23 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
       if (hcOptSlipcase) s.push("Футляр (отд. маршрут)");
       if (hcOptShubr) s.push("Шубер (отд. маршрут)");
     }
+    if (isPlanner) {
+      if (plOptElastic) s.push("Установка резинки");
+      if (plOptMagnet) s.push("Установка магнита");
+      if (plOptPocket) s.push("Карман");
+      if (plOptPenLoop) s.push("Петля под ручку");
+      if (plOptCorners) s.push("Металлические уголки");
+      if (plOptNameplate) s.push("Шильдик");
+      if (plOptPersonalize) s.push("Персонализация / тиснение имени");
+      if (plOptGiftBox) s.push("Подарочная упаковка");
+    }
     if (isMagazine && optInserts) s.push("Вкладка");
     if (isMagazine && optAddress) s.push("Адресация");
     if (isMagazine && optShrink) s.push("Термоусадка");
     s.push("Контроль качества", "Упаковка");
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isHardcover, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, hasDelivery, BINDINGS]);
+  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isHardcover, isPlanner, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plOptNameplate, plOptPersonalize, plOptGiftBox, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, hasDelivery, BINDINGS]);
 
   return (
     <PageShell>
@@ -457,9 +509,11 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isPlanner ? "Ежедневник" : isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
               <p className="text-[11px] text-muted-foreground truncate">
-                {isHardcover
+                {isPlanner
+                  ? "Daily planner — персонализация, фурнитура, премиум-материалы"
+                  : isHardcover
                   ? "Hardcover 7БЦ/7Б — книжный блок, форзацы, марля, каптал, сборка крышки и вставка"
                   : isSoftcover
                   ? "Paperback / softcover — книжный блок, расчёт корешка, КБС/шитьё"
@@ -471,7 +525,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка {isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {isPlanner ? 53 : isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
