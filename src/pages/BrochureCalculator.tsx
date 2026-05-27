@@ -43,8 +43,8 @@ const COVER_PAPERS: Paper[] = [
   { value: "designer300", label: "Дизайнерская 300 г/м²", pricePerSheet: 220, sheetW: 720, sheetH: 1020, density: 300 },
 ];
 
-type BindingKind = "staple" | "eurostaple" | "kbs" | "thermo" | "spiral" | "pva";
-const BINDINGS: { value: BindingKind; label: string }[] = [
+type BindingKind = "staple" | "eurostaple" | "kbs" | "thermo" | "spiral" | "pva" | "sewn" | "sewn_kbs";
+const BINDINGS_BASE: { value: BindingKind; label: string }[] = [
   { value: "staple", label: "Скоба (saddle stitch)" },
   { value: "eurostaple", label: "Евроскоба" },
   { value: "kbs", label: "КБС" },
@@ -52,32 +52,43 @@ const BINDINGS: { value: BindingKind; label: string }[] = [
   { value: "spiral", label: "Пружина" },
   { value: "pva", label: "Проклейка ПВА" },
 ];
+const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
+  { value: "sewn", label: "Шитьё ниткой" },
+  { value: "sewn_kbs", label: "Шитьё + КБС" },
+];
 
-export default function BrochureCalculator() {
+export interface BrochureLikeProps {
+  mode?: "brochure" | "catalog";
+}
+
+export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
+  const isCatalog = mode === "catalog";
+  const BINDINGS = isCatalog ? [...BINDINGS_BASE, ...BINDINGS_CATALOG_EXTRA] : BINDINGS_BASE;
   // Основные параметры
-  const [presetKey, setPresetKey] = useState("A5");
+  const [presetKey, setPresetKey] = useState(isCatalog ? "A4" : "A5");
   const [customW, setCustomW] = useState(148);
   const [customH, setCustomH] = useState(210);
-  const [circulation, setCirculation] = useState(500);
-  const [pages, setPages] = useState(16);
+  const [circulation, setCirculation] = useState(isCatalog ? 1000 : 500);
+  const [pages, setPages] = useState(isCatalog ? 64 : 16);
   const [colorBlockFront, setColorBlockFront] = useState(4);
   const [colorBlockBack, setColorBlockBack] = useState(4);
   const [colorCoverFront, setColorCoverFront] = useState(4);
   const [colorCoverBack, setColorCoverBack] = useState(0);
-  const [blockPaperKey, setBlockPaperKey] = useState("coated115");
-  const [coverPaperKey, setCoverPaperKey] = useState("coated250");
-  const [bindingKind, setBindingKind] = useState<BindingKind>("staple");
+  const [blockPaperKey, setBlockPaperKey] = useState(isCatalog ? "coated130" : "coated115");
+  const [coverPaperKey, setCoverPaperKey] = useState(isCatalog ? "coated300" : "coated250");
+  const [bindingKind, setBindingKind] = useState<BindingKind>(isCatalog ? "kbs" : "staple");
   const [printMode, setPrintMode] = useState<"auto" | "offset" | "digital">("auto");
   const [hasDesign, setHasDesign] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
-  const [margin, setMargin] = useState(30);
+  const [margin, setMargin] = useState(isCatalog ? 40 : 30);
   const [vatPercent] = useState(16);
   const [ownTurn, setOwnTurn] = useState(true);
 
   // Постпечатные опции
   const [optCoverLam, setOptCoverLam] = useState(true);
   const [coverLamSides, setCoverLamSides] = useState<1 | 2>(1);
+  const [optSoftTouch, setOptSoftTouch] = useState(false);
   const [optVarnish, setOptVarnish] = useState(false);
   const [optSpotVarnish, setOptSpotVarnish] = useState(false);
   const [optStamp, setOptStamp] = useState(false);
@@ -91,6 +102,8 @@ export default function BrochureCalculator() {
   const [optDieCut, setOptDieCut] = useState(false);
   const [optDeflash, setOptDeflash] = useState(false);
   const [optCoverBig, setOptCoverBig] = useState(true);
+  const [optRound, setOptRound] = useState(false);
+  const [roundCorners, setRoundCorners] = useState(4);
 
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[1], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
@@ -107,6 +120,25 @@ export default function BrochureCalculator() {
     if ((optCoverLam || coverPaper.density >= 200) && !optCoverBig) setOptCoverBig(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [optCoverLam, coverPaper.density]);
+
+  // Каталог: для больших объёмов автоматически предлагаем КБС/шитьё
+  useEffect(() => {
+    if (!isCatalog) return;
+    if (pages >= 96 && (bindingKind === "staple" || bindingKind === "eurostaple")) {
+      setBindingKind("kbs");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCatalog, pages]);
+
+  // Премиальный коэффициент сложности
+  const premiumCoef = useMemo(() => {
+    let k = 1.0;
+    if (isCatalog) k += 0.1;
+    if (optSoftTouch) k += 0.1;
+    if (optStamp || optEmboss) k += 0.1;
+    if (coverPaper.density >= 300) k += 0.05;
+    return +k.toFixed(2);
+  }, [isCatalog, optSoftTouch, optStamp, optEmboss, coverPaper.density]);
 
   // Кратность страниц
   const pagesValid = useMemo(() => {
@@ -164,7 +196,7 @@ export default function BrochureCalculator() {
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
 
-    if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", 12000);
+    if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", isCatalog ? 25000 : 12000);
     push("Препресс", "Проверка макета и спуск полос", signatures + 1, "форма", 600);
 
     // Бумага
@@ -193,6 +225,10 @@ export default function BrochureCalculator() {
       push("Постпечать", `Ламинация обложки (${coverLamSides} ст.)`,
         +(areaM2 * coverLayout.printSheets * coverLamSides).toFixed(3), "м²", 220);
     }
+    if (optSoftTouch) {
+      const areaM2 = (coverLayout.spreadW * itemH) / 1_000_000;
+      push("Постпечать", "Soft-touch плёнка", +(areaM2 * coverLayout.printSheets).toFixed(3), "м²", 380);
+    }
     if (optCoverBig) push("Постпечать", "Биговка обложки", circulation * 2, "биг", 1.5);
     if (optVarnish) push("Постпечать", "УФ/ВД-лак обложки", coverLayout.printSheets, "лист", 5);
     if (optSpotVarnish) {
@@ -200,8 +236,8 @@ export default function BrochureCalculator() {
       push("Постпечать", "Приладка выб. лака", 1, "усл.", 1500);
       push("Постпечать", "Выборочный лак", coverLayout.printSheets, "лист", 8);
     }
-    if (optStamp) push("Постпечать", "Тиснение фольгой", circulation, "оттиск", Math.max(8, stampArea * 0.6));
-    if (optEmboss) push("Постпечать", "Конгрев", circulation, "оттиск", 12);
+    if (optStamp) push("Постпечать", "Тиснение фольгой", circulation, "оттиск", Math.max(8, stampArea * 0.6) * premiumCoef);
+    if (optEmboss) push("Постпечать", "Конгрев", circulation, "оттиск", 12 * premiumCoef);
     if (optPerf) {
       const meters = (perfLineMm * perfLines * circulation) / 1000;
       push("Постпечать", "Перфорация", +meters.toFixed(2), "м", 12);
@@ -209,6 +245,7 @@ export default function BrochureCalculator() {
     if (optNum) push("Постпечать", "Нумерация", circulation * numCount, "номер", 1.2);
     if (optDieCut) push("Постпечать", "Высечка обложки", coverLayout.printSheets, "лист", 4);
     if (optDieCut && optDeflash) push("Постпечать", "Удаление облоя", coverLayout.printSheets, "лист", 1.5);
+    if (optRound) push("Постпечать", "Скругление углов", circulation * roundCorners, "угол", 0.6);
 
     // Фальцовка тетрадей (офсет/многостраничные)
     const needsFold = offset || pages > 4;
@@ -246,6 +283,16 @@ export default function BrochureCalculator() {
       push("Скрепление", "Клей ПВА", circulation, "шт.", 1.0);
       push("Скрепление", "Проклейка ПВА", circulation, "шт.", 4);
       push("Скрепление", "Приладка ПВА", 1, "усл.", 1500);
+    } else if (bindingKind === "sewn") {
+      push("Скрепление", "Шитьё тетрадей ниткой", circulation * signatures, "тетр.", 2.5);
+      push("Скрепление", "Приладка шитья", 1, "усл.", 3000);
+    } else if (bindingKind === "sewn_kbs") {
+      push("Скрепление", "Шитьё тетрадей ниткой", circulation * signatures, "тетр.", 2.5);
+      push("Скрепление", "Приладка шитья", 1, "усл.", 3000);
+      push("Скрепление", "Проклейка блока", circulation, "шт.", 3);
+      push("Скрепление", "КБС", circulation, "шт.", 6);
+      push("Скрепление", "Клей (термоплавкий)", circulation, "шт.", 1.2);
+      push("Скрепление", "Приладка КБС", 1, "усл.", 2500);
     }
 
     // Обрезка готового изделия (3 стороны)
@@ -255,7 +302,7 @@ export default function BrochureCalculator() {
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, pages, bindingKind, hasDelivery, deliveryCost]);
+  }, [isCatalog, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, hasDelivery, deliveryCost]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -273,6 +320,7 @@ export default function BrochureCalculator() {
     s.push(offset ? "Печать блока (офсет)" : "Печать блока (цифра)");
     s.push(offset ? "Печать обложки (офсет)" : "Печать обложки (цифра)");
     if (optCoverLam) s.push("Ламинация обложки");
+    if (optSoftTouch) s.push("Soft-touch");
     if (optCoverBig) s.push("Биговка обложки");
     if (optVarnish) s.push("Лак обложки");
     if (optSpotVarnish) s.push("Выборочный лак");
@@ -282,13 +330,14 @@ export default function BrochureCalculator() {
     if (optNum) s.push("Нумерация");
     if (optDieCut) s.push("Высечка обложки");
     if (optDieCut && optDeflash) s.push("Удаление облоя");
+    if (optRound) s.push("Скругление углов");
     if (offset || pages > 4) s.push("Фальцовка тетрадей");
     if (signatures > 1 || bindingKind !== "staple") s.push("Подборка блока");
     s.push(`Скрепление: ${BINDINGS.find((b) => b.value === bindingKind)?.label}`);
     s.push("Обрезка готового изделия", "Контроль качества", "Упаковка");
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, offset, optCoverLam, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, pages, signatures, bindingKind, hasDelivery]);
+  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, hasDelivery, BINDINGS]);
 
   return (
     <PageShell>
@@ -300,11 +349,15 @@ export default function BrochureCalculator() {
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: Брошюра</h1>
-              <p className="text-[11px] text-muted-foreground truncate">Многостраничное изделие — блок + обложка, авто-расчёт тетрадей и скрепления</p>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isCatalog ? "Каталог" : "Брошюра"}</h1>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {isCatalog
+                  ? "Премиальный многостраничный каталог — КБС/шитьё, премиальная обложка, премиум-постпечать"
+                  : "Многостраничное изделие — блок + обложка, авто-расчёт тетрадей и скрепления"}
+              </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка 48</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
@@ -419,6 +472,7 @@ export default function BrochureCalculator() {
                       </SelectContent>
                     </Select>
                   </Row>
+                  <Row label="Soft-touch плёнка (премиум)" checked={optSoftTouch} onChange={setOptSoftTouch} />
                   <Row label="Биговка обложки (авто при ламинации/плотной)" checked={optCoverBig} onChange={setOptCoverBig} />
                   <Row label="Лак (УФ/ВД)" checked={optVarnish} onChange={setOptVarnish} />
                   <Row label="Выборочный лак (+ подготовка/приладка)" checked={optSpotVarnish} onChange={setOptSpotVarnish} />
@@ -439,6 +493,15 @@ export default function BrochureCalculator() {
                   </Row>
                   <Row label="Высечка обложки" checked={optDieCut} onChange={setOptDieCut} />
                   <Row label="Удаление облоя (авто после высечки)" checked={optDeflash} onChange={setOptDeflash} />
+                  <Row label="Скругление углов" checked={optRound} onChange={setOptRound}>
+                    <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(+e.target.value || 1)} />
+                    <span className="text-xs text-muted-foreground">угла</span>
+                  </Row>
+                  {isCatalog && (
+                    <div className="text-xs text-muted-foreground pt-1">
+                      Коэф. сложности обложки: <span className="font-medium">×{premiumCoef.toFixed(2)}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
