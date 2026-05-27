@@ -1045,6 +1045,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load gauze_prices failed", e);
       }
+      // Доработка 18: справочник каптала.
+      try {
+        const hbR = await (supabase as any)
+          .from("headband_prices")
+          .select("*")
+          .order("sort_order");
+        setHeadbandRows(((hbR.data as HeadbandRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load headband_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
