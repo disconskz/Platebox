@@ -2317,8 +2317,8 @@ const Calculator = () => {
       passes: perfPasses,
       paperDensity: density,
       materialKind: matKind,
-      formatShortMm: Math.min(dims.width, dims.height),
-      formatLongMm: Math.max(dims.width, dims.height),
+      formatShortMm: Math.min(dims.w, dims.h),
+      formatLongMm: Math.max(dims.w, dims.h),
       calcModeOverride: perfCalcModeOverride || undefined,
       materialCoefOverride: perfMaterialCoefOverride !== "" ? Number(perfMaterialCoefOverride) : undefined,
       complexityCoefOverride: perfComplexityCoefOverride !== "" ? Number(perfComplexityCoefOverride) : undefined,
@@ -2332,7 +2332,7 @@ const Calculator = () => {
   }, [
     perfEnabled, perfRows, perfManualId, perfLineLengthMm, perfLinesPerItem, perfPasses,
     perfCalcModeOverride, perfMaterialCoefOverride, perfComplexityCoefOverride, perfIncludedInDieCut,
-    baseResult, effectiveMaterial, circulation, dims.width, dims.height,
+    baseResult, effectiveMaterial, circulation, dims.w, dims.h,
   ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
