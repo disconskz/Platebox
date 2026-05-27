@@ -245,13 +245,13 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
 
   const material = useMemo(() => materials.find((m) => m.id === materialId), [materials, materialId]);
 
-  // Еврофлаер: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
+  // Еврофлаер/буклет/евробуклет: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
   useEffect(() => {
     const density = Number(material?.density) || 0;
-    const threshold = isCard ? 300 : isEuro || isInsert || isBooklet ? 170 : Infinity;
-    // Для буклета: биговка автоматически и при ламинации
-    if (optFold && (density > threshold || (isBooklet && optLam)) && !optBig) setOptBig(true);
-  }, [isCard, isEuro, isInsert, isBooklet, optFold, optLam, material?.density, optBig]);
+    const threshold = isCard ? 300 : isEuro || isInsert || isBooklet || isEurobooklet ? 170 : Infinity;
+    // Для буклета/евробуклета: биговка автоматически и при ламинации
+    if (optFold && (density > threshold || ((isBooklet || isEurobooklet) && optLam)) && !optBig) setOptBig(true);
+  }, [isCard, isEuro, isInsert, isBooklet, isEurobooklet, optFold, optLam, material?.density, optBig]);
 
   // Буклет: фальцовка и биговка — обязательные операции, включаем по умолчанию.
   useEffect(() => {
