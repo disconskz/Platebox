@@ -1277,6 +1277,23 @@ const Calculator = () => {
   const [flashMethodCoefOverride, setFlashMethodCoefOverride] = useState<string>("");
   const [flashSetupOverride, setFlashSetupOverride] = useState<string>("");
   const [flashMinCostOverride, setFlashMinCostOverride] = useState<string>("");
+  // Доработка 33: «Установка ригеля».
+  const [rigelRows, setRigelRows] = useState<RigelRule[]>([]);
+  const [rigelEnabled, setRigelEnabled] = useState(false);
+  const [rigelManualId, setRigelManualId] = useState<string>("");
+  const [rigelCalcModeOverride, setRigelCalcModeOverride] = useState<"" | RigelCalcMode>("");
+  const [rigelLengthOverride, setRigelLengthOverride] = useState<string>("");
+  const [rigelPriceItemOverride, setRigelPriceItemOverride] = useState<string>("");
+  const [rigelPriceMeterOverride, setRigelPriceMeterOverride] = useState<string>("");
+  const [rigelHangerPriceOverride, setRigelHangerPriceOverride] = useState<string>("");
+  const [rigelInstallPriceOverride, setRigelInstallPriceOverride] = useState<string>("");
+  const [rigelCoefOverride, setRigelCoefOverride] = useState<string>("");
+  const [rigelSetupOverride, setRigelSetupOverride] = useState<string>("");
+  const [rigelMinCostOverride, setRigelMinCostOverride] = useState<string>("");
+  const [rigelHasHangerOverride, setRigelHasHangerOverride] = useState<"" | "yes" | "no">("");
+  const [rigelHangerIncludedOverride, setRigelHangerIncludedOverride] = useState<"" | "yes" | "no">("");
+  const [rigelNonstandardColor, setRigelNonstandardColor] = useState<boolean>(false);
+  const [rigelComplexPosition, setRigelComplexPosition] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
