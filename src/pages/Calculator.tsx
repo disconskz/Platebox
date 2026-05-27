@@ -7523,6 +7523,237 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 25: Вставка блока в крышку */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={biEnabled} onCheckedChange={(v) => setBiEnabled(!!v)} id="bi" />
+                        <Label htmlFor="bi" className="flex-1 font-medium">Вставка блока в крышку</Label>
+                        <Select
+                          value={biManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setBiManualId(v === "auto" ? null : v);
+                            setBiPriceOverride(""); setBiGlueModeOverride("");
+                            setBiGluePriceItemOverride(""); setBiGluePriceM2Override("");
+                            setBiEndpaperAreaOverride("");
+                            setBiBlockThicknessOverride(""); setBiBlockWeightOverride("");
+                            setBiCoefOverride(""); setBiSetupOverride(""); setBiMinOverride("");
+                          }}
+                          disabled={!biEnabled || biRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по формату/толщине/весу/тиражу)</SelectItem>
+                            {biRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {biEnabled && (() => {
+                        if (!biRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Вставка блока в крышку» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = biRows.filter((r) => r.is_active !== false);
+                        if (!active.length) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const shortS = Math.min(dims.w, dims.h);
+                        const longS = Math.max(dims.w, dims.h);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBT = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const blockThickness = biBlockThicknessOverride !== "" ? Number(biBlockThicknessOverride) : autoBT;
+                        const density = Number((effectiveMaterial as any)?.density) || 0;
+                        const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+                        const autoWeight = density > 0
+                          ? density * ((dims.w * dims.h) / 1_000_000) * sheets
+                          : 0;
+                        const blockWeight = biBlockWeightOverride !== "" ? Number(biBlockWeightOverride) : autoWeight;
+                        const fits = (r: BlockInsertionRow) =>
+                          longS <= r.max_format_long && shortS >= r.min_format_short
+                          && blockThickness <= r.max_block_thickness
+                          && (!(blockWeight > 0) || blockWeight <= r.max_block_weight)
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation;
+                        const wantManual = biManualMethod || biFabric || biComplexAlign
+                          || circulation < 100 || longS > 500 || blockThickness > 40;
+                        const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+                        const row = (biManualId && active.find((r) => r.id === biManualId))
+                          || (wantManual ? sorted.find((r) => r.insertion_method === "manual" && fits(r)) : null)
+                          || sorted.find(fits)
+                          || sorted[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет подходящих записей.</p>;
+                        const epW = epWidthOverride !== "" ? Number(epWidthOverride) : dims.w * 2;
+                        const epH = epHeightOverride !== "" ? Number(epHeightOverride) : dims.h;
+                        const epCount = epCountOverride !== "" ? Math.max(0, Math.floor(Number(epCountOverride) || 0)) : row.endpapers_per_item;
+                        const autoEpArea = (epW * epH) / 1_000_000 * Math.max(1, epCount);
+                        const endpaperArea = biEndpaperAreaOverride !== "" ? Number(biEndpaperAreaOverride) : autoEpArea;
+                        const priceItem = biPriceOverride !== "" ? Number(biPriceOverride) : row.price_per_item;
+                        const insertionCost = circulation * priceItem;
+                        const glueMode: "per_item" | "per_m2" = biGlueModeOverride || row.glue_calc_mode;
+                        let glueCost = 0;
+                        if (glueMode === "per_item") {
+                          const gp = biGluePriceItemOverride !== "" ? Number(biGluePriceItemOverride) : row.glue_price_per_item;
+                          glueCost = circulation * gp;
+                        } else {
+                          const gp = biGluePriceM2Override !== "" ? Number(biGluePriceM2Override) : row.glue_price_per_m2;
+                          glueCost = endpaperArea * gp * circulation;
+                        }
+                        const formatCoef = longS <= 210 ? row.coef_format_a5
+                          : longS <= 297 ? row.coef_format_a4
+                          : longS <= 420 ? row.coef_format_a3
+                          : row.coef_format_nonstandard;
+                        const thicknessCoef = blockThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+                          : blockThickness <= row.thickness_med_max ? row.coef_thickness_med
+                          : blockThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+                          : row.coef_thickness_extra;
+                        const weightCoef = blockWeight <= 0 ? row.coef_weight_light
+                          : blockWeight <= row.weight_light_max ? row.coef_weight_light
+                          : blockWeight <= row.weight_med_max ? row.coef_weight_med
+                          : blockWeight <= row.weight_heavy_max ? row.coef_weight_heavy
+                          : row.coef_weight_extra;
+                        const manualCoef = (biManualMethod || row.insertion_method === "manual") ? row.coef_manual : row.coef_standard;
+                        const fabricCoef = (biFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+                        const nonstdFmtCoef = longS > 420 ? row.coef_nonstandard_format : 1;
+                        const thickBlockCoef = blockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+                        const complexCoef = biComplexAlign ? row.coef_complex_align : 1;
+                        const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const autoCoef = formatCoef * thicknessCoef * weightCoef * manualCoef * fabricCoef * nonstdFmtCoef * thickBlockCoef * complexCoef * smallCircCoef;
+                        const coef = biCoefOverride !== "" ? Math.max(0, Number(biCoefOverride)) : autoCoef;
+                        const setup = biSetupOverride !== "" ? Number(biSetupOverride) : row.setup_cost;
+                        const minCost = biMinOverride !== "" ? Number(biMinOverride) : row.min_cost;
+                        const baseSum = insertionCost + glueCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const warnings: string[] = [];
+                        if (!epEnabled) warnings.push("операция «Форзацы» не включена — площадь приклейки берётся ориентировочно");
+                        if (!caEnabled) warnings.push("операция «Сборка переплётной крышки» не включена — крышка не подготовлена");
+                        if (longS > row.max_format_long) warnings.push(`длинная сторона ${longS} мм > предела ${row.max_format_long} мм`);
+                        if (blockThickness > row.max_block_thickness) warnings.push(`толщина блока ${blockThickness.toFixed(1)} мм > предела ${row.max_block_thickness} мм`);
+                        if (blockWeight > row.max_block_weight) warnings.push(`вес блока ${blockWeight.toFixed(0)} г > предела ${row.max_block_weight} г`);
+                        if (circulation > row.max_circulation) warnings.push(`тираж ${circulation} > предела ${row.max_circulation}`);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина блока, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={biBlockThicknessOverride === "" ? Number(blockThickness.toFixed(1)) : biBlockThicknessOverride}
+                                  onChange={(e) => setBiBlockThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Вес блока, г</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biBlockWeightOverride === "" ? Math.round(blockWeight) : biBlockWeightOverride}
+                                  onChange={(e) => setBiBlockWeightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена вставки, ₸/шт</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biPriceOverride === "" ? priceItem : biPriceOverride}
+                                  onChange={(e) => setBiPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Расчёт клея</Label>
+                                <Select value={glueMode} onValueChange={(v) => setBiGlueModeOverride(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="per_item">За изделие</SelectItem>
+                                    <SelectItem value="per_m2">По площади (м²)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {glueMode === "per_item" ? (
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Клей, ₸/шт</Label>
+                                  <Input type="number" inputMode="decimal"
+                                    value={biGluePriceItemOverride === "" ? row.glue_price_per_item : biGluePriceItemOverride}
+                                    onChange={(e) => setBiGluePriceItemOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                </div>
+                              ) : (
+                                <>
+                                  <div>
+                                    <Label className="text-[11px] text-muted-foreground">Клей, ₸/м²</Label>
+                                    <Input type="number" inputMode="decimal"
+                                      value={biGluePriceM2Override === "" ? row.glue_price_per_m2 : biGluePriceM2Override}
+                                      onChange={(e) => setBiGluePriceM2Override(e.target.value === "" ? "" : Number(e.target.value))} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[11px] text-muted-foreground">Площадь приклейки, м²</Label>
+                                    <Input type="number" inputMode="decimal" step="0.0001"
+                                      value={biEndpaperAreaOverride === "" ? Number(endpaperArea.toFixed(4)) : biEndpaperAreaOverride}
+                                      onChange={(e) => setBiEndpaperAreaOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                  </div>
+                                </>
+                              )}
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={biCoefOverride === "" ? Number(autoCoef.toFixed(3)) : biCoefOverride}
+                                  onChange={(e) => setBiCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biSetupOverride === "" ? row.setup_cost : biSetupOverride}
+                                  onChange={(e) => setBiSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biMinOverride === "" ? row.min_cost : biMinOverride}
+                                  onChange={(e) => setBiMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bi-manual" checked={biManualMethod} onCheckedChange={(v) => setBiManualMethod(!!v)} />
+                                <Label htmlFor="bi-manual" className="text-[12px]">Ручная вставка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bi-fabric" checked={biFabric} onCheckedChange={(v) => setBiFabric(!!v)} />
+                                <Label htmlFor="bi-fabric" className="text-[12px]">Ткань / кожзам</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bi-complex" checked={biComplexAlign} onCheckedChange={(v) => setBiComplexAlign(!!v)} />
+                                <Label htmlFor="bi-complex" className="text-[12px]">Сложн. совмещение</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> · {BLOCK_INSERTION_METHOD_LABEL[row.insertion_method] || row.insertion_method} · клей: <b>{glueMode === "per_m2" ? "по м²" : "за изделие"}</b>
+                              </div>
+                              <div>
+                                Блок: толщ. <b>{blockThickness.toFixed(1)} мм</b> · вес <b>{Math.round(blockWeight)} г</b>{glueMode === "per_m2" && <> · площадь приклейки <b>{endpaperArea.toFixed(4)} м²</b></>}
+                              </div>
+                              <div>
+                                Вставка: <b>{Math.round(insertionCost).toLocaleString("ru-RU")} ₸</b> · клей: <b>{Math.round(glueCost).toLocaleString("ru-RU")} ₸</b> · приладка: <b>{setup} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × толщ. {thicknessCoef} × вес {weightCoef} × способ {manualCoef} × ткань {fabricCoef} × нестанд. {nonstdFmtCoef} × толст.бл. {thickBlockCoef} × сложн. {complexCoef} × мал.тираж {smallCircCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {warnings.length > 0 && (
+                                <div className="text-destructive">Предупреждение: {warnings.join("; ")}</div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(Тираж×цена + клей + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Толщина блока берётся из шитья, вес — из плотности бумаги и формата.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
