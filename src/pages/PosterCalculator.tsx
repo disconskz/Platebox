@@ -15,7 +15,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 
 /**
  * Доработка 40 — выделенный шаблон «Афиша».
- * Поддерживает листовую, цифровую, офсетную, интерьерную и широкоформатную печать.
+ * Доработка 58 — расширение «Плакат / постер»: UV / сольвент / экосольвент / latex,
+ * кашировка, карманы, тубус, тиснение/конгрев, soft-touch, индивидуальная упаковка.
  * Технология подбирается автоматически по формату/тиражу/материалу или вручную.
  */
 
@@ -49,13 +50,17 @@ const MATERIALS: { value: MaterialKind; label: string; pricePerM2: number; isRol
   { value: "composite", label: "Композит", pricePerM2: 2500, isRoll: false, supportsOffset: false },
 ];
 
-type PrintTech = "auto" | "digital" | "offset" | "wide" | "interior";
+type PrintTech = "auto" | "digital" | "offset" | "wide" | "interior" | "uv" | "solvent" | "ecosolvent" | "latex";
 
 const TECH_LABEL: Record<Exclude<PrintTech, "auto">, string> = {
   digital: "Цифровая печать",
   offset: "Офсетная печать",
   wide: "Широкоформатная печать",
   interior: "Интерьерная печать",
+  uv: "UV-печать",
+  solvent: "Сольвентная печать",
+  ecosolvent: "Экосольвентная печать",
+  latex: "Latex печать",
 };
 
 // Стоимость печати по технологиям
@@ -66,6 +71,10 @@ const PRINT_PRICE = {
   offset_plate: 2800,      // 1 пластина
   wide_perM2: 1800,        // тг/м²
   interior_perM2: 4500,    // тг/м² (фото-качество)
+  uv_perM2: 5500,          // тг/м² (UV)
+  solvent_perM2: 1500,     // тг/м²
+  ecosolvent_perM2: 2200,  // тг/м²
+  latex_perM2: 3200,       // тг/м²
 };
 
 type Line = { stage: string; name: string; quantity: number; unit: string; unitPrice: number; total: number };
@@ -88,10 +97,16 @@ export default function PosterCalculator() {
 
   // Постпечатные опции
   const [optLam, setOptLam] = useState(false);
-  const [lamType, setLamType] = useState<"matt" | "gloss" | "outdoor" | "antiscratch">("matt");
+  const [lamType, setLamType] = useState<"matt" | "gloss" | "outdoor" | "antiscratch" | "softtouch">("matt");
   const [optVarnish, setOptVarnish] = useState(false);
+  const [optSpotUV, setOptSpotUV] = useState(false);
+  const [optEmboss, setOptEmboss] = useState(false);
+  const [optKongrev, setOptKongrev] = useState(false);
+  const [optCashir, setOptCashir] = useState(false);
   const [optGrommet, setOptGrommet] = useState(false);
   const [grommetCount, setGrommetCount] = useState(4);
+  const [optPocket, setOptPocket] = useState(false);
+  const [pocketCount, setPocketCount] = useState(1);
   const [optMount, setOptMount] = useState(false);
   const [mountBase, setMountBase] = useState<"pvc" | "foamboard" | "composite">("pvc");
   const [optPlotter, setOptPlotter] = useState(false);
@@ -104,6 +119,10 @@ export default function PosterCalculator() {
   const [bigCount, setBigCount] = useState(1);
   const [optFold, setOptFold] = useState(false);
   const [foldCount, setFoldCount] = useState(2);
+  const [optTube, setOptTube] = useState(false);
+  const [tubePrice, setTubePrice] = useState(450);
+  const [optCustomPack, setOptCustomPack] = useState(false);
+  const [customPackKind, setCustomPackKind] = useState<"bag" | "tube" | "box" | "shrink">("box");
 
   const preset = useMemo(() => POSTER_FORMATS.find((f) => f.value === presetKey) ?? POSTER_FORMATS[0], [presetKey]);
   const itemSize = useMemo(() => (preset.value === "custom" ? { w: customW, h: customH } : { w: preset.w, h: preset.h }), [preset, customW, customH]);
@@ -136,13 +155,22 @@ export default function PosterCalculator() {
 
     const totalAreaM2 = itemAreaM2 * circulation;
 
+    const wideLike = ["wide", "interior", "uv", "solvent", "ecosolvent", "latex"] as const;
+    const isWideLike = (wideLike as readonly string[]).includes(techDisplayed);
+
     // Печать + материал
-    if (techDisplayed === "wide" || techDisplayed === "interior") {
+    if (isWideLike) {
       // Широкоформатная / интерьерная — расчёт по м² с учётом отходов 10%
       const areaWithWaste = totalAreaM2 * 1.1;
       const matCost = areaWithWaste * material.pricePerM2;
       out.push({ stage: "material", name: `${material.label} (с учётом отходов 10%)`, quantity: Math.round(areaWithWaste * 100) / 100, unit: "м²", unitPrice: material.pricePerM2, total: matCost });
-      const printPrice = techDisplayed === "interior" ? PRINT_PRICE.interior_perM2 : PRINT_PRICE.wide_perM2;
+      const printPrice =
+        techDisplayed === "interior" ? PRINT_PRICE.interior_perM2 :
+        techDisplayed === "uv" ? PRINT_PRICE.uv_perM2 :
+        techDisplayed === "solvent" ? PRINT_PRICE.solvent_perM2 :
+        techDisplayed === "ecosolvent" ? PRINT_PRICE.ecosolvent_perM2 :
+        techDisplayed === "latex" ? PRINT_PRICE.latex_perM2 :
+        PRINT_PRICE.wide_perM2;
       out.push({ stage: "print", name: TECH_LABEL[techDisplayed], quantity: Math.round(totalAreaM2 * 100) / 100, unit: "м²", unitPrice: printPrice, total: totalAreaM2 * printPrice });
     } else if (techDisplayed === "offset") {
       // Офсет — листовая печать
@@ -165,7 +193,7 @@ export default function PosterCalculator() {
     // Резка готовой продукции — обязательная
     {
       const cuts = 4;
-      const price = techDisplayed === "wide" || techDisplayed === "interior" ? 6 : 2;
+      const price = isWideLike ? 6 : 2;
       out.push({ stage: "postpress", name: "Резка готовой продукции", quantity: circulation * cuts, unit: "рез", unitPrice: price, total: circulation * cuts * price });
     }
 
@@ -173,7 +201,7 @@ export default function PosterCalculator() {
 
     // Ламинация
     if (optLam) {
-      const price = lamType === "outdoor" ? 220 : lamType === "antiscratch" ? 260 : lamType === "gloss" ? 140 : 130;
+      const price = lamType === "outdoor" ? 220 : lamType === "antiscratch" ? 260 : lamType === "softtouch" ? 320 : lamType === "gloss" ? 140 : 130;
       out.push({ stage: "postpress", name: `Ламинация (${lamType}) — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
       out.push({ stage: "postpress", name: `Ламинация (${lamType})`, quantity: Math.round(totalAreaM2 * 100) / 100, unit: "м²", unitPrice: price, total: totalAreaM2 * price });
     }
@@ -182,12 +210,44 @@ export default function PosterCalculator() {
       out.push({ stage: "postpress", name: "УФ-лак (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
       out.push({ stage: "postpress", name: "УФ-лак", quantity: circulation, unit: "лист", unitPrice: 10, total: circulation * 10 });
     }
+    // Выборочный УФ-лак
+    if (optSpotUV && (techDisplayed === "digital" || techDisplayed === "offset")) {
+      out.push({ stage: "postpress", name: "Выборочный УФ-лак (приладка + форма)", quantity: 1, unit: "шт", unitPrice: setup + 9000, total: setup + 9000 });
+      out.push({ stage: "postpress", name: "Выборочный УФ-лак", quantity: circulation, unit: "лист", unitPrice: 18, total: circulation * 18 });
+    }
+    // Тиснение фольгой
+    if (optEmboss) {
+      const foilArea = Math.max(0.001, itemAreaM2 * 0.05); // ~5% площади
+      const foilPrice = 1400; // тг/м² фольги
+      const clichePrice = 12000;
+      out.push({ stage: "postpress", name: "Тиснение (клише + приладка)", quantity: 1, unit: "шт", unitPrice: setup + clichePrice, total: setup + clichePrice });
+      out.push({ stage: "postpress", name: "Фольга для тиснения", quantity: Math.round(foilArea * circulation * 1000) / 1000, unit: "м²", unitPrice: foilPrice, total: foilArea * circulation * foilPrice });
+      out.push({ stage: "postpress", name: "Нанесение тиснения", quantity: circulation, unit: "лист", unitPrice: 8, total: circulation * 8 });
+    }
+    // Конгрев
+    if (optKongrev) {
+      const clichePrice = 10000;
+      out.push({ stage: "postpress", name: "Конгрев (клише + приладка)", quantity: 1, unit: "шт", unitPrice: setup + clichePrice, total: setup + clichePrice });
+      out.push({ stage: "postpress", name: "Нанесение конгрева", quantity: circulation, unit: "лист", unitPrice: 6, total: circulation * 6 });
+    }
+    // Кашировка
+    if (optCashir) {
+      const price = 950; // тг/м²
+      out.push({ stage: "postpress", name: "Кашировка (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      out.push({ stage: "postpress", name: "Кашировка", quantity: Math.round(totalAreaM2 * 100) / 100, unit: "м²", unitPrice: price, total: totalAreaM2 * price });
+    }
     // Люверсы
     if (optGrommet) {
       const price = 35;
       const total = circulation * grommetCount * price;
       out.push({ stage: "postpress", name: "Пробивка люверсов (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
       out.push({ stage: "postpress", name: `Люверсы (${grommetCount} шт/изд)`, quantity: circulation * grommetCount, unit: "шт", unitPrice: price, total });
+    }
+    // Карманы
+    if (optPocket) {
+      const price = 180;
+      out.push({ stage: "postpress", name: "Установка карманов (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      out.push({ stage: "postpress", name: `Карманы (${pocketCount} шт/изд)`, quantity: circulation * pocketCount, unit: "шт", unitPrice: price, total: circulation * pocketCount * price });
     }
     // Накатка на основу
     if (optMount) {
@@ -229,14 +289,24 @@ export default function PosterCalculator() {
     // QC + упаковка
     out.push({ stage: "qc", name: "Контроль качества", quantity: 1, unit: "шт", unitPrice: 500, total: 500 });
     out.push({ stage: "pack", name: "Упаковка", quantity: 1, unit: "шт", unitPrice: 700, total: 700 });
+    if (optTube) {
+      out.push({ stage: "pack", name: "Упаковка в тубус", quantity: circulation, unit: "шт", unitPrice: tubePrice, total: circulation * tubePrice });
+    }
+    if (optCustomPack) {
+      const label = customPackKind === "bag" ? "Пакет" : customPackKind === "tube" ? "Тубус" : customPackKind === "shrink" ? "Термоусадка" : "Коробка";
+      const price = customPackKind === "bag" ? 80 : customPackKind === "tube" ? 450 : customPackKind === "shrink" ? 60 : 350;
+      out.push({ stage: "pack", name: `Индивидуальная упаковка: ${label}`, quantity: circulation, unit: "шт", unitPrice: price, total: circulation * price });
+    }
     if (hasDelivery) out.push({ stage: "delivery", name: "Доставка", quantity: 1, unit: "шт", unitPrice: deliveryCost, total: deliveryCost });
 
     return out;
   }, [
     hasDesign, circulation, itemAreaM2, techDisplayed, material, colorFront, colorBack,
-    optLam, lamType, optVarnish, optGrommet, grommetCount, optMount, mountBase,
+    optLam, lamType, optVarnish, optSpotUV, optEmboss, optKongrev, optCashir,
+    optGrommet, grommetCount, optPocket, pocketCount, optMount, mountBase,
     optPlotter, plotterLengthM, optDieCut, optDeflash, optRound, roundCorners,
-    optBig, bigCount, optFold, foldCount, hasDelivery, deliveryCost,
+    optBig, bigCount, optFold, foldCount, optTube, tubePrice, optCustomPack, customPackKind,
+    hasDelivery, deliveryCost,
   ]);
 
   const totals = useMemo(() => {
@@ -260,8 +330,13 @@ export default function PosterCalculator() {
     steps.push(TECH_LABEL[techDisplayed]);
     if (optLam) steps.push("Ламинация");
     if (optVarnish && (techDisplayed === "digital" || techDisplayed === "offset")) steps.push("Лакировка");
+    if (optSpotUV && (techDisplayed === "digital" || techDisplayed === "offset")) steps.push("Выборочный УФ-лак");
+    if (optEmboss) steps.push("Тиснение");
+    if (optKongrev) steps.push("Конгрев");
+    if (optCashir) steps.push("Кашировка");
     if (optMount) steps.push("Накатка на основу");
     if (optGrommet) steps.push("Пробивка люверсов");
+    if (optPocket) steps.push("Установка карманов");
     if (optPlotter) steps.push("Плоттерная резка");
     if (optDieCut) { steps.push("Высечка"); if (optDeflash) steps.push("Удаление облоя"); }
     if (optRound) steps.push("Скругление углов");
@@ -270,9 +345,13 @@ export default function PosterCalculator() {
     steps.push("Резка готовой продукции");
     steps.push("Контроль качества");
     steps.push("Упаковка");
+    if (optTube) steps.push("Упаковка в тубус");
+    if (optCustomPack) steps.push("Индивидуальная упаковка");
     if (hasDelivery) steps.push("Доставка");
     return steps;
-  }, [hasDesign, techDisplayed, optLam, optVarnish, optMount, optGrommet, optPlotter, optDieCut, optDeflash, optRound, optBig, optFold, hasDelivery]);
+  }, [hasDesign, techDisplayed, optLam, optVarnish, optSpotUV, optEmboss, optKongrev, optCashir,
+    optMount, optGrommet, optPocket, optPlotter, optDieCut, optDeflash, optRound, optBig, optFold,
+    optTube, optCustomPack, hasDelivery]);
 
   return (
     <PageShell>
@@ -284,8 +363,8 @@ export default function PosterCalculator() {
                 <Link to="/app"><ArrowLeft className="h-4 w-4 mr-1" />Назад</Link>
               </Button>
               <div>
-                <h1 className="text-xl font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />Шаблон: Афиша</h1>
-                <p className="text-xs text-muted-foreground">Авто-выбор технологии: офсет / цифра / широкоформат / интерьерка. Доработка 40.</p>
+                <h1 className="text-xl font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />Шаблон: Плакат / постер</h1>
+                <p className="text-xs text-muted-foreground">Офсет / цифра / широкоформат / интерьер / UV / сольвент / latex. Доработка 58.</p>
               </div>
             </div>
             <Badge variant="secondary">{TECH_LABEL[techDisplayed]}</Badge>
@@ -345,6 +424,10 @@ export default function PosterCalculator() {
                       <SelectItem value="offset" disabled={!material.supportsOffset}>Офсетная</SelectItem>
                       <SelectItem value="wide">Широкоформатная</SelectItem>
                       <SelectItem value="interior">Интерьерная</SelectItem>
+                      <SelectItem value="uv">UV-печать</SelectItem>
+                      <SelectItem value="solvent">Сольвентная</SelectItem>
+                      <SelectItem value="ecosolvent">Экосольвентная</SelectItem>
+                      <SelectItem value="latex">Latex</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -384,6 +467,7 @@ export default function PosterCalculator() {
                         <SelectItem value="gloss">Глянцевая</SelectItem>
                         <SelectItem value="outdoor">Outdoor</SelectItem>
                         <SelectItem value="antiscratch">Anti-scratch</SelectItem>
+                        <SelectItem value="softtouch">Soft-touch</SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -392,6 +476,22 @@ export default function PosterCalculator() {
                   <Checkbox id="var" checked={optVarnish} onCheckedChange={(v) => setOptVarnish(!!v)} disabled={techDisplayed !== "digital" && techDisplayed !== "offset"} />
                   <Label htmlFor="var">УФ / ВД лак (только листовая)</Label>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="spuv" checked={optSpotUV} onCheckedChange={(v) => setOptSpotUV(!!v)} disabled={techDisplayed !== "digital" && techDisplayed !== "offset"} />
+                  <Label htmlFor="spuv">Выборочный УФ-лак</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="emb" checked={optEmboss} onCheckedChange={(v) => setOptEmboss(!!v)} />
+                  <Label htmlFor="emb">Тиснение фольгой</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="kng" checked={optKongrev} onCheckedChange={(v) => setOptKongrev(!!v)} />
+                  <Label htmlFor="kng">Конгрев</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="cas" checked={optCashir} onCheckedChange={(v) => setOptCashir(!!v)} />
+                  <Label htmlFor="cas">Кашировка</Label>
+                </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Checkbox id="gr" checked={optGrommet} onCheckedChange={(v) => setOptGrommet(!!v)} />
@@ -399,6 +499,15 @@ export default function PosterCalculator() {
                   </div>
                   {optGrommet && (
                     <Input type="number" min={1} value={grommetCount} onChange={(e) => setGrommetCount(Number(e.target.value) || 0)} placeholder="шт на изделие" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="pk" checked={optPocket} onCheckedChange={(v) => setOptPocket(!!v)} />
+                    <Label htmlFor="pk">Карманы</Label>
+                  </div>
+                  {optPocket && (
+                    <Input type="number" min={1} value={pocketCount} onChange={(e) => setPocketCount(Number(e.target.value) || 0)} placeholder="шт на изделие" />
                   )}
                 </div>
                 <div className="space-y-2">
@@ -448,6 +557,30 @@ export default function PosterCalculator() {
                     <Label htmlFor="fld">Фальцовка</Label>
                   </div>
                   {optFold && <Input type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(Number(e.target.value) || 0)} placeholder="сгибов" />}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="tube" checked={optTube} onCheckedChange={(v) => setOptTube(!!v)} />
+                    <Label htmlFor="tube">Упаковка в тубус</Label>
+                  </div>
+                  {optTube && <Input type="number" min={0} value={tubePrice} onChange={(e) => setTubePrice(Number(e.target.value) || 0)} placeholder="цена тубуса, тг" />}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="cp" checked={optCustomPack} onCheckedChange={(v) => setOptCustomPack(!!v)} />
+                    <Label htmlFor="cp">Индивидуальная упаковка</Label>
+                  </div>
+                  {optCustomPack && (
+                    <Select value={customPackKind} onValueChange={(v) => setCustomPackKind(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bag">Пакет</SelectItem>
+                        <SelectItem value="tube">Тубус</SelectItem>
+                        <SelectItem value="box">Коробка</SelectItem>
+                        <SelectItem value="shrink">Термоусадка</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -23,7 +23,7 @@ const main = [
   { title: "Шаблон: Флаер", url: "/calculator/flyer", icon: FileText },
   { title: "Шаблон: Еврофлаер", url: "/calculator/euroflyer", icon: FileText },
   { title: "Шаблон: Визитка", url: "/calculator/businesscard", icon: FileText },
-  { title: "Шаблон: Афиша", url: "/calculator/poster", icon: FileText },
+ { title: "Шаблон: Плакат / постер", url: "/calculator/poster", icon: FileText },
   { title: "Шаблон: Вкладыш", url: "/calculator/insert", icon: FileText },
   { title: "Шаблон: Купон", url: "/calculator/coupon", icon: FileText },
   { title: "Шаблон: Анкета", url: "/calculator/form", icon: FileText },
