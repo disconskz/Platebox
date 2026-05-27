@@ -3371,7 +3371,117 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems];
+    // Доработка 24: сборка переплётной крышки.
+    const coverAsmItems: SpecItem[] = (() => {
+      if (!caEnabled || !(circulation > 0)) return [];
+      if (!coverAsmRows.length) return [];
+      const active = coverAsmRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      // Размеры сторонок/отстава — из «Переплётного картона» (Доработка 21).
+      let boardThickness = 2;
+      let sideW = dims.w;
+      let sideH = dims.h;
+      let spineW = 22;
+      if (boardRows.length) {
+        const bActive = boardRows.filter((r) => r.is_active !== false);
+        const bRow = (bdManualId && bActive.find((r) => r.id === bdManualId))
+          || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)
+               .find((r) => longSide <= r.max_format_long && shortSide >= r.min_format_short)
+          || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+        if (bRow) {
+          const sheetThickness = (() => {
+            const direct = Number(sewPaperThicknessOverride);
+            if (Number.isFinite(direct) && direct > 0) return direct;
+            if (paperThickness.length) {
+              const dens = Number((effectiveMaterial as any)?.density);
+              const match = paperThickness.find((p) => p.density === dens);
+              if (match) return Number(match.thickness_mm) || 0;
+            }
+            return 0;
+          })();
+          const autoBT = Number(sewBlockThicknessOverride)
+            || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+            || 20;
+          sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + bRow.width_allowance;
+          sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + bRow.height_allowance;
+          spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBT + bRow.spine_allowance;
+          boardThickness = bRow.board_thickness;
+        }
+      }
+      const fits = (r: CoverAssemblyRow) =>
+        longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && boardThickness <= r.max_board_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation;
+      // Авто-подбор: ткань/кожзам/дизайн/малый тираж → ручная; иначе по подходящим записям.
+      const wantManual = caManualMethod || caFabric || caComplexMaterial
+        || circulation < 100 || longSide > 500;
+      const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+      const row = (caManualId && active.find((r) => r.id === caManualId))
+        || (wantManual ? sorted.find((r) => r.assembly_method === "manual" && fits(r)) : null)
+        || sorted.find(fits)
+        || sorted[0];
+      if (!row) return [];
+      const sideWUse = caSideWOverride !== "" ? Number(caSideWOverride) : sideW;
+      const sideHUse = caSideHOverride !== "" ? Number(caSideHOverride) : sideH;
+      const spineWUse = caSpineWOverride !== "" ? Number(caSpineWOverride) : spineW;
+      const gapL = caGapLeftOverride !== "" ? Number(caGapLeftOverride) : row.gap_left;
+      const gapR = caGapRightOverride !== "" ? Number(caGapRightOverride) : row.gap_right;
+      // Разворот крышки: 2× сторонка + отстав + расставы.
+      const spreadW = sideWUse * 2 + spineWUse + gapL + gapR;
+      const spreadH = sideHUse;
+      // Покровный материал (с загибами).
+      const coverW = caCoverWOverride !== "" ? Number(caCoverWOverride) : spreadW + row.fold_left + row.fold_right;
+      const coverH = caCoverHOverride !== "" ? Number(caCoverHOverride) : spreadH + row.fold_top + row.fold_bottom;
+      const areaM2 = (spreadW * spreadH) / 1_000_000;
+      if (!(areaM2 > 0)) return [];
+      // Стоимость сборки.
+      let workCost = 0;
+      if (caWorkCostOverride !== "") {
+        workCost = Number(caWorkCostOverride);
+      } else if (row.calc_mode === "per_item") {
+        workCost = circulation * row.price_per_item;
+      } else if (row.calc_mode === "combined") {
+        workCost = areaM2 * row.price_per_m2 * circulation + circulation * row.price_per_item;
+      } else {
+        workCost = areaM2 * row.price_per_m2 * circulation;
+      }
+      // Коэффициенты.
+      const formatCoef = longSide > row.large_format_threshold
+        ? row.coef_large_format
+        : longSide > 297 ? row.coef_nonstandard_format : row.coef_standard_format;
+      const manualCoef = (caManualMethod || row.assembly_method === "manual") ? row.coef_manual : 1;
+      const fabricCoef = (caFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+      const thickCoef = boardThickness >= row.thick_board_threshold ? row.coef_thick_board : 1;
+      const complexCoef = (caComplexMaterial || row.cover_material_type === "designer_paper" || row.cover_material_type === "printed") ? row.coef_complex_material : 1;
+      const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = formatCoef * manualCoef * fabricCoef * thickCoef * complexCoef * smallCircCoef;
+      const coef = caCoefOverride !== "" ? Math.max(0, Number(caCoefOverride)) : autoCoef;
+      const setup = caSetupOverride !== "" ? Number(caSetupOverride) : row.setup_cost;
+      const minCost = caMinOverride !== "" ? Number(caMinOverride) : row.min_cost;
+      const baseSum = workCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (workCost > 0) {
+        items.push({ stage: "postpress", name: `Сборка крышки — ${COVER_ASM_METHOD_LABEL[row.assembly_method] || row.assembly_method}`, quantity: circulation, unit: "шт", unitPrice: workCost / Math.max(1, circulation), total: workCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Сборка крышки — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = baseSum * coef - baseSum;
+        items.push({ stage: "postpress", name: `Сборка крышки — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Сборка крышки — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      // Сохраняем для отладочной подписи в UI
+      (items as any).__meta = { row, sideWUse, sideHUse, spineWUse, gapL, gapR, spreadW, spreadH, coverW, coverH, areaM2, workCost, setup, coef, autoCoef, formatCoef, manualCoef, fabricCoef, thickCoef, complexCoef, smallCircCoef, baseSum, raw, total, minCost, boardThickness };
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
