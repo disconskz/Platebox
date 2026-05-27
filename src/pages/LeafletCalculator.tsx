@@ -127,6 +127,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   // Постпечатные опции (чекбоксы)
   const [optLam, setOptLam] = useState(false);
   const [optLamSides, setOptLamSides] = useState<1 | 2>(1);
+  const [optSoftTouch, setOptSoftTouch] = useState(false);
   const [optVarnish, setOptVarnish] = useState(false);
   const [varnishType, setVarnishType] = useState<"uv_full" | "uv_spot" | "vd">("uv_full");
   const [optBig, setOptBig] = useState(false);
