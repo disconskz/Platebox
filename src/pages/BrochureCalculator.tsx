@@ -661,8 +661,42 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                 </Card>
               )}
 
+              {isHardcover && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">5. Переплётная крышка и премиум</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label>Покровный материал</Label>
+                      <Select value={hcCoverMaterial} onValueChange={(v) => setHcCoverMaterial(v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="coated">Мелованная бумага</SelectItem>
+                          <SelectItem value="designer">Дизайнерская бумага</SelectItem>
+                          <SelectItem value="bumvinyl">Бумвинил</SelectItem>
+                          <SelectItem value="fabric">Ткань</SelectItem>
+                          <SelectItem value="leather">Кожа</SelectItem>
+                          <SelectItem value="balacron">Балакрон</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Толщина картона, мм</Label>
+                      <Input type="number" step={0.1} value={hcBoardThicknessMm} onChange={(e) => setHcBoardThicknessMm(+e.target.value || 0)} />
+                    </div>
+                    <div className="sm:col-span-2 space-y-2 text-sm">
+                      <Row label="Ляссе" checked={hcOptLasse} onChange={setHcOptLasse} />
+                      <Row label="Окрашивание среза" checked={hcOptEdgeColor} onChange={setHcOptEdgeColor} />
+                      <Row label="Фольгирование среза" checked={hcOptEdgeFoil} onChange={setHcOptEdgeFoil} />
+                      <Row label="Суперобложка (отд. маршрут)" checked={hcOptSuperjacket} onChange={setHcOptSuperjacket} />
+                      <Row label="Футляр (отд. маршрут)" checked={hcOptSlipcase} onChange={setHcOptSlipcase} />
+                      <Row label="Шубер (отд. маршрут)" checked={hcOptShubr} onChange={setHcOptShubr} />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
-                <CardHeader><CardTitle className="text-sm">5. Упаковка и доставка</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">{isHardcover ? "6" : "5"}. Упаковка и доставка</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="flex items-end gap-2">
                     <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />

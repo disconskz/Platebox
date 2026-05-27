@@ -35,6 +35,7 @@ const main = [
   { title: "Шаблон: Каталог", url: "/calculator/catalog", icon: FileText },
   { title: "Шаблон: Журнал", url: "/calculator/magazine", icon: FileText },
   { title: "Шаблон: Книга (мягкий переплёт)", url: "/calculator/softcover-book", icon: FileText },
+  { title: "Шаблон: Книга (твёрдый переплёт)", url: "/calculator/hardcover-book", icon: FileText },
   { title: "Групповой спуск", url: "/calculator/multi-sku", icon: Layers },
   { title: "ИИ-расчёт", url: "/ai-calc", icon: Sparkles },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },
