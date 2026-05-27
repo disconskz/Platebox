@@ -989,6 +989,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load endpaper_prices failed", e);
       }
+      // Доработка 17: справочник марли.
+      try {
+        const gzR = await (supabase as any)
+          .from("gauze_prices")
+          .select("*")
+          .order("sort_order");
+        setGauzeRows(((gzR.data as GauzeRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load gauze_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
