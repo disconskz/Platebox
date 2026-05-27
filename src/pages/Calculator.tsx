@@ -5557,6 +5557,213 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 20: Обрезка блока */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={trEnabled} onCheckedChange={(v) => setTrEnabled(!!v)} id="tr" />
+                        <Label htmlFor="tr" className="flex-1 font-medium">Обрезка блока</Label>
+                        <Select
+                          value={trManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setTrManualId(v === "auto" ? null : v);
+                            setTrTypeOverride(""); setTrCutsOverride(""); setTrCalcModeOverride("");
+                            setTrPriceCutOverride(""); setTrPriceItemOverride(""); setTrTimeOverride(""); setTrHourPriceOverride("");
+                            setTrCoefOverride(""); setTrSetupOverride(""); setTrMinOverride("");
+                          }}
+                          disabled={!trEnabled || trimRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по тиражу/толщине/формату)</SelectItem>
+                            {trimRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {trEnabled && (() => {
+                        if (!trimRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Обрезка блока» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = trimRows.filter((r) => r.is_active !== false);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBlockThickness = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const density = Number((effectiveMaterial as any)?.density) || 0;
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const fits = (r: BlockTrimmingRow) =>
+                          autoBlockThickness >= r.min_block_thickness && autoBlockThickness <= r.max_block_thickness
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation
+                          && longSide <= r.max_format_long && shortSide >= r.min_format_short
+                          && density <= r.max_paper_density;
+                        const row = (trManualId && active.find((r) => r.id === trManualId))
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const trimType = trTypeOverride || row.trim_type;
+                        const cuts = trCutsOverride !== "" ? Number(trCutsOverride) : (TRIM_DEFAULT_CUTS[trimType] ?? row.cuts_count);
+                        const mode = trCalcModeOverride || row.calc_mode;
+                        const priceCut = trPriceCutOverride !== "" ? Number(trPriceCutOverride) : row.price_per_cut;
+                        const priceItem = trPriceItemOverride !== "" ? Number(trPriceItemOverride) : row.price_per_item;
+                        const timeSec = trTimeOverride !== "" ? Number(trTimeOverride) : row.time_per_item_sec;
+                        const hourPrice = trHourPriceOverride !== "" ? Number(trHourPriceOverride) : row.price_per_hour;
+                        const baseCost = mode === "per_time"
+                          ? (timeSec * circulation / 3600) * hourPrice
+                          : mode === "per_item" ? priceItem * circulation
+                          : circulation * cuts * priceCut;
+                        const thickCoef = autoBlockThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+                          : autoBlockThickness <= row.thickness_med_max ? row.coef_thickness_med
+                          : autoBlockThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+                          : row.coef_thickness_extra;
+                        const formatCoef = longSide <= 210 ? row.coef_format_a5
+                          : longSide <= 297 ? row.coef_format_a4
+                          : longSide <= 420 ? row.coef_format_a3
+                          : row.coef_format_nonstandard;
+                        const figuredCoef = trimType === "figured" ? row.coef_figured : 1;
+                        const manualCoef = (trManualTrim || trimType === "manual" || row.machine_type === "manual") ? row.coef_manual : 1;
+                        const heavyPaperCoef = density >= row.heavy_paper_threshold ? row.coef_heavy_paper : 1;
+                        const thickBlockCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+                        const designerCoef = trDesignerPaper ? row.coef_designer_paper : 1;
+                        const autoCoef = thickCoef * formatCoef * figuredCoef * manualCoef * heavyPaperCoef * thickBlockCoef * designerCoef;
+                        const coef = trCoefOverride !== "" ? Math.max(0, Number(trCoefOverride)) : autoCoef;
+                        const setup = trSetupOverride !== "" ? Number(trSetupOverride) : row.setup_cost;
+                        const minCost = trMinOverride !== "" ? Number(trMinOverride) : row.min_cost;
+                        const raw = baseCost * coef + setup;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const outOfThickness = autoBlockThickness < row.min_block_thickness || autoBlockThickness > row.max_block_thickness;
+                        const outOfDensity = density > row.max_paper_density;
+                        const outOfCirc = circulation < row.min_circulation || circulation > row.max_circulation;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тип обрезки</Label>
+                                <Select value={trTypeOverride || row.trim_type} onValueChange={(v) => setTrTypeOverride(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {Object.entries(TRIM_TYPE_LABEL).map(([k, v]) => (
+                                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Кол-во резов</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={trCutsOverride === "" ? cuts : trCutsOverride}
+                                  onChange={(e) => setTrCutsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                                <Select value={trCalcModeOverride || row.calc_mode} onValueChange={(v) => setTrCalcModeOverride(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="per_cut">За рез</SelectItem>
+                                    <SelectItem value="per_item">За изделие</SelectItem>
+                                    <SelectItem value="per_time">По времени</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена реза, ₸</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={trPriceCutOverride === "" ? row.price_per_cut : trPriceCutOverride}
+                                  onChange={(e) => setTrPriceCutOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена изд., ₸</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={trPriceItemOverride === "" ? row.price_per_item : trPriceItemOverride}
+                                  onChange={(e) => setTrPriceItemOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Время, сек/изд</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={trTimeOverride === "" ? row.time_per_item_sec : trTimeOverride}
+                                  onChange={(e) => setTrTimeOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена часа, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={trHourPriceOverride === "" ? row.price_per_hour : trHourPriceOverride}
+                                  onChange={(e) => setTrHourPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={trCoefOverride === "" ? Number(autoCoef.toFixed(3)) : trCoefOverride}
+                                  onChange={(e) => setTrCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={trSetupOverride === "" ? row.setup_cost : trSetupOverride}
+                                  onChange={(e) => setTrSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={trMinOverride === "" ? row.min_cost : trMinOverride}
+                                  onChange={(e) => setTrMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="tr-manual" checked={trManualTrim} onCheckedChange={(v) => setTrManualTrim(!!v)} />
+                                <Label htmlFor="tr-manual" className="text-[12px]">Ручная обрезка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="tr-des" checked={trDesignerPaper} onCheckedChange={(v) => setTrDesignerPaper(!!v)} />
+                                <Label htmlFor="tr-des" className="text-[12px]">Дизайнерская бумага</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({TRIM_TYPE_LABEL[trimType] || trimType}, {TRIM_MACHINE_LABEL[row.machine_type] || row.machine_type})
+                              </div>
+                              <div>
+                                Формат <b>{longSide}×{shortSide} мм</b> · блок <b>{autoBlockThickness.toFixed(1)} мм</b> · плотность <b>{density} г/м²</b> · резов <b>{cuts}</b>
+                              </div>
+                              <div>
+                                База: {mode === "per_time"
+                                  ? <>{timeSec} с × {circulation} / 3600 × {hourPrice} ₸ = <b>{Math.round(baseCost).toLocaleString("ru-RU")} ₸</b></>
+                                  : mode === "per_item"
+                                  ? <>{circulation} × {priceItem} ₸ = <b>{Math.round(baseCost).toLocaleString("ru-RU")} ₸</b></>
+                                  : <>{circulation} × {cuts} × {priceCut} ₸ = <b>{Math.round(baseCost).toLocaleString("ru-RU")} ₸</b></>}
+                              </div>
+                              <div>
+                                Коэф.: толщ. {thickCoef} × формат {formatCoef} × фигур. {figuredCoef} × ручн. {manualCoef} × плотн. {heavyPaperCoef} × толст. {thickBlockCoef} × дизайн. {designerCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseCost).toLocaleString("ru-RU")} × {coef.toFixed(2)}) + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {(outOfThickness || outOfDensity || outOfCirc) && (
+                                <div className="text-warning">
+                                  ⚠ {outOfThickness && <>толщина блока вне диапазона {row.min_block_thickness}–{row.max_block_thickness} мм</>}
+                                  {outOfDensity && <>; плотность превышает {row.max_paper_density} г/м²</>}
+                                  {outOfCirc && <>; тираж вне диапазона {row.min_circulation}–{row.max_circulation}</>}
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(тираж × резы × цена реза × коэф) + приладка</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. По умолчанию резов = 3 (верх/низ/перед).
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
