@@ -3251,6 +3251,90 @@ export type Database = {
         }
         Relationships: []
       }
+      tape_prices: {
+        Row: {
+          application_method: string
+          calc_mode: string
+          coef_complex_position: number
+          coef_foam: number
+          coef_manual: number
+          coef_many_strips: number
+          coef_nonstandard_format: number
+          coef_small_circulation: number
+          coef_standard: number
+          created_at: string
+          id: string
+          is_active: boolean
+          many_strips_threshold: number
+          min_cost: number
+          name: string
+          price_per_item_apply: number
+          price_per_meter: number
+          price_per_point: number
+          setup_cost: number
+          small_circulation_threshold: number
+          sort_order: number
+          tape_type: string
+          tape_width_mm: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          application_method?: string
+          calc_mode?: string
+          coef_complex_position?: number
+          coef_foam?: number
+          coef_manual?: number
+          coef_many_strips?: number
+          coef_nonstandard_format?: number
+          coef_small_circulation?: number
+          coef_standard?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          many_strips_threshold?: number
+          min_cost?: number
+          name: string
+          price_per_item_apply?: number
+          price_per_meter?: number
+          price_per_point?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          tape_type?: string
+          tape_width_mm?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          application_method?: string
+          calc_mode?: string
+          coef_complex_position?: number
+          coef_foam?: number
+          coef_manual?: number
+          coef_many_strips?: number
+          coef_nonstandard_format?: number
+          coef_small_circulation?: number
+          coef_standard?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          many_strips_threshold?: number
+          min_cost?: number
+          name?: string
+          price_per_item_apply?: number
+          price_per_meter?: number
+          price_per_point?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          tape_type?: string
+          tape_width_mm?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       thermal_binding_prices: {
         Row: {
           created_at: string
