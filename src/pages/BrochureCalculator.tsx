@@ -58,12 +58,13 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 ];
 
 export interface BrochureLikeProps {
-  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover";
+  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner";
 }
 
 export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
-  const isHardcover = mode === "hardcover";
+  const isPlanner = mode === "planner";
+  const isHardcover = mode === "hardcover" || isPlanner;
   const isCatalog = mode === "catalog" || isSoftcover || isHardcover;
   const isMagazine = mode === "magazine";
   const isCatalogLike = isCatalog || isMagazine;
