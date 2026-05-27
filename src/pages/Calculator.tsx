@@ -1366,6 +1366,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load binding_cardboard_prices failed", e);
       }
+      // Доработка 22: справочник резки переплётного картона.
+      try {
+        const bcR = await (supabase as any)
+          .from("board_cutting_prices")
+          .select("*")
+          .order("sort_order");
+        setBcRows(((bcR.data as BoardCuttingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load board_cutting_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
