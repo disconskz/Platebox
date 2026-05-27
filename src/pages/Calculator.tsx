@@ -423,6 +423,48 @@ const ENDPAPER_PRODUCT_TYPES = new Set<string>([
   "book", "notepad", "catalog",
 ]);
 
+// Доработка 17: справочник марли.
+type GauzeRow = {
+  id: string;
+  name: string;
+  gauze_type: string;          // standard | reinforced | designer
+  density: number;
+  calc_mode: string;           // per_m2 | per_meter | per_item
+  price_per_m2: number;
+  price_per_meter: number;
+  price_per_item: number;
+  glue_price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  height_allowance: number;    // мм
+  side_overlap: number;        // мм
+  min_format_short: number;
+  max_format_long: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  min_circulation: number;
+  max_circulation: number;
+  thick_block_threshold: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_thick_block: number;
+  coef_heavy_block: number;
+  coef_manual_glue: number;
+  coef_designer: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const GAUZE_TYPE_LABEL: Record<string, string> = {
+  standard: "Стандартная",
+  reinforced: "Усиленная",
+  designer: "Дизайнерская",
+};
+const GAUZE_CALC_LABEL: Record<string, string> = {
+  per_m2: "по площади (₸/м²)",
+  per_meter: "по длине (₸/м)",
+  per_item: "за изделие (₸/шт)",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
