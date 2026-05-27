@@ -210,6 +210,12 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
     if (optFold && density > threshold && !optBig) setOptBig(true);
   }, [isCard, isEuro, isInsert, optFold, material?.density, optBig]);
 
+  // Купон: перфорация — обязательная операция, включаем по умолчанию.
+  useEffect(() => {
+    if (isCoupon && !optPerf) setOptPerf(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCoupon]);
+
   const preset = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [FORMATS, presetKey]);
   const formatType: FormatType = preset.type;
   const itemSize = useMemo(() => {
