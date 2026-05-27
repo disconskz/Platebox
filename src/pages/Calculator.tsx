@@ -1603,6 +1603,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load cover_assembly_prices failed", e);
       }
+      // Доработка 25: справочник вставки блока в крышку.
+      try {
+        const biR = await (supabase as any)
+          .from("block_insertion_prices")
+          .select("*")
+          .order("sort_order");
+        setBiRows(((biR.data as BlockInsertionRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load block_insertion_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
