@@ -1240,6 +1240,23 @@ const Calculator = () => {
   const [tapeMinCostOverride, setTapeMinCostOverride] = useState<string>("");
   const [tapeNonstandardFormat, setTapeNonstandardFormat] = useState<boolean>(false);
   const [tapeComplexPosition, setTapeComplexPosition] = useState<boolean>(false);
+  // Доработка 31: «Наклейка окна на коробку».
+  const [windowRows, setWindowRows] = useState<WindowRule[]>([]);
+  const [windowEnabled, setWindowEnabled] = useState(false);
+  const [windowManualId, setWindowManualId] = useState<string>("");
+  const [windowWidthMm, setWindowWidthMm] = useState<number>(100);
+  const [windowHeightMm, setWindowHeightMm] = useState<number>(80);
+  const [windowsPerItem, setWindowsPerItem] = useState<number>(1);
+  const [windowShapeOverride, setWindowShapeOverride] = useState<"" | WindowShape>("");
+  const [windowCalcModeOverride, setWindowCalcModeOverride] = useState<"" | WindowCalcMode>("");
+  const [windowPriceMaterialOverride, setWindowPriceMaterialOverride] = useState<string>("");
+  const [windowPriceApplyItemOverride, setWindowPriceApplyItemOverride] = useState<string>("");
+  const [windowPriceApplyM2Override, setWindowPriceApplyM2Override] = useState<string>("");
+  const [windowComplexityCoefOverride, setWindowComplexityCoefOverride] = useState<string>("");
+  const [windowSetupOverride, setWindowSetupOverride] = useState<string>("");
+  const [windowMinCostOverride, setWindowMinCostOverride] = useState<string>("");
+  const [windowNonstandardFormat, setWindowNonstandardFormat] = useState<boolean>(false);
+  const [windowComplexPosition, setWindowComplexPosition] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
