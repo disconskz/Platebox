@@ -1473,6 +1473,22 @@ const Calculator = () => {
   const [fpManual, setFpManual] = useState(false);
   const [fpFabric, setFpFabric] = useState(false);
 
+  // Доработка 27: скрепление на скобу.
+  const [stRows, setStRows] = useState<StaplingRow[]>([]);
+  const [stEnabled, setStEnabled] = useState(false);
+  const [stManualId, setStManualId] = useState<string | null>(null);
+  const [stStaplesCountOverride, setStStaplesCountOverride] = useState<number | "">("");
+  const [stStapleTypeOverride, setStStapleTypeOverride] = useState<string>("");
+  const [stMachineOverride, setStMachineOverride] = useState<string>("");
+  const [stPricePerStapleOverride, setStPricePerStapleOverride] = useState<number | "">("");
+  const [stPriceItemOverride, setStPriceItemOverride] = useState<number | "">("");
+  const [stBlockThicknessOverride, setStBlockThicknessOverride] = useState<number | "">("");
+  const [stCoefOverride, setStCoefOverride] = useState<number | "">("");
+  const [stSetupOverride, setStSetupOverride] = useState<number | "">("");
+  const [stMinOverride, setStMinOverride] = useState<number | "">("");
+  const [stManual, setStManual] = useState(false);
+  const [stHeavyPaper, setStHeavyPaper] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
