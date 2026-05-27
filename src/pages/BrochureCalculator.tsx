@@ -58,13 +58,14 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 ];
 
 export interface BrochureLikeProps {
-  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner";
+  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner" | "notepad";
 }
 
 export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
   const isPlanner = mode === "planner";
   const isHardcover = mode === "hardcover" || isPlanner;
+  const isNotepad = mode === "notepad";
   const isCatalog = mode === "catalog" || isSoftcover || isHardcover;
   const isMagazine = mode === "magazine";
   const isCatalogLike = isCatalog || isMagazine;
@@ -509,9 +510,11 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isPlanner ? "Ежедневник" : isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isNotepad ? "Блокнот" : isPlanner ? "Ежедневник" : isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
               <p className="text-[11px] text-muted-foreground truncate">
-                {isPlanner
+                {isNotepad
+                  ? "Notepad — пружина/скоба/проклейка, отрывные листы, подложка, брендирование"
+                  : isPlanner
                   ? "Daily planner — персонализация, фурнитура, премиум-материалы"
                   : isHardcover
                   ? "Hardcover 7БЦ/7Б — книжный блок, форзацы, марля, каптал, сборка крышки и вставка"
@@ -525,7 +528,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка {isPlanner ? 53 : isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {isNotepad ? 54 : isPlanner ? 53 : isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
