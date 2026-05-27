@@ -1748,6 +1748,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load perforation_prices failed", e);
       }
+      // Доработка 30: справочник наклейки скотча.
+      try {
+        const tpR = await (supabase as any)
+          .from("tape_prices")
+          .select("*")
+          .order("sort_order");
+        setTapeRows(((tpR.data as TapeRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load tape_prices failed", e);
+      }
       // Доработка 21: справочник переплётного картона.
       try {
         const bdR = await (supabase as any)
