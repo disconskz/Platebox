@@ -465,6 +465,37 @@ const GAUZE_CALC_LABEL: Record<string, string> = {
   per_item: "за изделие (₸/шт)",
 };
 
+// Доработка 18: справочник каптала.
+type HeadbandRow = {
+  id: string;
+  name: string;
+  headband_type: string;       // standard | colored | premium
+  color: string;
+  price_per_meter: number;
+  install_price_per_piece: number;
+  tech_allowance_mm: number;
+  headbands_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard: number;
+  coef_nonstandard_color: number;
+  coef_thick_block: number;
+  coef_manual_install: number;
+  coef_nonstandard_format: number;
+  coef_small_circulation: number;
+  thick_block_threshold: number;
+  small_circulation_threshold: number;
+  max_format_long: number;
+  min_format_short: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const HEADBAND_TYPE_LABEL: Record<string, string> = {
+  standard: "Стандартный",
+  colored: "Цветной",
+  premium: "Премиум",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
