@@ -22,6 +22,7 @@ const main = [
   { title: "Шаблон: Листовка", url: "/calculator/leaflet", icon: FileText },
   { title: "Шаблон: Флаер", url: "/calculator/flyer", icon: FileText },
   { title: "Шаблон: Еврофлаер", url: "/calculator/euroflyer", icon: FileText },
+  { title: "Шаблон: Визитка", url: "/calculator/businesscard", icon: FileText },
   { title: "Групповой спуск", url: "/calculator/multi-sku", icon: Layers },
   { title: "ИИ-расчёт", url: "/ai-calc", icon: Sparkles },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },

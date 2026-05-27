@@ -64,6 +64,15 @@ const EUROFLYER_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const BUSINESSCARD_FORMATS: PresetFormat[] = [
+  { value: "90x50", label: "90×50 мм", type: "custom", w: 90, h: 50 },
+  { value: "85x55", label: "85×55 мм (евро)", type: "custom", w: 85, h: 55 },
+  { value: "90x55", label: "90×55 мм", type: "custom", w: 90, h: 55 },
+  { value: "55x55", label: "55×55 мм (квадрат)", type: "custom", w: 55, h: 55 },
+  { value: "65x65", label: "65×65 мм (квадрат)", type: "custom", w: 65, h: 65 },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
@@ -73,24 +82,32 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer" | "euroflyer";
+  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
   const isFlyer = mode === "flyer";
   const isEuro = mode === "euroflyer";
-  const hideFoldBlock = isFlyer; // флаер без фальцовки/биговки/склейки; еврофлаер их использует
-  const FORMATS = isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
-  const subtitle = isEuro
-    ? "Рекламный евроформат — автоматическая биговка при плотной бумаге + фальцовка"
-    : isFlyer
-      ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
-      : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isEuro ? 38 : isFlyer ? 37 : 36;
+  const isCard = mode === "businesscard";
+  // Флаер/визитка — без фальцовки/биговки/склейки. Еврофлаер использует фальцовку + биговку.
+  const hideFoldBlock = isFlyer || isCard;
+  const FORMATS = isCard
+    ? BUSINESSCARD_FORMATS
+    : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
+  const titleLabel = isCard ? "Визитка" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+  const subtitle = isCard
+    ? "Премиальная мелкоформатная продукция — акцент на постпечатные операции"
+    : isEuro
+      ? "Рекламный евроформат — автоматическая биговка при плотной бумаге + фальцовка"
+      : isFlyer
+        ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
+        : "Динамический маршрут — операции подключаются по выбранным опциям";
+  const dorNum = isCard ? 39 : isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
-  const [presetKey, setPresetKey] = useState<string>(isEuro ? "EURO" : isFlyer ? "DL" : "A4");
+  const [presetKey, setPresetKey] = useState<string>(
+    isCard ? "90x50" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
+  );
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
   const [colorFront, setColorFront] = useState(4);
@@ -110,6 +127,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   // Постпечатные опции (чекбоксы)
   const [optLam, setOptLam] = useState(false);
   const [optLamSides, setOptLamSides] = useState<1 | 2>(1);
+  const [optSoftTouch, setOptSoftTouch] = useState(false);
   const [optVarnish, setOptVarnish] = useState(false);
   const [varnishType, setVarnishType] = useState<"uv_full" | "uv_spot" | "vd">("uv_full");
   const [optBig, setOptBig] = useState(false);
@@ -158,10 +176,10 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
 
   // Еврофлаер: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
   useEffect(() => {
-    if (!isEuro) return;
     const density = Number(material?.density) || 0;
-    if (optFold && density > 170 && !optBig) setOptBig(true);
-  }, [isEuro, optFold, material?.density, optBig]);
+    const threshold = isCard ? 300 : isEuro ? 170 : Infinity;
+    if (optFold && density > threshold && !optBig) setOptBig(true);
+  }, [isCard, isEuro, optFold, material?.density, optBig]);
 
   const preset = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [FORMATS, presetKey]);
   const formatType: FormatType = preset.type;
@@ -227,6 +245,23 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       const price = varnishType === "uv_full" ? 8 : varnishType === "uv_spot" ? 12 : 4;
       out.push({ stage: "postpress", name: `Лак (${varnishType === "vd" ? "ВД" : varnishType === "uv_spot" ? "УФ выборочный" : "УФ сплошной"}) — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
       out.push({ stage: "postpress", name: "Лак — нанесение", quantity: sheets, unit: "лист", unitPrice: price, total: sheets * price });
+      // Выборочный лак — отдельная подготовка + доп. приладка (ТЗ 39 §13.2, §14)
+      if (varnishType === "uv_spot") {
+        out.push({ stage: "prepress", name: "Выборочный лак — подготовка трафарета", quantity: 1, unit: "шт", unitPrice: 3000, total: 3000 });
+        out.push({ stage: "postpress", name: "Выборочный лак — доп. приладка", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+    }
+    // Soft-touch ламинация
+    if (optSoftTouch) {
+      const sheets = calc?.printSheets ?? circulation;
+      const price = 35; // тг за лист
+      out.push({ stage: "postpress", name: "Soft-touch (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      out.push({ stage: "postpress", name: "Soft-touch ламинация", quantity: sheets, unit: "лист", unitPrice: price, total: sheets * price });
+      // Коэффициент сложности при сочетании soft-touch + тиснение (ТЗ 39 §14)
+      if (optStamp) {
+        const surcharge = 0.25 * (calc?.totalCost ? 0 : 0) + 1500; // фикс. доплата за совместимость материалов
+        out.push({ stage: "postpress", name: "Тиснение по soft-touch (коэф. сложности)", quantity: 1, unit: "шт", unitPrice: surcharge, total: surcharge });
+      }
     }
     if (optBig) {
       const price = 1.5;
@@ -296,6 +331,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
     }
     steps.push(offset ? "Печать офсет" : "Печать цифра");
     if (optLam) steps.push("Ламинация");
+    if (optSoftTouch) steps.push("Soft-touch ламинация");
     if (optVarnish) steps.push("Лакировка");
     if (optBig) steps.push("Биговка");
     if (optFold) steps.push("Фальцовка");
@@ -312,7 +348,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
     steps.push("Упаковка");
     if (hasDelivery) steps.push("Доставка");
     return steps;
-  }, [hasDesign, printMode, circulation, optLam, optVarnish, optBig, optFold, optPerf, optNum, optStamp, optEmboss, optDieCut, optDeflash, optRound, optBlockGlue]);
+  }, [hasDesign, printMode, circulation, optLam, optSoftTouch, optVarnish, optBig, optFold, optPerf, optNum, optStamp, optEmboss, optDieCut, optDeflash, optRound, optBlockGlue]);
 
   return (
     <PageShell>
@@ -432,6 +468,9 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                       </SelectContent>
                     </Select>
                   </PostpressRow>
+                  {isCard && (
+                    <PostpressRow label="Soft-touch" checked={optSoftTouch} onChange={setOptSoftTouch} />
+                  )}
                   <PostpressRow label="Лак (УФ/ВД)" checked={optVarnish} onChange={setOptVarnish}>
                     <Select value={varnishType} onValueChange={(v) => setVarnishType(v as any)}>
                       <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
