@@ -611,6 +611,63 @@ const TRIM_DEFAULT_CUTS: Record<string, number> = {
   three_sided: 3, one_sided: 1, two_sided: 2, figured: 3, manual: 3, auto: 3,
 };
 
+// Доработка 21: справочник переплётного картона.
+type BindingCardboardRow = {
+  id: string;
+  name: string;
+  board_type: string;            // chipboard | grey | designer
+  board_thickness: number;       // мм
+  calc_mode: string;             // per_m2 | per_sheet | per_cover
+  price_per_m2: number;
+  price_per_sheet: number;
+  price_per_cover: number;
+  sheet_width: number;
+  sheet_height: number;
+  width_allowance: number;
+  height_allowance: number;
+  spine_allowance: number;
+  sides_per_item: number;
+  spines_per_item: number;
+  gap_between: number;
+  edge_margin: number;
+  cuts_per_sheet: number;
+  price_per_cut: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_thick_board: number;
+  coef_manual_cut: number;
+  coef_complex_layout: number;
+  coef_designer_board: number;
+  thick_board_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const BOARD_TYPE_LABEL: Record<string, string> = {
+  chipboard: "Переплётный (стружечный)",
+  grey: "Серый каландр.",
+  designer: "Дизайнерский",
+};
+// Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
+function bestFitOnSheet(
+  partW: number, partH: number,
+  sheetW: number, sheetH: number,
+  gap: number, margin: number,
+): number {
+  if (partW <= 0 || partH <= 0 || sheetW <= 0 || sheetH <= 0) return 0;
+  const usableW = sheetW - 2 * margin;
+  const usableH = sheetH - 2 * margin;
+  if (usableW <= 0 || usableH <= 0) return 0;
+  const f1 = Math.max(0, Math.floor((usableW + gap) / (partW + gap)))
+    * Math.max(0, Math.floor((usableH + gap) / (partH + gap)));
+  const f2 = Math.max(0, Math.floor((usableW + gap) / (partH + gap)))
+    * Math.max(0, Math.floor((usableH + gap) / (partW + gap)));
+  return Math.max(f1, f2);
+}
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
