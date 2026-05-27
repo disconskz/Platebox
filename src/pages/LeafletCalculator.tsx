@@ -35,7 +35,27 @@ type Material = {
 
 type PrintFormatRow = { id: string; name: string; width: number; height: number; sort_order?: number };
 
-const FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
+type PresetFormat = { value: string; label: string; type: FormatType; w?: number; h?: number };
+
+const LEAFLET_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "A3", label: "A3 (297×420)", type: "A3" },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
+const FLYER_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "DL", label: "DL (99×210)", type: "custom", w: 99, h: 210 },
+  { value: "EURO", label: "Евроформат (100×210)", type: "custom", w: 100, h: 210 },
+  { value: "105x148", label: "105×148 мм", type: "custom", w: 105, h: 148 },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
+const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
   { value: "A4", label: "A4 (210×297)" },
@@ -43,10 +63,21 @@ const FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "custom", label: "Свой размер" },
 ];
 
-export default function LeafletCalculator() {
+export interface LeafletLikeProps {
+  mode?: "leaflet" | "flyer";
+}
+
+export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
+  const isFlyer = mode === "flyer";
+  const FORMATS = isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
+  const titleLabel = isFlyer ? "Флаер" : "Листовка";
+  const subtitle = isFlyer
+    ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
+    : "Динамический маршрут — операции подключаются по выбранным опциям";
+  const dorNum = isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
-  const [formatType, setFormatType] = useState<FormatType>("A4");
+  const [presetKey, setPresetKey] = useState<string>(isFlyer ? "DL" : "A4");
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
   const [colorFront, setColorFront] = useState(4);
@@ -112,11 +143,14 @@ export default function LeafletCalculator() {
 
   const material = useMemo(() => materials.find((m) => m.id === materialId), [materials, materialId]);
 
+  const preset = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [FORMATS, presetKey]);
+  const formatType: FormatType = preset.type;
   const itemSize = useMemo(() => {
-    if (formatType === "custom") return { w: customW, h: customH };
-    const p = FORMAT_PRESETS[formatType];
+    if (preset.w && preset.h) return { w: preset.w, h: preset.h };
+    if (preset.type === "custom") return { w: customW, h: customH };
+    const p = FORMAT_PRESETS[preset.type];
     return p ? { w: p.w, h: p.h } : { w: customW, h: customH };
-  }, [formatType, customW, customH]);
+  }, [preset, customW, customH]);
 
   const calc = useMemo(() => {
     if (!material) return null;
@@ -270,11 +304,11 @@ export default function LeafletCalculator() {
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: Листовка</h1>
-              <p className="text-[11px] text-muted-foreground truncate">Динамический маршрут — операции подключаются по выбранным опциям</p>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {titleLabel}</h1>
+              <p className="text-[11px] text-muted-foreground truncate">{subtitle}</p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка 36</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {dorNum}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
@@ -292,14 +326,14 @@ export default function LeafletCalculator() {
                   </div>
                   <div>
                     <Label>Готовый размер</Label>
-                    <Select value={formatType} onValueChange={(v) => setFormatType(v as FormatType)}>
+                    <Select value={presetKey} onValueChange={(v) => setPresetKey(v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {FORMAT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        {FORMATS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  {formatType === "custom" && (
+                  {preset.value === "custom" && (
                     <>
                       <div>
                         <Label>Ширина, мм</Label>
@@ -388,14 +422,14 @@ export default function LeafletCalculator() {
                       </SelectContent>
                     </Select>
                   </PostpressRow>
-                  <PostpressRow label="Биговка" checked={optBig} onChange={setOptBig}>
+                  {!isFlyer && <PostpressRow label="Биговка" checked={optBig} onChange={setOptBig}>
                     <Input className="h-8 w-24" type="number" min={1} value={bigCount} onChange={(e) => setBigCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">биг.</span>
-                  </PostpressRow>
-                  <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
+                  </PostpressRow>}
+                  {!isFlyer && <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
                     <Input className="h-8 w-24" type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">фальц.</span>
-                  </PostpressRow>
+                  </PostpressRow>}
                   <PostpressRow label="Перфорация" checked={optPerf} onChange={setOptPerf}>
                     <Input className="h-8 w-20" type="number" min={1} value={perfLines} onChange={(e) => setPerfLines(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">лин. ×</span>
@@ -426,10 +460,10 @@ export default function LeafletCalculator() {
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </PostpressRow>
-                  <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
+                  {!isFlyer && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
                     <Input className="h-8 w-24" type="number" min={1} value={blockCount} onChange={(e) => setBlockCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">листов/блок</span>
-                  </PostpressRow>
+                  </PostpressRow>}
                 </CardContent>
               </Card>
 
