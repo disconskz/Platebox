@@ -95,13 +95,13 @@ export default function LeafletCalculator() {
       try {
         const [mR, pfR, sR] = await Promise.all([
           supabase.from("materials").select("id,name,cost_per_sheet,format_width,format_height,density").order("name"),
-          supabase.from("print_formats" as any).select("id,name,width,height,sort_order").order("sort_order"),
+          (supabase as any).from("print_formats").select("id,name,width,height,sort_order").order("sort_order"),
           supabase.from("system_settings").select("value").eq("key", "vat_percent").maybeSingle(),
         ]);
         const m = (mR.data as Material[]) || [];
         setMaterials(m);
         if (m.length && !materialId) setMaterialId(m[0].id);
-        setPrintFormats(((pfR.data as PrintFormatRow[]) || []));
+        setPrintFormats(((pfR.data as unknown as PrintFormatRow[]) || []));
         if (sR.data?.value) setVatPercent(Number(sR.data.value) || 16);
       } catch (e: any) {
         toast.error("Не удалось загрузить справочники: " + (e?.message || ""));
