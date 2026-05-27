@@ -479,6 +479,9 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                         {FORMATS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {isEurobooklet && (
+                      <div className="text-xs text-muted-foreground mt-1">Разворот: A4 (210×297 мм)</div>
+                    )}
                   </div>
                   {preset.value === "custom" && (
                     <>
