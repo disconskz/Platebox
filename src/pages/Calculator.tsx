@@ -2554,6 +2554,44 @@ const Calculator = () => {
     flashSetupOverride, flashMinCostOverride,
   ]);
 
+  // Доработка 33: ряд «Установка ригеля».
+  const rigelItems = useMemo(() => {
+    if (!rigelEnabled) return [] as any[];
+    const active = rigelRows.filter((r) => (r as any).is_active !== false);
+    const rule = (rigelManualId ? rigelRows.find((r) => r.id === rigelManualId) : active[0]) as RigelRule | undefined;
+    if (!rule) return [];
+    const calendarWidthMm = Math.max(dims.w || 0, dims.h || 0);
+    const r = calcRigel(rule, {
+      circulation,
+      calendarWidthMm,
+      nonstandardColor: rigelNonstandardColor,
+      complexPosition: rigelComplexPosition,
+      hasHangerOverride: rigelHasHangerOverride === "" ? undefined : rigelHasHangerOverride === "yes",
+      hangerIncludedOverride: rigelHangerIncludedOverride === "" ? undefined : rigelHangerIncludedOverride === "yes",
+      calcModeOverride: rigelCalcModeOverride || undefined,
+      rigelLengthMmOverride: rigelLengthOverride !== "" ? Number(rigelLengthOverride) : undefined,
+      pricePerItemOverride: rigelPriceItemOverride !== "" ? Number(rigelPriceItemOverride) : undefined,
+      pricePerMeterOverride: rigelPriceMeterOverride !== "" ? Number(rigelPriceMeterOverride) : undefined,
+      hangerPriceOverride: rigelHangerPriceOverride !== "" ? Number(rigelHangerPriceOverride) : undefined,
+      installPriceOverride: rigelInstallPriceOverride !== "" ? Number(rigelInstallPriceOverride) : undefined,
+      complexityCoefOverride: rigelCoefOverride !== "" ? Number(rigelCoefOverride) : undefined,
+      setupOverride: rigelSetupOverride !== "" ? Number(rigelSetupOverride) : undefined,
+      minCostOverride: rigelMinCostOverride !== "" ? Number(rigelMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Установка ригеля (${rule.name || rule.rigel_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    rigelEnabled, rigelRows, rigelManualId, dims.w, dims.h, circulation,
+    rigelNonstandardColor, rigelComplexPosition,
+    rigelHasHangerOverride, rigelHangerIncludedOverride,
+    rigelCalcModeOverride, rigelLengthOverride,
+    rigelPriceItemOverride, rigelPriceMeterOverride, rigelHangerPriceOverride, rigelInstallPriceOverride,
+    rigelCoefOverride, rigelSetupOverride, rigelMinCostOverride,
+  ]);
+
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
