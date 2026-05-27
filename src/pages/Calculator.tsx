@@ -20,6 +20,7 @@ import { VARIABLE_KEYS } from "@/lib/calc/variants/types";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { calcPerforation, type PerforationRule, type PerforationCalcMode } from "@/lib/calc/perforation";
 import { calcTape, type TapeRule, type TapeCalcMode } from "@/lib/calc/tape";
+import { calcWindow, type WindowRule, type WindowCalcMode, type WindowShape } from "@/lib/calc/window";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
@@ -1239,6 +1240,23 @@ const Calculator = () => {
   const [tapeMinCostOverride, setTapeMinCostOverride] = useState<string>("");
   const [tapeNonstandardFormat, setTapeNonstandardFormat] = useState<boolean>(false);
   const [tapeComplexPosition, setTapeComplexPosition] = useState<boolean>(false);
+  // Доработка 31: «Наклейка окна на коробку».
+  const [windowRows, setWindowRows] = useState<WindowRule[]>([]);
+  const [windowEnabled, setWindowEnabled] = useState(false);
+  const [windowManualId, setWindowManualId] = useState<string>("");
+  const [windowWidthMm, setWindowWidthMm] = useState<number>(100);
+  const [windowHeightMm, setWindowHeightMm] = useState<number>(80);
+  const [windowsPerItem, setWindowsPerItem] = useState<number>(1);
+  const [windowShapeOverride, setWindowShapeOverride] = useState<"" | WindowShape>("");
+  const [windowCalcModeOverride, setWindowCalcModeOverride] = useState<"" | WindowCalcMode>("");
+  const [windowPriceMaterialOverride, setWindowPriceMaterialOverride] = useState<string>("");
+  const [windowPriceApplyItemOverride, setWindowPriceApplyItemOverride] = useState<string>("");
+  const [windowPriceApplyM2Override, setWindowPriceApplyM2Override] = useState<string>("");
+  const [windowComplexityCoefOverride, setWindowComplexityCoefOverride] = useState<string>("");
+  const [windowSetupOverride, setWindowSetupOverride] = useState<string>("");
+  const [windowMinCostOverride, setWindowMinCostOverride] = useState<string>("");
+  const [windowNonstandardFormat, setWindowNonstandardFormat] = useState<boolean>(false);
+  const [windowComplexPosition, setWindowComplexPosition] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
@@ -1757,6 +1775,16 @@ const Calculator = () => {
         setTapeRows(((tpR.data as TapeRule[]) || []));
       } catch (e) {
         console.warn("[Calculator] load tape_prices failed", e);
+      }
+      // Доработка 31: справочник «Наклейка окна на коробку».
+      try {
+        const wnR = await (supabase as any)
+          .from("window_attachment_prices")
+          .select("*")
+          .order("sort_order");
+        setWindowRows(((wnR.data as WindowRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load window_attachment_prices failed", e);
       }
       // Доработка 21: справочник переплётного картона.
       try {
@@ -2393,6 +2421,41 @@ const Calculator = () => {
     tapeCalcModeOverride, tapePricePerMeterOverride, tapePricePerPointOverride, tapePricePerItemOverride,
     tapeComplexityCoefOverride, tapeSetupOverride, tapeMinCostOverride,
     tapeNonstandardFormat, tapeComplexPosition, circulation, dims.w, dims.h,
+  ]);
+
+  // Доработка 31: ряд «Наклейка окна на коробку».
+  const windowItems = useMemo(() => {
+    if (!windowEnabled) return [] as any[];
+    const active = windowRows.filter((r) => (r as any).is_active !== false);
+    const rule = (windowManualId ? windowRows.find((r) => r.id === windowManualId) : active[0]) as WindowRule | undefined;
+    if (!rule) return [];
+    const r = calcWindow(rule, {
+      circulation,
+      windowWidthMm,
+      windowHeightMm,
+      windowsPerItem,
+      shapeOverride: windowShapeOverride || undefined,
+      nonstandardFormat: windowNonstandardFormat,
+      complexPosition: windowComplexPosition,
+      calcModeOverride: windowCalcModeOverride || undefined,
+      priceMaterialOverride: windowPriceMaterialOverride !== "" ? Number(windowPriceMaterialOverride) : undefined,
+      priceApplyItemOverride: windowPriceApplyItemOverride !== "" ? Number(windowPriceApplyItemOverride) : undefined,
+      priceApplyM2Override: windowPriceApplyM2Override !== "" ? Number(windowPriceApplyM2Override) : undefined,
+      complexityCoefOverride: windowComplexityCoefOverride !== "" ? Number(windowComplexityCoefOverride) : undefined,
+      setupOverride: windowSetupOverride !== "" ? Number(windowSetupOverride) : undefined,
+      minCostOverride: windowMinCostOverride !== "" ? Number(windowMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Наклейка окна (${rule.name || rule.window_material}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    windowEnabled, windowRows, windowManualId, windowWidthMm, windowHeightMm, windowsPerItem,
+    windowShapeOverride, windowCalcModeOverride, windowPriceMaterialOverride,
+    windowPriceApplyItemOverride, windowPriceApplyM2Override, windowComplexityCoefOverride,
+    windowSetupOverride, windowMinCostOverride, windowNonstandardFormat, windowComplexPosition,
+    circulation,
   ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
@@ -4177,7 +4240,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4370,7 +4433,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5555,6 +5618,128 @@ const Calculator = () => {
                               <div>Общая длина: <b>{r.totalLengthM.toFixed(2)} м</b> · материал: <b>{r.materialCost.toFixed(0)} ₸</b> · нанесение: <b>{r.applyCost.toFixed(0)} ₸</b></div>
                               <div>Коэф. сложности: <b>{r.complexityCoef.toFixed(2)}</b> · приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
                               <div>Расчёт: {r.breakdown}</div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                  {/* Доработка 31: блок «Наклейка окна на коробку». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={windowEnabled} onCheckedChange={(v) => setWindowEnabled(!!v)} id="window" />
+                      <Label htmlFor="window" className="flex-1 font-medium">Наклейка окна на коробку</Label>
+                      {windowEnabled && (
+                        <Select value={windowManualId} onValueChange={setWindowManualId} disabled={windowRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={windowRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {windowRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {windowEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Ширина окна, мм</Label>
+                            <Input type="number" min={0} value={windowWidthMm || ""} onChange={(e) => setWindowWidthMm(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Высота окна, мм</Label>
+                            <Input type="number" min={0} value={windowHeightMm || ""} onChange={(e) => setWindowHeightMm(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Окон на изделие</Label>
+                            <Input type="number" min={0} value={windowsPerItem || ""} onChange={(e) => setWindowsPerItem(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Форма (override)</Label>
+                            <Select value={windowShapeOverride || "__auto"} onValueChange={(v) => setWindowShapeOverride(v === "__auto" ? "" : (v as WindowShape))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="rect">Прямоугольная</SelectItem>
+                                <SelectItem value="round">Круглая</SelectItem>
+                                <SelectItem value="oval">Овальная</SelectItem>
+                                <SelectItem value="figured">Фигурная</SelectItem>
+                                <SelectItem value="nonstandard">Нестандартная</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                            <Select value={windowCalcModeOverride || "__auto"} onValueChange={(v) => setWindowCalcModeOverride(v === "__auto" ? "" : (v as WindowCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_area">По площади</SelectItem>
+                                <SelectItem value="per_window">За окно</SelectItem>
+                                <SelectItem value="combined">Комбинированный</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена материала ₸/м² (override)</Label>
+                            <Input type="number" step="1" value={windowPriceMaterialOverride} placeholder="из справочника" onChange={(e) => setWindowPriceMaterialOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена наклейки ₸/окно (override)</Label>
+                            <Input type="number" step="0.1" value={windowPriceApplyItemOverride} placeholder="из справочника" onChange={(e) => setWindowPriceApplyItemOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена наклейки ₸/м² (override)</Label>
+                            <Input type="number" step="1" value={windowPriceApplyM2Override} placeholder="из справочника" onChange={(e) => setWindowPriceApplyM2Override(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={windowComplexityCoefOverride} placeholder="авто" onChange={(e) => setWindowComplexityCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={windowSetupOverride} placeholder="из справочника" onChange={(e) => setWindowSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={windowMinCostOverride} placeholder="из справочника" onChange={(e) => setWindowMinCostOverride(e.target.value)} />
+                          </div>
+                          <div className="flex items-center gap-2 pt-5">
+                            <Checkbox id="window-nf" checked={windowNonstandardFormat} onCheckedChange={(v) => setWindowNonstandardFormat(!!v)} />
+                            <Label htmlFor="window-nf" className="text-[12px]">Нестандартный формат</Label>
+                          </div>
+                          <div className="flex items-center gap-2 pt-5">
+                            <Checkbox id="window-cp" checked={windowComplexPosition} onCheckedChange={(v) => setWindowComplexPosition(!!v)} />
+                            <Label htmlFor="window-cp" className="text-[12px]">Сложное позиционирование</Label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (windowManualId ? windowRows.find((r) => r.id === windowManualId) : windowRows.filter((r: any) => r.is_active !== false)[0]) as WindowRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Наклейка окна на коробку».</p>;
+                          const r = calcWindow(rule, {
+                            circulation,
+                            windowWidthMm, windowHeightMm, windowsPerItem,
+                            shapeOverride: windowShapeOverride || undefined,
+                            nonstandardFormat: windowNonstandardFormat,
+                            complexPosition: windowComplexPosition,
+                            calcModeOverride: windowCalcModeOverride || undefined,
+                            priceMaterialOverride: windowPriceMaterialOverride !== "" ? Number(windowPriceMaterialOverride) : undefined,
+                            priceApplyItemOverride: windowPriceApplyItemOverride !== "" ? Number(windowPriceApplyItemOverride) : undefined,
+                            priceApplyM2Override: windowPriceApplyM2Override !== "" ? Number(windowPriceApplyM2Override) : undefined,
+                            complexityCoefOverride: windowComplexityCoefOverride !== "" ? Number(windowComplexityCoefOverride) : undefined,
+                            setupOverride: windowSetupOverride !== "" ? Number(windowSetupOverride) : undefined,
+                            minCostOverride: windowMinCostOverride !== "" ? Number(windowMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · материал: <b>{rule.window_material}</b> · форма: <b>{windowShapeOverride || rule.window_shape}</b> · способ: <b>{rule.application_method}</b></div>
+                              <div>Площадь окна: <b>{r.windowAreaM2.toFixed(4)} м²</b> · общая: <b>{r.totalAreaM2.toFixed(4)} м²</b></div>
+                              <div>Материал: <b>{r.materialCost.toFixed(0)} ₸</b> · нанесение: <b>{r.applyCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef.toFixed(2)}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
                               <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
                               {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
                             </div>
