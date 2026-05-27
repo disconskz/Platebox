@@ -1113,6 +1113,90 @@ export type Database = {
         }
         Relationships: []
       }
+      headband_prices: {
+        Row: {
+          coef_manual_install: number
+          coef_nonstandard_color: number
+          coef_nonstandard_format: number
+          coef_small_circulation: number
+          coef_standard: number
+          coef_thick_block: number
+          color: string
+          created_at: string
+          headband_type: string
+          headbands_per_item: number
+          id: string
+          install_price_per_piece: number
+          is_active: boolean
+          max_format_long: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          price_per_meter: number
+          setup_cost: number
+          small_circulation_threshold: number
+          sort_order: number
+          tech_allowance_mm: number
+          thick_block_threshold: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coef_manual_install?: number
+          coef_nonstandard_color?: number
+          coef_nonstandard_format?: number
+          coef_small_circulation?: number
+          coef_standard?: number
+          coef_thick_block?: number
+          color?: string
+          created_at?: string
+          headband_type?: string
+          headbands_per_item?: number
+          id?: string
+          install_price_per_piece?: number
+          is_active?: boolean
+          max_format_long?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          price_per_meter?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          tech_allowance_mm?: number
+          thick_block_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coef_manual_install?: number
+          coef_nonstandard_color?: number
+          coef_nonstandard_format?: number
+          coef_small_circulation?: number
+          coef_standard?: number
+          coef_thick_block?: number
+          color?: string
+          created_at?: string
+          headband_type?: string
+          headbands_per_item?: number
+          id?: string
+          install_price_per_piece?: number
+          is_active?: boolean
+          max_format_long?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          price_per_meter?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          tech_allowance_mm?: number
+          thick_block_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       lamination_prices: {
         Row: {
           cost_per_side: number

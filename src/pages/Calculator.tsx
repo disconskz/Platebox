@@ -465,6 +465,37 @@ const GAUZE_CALC_LABEL: Record<string, string> = {
   per_item: "за изделие (₸/шт)",
 };
 
+// Доработка 18: справочник каптала.
+type HeadbandRow = {
+  id: string;
+  name: string;
+  headband_type: string;       // standard | colored | premium
+  color: string;
+  price_per_meter: number;
+  install_price_per_piece: number;
+  tech_allowance_mm: number;
+  headbands_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard: number;
+  coef_nonstandard_color: number;
+  coef_thick_block: number;
+  coef_manual_install: number;
+  coef_nonstandard_format: number;
+  coef_small_circulation: number;
+  thick_block_threshold: number;
+  small_circulation_threshold: number;
+  max_format_long: number;
+  min_format_short: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const HEADBAND_TYPE_LABEL: Record<string, string> = {
+  standard: "Стандартный",
+  colored: "Цветной",
+  premium: "Премиум",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
@@ -809,6 +840,21 @@ const Calculator = () => {
   const [gzMinOverride, setGzMinOverride] = useState<number | "">("");
   const [gzManualGlue, setGzManualGlue] = useState(false);
 
+  // Доработка 18: каптал.
+  const [headbandRows, setHeadbandRows] = useState<HeadbandRow[]>([]);
+  const [hbEnabled, setHbEnabled] = useState(false);
+  const [hbManualId, setHbManualId] = useState<string | null>(null);
+  const [hbCountOverride, setHbCountOverride] = useState<number | "">("");
+  const [hbLengthOverride, setHbLengthOverride] = useState<number | "">("");
+  const [hbAllowanceOverride, setHbAllowanceOverride] = useState<number | "">("");
+  const [hbPricePerMeterOverride, setHbPricePerMeterOverride] = useState<number | "">("");
+  const [hbInstallPriceOverride, setHbInstallPriceOverride] = useState<number | "">("");
+  const [hbCoefOverride, setHbCoefOverride] = useState<number | "">("");
+  const [hbSetupOverride, setHbSetupOverride] = useState<number | "">("");
+  const [hbMinOverride, setHbMinOverride] = useState<number | "">("");
+  const [hbManualInstall, setHbManualInstall] = useState(false);
+  const [hbNonstandardColor, setHbNonstandardColor] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -998,6 +1044,16 @@ const Calculator = () => {
         setGauzeRows(((gzR.data as GauzeRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load gauze_prices failed", e);
+      }
+      // Доработка 18: справочник каптала.
+      try {
+        const hbR = await (supabase as any)
+          .from("headband_prices")
+          .select("*")
+          .order("sort_order");
+        setHeadbandRows(((hbR.data as HeadbandRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load headband_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -2253,7 +2309,94 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems];
+    // Доработка 18: каптал.
+    const headbandItems: SpecItem[] = (() => {
+      if (!hbEnabled || !(circulation > 0)) return [];
+      if (!headbandRows.length) return [];
+      const active = headbandRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const row = (hbManualId && active.find((r) => r.id === hbManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      // Толщина блока: из шитья / тетрадей / fallback.
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const allowance = hbAllowanceOverride !== "" ? Number(hbAllowanceOverride) : row.tech_allowance_mm;
+      const perItem = hbCountOverride !== "" ? Number(hbCountOverride) : row.headbands_per_item;
+      const lenOne = hbLengthOverride !== "" ? Number(hbLengthOverride) : autoBlockThickness + allowance;
+      const totalPieces = perItem * circulation;
+      const totalMeters = (lenOne * totalPieces) / 1000;
+      const pricePerMeter = hbPricePerMeterOverride !== "" ? Number(hbPricePerMeterOverride) : row.price_per_meter;
+      const matCost = totalMeters * pricePerMeter;
+      const installPrice = hbInstallPriceOverride !== "" ? Number(hbInstallPriceOverride) : row.install_price_per_piece;
+      const installCost = totalPieces * installPrice;
+      const setup = hbSetupOverride !== "" ? Number(hbSetupOverride) : row.setup_cost;
+      const minCost = hbMinOverride !== "" ? Number(hbMinOverride) : row.min_cost;
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long;
+      const formatCoef = isStandardFormat ? 1 : row.coef_nonstandard_format;
+      const thickCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const manualCoef = hbManualInstall ? row.coef_manual_install : 1;
+      const colorCoef = hbNonstandardColor ? row.coef_nonstandard_color : 1;
+      const smallCircCoef = circulation > 0 && circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = formatCoef * thickCoef * manualCoef * colorCoef * smallCircCoef;
+      const coef = hbCoefOverride !== "" ? Math.max(0, Number(hbCoefOverride)) : autoCoef;
+      const baseSum = matCost + installCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (matCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Каптал — материал (${HEADBAND_TYPE_LABEL[row.headband_type] || row.headband_type}, ${row.color}, ${totalMeters.toFixed(2)} м × ${pricePerMeter} ₸/м)`,
+          quantity: Number(totalMeters.toFixed(3)),
+          unit: "м",
+          unitPrice: pricePerMeter,
+          total: matCost,
+        });
+      }
+      if (installCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Каптал — установка (${totalPieces} шт × ${installPrice} ₸)`,
+          quantity: totalPieces,
+          unit: "шт",
+          unitPrice: installPrice,
+          total: installCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Каптал — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = raw - baseSum;
+        items.push({
+          stage: "postpress",
+          name: `Каптал — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Каптал — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -2446,7 +2589,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -4715,6 +4858,163 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(материал + приклейка + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Размер марли: высота = блок + запас, ширина = корешок + 2×заходы.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 18: Каптал */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={hbEnabled} onCheckedChange={(v) => setHbEnabled(!!v)} id="hb" />
+                        <Label htmlFor="hb" className="flex-1 font-medium">Каптал</Label>
+                        <Select
+                          value={hbManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setHbManualId(v === "auto" ? null : v);
+                            setHbCountOverride(""); setHbLengthOverride(""); setHbAllowanceOverride("");
+                            setHbPricePerMeterOverride(""); setHbInstallPriceOverride("");
+                            setHbCoefOverride(""); setHbSetupOverride(""); setHbMinOverride("");
+                          }}
+                          disabled={!hbEnabled || headbandRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (первая активная запись)</SelectItem>
+                            {headbandRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {hbEnabled && (() => {
+                        if (!headbandRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Каптал» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = headbandRows.filter((r) => r.is_active !== false);
+                        const row = (hbManualId && active.find((r) => r.id === hbManualId)) || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBlockThickness = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const allowance = hbAllowanceOverride !== "" ? Number(hbAllowanceOverride) : row.tech_allowance_mm;
+                        const perItem = hbCountOverride !== "" ? Number(hbCountOverride) : row.headbands_per_item;
+                        const lenOne = hbLengthOverride !== "" ? Number(hbLengthOverride) : autoBlockThickness + allowance;
+                        const totalPieces = perItem * Math.max(0, circulation);
+                        const totalMeters = (lenOne * totalPieces) / 1000;
+                        const pricePerMeter = hbPricePerMeterOverride !== "" ? Number(hbPricePerMeterOverride) : row.price_per_meter;
+                        const matCost = totalMeters * pricePerMeter;
+                        const installPrice = hbInstallPriceOverride !== "" ? Number(hbInstallPriceOverride) : row.install_price_per_piece;
+                        const installCost = totalPieces * installPrice;
+                        const setup = hbSetupOverride !== "" ? Number(hbSetupOverride) : row.setup_cost;
+                        const minCost = hbMinOverride !== "" ? Number(hbMinOverride) : row.min_cost;
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long;
+                        const formatCoef = isStandardFormat ? 1 : row.coef_nonstandard_format;
+                        const thickCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+                        const manualCoef = hbManualInstall ? row.coef_manual_install : 1;
+                        const colorCoef = hbNonstandardColor ? row.coef_nonstandard_color : 1;
+                        const smallCircCoef = circulation > 0 && circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const autoCoef = formatCoef * thickCoef * manualCoef * colorCoef * smallCircCoef;
+                        const coef = hbCoefOverride !== "" ? Math.max(0, Number(hbCoefOverride)) : autoCoef;
+                        const baseSum = matCost + installCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Капталов на изделие</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={hbCountOverride === "" ? row.headbands_per_item : hbCountOverride}
+                                  onChange={(e) => setHbCountOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тех. запас, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={hbAllowanceOverride === "" ? row.tech_allowance_mm : hbAllowanceOverride}
+                                  onChange={(e) => setHbAllowanceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Длина 1 каптала, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={hbLengthOverride === "" ? Number(lenOne.toFixed(2)) : hbLengthOverride}
+                                  onChange={(e) => setHbLengthOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена, ₸/м</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={hbPricePerMeterOverride === "" ? row.price_per_meter : hbPricePerMeterOverride}
+                                  onChange={(e) => setHbPricePerMeterOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Установка, ₸/шт</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={hbInstallPriceOverride === "" ? row.install_price_per_piece : hbInstallPriceOverride}
+                                  onChange={(e) => setHbInstallPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={hbCoefOverride === "" ? Number(autoCoef.toFixed(3)) : hbCoefOverride}
+                                  onChange={(e) => setHbCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={hbSetupOverride === "" ? row.setup_cost : hbSetupOverride}
+                                  onChange={(e) => setHbSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={hbMinOverride === "" ? row.min_cost : hbMinOverride}
+                                  onChange={(e) => setHbMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="hb-manual" checked={hbManualInstall} onCheckedChange={(v) => setHbManualInstall(!!v)} />
+                                <Label htmlFor="hb-manual" className="text-[12px]">Ручная установка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="hb-color" checked={hbNonstandardColor} onCheckedChange={(v) => setHbNonstandardColor(!!v)} />
+                                <Label htmlFor="hb-color" className="text-[12px]">Нестандартный цвет</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({HEADBAND_TYPE_LABEL[row.headband_type] || row.headband_type}, цвет {row.color})
+                              </div>
+                              <div>
+                                Блок <b>{autoBlockThickness.toFixed(1)} мм</b> + запас <b>{allowance} мм</b> → длина 1 каптала <b>{lenOne.toFixed(1)} мм</b> · {perItem} шт/изд × {circulation} = <b>{totalPieces} шт</b> · общая длина <b>{totalMeters.toFixed(2)} м</b>
+                              </div>
+                              <div>
+                                Материал: {totalMeters.toFixed(2)} м × {pricePerMeter} ₸ = <b>{Math.round(matCost).toLocaleString("ru-RU")} ₸</b>
+                                {installCost > 0 && <> · установка <b>{Math.round(installCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {setup > 0 && <> · приладка <b>{setup} ₸</b></>}
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × толст. {thickCoef} × ручн. {manualCoef} × цвет {colorCoef} × тираж {smallCircCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(материал + установка + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Длина каптала = толщина блока + тех. запас; общая длина = длина × тираж × кол-во на изделие.
                             </p>
                           </div>
                         );
