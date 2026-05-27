@@ -338,7 +338,7 @@ export default function DeskCalendarCalculator() {
     // Перфорация под пружину
     if (hasFlipSheets && optSpring) {
       const price = 0.3;
-      out.push({ stage: "postpress", name: `Перфорация под пружину (${springHoles} отв.)", quantity: circulation * springHoles, unit: "отв.", unitPrice: price, total: circulation * springHoles * price });
+      out.push({ stage: "postpress", name: `Перфорация под пружину (${springHoles} отв.)`, quantity: circulation * springHoles, unit: "отв.", unitPrice: price, total: circulation * springHoles * price });
       out.push({ stage: "postpress", name: "Перфорация (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
     }
 
