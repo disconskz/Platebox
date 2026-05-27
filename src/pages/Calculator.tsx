@@ -3564,7 +3564,123 @@ const Calculator = () => {
       (items as any).__meta = { row, sideWUse, sideHUse, spineWUse, gapL, gapR, spreadW, spreadH, coverW, coverH, areaM2, workCost, setup, coef, autoCoef, formatCoef, manualCoef, fabricCoef, thickCoef, complexCoef, smallCircCoef, baseSum, raw, total, minCost, boardThickness };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems];
+    // Доработка 25: вставка блока в крышку.
+    const blockInsertionItems: SpecItem[] = (() => {
+      if (!biEnabled || !(circulation > 0)) return [];
+      if (!biRows.length) return [];
+      const active = biRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      // Толщина блока (берём из шитья/настроек, как в других операциях).
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBT = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const blockThickness = biBlockThicknessOverride !== "" ? Number(biBlockThicknessOverride) : autoBT;
+      // Вес одного блока (граммы): плотность × площадь × число листов.
+      const density = Number((effectiveMaterial as any)?.density) || 0;
+      const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+      const autoWeight = density > 0
+        ? density * ((dims.w * dims.h) / 1_000_000) * sheets
+        : 0;
+      const blockWeight = biBlockWeightOverride !== "" ? Number(biBlockWeightOverride) : autoWeight;
+      const fits = (r: BlockInsertionRow) =>
+        longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && blockThickness <= r.max_block_thickness
+        && (!(blockWeight > 0) || blockWeight <= r.max_block_weight)
+        && circulation >= r.min_circulation && circulation <= r.max_circulation;
+      const wantManual = biManualMethod || biFabric || biComplexAlign
+        || circulation < 100 || longSide > 500
+        || blockThickness > 40;
+      const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+      const row = (biManualId && active.find((r) => r.id === biManualId))
+        || (wantManual ? sorted.find((r) => r.insertion_method === "manual" && fits(r)) : null)
+        || sorted.find(fits)
+        || sorted[0];
+      if (!row) return [];
+      // Размеры форзаца (для площади приклейки по м²) — из «Форзацев».
+      const epW = epWidthOverride !== "" ? Number(epWidthOverride) : dims.w * 2;
+      const epH = epHeightOverride !== "" ? Number(epHeightOverride) : dims.h;
+      const epCount = epCountOverride !== "" ? Math.max(0, Math.floor(Number(epCountOverride) || 0)) : row.endpapers_per_item;
+      const autoEpArea = (epW * epH) / 1_000_000 * Math.max(1, epCount);
+      const endpaperArea = biEndpaperAreaOverride !== "" ? Number(biEndpaperAreaOverride) : autoEpArea;
+      // Базовая стоимость вставки.
+      const priceItem = biPriceOverride !== "" ? Number(biPriceOverride) : row.price_per_item;
+      const insertionCost = circulation * priceItem;
+      // Клей.
+      const glueMode: "per_item" | "per_m2" = biGlueModeOverride || row.glue_calc_mode;
+      let glueCost = 0;
+      if (glueMode === "per_item") {
+        const gluePrice = biGluePriceItemOverride !== "" ? Number(biGluePriceItemOverride) : row.glue_price_per_item;
+        glueCost = circulation * gluePrice;
+      } else {
+        const gluePrice = biGluePriceM2Override !== "" ? Number(biGluePriceM2Override) : row.glue_price_per_m2;
+        glueCost = endpaperArea * gluePrice * circulation;
+      }
+      // Коэффициенты.
+      const formatCoef = (() => {
+        if (longSide <= 148) return row.coef_format_a5; // A6-A5
+        if (longSide <= 210) return row.coef_format_a5;
+        if (longSide <= 297) return row.coef_format_a4;
+        if (longSide <= 420) return row.coef_format_a3;
+        return row.coef_format_nonstandard;
+      })();
+      const thicknessCoef = blockThickness <= row.thickness_thin_max
+        ? row.coef_thickness_thin
+        : blockThickness <= row.thickness_med_max
+        ? row.coef_thickness_med
+        : blockThickness <= row.thickness_thick_max
+        ? row.coef_thickness_thick
+        : row.coef_thickness_extra;
+      const weightCoef = blockWeight <= 0 ? row.coef_weight_light
+        : blockWeight <= row.weight_light_max ? row.coef_weight_light
+        : blockWeight <= row.weight_med_max ? row.coef_weight_med
+        : blockWeight <= row.weight_heavy_max ? row.coef_weight_heavy
+        : row.coef_weight_extra;
+      const manualCoef = (biManualMethod || row.insertion_method === "manual") ? row.coef_manual : row.coef_standard;
+      const fabricCoef = (biFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+      const nonstdFmtCoef = longSide > 420 ? row.coef_nonstandard_format : 1;
+      const thickBlockCoef = blockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const complexCoef = biComplexAlign ? row.coef_complex_align : 1;
+      const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = formatCoef * thicknessCoef * weightCoef * manualCoef * fabricCoef * nonstdFmtCoef * thickBlockCoef * complexCoef * smallCircCoef;
+      const coef = biCoefOverride !== "" ? Math.max(0, Number(biCoefOverride)) : autoCoef;
+      const setup = biSetupOverride !== "" ? Number(biSetupOverride) : row.setup_cost;
+      const minCost = biMinOverride !== "" ? Number(biMinOverride) : row.min_cost;
+      const baseSum = insertionCost + glueCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (insertionCost > 0) {
+        items.push({ stage: "postpress", name: `Вставка блока в крышку — ${BLOCK_INSERTION_METHOD_LABEL[row.insertion_method] || row.insertion_method}`, quantity: circulation, unit: "шт", unitPrice: priceItem, total: insertionCost });
+      }
+      if (glueCost > 0) {
+        items.push({ stage: "postpress", name: `Вставка блока — клей (${glueMode === "per_m2" ? "по м²" : "за изделие"})`, quantity: circulation, unit: "шт", unitPrice: glueCost / Math.max(1, circulation), total: glueCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Вставка блока — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = baseSum * coef - baseSum;
+        items.push({ stage: "postpress", name: `Вставка блока — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Вставка блока — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      (items as any).__meta = { row, blockThickness, blockWeight, endpaperArea, priceItem, insertionCost, glueMode, glueCost, setup, coef, autoCoef, formatCoef, thicknessCoef, weightCoef, manualCoef, fabricCoef, nonstdFmtCoef, thickBlockCoef, complexCoef, smallCircCoef, baseSum, raw, total, minCost };
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
