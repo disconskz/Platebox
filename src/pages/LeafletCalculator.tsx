@@ -101,6 +101,17 @@ const FORM_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const BOOKLET_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "A3", label: "A3 (297×420)", type: "A3" },
+  { value: "DL", label: "DL (99×210)", type: "custom", w: 99, h: 210 },
+  { value: "210x210", label: "Квадрат 210×210", type: "custom", w: 210, h: 210 },
+  { value: "148x148", label: "Квадрат 148×148", type: "custom", w: 148, h: 148 },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
@@ -110,7 +121,7 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon" | "form";
+  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon" | "form" | "booklet";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
@@ -120,6 +131,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   const isInsert = mode === "insert";
   const isCoupon = mode === "coupon";
   const isForm = mode === "form";
+  const isBooklet = mode === "booklet";
   // Флаер/визитка/купон — без фальцовки/биговки/склейки. Еврофлаер/вкладыш/анкета — с фальцовкой.
   const hideFoldBlock = isFlyer || isCard || isCoupon;
   const FORMATS = isCard
@@ -128,16 +140,20 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       ? COUPON_FORMATS
       : isForm
       ? FORM_FORMATS
+      : isBooklet
+      ? BOOKLET_FORMATS
       : isInsert
       ? INSERT_FORMATS
       : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isCard ? "Визитка" : isCoupon ? "Купон" : isForm ? "Анкета" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+  const titleLabel = isCard ? "Визитка" : isCoupon ? "Купон" : isForm ? "Анкета" : isBooklet ? "Буклет" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
   const subtitle = isCard
     ? "Премиальная мелкоформатная продукция — акцент на постпечатные операции"
     : isCoupon
       ? "Купоны, талоны, билеты — обязательная перфорация, нумерация, QR/штрихкоды"
       : isForm
       ? "Анкеты и опросные листы — поддержка NCR, нумерации, скрепления и сборки в блок"
+      : isBooklet
+      ? "Буклеты и евробуклеты — обязательная биговка + фальцовка, поддержка сложных схем сгиба"
       : isInsert
       ? "Вкладыши и инструкции — акцент на фальцовку, автобиговка при плотной бумаге"
       : isEuro
@@ -145,11 +161,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       : isFlyer
         ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
         : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isCard ? 39 : isForm ? 43 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
+  const dorNum = isCard ? 39 : isBooklet ? 45 : isForm ? 43 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
   const [presetKey, setPresetKey] = useState<string>(
-    isCard ? "90x50" : isCoupon ? "70x150" : isForm ? "A4" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
+    isCard ? "90x50" : isCoupon ? "70x150" : isForm ? "A4" : isBooklet ? "A4" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
   );
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
@@ -220,9 +236,19 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   // Еврофлаер: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
   useEffect(() => {
     const density = Number(material?.density) || 0;
-    const threshold = isCard ? 300 : isEuro || isInsert ? 170 : Infinity;
-    if (optFold && density > threshold && !optBig) setOptBig(true);
-  }, [isCard, isEuro, isInsert, optFold, material?.density, optBig]);
+    const threshold = isCard ? 300 : isEuro || isInsert || isBooklet ? 170 : Infinity;
+    // Для буклета: биговка автоматически и при ламинации
+    if (optFold && (density > threshold || (isBooklet && optLam)) && !optBig) setOptBig(true);
+  }, [isCard, isEuro, isInsert, isBooklet, optFold, optLam, material?.density, optBig]);
+
+  // Буклет: фальцовка и биговка — обязательные операции, включаем по умолчанию.
+  useEffect(() => {
+    if (isBooklet) {
+      if (!optFold) setOptFold(true);
+      if (!optBig) setOptBig(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBooklet]);
 
   // Купон: перфорация — обязательная операция, включаем по умолчанию.
   useEffect(() => {
