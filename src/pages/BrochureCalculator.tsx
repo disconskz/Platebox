@@ -58,12 +58,13 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 ];
 
 export interface BrochureLikeProps {
-  mode?: "brochure" | "catalog" | "magazine" | "softcover";
+  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover";
 }
 
 export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
-  const isCatalog = mode === "catalog" || isSoftcover;
+  const isHardcover = mode === "hardcover";
+  const isCatalog = mode === "catalog" || isSoftcover || isHardcover;
   const isMagazine = mode === "magazine";
   const isCatalogLike = isCatalog || isMagazine;
   const BINDINGS = isCatalogLike ? [...BINDINGS_BASE, ...BINDINGS_CATALOG_EXTRA] : BINDINGS_BASE;
@@ -79,7 +80,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [colorCoverBack, setColorCoverBack] = useState(0);
   const [blockPaperKey, setBlockPaperKey] = useState(isCatalogLike ? "coated130" : "coated115");
   const [coverPaperKey, setCoverPaperKey] = useState(isCatalogLike ? "coated300" : "coated250");
-  const [bindingKind, setBindingKind] = useState<BindingKind>(isCatalog ? "kbs" : "staple");
+  const [bindingKind, setBindingKind] = useState<BindingKind>(isHardcover ? "sewn" : isCatalog ? "kbs" : "staple");
   const [printMode, setPrintMode] = useState<"auto" | "offset" | "digital">("auto");
   const [hasDesign, setHasDesign] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(false);
@@ -107,6 +108,16 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [optCoverBig, setOptCoverBig] = useState(true);
   const [optRound, setOptRound] = useState(false);
   const [roundCorners, setRoundCorners] = useState(4);
+
+  // Твёрдый переплёт: книжные операции
+  const [hcBoardThicknessMm, setHcBoardThicknessMm] = useState(2.5);
+  const [hcCoverMaterial, setHcCoverMaterial] = useState<"coated" | "designer" | "bumvinyl" | "fabric" | "leather" | "balacron">("bumvinyl");
+  const [hcOptLasse, setHcOptLasse] = useState(true);
+  const [hcOptEdgeColor, setHcOptEdgeColor] = useState(false);
+  const [hcOptEdgeFoil, setHcOptEdgeFoil] = useState(false);
+  const [hcOptSuperjacket, setHcOptSuperjacket] = useState(false);
+  const [hcOptSlipcase, setHcOptSlipcase] = useState(false);
+  const [hcOptShubr, setHcOptShubr] = useState(false);
 
   // Журнал: серия / выпуск / периодичность / вложения / адресация / термоусадка
   const [issueNumber, setIssueNumber] = useState("01");
@@ -317,6 +328,55 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     // Обрезка готового изделия (3 стороны)
     push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.5);
 
+    // ===== Твёрдый переплёт (книжные операции) =====
+    if (isHardcover) {
+      // Форзацы
+      push("Книжный блок", "Бумага форзацев (комплект)", circulation, "компл.", 8);
+      push("Книжный блок", "Приклейка форзацев", circulation, "шт.", 3.5);
+      // Марля
+      const marlyaMeters = +((coverLayout.spineMm + 40) * circulation / 1000).toFixed(2);
+      push("Книжный блок", "Марля (корешок)", marlyaMeters, "м", 35);
+      push("Книжный блок", "Приклейка марли", circulation, "шт.", 1.8);
+      // Каптал
+      const kaptalMeters = +((itemH * 2 + 20) * circulation / 1000).toFixed(2);
+      push("Книжный блок", "Каптал", kaptalMeters, "м", 40);
+      push("Книжный блок", "Установка каптала", circulation, "шт.", 1.2);
+      // Прессовка
+      push("Книжный блок", "Прессовка блока", circulation, "шт.", 2);
+
+      // Переплётная крышка: картон + покровный материал
+      const boardAreaM2 = +((itemW * itemH * 2 + coverLayout.spineMm * itemH) / 1_000_000 * circulation).toFixed(3);
+      push("Переплётная крышка", "Переплётный картон", boardAreaM2, "м²", 260);
+      push("Переплётная крышка", "Резка картона", circulation * 3, "дет.", 1.2);
+      const matPrice: Record<typeof hcCoverMaterial, number> = {
+        coated: 90, designer: 220, bumvinyl: 280, fabric: 520, leather: 1800, balacron: 360,
+      } as any;
+      push("Переплётная крышка", `Покровный материал: ${hcCoverMaterial}`, boardAreaM2, "м²", matPrice[hcCoverMaterial] ?? 280);
+      push("Переплётная крышка", "Кашировка крышки", boardAreaM2, "м²", 140 * premiumCoef);
+      push("Переплётная крышка", "Сборка переплётной крышки", circulation, "шт.", 12 * premiumCoef);
+      push("Переплётная крышка", "Вставка блока в крышку", circulation, "шт.", 8);
+      push("Переплётная крышка", "Финальная прессовка", circulation, "шт.", 2);
+
+      if (hcOptLasse) push("Премиум", "Ляссе (закладка)", circulation, "шт.", 2.5);
+      if (hcOptEdgeColor) push("Премиум", "Окрашивание среза", circulation, "шт.", 6);
+      if (hcOptEdgeFoil) push("Премиум", "Фольгирование среза", circulation, "шт.", 14);
+      if (hcOptSuperjacket) {
+        push("Суперобложка", "Печать суперобложки", circulation, "шт.", 12);
+        push("Суперобложка", "Ламинация суперобложки", circulation, "шт.", 6);
+        push("Суперобложка", "Резка суперобложки", circulation, "шт.", 1.5);
+      }
+      if (hcOptSlipcase) {
+        push("Футляр", "Картон футляра", circulation, "шт.", 35);
+        push("Футляр", "Кашировка футляра", circulation, "шт.", 18);
+        push("Футляр", "Сборка футляра", circulation, "шт.", 22);
+      }
+      if (hcOptShubr) {
+        push("Шубер", "Картон шубера", circulation, "шт.", 28);
+        push("Шубер", "Кашировка шубера", circulation, "шт.", 14);
+        push("Шубер", "Сборка шубера", circulation, "шт.", 18);
+      }
+    }
+
     // Журнал: вложения / адресация / термоусадка
     if (isMagazine && optInserts && insertCount > 0) {
       const pricePerInsert = insertAuto ? 1.2 : 2.5;
@@ -335,7 +395,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [isCatalog, isMagazine, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, hasDelivery, deliveryCost]);
+  }, [isCatalog, isMagazine, isHardcover, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, hasDelivery, deliveryCost]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -368,13 +428,23 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     if (signatures > 1 || bindingKind !== "staple") s.push("Подборка блока");
     s.push(`Скрепление: ${BINDINGS.find((b) => b.value === bindingKind)?.label}`);
     s.push("Обрезка готового изделия");
+    if (isHardcover) {
+      s.push("Форзацы", "Марля", "Каптал", "Прессовка блока");
+      s.push("Переплётный картон", "Резка картона", "Покровный материал", "Кашировка крышки", "Сборка переплётной крышки", "Вставка блока в крышку", "Финальная прессовка");
+      if (hcOptLasse) s.push("Ляссе");
+      if (hcOptEdgeColor) s.push("Окрашивание среза");
+      if (hcOptEdgeFoil) s.push("Фольгирование среза");
+      if (hcOptSuperjacket) s.push("Суперобложка (отд. маршрут)");
+      if (hcOptSlipcase) s.push("Футляр (отд. маршрут)");
+      if (hcOptShubr) s.push("Шубер (отд. маршрут)");
+    }
     if (isMagazine && optInserts) s.push("Вкладка");
     if (isMagazine && optAddress) s.push("Адресация");
     if (isMagazine && optShrink) s.push("Термоусадка");
     s.push("Контроль качества", "Упаковка");
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, optInserts, optAddress, optShrink, hasDelivery, BINDINGS]);
+  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isHardcover, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, hasDelivery, BINDINGS]);
 
   return (
     <PageShell>
@@ -386,9 +456,13 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
               <p className="text-[11px] text-muted-foreground truncate">
-                {isMagazine
+                {isHardcover
+                  ? "Hardcover 7БЦ/7Б — книжный блок, форзацы, марля, каптал, сборка крышки и вставка"
+                  : isSoftcover
+                  ? "Paperback / softcover — книжный блок, расчёт корешка, КБС/шитьё"
+                  : isMagazine
                   ? "Периодическое издание — выпуски, вложения, адресация, термоусадка"
                   : isCatalog
                   ? "Премиальный многостраничный каталог — КБС/шитьё, премиальная обложка, премиум-постпечать"
@@ -396,7 +470,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка {isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
@@ -587,8 +661,42 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                 </Card>
               )}
 
+              {isHardcover && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">5. Переплётная крышка и премиум</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label>Покровный материал</Label>
+                      <Select value={hcCoverMaterial} onValueChange={(v) => setHcCoverMaterial(v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="coated">Мелованная бумага</SelectItem>
+                          <SelectItem value="designer">Дизайнерская бумага</SelectItem>
+                          <SelectItem value="bumvinyl">Бумвинил</SelectItem>
+                          <SelectItem value="fabric">Ткань</SelectItem>
+                          <SelectItem value="leather">Кожа</SelectItem>
+                          <SelectItem value="balacron">Балакрон</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Толщина картона, мм</Label>
+                      <Input type="number" step={0.1} value={hcBoardThicknessMm} onChange={(e) => setHcBoardThicknessMm(+e.target.value || 0)} />
+                    </div>
+                    <div className="sm:col-span-2 space-y-2 text-sm">
+                      <Row label="Ляссе" checked={hcOptLasse} onChange={setHcOptLasse} />
+                      <Row label="Окрашивание среза" checked={hcOptEdgeColor} onChange={setHcOptEdgeColor} />
+                      <Row label="Фольгирование среза" checked={hcOptEdgeFoil} onChange={setHcOptEdgeFoil} />
+                      <Row label="Суперобложка (отд. маршрут)" checked={hcOptSuperjacket} onChange={setHcOptSuperjacket} />
+                      <Row label="Футляр (отд. маршрут)" checked={hcOptSlipcase} onChange={setHcOptSlipcase} />
+                      <Row label="Шубер (отд. маршрут)" checked={hcOptShubr} onChange={setHcOptShubr} />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
-                <CardHeader><CardTitle className="text-sm">5. Упаковка и доставка</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">{isHardcover ? "6" : "5"}. Упаковка и доставка</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="flex items-end gap-2">
                     <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />
