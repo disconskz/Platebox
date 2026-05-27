@@ -472,6 +472,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                       </SelectContent>
                     </Select>
                   </Row>
+                  <Row label="Soft-touch плёнка (премиум)" checked={optSoftTouch} onChange={setOptSoftTouch} />
                   <Row label="Биговка обложки (авто при ламинации/плотной)" checked={optCoverBig} onChange={setOptCoverBig} />
                   <Row label="Лак (УФ/ВД)" checked={optVarnish} onChange={setOptVarnish} />
                   <Row label="Выборочный лак (+ подготовка/приладка)" checked={optSpotVarnish} onChange={setOptSpotVarnish} />
@@ -492,6 +493,15 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                   </Row>
                   <Row label="Высечка обложки" checked={optDieCut} onChange={setOptDieCut} />
                   <Row label="Удаление облоя (авто после высечки)" checked={optDeflash} onChange={setOptDeflash} />
+                  <Row label="Скругление углов" checked={optRound} onChange={setOptRound}>
+                    <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(+e.target.value || 1)} />
+                    <span className="text-xs text-muted-foreground">угла</span>
+                  </Row>
+                  {isCatalog && (
+                    <div className="text-xs text-muted-foreground pt-1">
+                      Коэф. сложности обложки: <span className="font-medium">×{premiumCoef.toFixed(2)}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
