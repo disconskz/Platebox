@@ -754,6 +754,47 @@ const CASING_COVER_LABEL: Record<string, string> = {
   leatherette: "Кожзам",
   printed: "Печатная обложка",
 };
+// Доработка 24: сборка переплётной крышки.
+type CoverAssemblyRow = {
+  id: string;
+  name: string;
+  assembly_method: string;        // manual | semi_auto | auto
+  cover_material_type: string;    // paper | designer_paper | fabric | leatherette | printed
+  calc_mode: "per_m2" | "per_item" | "combined";
+  price_per_m2: number;
+  price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  gap_left: number;
+  gap_right: number;
+  fold_left: number;
+  fold_right: number;
+  fold_top: number;
+  fold_bottom: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_manual: number;
+  coef_fabric_leatherette: number;
+  coef_large_format: number;
+  coef_thick_board: number;
+  coef_complex_material: number;
+  coef_small_circulation: number;
+  large_format_threshold: number;
+  thick_board_threshold: number;
+  small_circulation_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  max_board_thickness: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const COVER_ASM_METHOD_LABEL: Record<string, string> = {
+  manual: "Ручная",
+  semi_auto: "Полуавтомат",
+  auto: "Автомат",
+};
 // Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
 function bestFitOnSheet(
   partW: number, partH: number,
