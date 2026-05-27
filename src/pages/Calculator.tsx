@@ -1860,6 +1860,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load rigel_prices failed", e);
       }
+      // Доработка 34: справочник «Тиснение».
+      try {
+        const emR = await (supabase as any)
+          .from("embossing_prices")
+          .select("*")
+          .order("sort_order");
+        setEmbossRows(((emR.data as EmbossingRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load embossing_prices failed", e);
+      }
       // Доработка 21: справочник переплётного картона.
       try {
         const bdR = await (supabase as any)
