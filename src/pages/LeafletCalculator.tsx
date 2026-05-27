@@ -236,9 +236,19 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   // Еврофлаер: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
   useEffect(() => {
     const density = Number(material?.density) || 0;
-    const threshold = isCard ? 300 : isEuro || isInsert ? 170 : Infinity;
-    if (optFold && density > threshold && !optBig) setOptBig(true);
-  }, [isCard, isEuro, isInsert, optFold, material?.density, optBig]);
+    const threshold = isCard ? 300 : isEuro || isInsert || isBooklet ? 170 : Infinity;
+    // Для буклета: биговка автоматически и при ламинации
+    if (optFold && (density > threshold || (isBooklet && optLam)) && !optBig) setOptBig(true);
+  }, [isCard, isEuro, isInsert, isBooklet, optFold, optLam, material?.density, optBig]);
+
+  // Буклет: фальцовка и биговка — обязательные операции, включаем по умолчанию.
+  useEffect(() => {
+    if (isBooklet) {
+      if (!optFold) setOptFold(true);
+      if (!optBig) setOptBig(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBooklet]);
 
   // Купон: перфорация — обязательная операция, включаем по умолчанию.
   useEffect(() => {
