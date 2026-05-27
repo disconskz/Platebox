@@ -71,6 +71,7 @@ const App = () => (
               <Route path="/calculator/form" element={<FormCalculator />} />
               <Route path="/calculator/menu" element={<MenuCalculator />} />
               <Route path="/calculator/booklet" element={<BookletCalculator />} />
+              <Route path="/calculator/eurobooklet" element={<EurobookletCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
