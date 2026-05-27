@@ -795,6 +795,20 @@ const Calculator = () => {
   const [epNeedsPrintOverride, setEpNeedsPrintOverride] = useState<"" | "yes" | "no">("");
   const [epManualGlue, setEpManualGlue] = useState(false);
 
+  // Доработка 17: марля.
+  const [gauzeRows, setGauzeRows] = useState<GauzeRow[]>([]);
+  const [gzEnabled, setGzEnabled] = useState(false);
+  const [gzManualId, setGzManualId] = useState<string | null>(null);
+  const [gzWidthOverride, setGzWidthOverride] = useState<number | "">("");
+  const [gzHeightOverride, setGzHeightOverride] = useState<number | "">("");
+  const [gzSpineWidthOverride, setGzSpineWidthOverride] = useState<number | "">("");
+  const [gzPriceOverride, setGzPriceOverride] = useState<number | "">("");
+  const [gzGluePriceOverride, setGzGluePriceOverride] = useState<number | "">("");
+  const [gzCoefOverride, setGzCoefOverride] = useState<number | "">("");
+  const [gzSetupOverride, setGzSetupOverride] = useState<number | "">("");
+  const [gzMinOverride, setGzMinOverride] = useState<number | "">("");
+  const [gzManualGlue, setGzManualGlue] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
