@@ -143,6 +143,8 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   const hideFoldBlock = isFlyer || isCard || isCoupon;
   const FORMATS = isCard
     ? BUSINESSCARD_FORMATS
+    : isEurobooklet
+    ? EUROBOOKLET_FORMATS
     : isCoupon
       ? COUPON_FORMATS
       : isForm
@@ -152,9 +154,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       : isInsert
       ? INSERT_FORMATS
       : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isCard ? "Визитка" : isCoupon ? "Купон" : isForm ? "Анкета" : isBooklet ? "Буклет" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+  const titleLabel = isCard ? "Визитка" : isEurobooklet ? "Евробуклет" : isCoupon ? "Купон" : isForm ? "Анкета" : isBooklet ? "Буклет" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
   const subtitle = isCard
     ? "Премиальная мелкоформатная продукция — акцент на постпечатные операции"
+    : isEurobooklet
+    ? "Рекламный евробуклет — фиксированный евроформат, обязательная биговка + еврофальц"
     : isCoupon
       ? "Купоны, талоны, билеты — обязательная перфорация, нумерация, QR/штрихкоды"
       : isForm
@@ -168,7 +172,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       : isFlyer
         ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
         : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isCard ? 39 : isBooklet ? 45 : isForm ? 43 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
+  const dorNum = isCard ? 39 : isEurobooklet ? 46 : isBooklet ? 45 : isForm ? 43 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
   const [presetKey, setPresetKey] = useState<string>(
