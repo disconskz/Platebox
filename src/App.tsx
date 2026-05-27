@@ -27,6 +27,7 @@ import LifletCalculator from "./pages/LifletCalculator.tsx";
 import BrochureCalculator from "./pages/BrochureCalculator.tsx";
 import CatalogCalculator from "./pages/CatalogCalculator.tsx";
 import MagazineCalculator from "./pages/MagazineCalculator.tsx";
+import SoftcoverBookCalculator from "./pages/SoftcoverBookCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="/calculator/brochure" element={<BrochureCalculator />} />
               <Route path="/calculator/catalog" element={<CatalogCalculator />} />
               <Route path="/calculator/magazine" element={<MagazineCalculator />} />
+              <Route path="/calculator/softcover-book" element={<SoftcoverBookCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
