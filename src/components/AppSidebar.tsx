@@ -20,6 +20,7 @@ const main = [
   { title: "Расчёты", url: "/app", icon: LayoutGrid, exact: true },
   { title: "Новый расчёт", url: "/calculator", icon: Plus },
   { title: "Шаблон: Листовка", url: "/calculator/leaflet", icon: FileText },
+  { title: "Шаблон: Флаер", url: "/calculator/flyer", icon: FileText },
   { title: "Групповой спуск", url: "/calculator/multi-sku", icon: Layers },
   { title: "ИИ-расчёт", url: "/ai-calc", icon: Sparkles },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },
