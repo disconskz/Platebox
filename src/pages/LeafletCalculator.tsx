@@ -143,11 +143,14 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
 
   const material = useMemo(() => materials.find((m) => m.id === materialId), [materials, materialId]);
 
+  const preset = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [FORMATS, presetKey]);
+  const formatType: FormatType = preset.type;
   const itemSize = useMemo(() => {
-    if (formatType === "custom") return { w: customW, h: customH };
-    const p = FORMAT_PRESETS[formatType];
+    if (preset.w && preset.h) return { w: preset.w, h: preset.h };
+    if (preset.type === "custom") return { w: customW, h: customH };
+    const p = FORMAT_PRESETS[preset.type];
     return p ? { w: p.w, h: p.h } : { w: customW, h: customH };
-  }, [formatType, customW, customH]);
+  }, [preset, customW, customH]);
 
   const calc = useMemo(() => {
     if (!material) return null;
