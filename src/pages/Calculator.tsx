@@ -2487,6 +2487,45 @@ const Calculator = () => {
     circulation,
   ]);
 
+  // Доработка 32: ряд «Удаление облоя».
+  const flashItems = useMemo(() => {
+    if (!flashEnabled) return [] as any[];
+    const active = flashRows.filter((r) => (r as any).is_active !== false);
+    const rule = (flashManualId ? flashRows.find((r) => r.id === flashManualId) : active[0]) as FlashRemovalRule | undefined;
+    if (!rule) return [];
+    const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+    const itemsPerSheet = (baseResult && !("error" in baseResult)) ? (baseResult.layout?.itemsPerSheet ?? 0) : 0;
+    const r = calcFlashRemoval(rule, {
+      printSheets,
+      itemsPerSheet,
+      contour: flashContour,
+      material: flashMaterial,
+      bridgesPerItem: flashBridges,
+      totalTimeHours: flashTotalHours !== "" ? Number(flashTotalHours) : undefined,
+      calcModeOverride: flashCalcModeOverride || undefined,
+      pricePerItemOverride: flashPriceItemOverride !== "" ? Number(flashPriceItemOverride) : undefined,
+      pricePerSheetOverride: flashPriceSheetOverride !== "" ? Number(flashPriceSheetOverride) : undefined,
+      pricePerHourOverride: flashPriceHourOverride !== "" ? Number(flashPriceHourOverride) : undefined,
+      contourCoefOverride: flashContourCoefOverride !== "" ? Number(flashContourCoefOverride) : undefined,
+      materialCoefOverride: flashMaterialCoefOverride !== "" ? Number(flashMaterialCoefOverride) : undefined,
+      bridgesCoefOverride: flashBridgesCoefOverride !== "" ? Number(flashBridgesCoefOverride) : undefined,
+      methodCoefOverride: flashMethodCoefOverride !== "" ? Number(flashMethodCoefOverride) : undefined,
+      setupOverride: flashSetupOverride !== "" ? Number(flashSetupOverride) : undefined,
+      minCostOverride: flashMinCostOverride !== "" ? Number(flashMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Удаление облоя (${rule.name || rule.product_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    flashEnabled, flashRows, flashManualId, baseResult,
+    flashCalcModeOverride, flashContour, flashMaterial, flashBridges, flashTotalHours,
+    flashPriceItemOverride, flashPriceSheetOverride, flashPriceHourOverride,
+    flashContourCoefOverride, flashMaterialCoefOverride, flashBridgesCoefOverride, flashMethodCoefOverride,
+    flashSetupOverride, flashMinCostOverride,
+  ]);
+
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
