@@ -2619,6 +2619,40 @@ const Calculator = () => {
     rigelCoefOverride, rigelSetupOverride, rigelMinCostOverride,
   ]);
 
+  // Доработка 34: ряд «Тиснение».
+  const embossItems = useMemo(() => {
+    if (!embossEnabled) return [] as any[];
+    const active = embossRows.filter((r) => (r as any).is_active !== false);
+    const rule = (embossManualId ? embossRows.find((r) => r.id === embossManualId) : active[0]) as EmbossingRule | undefined;
+    if (!rule) return [];
+    const r = calcEmbossing(rule, {
+      circulation,
+      clicheWidthCm: Number(embossWidthCm) || 0,
+      clicheHeightCm: Number(embossHeightCm) || 0,
+      leather: embossLeather,
+      complexPosition: embossComplexPos,
+      usesFoilOverride: embossUsesFoilOverride === "" ? undefined : embossUsesFoilOverride === "yes",
+      clicheCostOverride: embossClicheCostOverride !== "" ? Number(embossClicheCostOverride) : undefined,
+      clichePricePerCm2Override: embossClichePriceOverride !== "" ? Number(embossClichePriceOverride) : undefined,
+      setupOverride: embossSetupOverride !== "" ? Number(embossSetupOverride) : undefined,
+      pricePerImpressionOverride: embossPriceImpOverride !== "" ? Number(embossPriceImpOverride) : undefined,
+      foilPricePerCm2Override: embossFoilPriceOverride !== "" ? Number(embossFoilPriceOverride) : undefined,
+      complexityCoefOverride: embossCoefOverride !== "" ? Number(embossCoefOverride) : undefined,
+      minCostOverride: embossMinCostOverride !== "" ? Number(embossMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Тиснение (${rule.name || rule.embossing_type}${r.usesFoil ? `, ${rule.foil_type}` : ", без фольги"})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    embossEnabled, embossRows, embossManualId, circulation,
+    embossWidthCm, embossHeightCm, embossLeather, embossComplexPos,
+    embossUsesFoilOverride, embossClicheCostOverride, embossClichePriceOverride,
+    embossSetupOverride, embossPriceImpOverride, embossFoilPriceOverride,
+    embossCoefOverride, embossMinCostOverride,
+  ]);
+
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
