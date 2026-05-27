@@ -20,6 +20,7 @@ import { VARIABLE_KEYS } from "@/lib/calc/variants/types";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { calcPerforation, type PerforationRule, type PerforationCalcMode } from "@/lib/calc/perforation";
 import { calcTape, type TapeRule, type TapeCalcMode } from "@/lib/calc/tape";
+import { calcWindow, type WindowRule, type WindowCalcMode, type WindowShape } from "@/lib/calc/window";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
