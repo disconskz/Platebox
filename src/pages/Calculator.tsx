@@ -23,6 +23,7 @@ import { calcTape, type TapeRule, type TapeCalcMode } from "@/lib/calc/tape";
 import { calcWindow, type WindowRule, type WindowCalcMode, type WindowShape } from "@/lib/calc/window";
 import { calcFlashRemoval, type FlashRemovalRule, type FlashRemovalCalcMode, type FlashContour, type FlashMaterial } from "@/lib/calc/flash_removal";
 import { calcRigel, type RigelRule, type RigelCalcMode } from "@/lib/calc/rigel";
+import { calcEmbossing, type EmbossingRule, type EmbossingType } from "@/lib/calc/embossing";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
