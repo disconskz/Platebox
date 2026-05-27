@@ -611,6 +611,63 @@ const TRIM_DEFAULT_CUTS: Record<string, number> = {
   three_sided: 3, one_sided: 1, two_sided: 2, figured: 3, manual: 3, auto: 3,
 };
 
+// Доработка 21: справочник переплётного картона.
+type BindingCardboardRow = {
+  id: string;
+  name: string;
+  board_type: string;            // chipboard | grey | designer
+  board_thickness: number;       // мм
+  calc_mode: string;             // per_m2 | per_sheet | per_cover
+  price_per_m2: number;
+  price_per_sheet: number;
+  price_per_cover: number;
+  sheet_width: number;
+  sheet_height: number;
+  width_allowance: number;
+  height_allowance: number;
+  spine_allowance: number;
+  sides_per_item: number;
+  spines_per_item: number;
+  gap_between: number;
+  edge_margin: number;
+  cuts_per_sheet: number;
+  price_per_cut: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_thick_board: number;
+  coef_manual_cut: number;
+  coef_complex_layout: number;
+  coef_designer_board: number;
+  thick_board_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const BOARD_TYPE_LABEL: Record<string, string> = {
+  chipboard: "Переплётный (стружечный)",
+  grey: "Серый каландр.",
+  designer: "Дизайнерский",
+};
+// Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
+function bestFitOnSheet(
+  partW: number, partH: number,
+  sheetW: number, sheetH: number,
+  gap: number, margin: number,
+): number {
+  if (partW <= 0 || partH <= 0 || sheetW <= 0 || sheetH <= 0) return 0;
+  const usableW = sheetW - 2 * margin;
+  const usableH = sheetH - 2 * margin;
+  if (usableW <= 0 || usableH <= 0) return 0;
+  const f1 = Math.max(0, Math.floor((usableW + gap) / (partW + gap)))
+    * Math.max(0, Math.floor((usableH + gap) / (partH + gap)));
+  const f2 = Math.max(0, Math.floor((usableW + gap) / (partH + gap)))
+    * Math.max(0, Math.floor((usableH + gap) / (partW + gap)));
+  return Math.max(f1, f2);
+}
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
@@ -999,6 +1056,25 @@ const Calculator = () => {
   const [trMinOverride, setTrMinOverride] = useState<number | "">("");
   const [trManualTrim, setTrManualTrim] = useState(false);
   const [trDesignerPaper, setTrDesignerPaper] = useState(false);
+  // Доработка 21: переплётный картон.
+  const [boardRows, setBoardRows] = useState<BindingCardboardRow[]>([]);
+  const [bdEnabled, setBdEnabled] = useState(false);
+  const [bdManualId, setBdManualId] = useState<string | null>(null);
+  const [bdCalcModeOverride, setBdCalcModeOverride] = useState<"" | "per_m2" | "per_sheet" | "per_cover">("");
+  const [bdSideWidthOverride, setBdSideWidthOverride] = useState<number | "">("");
+  const [bdSideHeightOverride, setBdSideHeightOverride] = useState<number | "">("");
+  const [bdSpineWidthOverride, setBdSpineWidthOverride] = useState<number | "">("");
+  const [bdPriceM2Override, setBdPriceM2Override] = useState<number | "">("");
+  const [bdPriceSheetOverride, setBdPriceSheetOverride] = useState<number | "">("");
+  const [bdPriceCoverOverride, setBdPriceCoverOverride] = useState<number | "">("");
+  const [bdCutsOverride, setBdCutsOverride] = useState<number | "">("");
+  const [bdPriceCutOverride, setBdPriceCutOverride] = useState<number | "">("");
+  const [bdCoefOverride, setBdCoefOverride] = useState<number | "">("");
+  const [bdSetupOverride, setBdSetupOverride] = useState<number | "">("");
+  const [bdMinOverride, setBdMinOverride] = useState<number | "">("");
+  const [bdManualCut, setBdManualCut] = useState(false);
+  const [bdComplexLayout, setBdComplexLayout] = useState(false);
+  const [bdDesignerBoard, setBdDesignerBoard] = useState(false);
 
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
@@ -1219,6 +1295,16 @@ const Calculator = () => {
         setTrimRows(((trR.data as BlockTrimmingRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load block_trimming_prices failed", e);
+      }
+      // Доработка 21: справочник переплётного картона.
+      try {
+        const bdR = await (supabase as any)
+          .from("binding_cardboard_prices")
+          .select("*")
+          .order("sort_order");
+        setBoardRows(((bdR.data as BindingCardboardRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load binding_cardboard_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -2754,7 +2840,104 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems];
+    // Доработка 21: переплётный картон.
+    const boardItems: SpecItem[] = (() => {
+      if (!bdEnabled || !(circulation > 0)) return [];
+      if (!boardRows.length) return [];
+      const active = boardRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const fits = (r: BindingCardboardRow) =>
+        longSide <= r.max_format_long && shortSide >= r.min_format_short;
+      const row = (bdManualId && active.find((r) => r.id === bdManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + row.width_allowance;
+      const sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + row.height_allowance;
+      const spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBlockThickness + row.spine_allowance;
+      const spineH = sideH;
+      const sidesPerItem = row.sides_per_item;
+      const spinesPerItem = row.spines_per_item;
+      const sideAreaM2 = (sideW * sideH) / 1_000_000;
+      const spineAreaM2 = (spineW * spineH) / 1_000_000;
+      const coverAreaM2 = sideAreaM2 * sidesPerItem + spineAreaM2 * spinesPerItem;
+      const totalAreaM2 = coverAreaM2 * circulation;
+      const totalSides = sidesPerItem * circulation;
+      const totalSpines = spinesPerItem * circulation;
+      const sidesPerSheet = bestFitOnSheet(sideW, sideH, row.sheet_width, row.sheet_height, row.gap_between, row.edge_margin);
+      const spinesPerSheet = bestFitOnSheet(spineW, spineH, row.sheet_width, row.sheet_height, row.gap_between, row.edge_margin);
+      const sheetsForSides = sidesPerSheet > 0 ? Math.ceil(totalSides / sidesPerSheet) : 0;
+      const sheetsForSpines = spinesPerSheet > 0 ? Math.ceil(totalSpines / spinesPerSheet) : 0;
+      const totalSheets = sheetsForSides + sheetsForSpines;
+      const mode = bdCalcModeOverride || row.calc_mode;
+      let materialCost = 0;
+      if (mode === "per_sheet") {
+        const ps = bdPriceSheetOverride !== "" ? Number(bdPriceSheetOverride) : row.price_per_sheet;
+        materialCost = totalSheets * ps;
+      } else if (mode === "per_cover") {
+        const pc = bdPriceCoverOverride !== "" ? Number(bdPriceCoverOverride) : row.price_per_cover;
+        materialCost = circulation * pc;
+      } else {
+        const pm = bdPriceM2Override !== "" ? Number(bdPriceM2Override) : row.price_per_m2;
+        materialCost = totalAreaM2 * pm;
+      }
+      const cuts = bdCutsOverride !== "" ? Number(bdCutsOverride) : row.cuts_per_sheet;
+      const priceCut = bdPriceCutOverride !== "" ? Number(bdPriceCutOverride) : row.price_per_cut;
+      const cutCost = (totalSheets > 0 ? totalSheets : circulation) * cuts * priceCut;
+      const formatCoef = (longSide <= 297 ? row.coef_standard_format : row.coef_nonstandard_format);
+      const thickBoardCoef = row.board_thickness >= row.thick_board_threshold ? row.coef_thick_board : 1;
+      const manualCoef = bdManualCut ? row.coef_manual_cut : 1;
+      const complexCoef = bdComplexLayout ? row.coef_complex_layout : 1;
+      const designerCoef = (bdDesignerBoard || row.board_type === "designer") ? row.coef_designer_board : 1;
+      const autoCoef = formatCoef * thickBoardCoef * manualCoef * complexCoef * designerCoef;
+      const coef = bdCoefOverride !== "" ? Math.max(0, Number(bdCoefOverride)) : autoCoef;
+      const setup = bdSetupOverride !== "" ? Number(bdSetupOverride) : row.setup_cost;
+      const minCost = bdMinOverride !== "" ? Number(bdMinOverride) : row.min_cost;
+      const baseSum = materialCost + cutCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (materialCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Переплётный картон — ${BOARD_TYPE_LABEL[row.board_type] || row.board_type} ${row.board_thickness} мм (${mode === "per_sheet" ? "по листам" : mode === "per_cover" ? "за крышку" : "по м²"})`,
+          quantity: mode === "per_sheet" ? totalSheets : mode === "per_cover" ? circulation : Number(totalAreaM2.toFixed(3)),
+          unit: mode === "per_sheet" ? "лист" : mode === "per_cover" ? "шт" : "м²",
+          unitPrice: materialCost / Math.max(1, mode === "per_sheet" ? totalSheets : mode === "per_cover" ? circulation : totalAreaM2),
+          total: materialCost,
+        });
+      }
+      if (cutCost > 0) {
+        items.push({ stage: "postpress", name: `Переплётный картон — резка (${cuts} реза × ${priceCut} ₸)`, quantity: 1, unit: "шт", unitPrice: cutCost, total: cutCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Переплётный картон — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = baseSum * coef - baseSum;
+        items.push({ stage: "postpress", name: `Переплётный картон — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Переплётный картон — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -2947,7 +3130,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5758,6 +5941,219 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(тираж × резы × цена реза × коэф) + приладка</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. По умолчанию резов = 3 (верх/низ/перед).
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 21: Переплётный картон */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={bdEnabled} onCheckedChange={(v) => setBdEnabled(!!v)} id="bd" />
+                        <Label htmlFor="bd" className="flex-1 font-medium">Переплётный картон</Label>
+                        <Select
+                          value={bdManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setBdManualId(v === "auto" ? null : v);
+                            setBdCalcModeOverride(""); setBdSideWidthOverride(""); setBdSideHeightOverride(""); setBdSpineWidthOverride("");
+                            setBdPriceM2Override(""); setBdPriceSheetOverride(""); setBdPriceCoverOverride("");
+                            setBdCutsOverride(""); setBdPriceCutOverride(""); setBdCoefOverride(""); setBdSetupOverride(""); setBdMinOverride("");
+                          }}
+                          disabled={!bdEnabled || boardRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по формату/толщине)</SelectItem>
+                            {boardRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {bdEnabled && (() => {
+                        if (!boardRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Переплётный картон» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = boardRows.filter((r) => r.is_active !== false);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBlockThickness = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const fits = (r: BindingCardboardRow) =>
+                          longSide <= r.max_format_long && shortSide >= r.min_format_short;
+                        const row = (bdManualId && active.find((r) => r.id === bdManualId))
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + row.width_allowance;
+                        const sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + row.height_allowance;
+                        const spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBlockThickness + row.spine_allowance;
+                        const spineH = sideH;
+                        const sideArea = (sideW * sideH) / 1_000_000;
+                        const spineArea = (spineW * spineH) / 1_000_000;
+                        const coverArea = sideArea * row.sides_per_item + spineArea * row.spines_per_item;
+                        const totalArea = coverArea * circulation;
+                        const totalSides = row.sides_per_item * circulation;
+                        const totalSpines = row.spines_per_item * circulation;
+                        const sidesPerSheet = bestFitOnSheet(sideW, sideH, row.sheet_width, row.sheet_height, row.gap_between, row.edge_margin);
+                        const spinesPerSheet = bestFitOnSheet(spineW, spineH, row.sheet_width, row.sheet_height, row.gap_between, row.edge_margin);
+                        const sheetsForSides = sidesPerSheet > 0 ? Math.ceil(totalSides / sidesPerSheet) : 0;
+                        const sheetsForSpines = spinesPerSheet > 0 ? Math.ceil(totalSpines / spinesPerSheet) : 0;
+                        const totalSheets = sheetsForSides + sheetsForSpines;
+                        const mode = bdCalcModeOverride || row.calc_mode;
+                        const pm2 = bdPriceM2Override !== "" ? Number(bdPriceM2Override) : row.price_per_m2;
+                        const psheet = bdPriceSheetOverride !== "" ? Number(bdPriceSheetOverride) : row.price_per_sheet;
+                        const pcover = bdPriceCoverOverride !== "" ? Number(bdPriceCoverOverride) : row.price_per_cover;
+                        const materialCost = mode === "per_sheet" ? totalSheets * psheet
+                          : mode === "per_cover" ? circulation * pcover
+                          : totalArea * pm2;
+                        const cuts = bdCutsOverride !== "" ? Number(bdCutsOverride) : row.cuts_per_sheet;
+                        const priceCut = bdPriceCutOverride !== "" ? Number(bdPriceCutOverride) : row.price_per_cut;
+                        const cutCost = (totalSheets > 0 ? totalSheets : circulation) * cuts * priceCut;
+                        const formatCoef = longSide <= 297 ? row.coef_standard_format : row.coef_nonstandard_format;
+                        const thickBoardCoef = row.board_thickness >= row.thick_board_threshold ? row.coef_thick_board : 1;
+                        const manualCoef = bdManualCut ? row.coef_manual_cut : 1;
+                        const complexCoef = bdComplexLayout ? row.coef_complex_layout : 1;
+                        const designerCoef = (bdDesignerBoard || row.board_type === "designer") ? row.coef_designer_board : 1;
+                        const autoCoef = formatCoef * thickBoardCoef * manualCoef * complexCoef * designerCoef;
+                        const coef = bdCoefOverride !== "" ? Math.max(0, Number(bdCoefOverride)) : autoCoef;
+                        const setup = bdSetupOverride !== "" ? Number(bdSetupOverride) : row.setup_cost;
+                        const minCost = bdMinOverride !== "" ? Number(bdMinOverride) : row.min_cost;
+                        const baseSum = materialCost + cutCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                                <Select value={bdCalcModeOverride || row.calc_mode} onValueChange={(v) => setBdCalcModeOverride(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="per_m2">По м²</SelectItem>
+                                    <SelectItem value="per_sheet">По листам</SelectItem>
+                                    <SelectItem value="per_cover">За крышку</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сторонка ширина, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={bdSideWidthOverride === "" ? Number(sideW.toFixed(1)) : bdSideWidthOverride}
+                                  onChange={(e) => setBdSideWidthOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сторонка высота, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={bdSideHeightOverride === "" ? Number(sideH.toFixed(1)) : bdSideHeightOverride}
+                                  onChange={(e) => setBdSideHeightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Отстав ширина, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={bdSpineWidthOverride === "" ? Number(spineW.toFixed(1)) : bdSpineWidthOverride}
+                                  onChange={(e) => setBdSpineWidthOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена, ₸/м²</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={bdPriceM2Override === "" ? row.price_per_m2 : bdPriceM2Override}
+                                  onChange={(e) => setBdPriceM2Override(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена листа, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={bdPriceSheetOverride === "" ? row.price_per_sheet : bdPriceSheetOverride}
+                                  onChange={(e) => setBdPriceSheetOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена крышки, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={bdPriceCoverOverride === "" ? row.price_per_cover : bdPriceCoverOverride}
+                                  onChange={(e) => setBdPriceCoverOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Кол-во резов</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={bdCutsOverride === "" ? row.cuts_per_sheet : bdCutsOverride}
+                                  onChange={(e) => setBdCutsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена реза, ₸</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={bdPriceCutOverride === "" ? row.price_per_cut : bdPriceCutOverride}
+                                  onChange={(e) => setBdPriceCutOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={bdCoefOverride === "" ? Number(autoCoef.toFixed(3)) : bdCoefOverride}
+                                  onChange={(e) => setBdCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={bdSetupOverride === "" ? row.setup_cost : bdSetupOverride}
+                                  onChange={(e) => setBdSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={bdMinOverride === "" ? row.min_cost : bdMinOverride}
+                                  onChange={(e) => setBdMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bd-manual" checked={bdManualCut} onCheckedChange={(v) => setBdManualCut(!!v)} />
+                                <Label htmlFor="bd-manual" className="text-[12px]">Ручная резка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bd-cx" checked={bdComplexLayout} onCheckedChange={(v) => setBdComplexLayout(!!v)} />
+                                <Label htmlFor="bd-cx" className="text-[12px]">Сложная раскладка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bd-des" checked={bdDesignerBoard} onCheckedChange={(v) => setBdDesignerBoard(!!v)} />
+                                <Label htmlFor="bd-des" className="text-[12px]">Дизайнерский картон</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({BOARD_TYPE_LABEL[row.board_type] || row.board_type}, {row.board_thickness} мм)
+                              </div>
+                              <div>
+                                Блок: <b>{dims.w}×{dims.h} мм</b> · корешок <b>{autoBlockThickness.toFixed(1)} мм</b>; сторонки <b>{sideW.toFixed(1)}×{sideH.toFixed(1)}</b> · отстав <b>{spineW.toFixed(1)}×{spineH.toFixed(1)}</b>
+                              </div>
+                              <div>
+                                Раскладка на листе {row.sheet_width}×{row.sheet_height}: сторонок <b>{sidesPerSheet}</b>/лист → <b>{sheetsForSides}</b> л., отстава <b>{spinesPerSheet}</b>/лист → <b>{sheetsForSpines}</b> л., всего <b>{totalSheets}</b> л.
+                              </div>
+                              <div>
+                                Площадь крышки <b>{coverArea.toFixed(4)} м²</b> · тираж <b>{totalArea.toFixed(2)} м²</b>
+                              </div>
+                              <div>
+                                Материал: <b>{Math.round(materialCost).toLocaleString("ru-RU")} ₸</b> · резка: <b>{Math.round(cutCost).toLocaleString("ru-RU")} ₸</b> · приладка: <b>{setup} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × толст. {thickBoardCoef} × ручн. {manualCoef} × раскл. {complexCoef} × дизайн. {designerCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(материал + резка + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Размеры: сторонка = блок + запас, отстав = толщина блока + запас.
                             </p>
                           </div>
                         );

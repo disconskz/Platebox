@@ -79,6 +79,120 @@ export type Database = {
         }
         Relationships: []
       }
+      binding_cardboard_prices: {
+        Row: {
+          board_thickness: number
+          board_type: string
+          calc_mode: string
+          coef_complex_layout: number
+          coef_designer_board: number
+          coef_manual_cut: number
+          coef_nonstandard_format: number
+          coef_standard_format: number
+          coef_thick_board: number
+          created_at: string
+          cuts_per_sheet: number
+          edge_margin: number
+          gap_between: number
+          height_allowance: number
+          id: string
+          is_active: boolean
+          max_format_long: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          price_per_cover: number
+          price_per_cut: number
+          price_per_m2: number
+          price_per_sheet: number
+          setup_cost: number
+          sheet_height: number
+          sheet_width: number
+          sides_per_item: number
+          sort_order: number
+          spine_allowance: number
+          spines_per_item: number
+          thick_board_threshold: number
+          updated_at: string
+          updated_by: string | null
+          width_allowance: number
+        }
+        Insert: {
+          board_thickness?: number
+          board_type?: string
+          calc_mode?: string
+          coef_complex_layout?: number
+          coef_designer_board?: number
+          coef_manual_cut?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_board?: number
+          created_at?: string
+          cuts_per_sheet?: number
+          edge_margin?: number
+          gap_between?: number
+          height_allowance?: number
+          id?: string
+          is_active?: boolean
+          max_format_long?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          price_per_cover?: number
+          price_per_cut?: number
+          price_per_m2?: number
+          price_per_sheet?: number
+          setup_cost?: number
+          sheet_height?: number
+          sheet_width?: number
+          sides_per_item?: number
+          sort_order?: number
+          spine_allowance?: number
+          spines_per_item?: number
+          thick_board_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+          width_allowance?: number
+        }
+        Update: {
+          board_thickness?: number
+          board_type?: string
+          calc_mode?: string
+          coef_complex_layout?: number
+          coef_designer_board?: number
+          coef_manual_cut?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_board?: number
+          created_at?: string
+          cuts_per_sheet?: number
+          edge_margin?: number
+          gap_between?: number
+          height_allowance?: number
+          id?: string
+          is_active?: boolean
+          max_format_long?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          price_per_cover?: number
+          price_per_cut?: number
+          price_per_m2?: number
+          price_per_sheet?: number
+          setup_cost?: number
+          sheet_height?: number
+          sheet_width?: number
+          sides_per_item?: number
+          sort_order?: number
+          spine_allowance?: number
+          spines_per_item?: number
+          thick_board_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+          width_allowance?: number
+        }
+        Relationships: []
+      }
       block_pressing_prices: {
         Row: {
           calc_mode: string
