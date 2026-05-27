@@ -1210,6 +1210,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load block_pressing_prices failed", e);
       }
+      // Доработка 20: справочник обрезки блока.
+      try {
+        const trR = await (supabase as any)
+          .from("block_trimming_prices")
+          .select("*")
+          .order("sort_order");
+        setTrimRows(((trR.data as BlockTrimmingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load block_trimming_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
