@@ -82,6 +82,16 @@ const INSERT_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const COUPON_FORMATS: PresetFormat[] = [
+  { value: "50x90", label: "50×90 мм", type: "custom", w: 50, h: 90 },
+  { value: "70x150", label: "70×150 мм", type: "custom", w: 70, h: 150 },
+  { value: "DL", label: "DL (99×210)", type: "custom", w: 99, h: 210 },
+  { value: "EURO", label: "Евроформат (100×210)", type: "custom", w: 100, h: 210 },
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
@@ -91,7 +101,7 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert";
+  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
@@ -99,28 +109,33 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   const isEuro = mode === "euroflyer";
   const isCard = mode === "businesscard";
   const isInsert = mode === "insert";
-  // Флаер/визитка — без фальцовки/биговки/склейки. Еврофлаер использует фальцовку + биговку.
-  const hideFoldBlock = isFlyer || isCard;
+  const isCoupon = mode === "coupon";
+  // Флаер/визитка/купон — без фальцовки/биговки/склейки. Еврофлаер использует фальцовку + биговку.
+  const hideFoldBlock = isFlyer || isCard || isCoupon;
   const FORMATS = isCard
     ? BUSINESSCARD_FORMATS
-    : isInsert
+    : isCoupon
+      ? COUPON_FORMATS
+      : isInsert
       ? INSERT_FORMATS
       : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isCard ? "Визитка" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+  const titleLabel = isCard ? "Визитка" : isCoupon ? "Купон" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
   const subtitle = isCard
     ? "Премиальная мелкоформатная продукция — акцент на постпечатные операции"
-    : isInsert
+    : isCoupon
+      ? "Купоны, талоны, билеты — обязательная перфорация, нумерация, QR/штрихкоды"
+      : isInsert
       ? "Вкладыши и инструкции — акцент на фальцовку, автобиговка при плотной бумаге"
       : isEuro
       ? "Рекламный евроформат — автоматическая биговка при плотной бумаге + фальцовка"
       : isFlyer
         ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
         : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isCard ? 39 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
+  const dorNum = isCard ? 39 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
   const [presetKey, setPresetKey] = useState<string>(
-    isCard ? "90x50" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
+    isCard ? "90x50" : isCoupon ? "70x150" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
   );
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
@@ -194,6 +209,12 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
     const threshold = isCard ? 300 : isEuro || isInsert ? 170 : Infinity;
     if (optFold && density > threshold && !optBig) setOptBig(true);
   }, [isCard, isEuro, isInsert, optFold, material?.density, optBig]);
+
+  // Купон: перфорация — обязательная операция, включаем по умолчанию.
+  useEffect(() => {
+    if (isCoupon && !optPerf) setOptPerf(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCoupon]);
 
   const preset = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [FORMATS, presetKey]);
   const formatType: FormatType = preset.type;
