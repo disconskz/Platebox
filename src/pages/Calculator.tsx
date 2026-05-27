@@ -1520,6 +1520,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load casing_prices failed", e);
       }
+      // Доработка 24: справочник сборки переплётной крышки.
+      try {
+        const caR = await (supabase as any)
+          .from("cover_assembly_prices")
+          .select("*")
+          .order("sort_order");
+        setCoverAsmRows(((caR.data as CoverAssemblyRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load cover_assembly_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
