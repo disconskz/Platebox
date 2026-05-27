@@ -1211,6 +1211,17 @@ const Calculator = () => {
   const [embossCliches, setEmbossCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
+  // Доработка 29: блок «Перфорация».
+  const [perfRows, setPerfRows] = useState<PerforationRule[]>([]);
+  const [perfEnabled, setPerfEnabled] = useState(false);
+  const [perfManualId, setPerfManualId] = useState<string>("");
+  const [perfLineLengthMm, setPerfLineLengthMm] = useState<number>(0);
+  const [perfLinesPerItem, setPerfLinesPerItem] = useState<number>(1);
+  const [perfPasses, setPerfPasses] = useState<number>(1);
+  const [perfCalcModeOverride, setPerfCalcModeOverride] = useState<"" | PerforationCalcMode>("");
+  const [perfMaterialCoefOverride, setPerfMaterialCoefOverride] = useState<string>("");
+  const [perfComplexityCoefOverride, setPerfComplexityCoefOverride] = useState<string>("");
+  const [perfIncludedInDieCut, setPerfIncludedInDieCut] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
