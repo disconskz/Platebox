@@ -1258,6 +1258,24 @@ const Calculator = () => {
   const [windowMinCostOverride, setWindowMinCostOverride] = useState<string>("");
   const [windowNonstandardFormat, setWindowNonstandardFormat] = useState<boolean>(false);
   const [windowComplexPosition, setWindowComplexPosition] = useState<boolean>(false);
+  // Доработка 32: «Удаление облоя».
+  const [flashRows, setFlashRows] = useState<FlashRemovalRule[]>([]);
+  const [flashEnabled, setFlashEnabled] = useState(false);
+  const [flashManualId, setFlashManualId] = useState<string>("");
+  const [flashCalcModeOverride, setFlashCalcModeOverride] = useState<"" | FlashRemovalCalcMode>("");
+  const [flashContour, setFlashContour] = useState<FlashContour>("simple");
+  const [flashMaterial, setFlashMaterial] = useState<FlashMaterial>("paper");
+  const [flashBridges, setFlashBridges] = useState<number>(0);
+  const [flashTotalHours, setFlashTotalHours] = useState<string>("");
+  const [flashPriceItemOverride, setFlashPriceItemOverride] = useState<string>("");
+  const [flashPriceSheetOverride, setFlashPriceSheetOverride] = useState<string>("");
+  const [flashPriceHourOverride, setFlashPriceHourOverride] = useState<string>("");
+  const [flashContourCoefOverride, setFlashContourCoefOverride] = useState<string>("");
+  const [flashMaterialCoefOverride, setFlashMaterialCoefOverride] = useState<string>("");
+  const [flashBridgesCoefOverride, setFlashBridgesCoefOverride] = useState<string>("");
+  const [flashMethodCoefOverride, setFlashMethodCoefOverride] = useState<string>("");
+  const [flashSetupOverride, setFlashSetupOverride] = useState<string>("");
+  const [flashMinCostOverride, setFlashMinCostOverride] = useState<string>("");
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
