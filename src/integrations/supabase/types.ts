@@ -1327,6 +1327,123 @@ export type Database = {
         }
         Relationships: []
       }
+      cover_assembly_prices: {
+        Row: {
+          assembly_method: string
+          calc_mode: string
+          coef_complex_material: number
+          coef_fabric_leatherette: number
+          coef_large_format: number
+          coef_manual: number
+          coef_nonstandard_format: number
+          coef_small_circulation: number
+          coef_standard_format: number
+          coef_thick_board: number
+          cover_material_type: string
+          created_at: string
+          fold_bottom: number
+          fold_left: number
+          fold_right: number
+          fold_top: number
+          gap_left: number
+          gap_right: number
+          id: string
+          is_active: boolean
+          large_format_threshold: number
+          max_board_thickness: number
+          max_circulation: number
+          max_format_long: number
+          min_circulation: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          price_per_item: number
+          price_per_m2: number
+          setup_cost: number
+          small_circulation_threshold: number
+          sort_order: number
+          thick_board_threshold: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          assembly_method?: string
+          calc_mode?: string
+          coef_complex_material?: number
+          coef_fabric_leatherette?: number
+          coef_large_format?: number
+          coef_manual?: number
+          coef_nonstandard_format?: number
+          coef_small_circulation?: number
+          coef_standard_format?: number
+          coef_thick_board?: number
+          cover_material_type?: string
+          created_at?: string
+          fold_bottom?: number
+          fold_left?: number
+          fold_right?: number
+          fold_top?: number
+          gap_left?: number
+          gap_right?: number
+          id?: string
+          is_active?: boolean
+          large_format_threshold?: number
+          max_board_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          price_per_item?: number
+          price_per_m2?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          thick_board_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          assembly_method?: string
+          calc_mode?: string
+          coef_complex_material?: number
+          coef_fabric_leatherette?: number
+          coef_large_format?: number
+          coef_manual?: number
+          coef_nonstandard_format?: number
+          coef_small_circulation?: number
+          coef_standard_format?: number
+          coef_thick_board?: number
+          cover_material_type?: string
+          created_at?: string
+          fold_bottom?: number
+          fold_left?: number
+          fold_right?: number
+          fold_top?: number
+          gap_left?: number
+          gap_right?: number
+          id?: string
+          is_active?: boolean
+          large_format_threshold?: number
+          max_board_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          price_per_item?: number
+          price_per_m2?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          thick_board_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       custom_reference_rows: {
         Row: {
           created_at: string
