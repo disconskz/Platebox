@@ -79,6 +79,138 @@ export type Database = {
         }
         Relationships: []
       }
+      block_pressing_prices: {
+        Row: {
+          calc_mode: string
+          coef_designer_paper: number
+          coef_format_a3: number
+          coef_format_a4: number
+          coef_format_a5: number
+          coef_format_nonstandard: number
+          coef_heavy_block: number
+          coef_manual: number
+          coef_small_circulation: number
+          coef_thick_block: number
+          coef_thickness_extra: number
+          coef_thickness_med: number
+          coef_thickness_thick: number
+          coef_thickness_thin: number
+          created_at: string
+          heavy_block_threshold: number
+          id: string
+          is_active: boolean
+          machine_type: string
+          max_block_thickness: number
+          max_block_weight: number
+          max_circulation: number
+          max_format_long: number
+          min_block_thickness: number
+          min_circulation: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          pressing_type: string
+          price_per_hour: number
+          price_per_item: number
+          setup_cost: number
+          small_circulation_threshold: number
+          sort_order: number
+          thick_block_threshold: number
+          thickness_med_max: number
+          thickness_thick_max: number
+          thickness_thin_max: number
+          time_per_item_sec: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          calc_mode?: string
+          coef_designer_paper?: number
+          coef_format_a3?: number
+          coef_format_a4?: number
+          coef_format_a5?: number
+          coef_format_nonstandard?: number
+          coef_heavy_block?: number
+          coef_manual?: number
+          coef_small_circulation?: number
+          coef_thick_block?: number
+          coef_thickness_extra?: number
+          coef_thickness_med?: number
+          coef_thickness_thick?: number
+          coef_thickness_thin?: number
+          created_at?: string
+          heavy_block_threshold?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_block_thickness?: number
+          max_block_weight?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_block_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          pressing_type?: string
+          price_per_hour?: number
+          price_per_item?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          thick_block_threshold?: number
+          thickness_med_max?: number
+          thickness_thick_max?: number
+          thickness_thin_max?: number
+          time_per_item_sec?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          calc_mode?: string
+          coef_designer_paper?: number
+          coef_format_a3?: number
+          coef_format_a4?: number
+          coef_format_a5?: number
+          coef_format_nonstandard?: number
+          coef_heavy_block?: number
+          coef_manual?: number
+          coef_small_circulation?: number
+          coef_thick_block?: number
+          coef_thickness_extra?: number
+          coef_thickness_med?: number
+          coef_thickness_thick?: number
+          coef_thickness_thin?: number
+          created_at?: string
+          heavy_block_threshold?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_block_thickness?: number
+          max_block_weight?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_block_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          pressing_type?: string
+          price_per_hour?: number
+          price_per_item?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          thick_block_threshold?: number
+          thickness_med_max?: number
+          thickness_thick_max?: number
+          thickness_thin_max?: number
+          time_per_item_sec?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       block_sewing_prices: {
         Row: {
           coef_heavy_paper: number
