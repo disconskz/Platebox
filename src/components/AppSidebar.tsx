@@ -25,6 +25,7 @@ const main = [
   { title: "Шаблон: Визитка", url: "/calculator/businesscard", icon: FileText },
   { title: "Шаблон: Афиша", url: "/calculator/poster", icon: FileText },
   { title: "Шаблон: Вкладыш", url: "/calculator/insert", icon: FileText },
+  { title: "Шаблон: Купон", url: "/calculator/coupon", icon: FileText },
   { title: "Групповой спуск", url: "/calculator/multi-sku", icon: Layers },
   { title: "ИИ-расчёт", url: "/ai-calc", icon: Sparkles },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },
