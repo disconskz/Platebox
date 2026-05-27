@@ -1721,6 +1721,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load block_trimming_prices failed", e);
       }
+      // Доработка 29: справочник перфорации.
+      try {
+        const pfR = await (supabase as any)
+          .from("perforation_prices")
+          .select("*")
+          .order("sort_order");
+        setPerfRows(((pfR.data as PerforationRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load perforation_prices failed", e);
+      }
       // Доработка 21: справочник переплётного картона.
       try {
         const bdR = await (supabase as any)
