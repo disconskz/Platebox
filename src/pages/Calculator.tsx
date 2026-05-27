@@ -1193,6 +1193,23 @@ const Calculator = () => {
   const [bcFigured, setBcFigured] = useState(false);
   const [bcComplexLayout, setBcComplexLayout] = useState(false);
 
+  // Доработка 23: кашировка.
+  const [casingRows, setCasingRows] = useState<CasingRow[]>([]);
+  const [csEnabled, setCsEnabled] = useState(false);
+  const [csManualId, setCsManualId] = useState<string | null>(null);
+  const [csCoverWidthOverride, setCsCoverWidthOverride] = useState<number | "">("");
+  const [csCoverHeightOverride, setCsCoverHeightOverride] = useState<number | "">("");
+  const [csMaterialCostOverride, setCsMaterialCostOverride] = useState<number | "">("");
+  const [csGlueCostOverride, setCsGlueCostOverride] = useState<number | "">("");
+  const [csWorkCostOverride, setCsWorkCostOverride] = useState<number | "">("");
+  const [csCoefOverride, setCsCoefOverride] = useState<number | "">("");
+  const [csSetupOverride, setCsSetupOverride] = useState<number | "">("");
+  const [csMinOverride, setCsMinOverride] = useState<number | "">("");
+  const [csManualMethod, setCsManualMethod] = useState(false);
+  const [csFabric, setCsFabric] = useState(false);
+  const [csDesignerMaterial, setCsDesignerMaterial] = useState(false);
+  const [csPrintedCover, setCsPrintedCover] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
