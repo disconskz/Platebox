@@ -2474,7 +2474,105 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems];
+    // Доработка 19: прессовка блока.
+    const pressingItems: SpecItem[] = (() => {
+      if (!prEnabled || !(circulation > 0)) return [];
+      if (!pressingRows.length) return [];
+      const active = pressingRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      // Вес блока в граммах: S(м²) × плотн(г/м²) × листов.
+      const density = Number((effectiveMaterial as any)?.density) || 0;
+      const sheets = Math.max(0, sigPages / 2);
+      const blockWeight = (dims.w * dims.h) / 1_000_000 * density * sheets;
+      // Авто-подбор записи: предпочтительно совпадение по толщине/тиражу/весу/формату.
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const fits = (r: BlockPressingRow) =>
+        autoBlockThickness >= r.min_block_thickness && autoBlockThickness <= r.max_block_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation
+        && longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && blockWeight <= r.max_block_weight;
+      const row = (prManualId && active.find((r) => r.id === prManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const mode = prCalcModeOverride || row.calc_mode;
+      // Базовая стоимость.
+      let baseCost = 0;
+      if (mode === "per_time") {
+        const timeSec = prTimeOverride !== "" ? Number(prTimeOverride) : row.time_per_item_sec;
+        const hourPrice = prHourPriceOverride !== "" ? Number(prHourPriceOverride) : row.price_per_hour;
+        baseCost = (timeSec * circulation / 3600) * hourPrice;
+      } else {
+        const price = prPriceOverride !== "" ? Number(prPriceOverride) : row.price_per_item;
+        baseCost = price * circulation;
+      }
+      // Коэф. толщины.
+      const thickCoef = autoBlockThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+        : autoBlockThickness <= row.thickness_med_max ? row.coef_thickness_med
+        : autoBlockThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+        : row.coef_thickness_extra;
+      // Коэф. формата (по длинной стороне).
+      const formatCoef = longSide <= 210 ? row.coef_format_a5
+        : longSide <= 297 ? row.coef_format_a4
+        : longSide <= 420 ? row.coef_format_a3
+        : row.coef_format_nonstandard;
+      // Доп. коэф. сложности.
+      const heavyBlockCoef = blockWeight >= row.heavy_block_threshold ? row.coef_heavy_block : 1;
+      const thickBlockCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const manualCoef = (prManual || row.machine_type === "manual") ? row.coef_manual : 1;
+      const designerCoef = prDesignerPaper ? row.coef_designer_paper : 1;
+      const smallCircCoef = circulation > 0 && circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = thickCoef * formatCoef * heavyBlockCoef * thickBlockCoef * manualCoef * designerCoef * smallCircCoef;
+      const coef = prCoefOverride !== "" ? Math.max(0, Number(prCoefOverride)) : autoCoef;
+      const setup = prSetupOverride !== "" ? Number(prSetupOverride) : row.setup_cost;
+      const minCost = prMinOverride !== "" ? Number(prMinOverride) : row.min_cost;
+      const raw = baseCost * coef + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (baseCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Прессовка блока — ${PRESSING_TYPE_LABEL[row.pressing_type] || row.pressing_type} (${PRESSING_MACHINE_LABEL[row.machine_type] || row.machine_type}, ${mode === "per_time" ? "по времени" : "за изделие"})`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: baseCost / Math.max(1, circulation),
+          total: baseCost,
+        });
+      }
+      if (coef !== 1 && baseCost > 0) {
+        const delta = baseCost * coef - baseCost;
+        items.push({
+          stage: "postpress",
+          name: `Прессовка — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Прессовка — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Прессовка — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
