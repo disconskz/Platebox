@@ -58,7 +58,7 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 ];
 
 export interface BrochureLikeProps {
-  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner" | "notepad" | "memocube";
+  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner" | "notepad" | "memocube" | "quartercal";
 }
 
 export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
@@ -67,6 +67,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const isHardcover = mode === "hardcover" || isPlanner;
   const isNotepad = mode === "notepad";
   const isMemocube = mode === "memocube";
+  const isQuarterCal = mode === "quartercal";
   const isCatalog = mode === "catalog" || isSoftcover || isHardcover;
   const isMagazine = mode === "magazine";
   const isCatalogLike = isCatalog || isMagazine;
@@ -511,9 +512,11 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isMemocube ? "Кубарик / блок для записей" : isNotepad ? "Блокнот" : isPlanner ? "Ежедневник" : isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isQuarterCal ? "Календарь квартальный" : isMemocube ? "Кубарик / блок для записей" : isNotepad ? "Блокнот" : isPlanner ? "Ежедневник" : isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
               <p className="text-[11px] text-muted-foreground truncate">
-                {isMemocube
+                {isQuarterCal
+                  ? "Quarter calendar — топ, подложки, 1-3 блока, пружина, ригель, курсор, сборка"
+                  : isMemocube
                   ? "Memo cube — толстый бумажный блок, проклейка, подложка, брендирование торца"
                   : isNotepad
                   ? "Notepad — пружина/скоба/проклейка, отрывные листы, подложка, брендирование"
@@ -531,7 +534,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка {isMemocube ? 55 : isNotepad ? 54 : isPlanner ? 53 : isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {isQuarterCal ? 56 : isMemocube ? 55 : isNotepad ? 54 : isPlanner ? 53 : isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
