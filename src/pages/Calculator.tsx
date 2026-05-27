@@ -1805,6 +1805,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load window_attachment_prices failed", e);
       }
+      // Доработка 32: справочник «Удаление облоя».
+      try {
+        const frR = await (supabase as any)
+          .from("flash_removal_prices")
+          .select("*")
+          .order("sort_order");
+        setFlashRows(((frR.data as FlashRemovalRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load flash_removal_prices failed", e);
+      }
       // Доработка 21: справочник переплётного картона.
       try {
         const bdR = await (supabase as any)
