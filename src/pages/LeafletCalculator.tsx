@@ -467,6 +467,9 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                       </SelectContent>
                     </Select>
                   </PostpressRow>
+                  {isCard && (
+                    <PostpressRow label="Soft-touch" checked={optSoftTouch} onChange={setOptSoftTouch} />
+                  )}
                   <PostpressRow label="Лак (УФ/ВД)" checked={optVarnish} onChange={setOptVarnish}>
                     <Select value={varnishType} onValueChange={(v) => setVarnishType(v as any)}>
                       <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
