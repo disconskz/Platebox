@@ -253,14 +253,18 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
     if (optFold && (density > threshold || ((isBooklet || isEurobooklet) && optLam)) && !optBig) setOptBig(true);
   }, [isCard, isEuro, isInsert, isBooklet, isEurobooklet, optFold, optLam, material?.density, optBig]);
 
-  // Буклет: фальцовка и биговка — обязательные операции, включаем по умолчанию.
+  // Буклет / Евробуклет: фальцовка и биговка — обязательные операции, включаем по умолчанию.
   useEffect(() => {
-    if (isBooklet) {
+    if (isBooklet || isEurobooklet) {
       if (!optFold) setOptFold(true);
       if (!optBig) setOptBig(true);
     }
+    if (isEurobooklet) {
+      if (foldCount !== 2) setFoldCount(2);
+      if (bigCount !== 2) setBigCount(2);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBooklet]);
+  }, [isBooklet, isEurobooklet]);
 
   // Купон: перфорация — обязательная операция, включаем по умолчанию.
   useEffect(() => {
