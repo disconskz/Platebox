@@ -16,6 +16,7 @@ import LeafletCalculator from "./pages/LeafletCalculator.tsx";
 import FlyerCalculator from "./pages/FlyerCalculator.tsx";
 import EuroflyerCalculator from "./pages/EuroflyerCalculator.tsx";
 import BusinessCardCalculator from "./pages/BusinessCardCalculator.tsx";
+import PosterCalculator from "./pages/PosterCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/calculator/flyer" element={<FlyerCalculator />} />
               <Route path="/calculator/euroflyer" element={<EuroflyerCalculator />} />
               <Route path="/calculator/businesscard" element={<BusinessCardCalculator />} />
+              <Route path="/calculator/poster" element={<PosterCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
