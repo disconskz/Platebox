@@ -55,6 +55,15 @@ const FLYER_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const EUROFLYER_FORMATS: PresetFormat[] = [
+  { value: "EURO", label: "Евроформат (100×210)", type: "custom", w: 100, h: 210 },
+  { value: "DL", label: "DL (99×210)", type: "custom", w: 99, h: 210 },
+  { value: "105x148", label: "105×148 мм", type: "custom", w: 105, h: 148 },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
@@ -64,20 +73,24 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer";
+  mode?: "leaflet" | "flyer" | "euroflyer";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
   const isFlyer = mode === "flyer";
-  const FORMATS = isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isFlyer ? "Флаер" : "Листовка";
-  const subtitle = isFlyer
-    ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
-    : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isFlyer ? 37 : 36;
+  const isEuro = mode === "euroflyer";
+  const hideFoldBlock = isFlyer; // флаер без фальцовки/биговки/склейки; еврофлаер их использует
+  const FORMATS = isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
+  const titleLabel = isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+  const subtitle = isEuro
+    ? "Рекламный евроформат — автоматическая биговка при плотной бумаге + фальцовка"
+    : isFlyer
+      ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
+      : "Динамический маршрут — операции подключаются по выбранным опциям";
+  const dorNum = isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
-  const [presetKey, setPresetKey] = useState<string>(isFlyer ? "DL" : "A4");
+  const [presetKey, setPresetKey] = useState<string>(isEuro ? "EURO" : isFlyer ? "DL" : "A4");
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
   const [colorFront, setColorFront] = useState(4);
@@ -142,6 +155,13 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   }, []);
 
   const material = useMemo(() => materials.find((m) => m.id === materialId), [materials, materialId]);
+
+  // Еврофлаер: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
+  useEffect(() => {
+    if (!isEuro) return;
+    const density = Number(material?.density) || 0;
+    if (optFold && density > 170 && !optBig) setOptBig(true);
+  }, [isEuro, optFold, material?.density, optBig]);
 
   const preset = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [FORMATS, presetKey]);
   const formatType: FormatType = preset.type;
@@ -422,11 +442,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                       </SelectContent>
                     </Select>
                   </PostpressRow>
-                  {!isFlyer && <PostpressRow label="Биговка" checked={optBig} onChange={setOptBig}>
+                  {!hideFoldBlock && <PostpressRow label={isEuro ? "Биговка (авто при плотной бумаге + фальцовке)" : "Биговка"} checked={optBig} onChange={setOptBig}>
                     <Input className="h-8 w-24" type="number" min={1} value={bigCount} onChange={(e) => setBigCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">биг.</span>
                   </PostpressRow>}
-                  {!isFlyer && <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
+                  {!hideFoldBlock && <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
                     <Input className="h-8 w-24" type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">фальц.</span>
                   </PostpressRow>}
@@ -460,7 +480,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </PostpressRow>
-                  {!isFlyer && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
+                  {!hideFoldBlock && !isEuro && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
                     <Input className="h-8 w-24" type="number" min={1} value={blockCount} onChange={(e) => setBlockCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">листов/блок</span>
                   </PostpressRow>}
