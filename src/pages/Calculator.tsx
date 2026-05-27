@@ -423,6 +423,48 @@ const ENDPAPER_PRODUCT_TYPES = new Set<string>([
   "book", "notepad", "catalog",
 ]);
 
+// Доработка 17: справочник марли.
+type GauzeRow = {
+  id: string;
+  name: string;
+  gauze_type: string;          // standard | reinforced | designer
+  density: number;
+  calc_mode: string;           // per_m2 | per_meter | per_item
+  price_per_m2: number;
+  price_per_meter: number;
+  price_per_item: number;
+  glue_price_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  height_allowance: number;    // мм
+  side_overlap: number;        // мм
+  min_format_short: number;
+  max_format_long: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  min_circulation: number;
+  max_circulation: number;
+  thick_block_threshold: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_thick_block: number;
+  coef_heavy_block: number;
+  coef_manual_glue: number;
+  coef_designer: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const GAUZE_TYPE_LABEL: Record<string, string> = {
+  standard: "Стандартная",
+  reinforced: "Усиленная",
+  designer: "Дизайнерская",
+};
+const GAUZE_CALC_LABEL: Record<string, string> = {
+  per_m2: "по площади (₸/м²)",
+  per_meter: "по длине (₸/м)",
+  per_item: "за изделие (₸/шт)",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
@@ -753,6 +795,20 @@ const Calculator = () => {
   const [epNeedsPrintOverride, setEpNeedsPrintOverride] = useState<"" | "yes" | "no">("");
   const [epManualGlue, setEpManualGlue] = useState(false);
 
+  // Доработка 17: марля.
+  const [gauzeRows, setGauzeRows] = useState<GauzeRow[]>([]);
+  const [gzEnabled, setGzEnabled] = useState(false);
+  const [gzManualId, setGzManualId] = useState<string | null>(null);
+  const [gzWidthOverride, setGzWidthOverride] = useState<number | "">("");
+  const [gzHeightOverride, setGzHeightOverride] = useState<number | "">("");
+  const [gzSpineWidthOverride, setGzSpineWidthOverride] = useState<number | "">("");
+  const [gzPriceOverride, setGzPriceOverride] = useState<number | "">("");
+  const [gzGluePriceOverride, setGzGluePriceOverride] = useState<number | "">("");
+  const [gzCoefOverride, setGzCoefOverride] = useState<number | "">("");
+  const [gzSetupOverride, setGzSetupOverride] = useState<number | "">("");
+  const [gzMinOverride, setGzMinOverride] = useState<number | "">("");
+  const [gzManualGlue, setGzManualGlue] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -932,6 +988,16 @@ const Calculator = () => {
         setEndpaperRows(((epR.data as EndpaperRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load endpaper_prices failed", e);
+      }
+      // Доработка 17: справочник марли.
+      try {
+        const gzR = await (supabase as any)
+          .from("gauze_prices")
+          .select("*")
+          .order("sort_order");
+        setGauzeRows(((gzR.data as GauzeRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load gauze_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -2092,7 +2158,102 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems];
+    // Доработка 17: марля.
+    const gauzeItems: SpecItem[] = (() => {
+      if (!gzEnabled || !(circulation > 0)) return [];
+      if (!gauzeRows.length) return [];
+      const active = gauzeRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const row = (gzManualId && active.find((r) => r.id === gzManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const blockHeight = Math.max(dims.w, dims.h);
+      // Толщина блока: из шитья (если задано) или из тетрадей × толщину листа, иначе fallback 20мм.
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const spineWidth = gzSpineWidthOverride !== "" ? Number(gzSpineWidthOverride) : autoBlockThickness;
+      const gzWidth = gzWidthOverride !== "" ? Number(gzWidthOverride) : Math.max(0, spineWidth + row.side_overlap * 2);
+      const gzHeight = gzHeightOverride !== "" ? Number(gzHeightOverride) : Math.max(0, blockHeight + row.height_allowance);
+      const area = Math.max(0, (gzWidth * gzHeight) / 1_000_000);
+      // Стоимость материала по выбранному режиму.
+      let matCost = 0;
+      let matHint = "";
+      if (row.calc_mode === "per_meter") {
+        const price = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_meter;
+        matCost = (gzHeight / 1000) * price * circulation;
+        matHint = `${(gzHeight / 1000).toFixed(3)} м × ${price} ₸ × ${circulation}`;
+      } else if (row.calc_mode === "per_item") {
+        const price = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_item;
+        matCost = price * circulation;
+        matHint = `${price} ₸ × ${circulation}`;
+      } else {
+        const price = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_m2;
+        matCost = area * price * circulation;
+        matHint = `${area.toFixed(4)} м² × ${price} ₸ × ${circulation}`;
+      }
+      const gluePrice = gzGluePriceOverride !== "" ? Number(gzGluePriceOverride) : row.glue_price_per_item;
+      const glueCost = gluePrice * circulation;
+      const setup = gzSetupOverride !== "" ? Number(gzSetupOverride) : row.setup_cost;
+      const minCost = gzMinOverride !== "" ? Number(gzMinOverride) : row.min_cost;
+      // Коэффициенты сложности.
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long;
+      const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+      const thickCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const heavyBlockCoef = autoBlockThickness >= row.max_block_thickness * 0.85 ? row.coef_heavy_block : 1;
+      const manualGlueCoef = gzManualGlue ? row.coef_manual_glue : 1;
+      const designerCoef = row.gauze_type === "designer" ? row.coef_designer : 1;
+      const autoCoef = formatCoef * thickCoef * heavyBlockCoef * manualGlueCoef * designerCoef;
+      const coef = gzCoefOverride !== "" ? Math.max(0, Number(gzCoefOverride)) : autoCoef;
+      const baseSum = matCost + glueCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (matCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Марля — материал (${GAUZE_TYPE_LABEL[row.gauze_type] || row.gauze_type}, ${GAUZE_CALC_LABEL[row.calc_mode] || row.calc_mode})`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: matCost / Math.max(1, circulation),
+          total: matCost,
+        });
+      }
+      if (glueCost > 0) {
+        items.push({ stage: "postpress", name: `Марля — приклейка (${gluePrice} ₸/шт)`, quantity: circulation, unit: "шт", unitPrice: gluePrice, total: glueCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Марля — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = raw - baseSum;
+        items.push({
+          stage: "postpress",
+          name: `Марля — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Марля — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -2285,7 +2446,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -4376,6 +4537,184 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(бумага + печать + {useCrease ? "биговка" : "фальцовка"} + приклейка + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Размер форзаца: <code>ширина × 2</code> от формата книги.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 17: Марля */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={gzEnabled} onCheckedChange={(v) => setGzEnabled(!!v)} id="gz" />
+                        <Label htmlFor="gz" className="flex-1 font-medium">Марля</Label>
+                        <Select
+                          value={gzManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setGzManualId(v === "auto" ? null : v);
+                            setGzPriceOverride(""); setGzGluePriceOverride(""); setGzCoefOverride("");
+                            setGzSetupOverride(""); setGzMinOverride("");
+                            setGzWidthOverride(""); setGzHeightOverride(""); setGzSpineWidthOverride("");
+                          }}
+                          disabled={!gzEnabled || gauzeRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (первая активная запись)</SelectItem>
+                            {gauzeRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {gzEnabled && (() => {
+                        if (!gauzeRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Марля» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = gauzeRows.filter((r) => r.is_active !== false);
+                        const row = (gzManualId && active.find((r) => r.id === gzManualId)) || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const blockHeight = Math.max(dims.w, dims.h);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBlockThickness = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const spineWidth = gzSpineWidthOverride !== "" ? Number(gzSpineWidthOverride) : autoBlockThickness;
+                        const gzWidth = gzWidthOverride !== "" ? Number(gzWidthOverride) : Math.max(0, spineWidth + row.side_overlap * 2);
+                        const gzHeight = gzHeightOverride !== "" ? Number(gzHeightOverride) : Math.max(0, blockHeight + row.height_allowance);
+                        const area = Math.max(0, (gzWidth * gzHeight) / 1_000_000);
+                        let matCost = 0;
+                        let matHint = "";
+                        let matPrice = 0;
+                        if (row.calc_mode === "per_meter") {
+                          matPrice = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_meter;
+                          matCost = (gzHeight / 1000) * matPrice * circulation;
+                          matHint = `${(gzHeight / 1000).toFixed(3)} м × ${matPrice} ₸ × ${circulation}`;
+                        } else if (row.calc_mode === "per_item") {
+                          matPrice = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_item;
+                          matCost = matPrice * circulation;
+                          matHint = `${matPrice} ₸ × ${circulation}`;
+                        } else {
+                          matPrice = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_m2;
+                          matCost = area * matPrice * circulation;
+                          matHint = `${area.toFixed(4)} м² × ${matPrice} ₸ × ${circulation}`;
+                        }
+                        const gluePrice = gzGluePriceOverride !== "" ? Number(gzGluePriceOverride) : row.glue_price_per_item;
+                        const glueCost = gluePrice * circulation;
+                        const setup = gzSetupOverride !== "" ? Number(gzSetupOverride) : row.setup_cost;
+                        const minCost = gzMinOverride !== "" ? Number(gzMinOverride) : row.min_cost;
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long;
+                        const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+                        const thickCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+                        const heavyBlockCoef = autoBlockThickness >= row.max_block_thickness * 0.85 ? row.coef_heavy_block : 1;
+                        const manualGlueCoef = gzManualGlue ? row.coef_manual_glue : 1;
+                        const designerCoef = row.gauze_type === "designer" ? row.coef_designer : 1;
+                        const autoCoef = formatCoef * thickCoef * heavyBlockCoef * manualGlueCoef * designerCoef;
+                        const coef = gzCoefOverride !== "" ? Math.max(0, Number(gzCoefOverride)) : autoCoef;
+                        const baseSum = matCost + glueCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const outOfThickness = autoBlockThickness < row.min_block_thickness || autoBlockThickness > row.max_block_thickness;
+                        const outOfCirc = circulation < row.min_circulation || circulation > row.max_circulation;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Ширина корешка, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={gzSpineWidthOverride === "" ? Number(autoBlockThickness.toFixed(2)) : gzSpineWidthOverride}
+                                  onChange={(e) => setGzSpineWidthOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Ширина марли, мм</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={gzWidthOverride === "" ? Math.round(spineWidth + row.side_overlap * 2) : gzWidthOverride}
+                                  onChange={(e) => setGzWidthOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Высота марли, мм</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={gzHeightOverride === "" ? blockHeight + row.height_allowance : gzHeightOverride}
+                                  onChange={(e) => setGzHeightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">
+                                  Цена материала, ₸/{row.calc_mode === "per_meter" ? "м" : row.calc_mode === "per_item" ? "шт" : "м²"}
+                                </Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={gzPriceOverride === "" ? matPrice : gzPriceOverride}
+                                  onChange={(e) => setGzPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приклейка, ₸/шт</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={gzGluePriceOverride === "" ? row.glue_price_per_item : gzGluePriceOverride}
+                                  onChange={(e) => setGzGluePriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={gzCoefOverride === "" ? Number(autoCoef.toFixed(3)) : gzCoefOverride}
+                                  onChange={(e) => setGzCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={gzSetupOverride === "" ? row.setup_cost : gzSetupOverride}
+                                  onChange={(e) => setGzSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={gzMinOverride === "" ? row.min_cost : gzMinOverride}
+                                  onChange={(e) => setGzMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="gz-manual" checked={gzManualGlue} onCheckedChange={(v) => setGzManualGlue(!!v)} />
+                                <Label htmlFor="gz-manual" className="text-[12px]">Ручная приклейка</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({GAUZE_TYPE_LABEL[row.gauze_type] || row.gauze_type}, {row.density} г/м², {GAUZE_CALC_LABEL[row.calc_mode] || row.calc_mode})
+                              </div>
+                              <div>
+                                Корешок <b>{spineWidth.toFixed(1)} мм</b> + заходы по {row.side_overlap} мм → марля <b>{Math.round(gzWidth)}×{Math.round(gzHeight)} мм</b> · площадь <b>{area.toFixed(4)} м²</b> · блок <b>{autoBlockThickness.toFixed(1)} мм</b>
+                              </div>
+                              <div>
+                                Материал: {matHint} = <b>{Math.round(matCost).toLocaleString("ru-RU")} ₸</b>
+                                {glueCost > 0 && <> · приклейка <b>{Math.round(glueCost).toLocaleString("ru-RU")} ₸</b></>}
+                                {setup > 0 && <> · приладка <b>{setup} ₸</b></>}
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × толст. {thickCoef} × тяж. {heavyBlockCoef} × ручн. {manualGlueCoef} × дизайн. {designerCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {(outOfThickness || outOfCirc) && (
+                                <div className="text-warning">
+                                  ⚠ {outOfThickness && <>толщина блока вне диапазона {row.min_block_thickness}–{row.max_block_thickness} мм</>}
+                                  {outOfThickness && outOfCirc && "; "}
+                                  {outOfCirc && <>тираж вне диапазона {row.min_circulation}–{row.max_circulation}</>}
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(материал + приклейка + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Размер марли: высота = блок + запас, ширина = корешок + 2×заходы.
                             </p>
                           </div>
                         );

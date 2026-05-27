@@ -1011,6 +1011,108 @@ export type Database = {
         }
         Relationships: []
       }
+      gauze_prices: {
+        Row: {
+          calc_mode: string
+          coef_designer: number
+          coef_heavy_block: number
+          coef_manual_glue: number
+          coef_nonstandard_format: number
+          coef_standard_format: number
+          coef_thick_block: number
+          created_at: string
+          density: number
+          gauze_type: string
+          glue_price_per_item: number
+          height_allowance: number
+          id: string
+          is_active: boolean
+          max_block_thickness: number
+          max_circulation: number
+          max_format_long: number
+          min_block_thickness: number
+          min_circulation: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          price_per_item: number
+          price_per_m2: number
+          price_per_meter: number
+          setup_cost: number
+          side_overlap: number
+          sort_order: number
+          thick_block_threshold: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          calc_mode?: string
+          coef_designer?: number
+          coef_heavy_block?: number
+          coef_manual_glue?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_block?: number
+          created_at?: string
+          density?: number
+          gauze_type?: string
+          glue_price_per_item?: number
+          height_allowance?: number
+          id?: string
+          is_active?: boolean
+          max_block_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_block_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          price_per_item?: number
+          price_per_m2?: number
+          price_per_meter?: number
+          setup_cost?: number
+          side_overlap?: number
+          sort_order?: number
+          thick_block_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          calc_mode?: string
+          coef_designer?: number
+          coef_heavy_block?: number
+          coef_manual_glue?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_block?: number
+          created_at?: string
+          density?: number
+          gauze_type?: string
+          glue_price_per_item?: number
+          height_allowance?: number
+          id?: string
+          is_active?: boolean
+          max_block_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_block_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          price_per_item?: number
+          price_per_m2?: number
+          price_per_meter?: number
+          setup_cost?: number
+          side_overlap?: number
+          sort_order?: number
+          thick_block_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       lamination_prices: {
         Row: {
           cost_per_side: number
