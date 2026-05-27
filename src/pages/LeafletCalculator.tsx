@@ -435,11 +435,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                       </SelectContent>
                     </Select>
                   </PostpressRow>
-                  {!isFlyer && <PostpressRow label="Биговка" checked={optBig} onChange={setOptBig}>
+                  {!hideFoldBlock && <PostpressRow label={isEuro ? "Биговка (авто при плотной бумаге + фальцовке)" : "Биговка"} checked={optBig} onChange={setOptBig}>
                     <Input className="h-8 w-24" type="number" min={1} value={bigCount} onChange={(e) => setBigCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">биг.</span>
                   </PostpressRow>}
-                  {!isFlyer && <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
+                  {!hideFoldBlock && <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
                     <Input className="h-8 w-24" type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">фальц.</span>
                   </PostpressRow>}
@@ -473,7 +473,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </PostpressRow>
-                  {!isFlyer && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
+                  {!hideFoldBlock && !isEuro && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
                     <Input className="h-8 w-24" type="number" min={1} value={blockCount} onChange={(e) => setBlockCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">листов/блок</span>
                   </PostpressRow>}
