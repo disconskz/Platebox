@@ -128,7 +128,7 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon" | "form" | "booklet";
+  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon" | "form" | "booklet" | "eurobooklet";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
