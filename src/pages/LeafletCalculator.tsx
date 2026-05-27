@@ -575,11 +575,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                       </SelectContent>
                     </Select>
                   </PostpressRow>
-                  {!hideFoldBlock && <PostpressRow label={isEuro ? "Биговка (авто при плотной бумаге + фальцовке)" : "Биговка"} checked={optBig} onChange={setOptBig}>
+                  {!hideFoldBlock && <PostpressRow label={isEurobooklet ? "Биговка (2 биговки, обязательно)" : isEuro ? "Биговка (авто при плотной бумаге + фальцовке)" : "Биговка"} checked={optBig} onChange={setOptBig}>
                     <Input className="h-8 w-24" type="number" min={1} value={bigCount} onChange={(e) => setBigCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">биг.</span>
                   </PostpressRow>}
-                  {!hideFoldBlock && <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
+                  {!hideFoldBlock && <PostpressRow label={isEurobooklet ? "Фальцовка (еврофальц, 2 фальца)" : "Фальцовка"} checked={optFold} onChange={setOptFold}>
                     <Input className="h-8 w-24" type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">фальц.</span>
                   </PostpressRow>}
