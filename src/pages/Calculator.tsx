@@ -1886,6 +1886,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load embossing_prices failed", e);
       }
+      // Доработка 35: справочник «Конгрев».
+      try {
+        const cgR = await (supabase as any)
+          .from("congrev_prices")
+          .select("*")
+          .order("sort_order");
+        setCongrevRows(((cgR.data as CongrevRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load congrev_prices failed", e);
+      }
       // Доработка 21: справочник переплётного картона.
       try {
         const bdR = await (supabase as any)
