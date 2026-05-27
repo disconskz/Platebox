@@ -496,6 +496,60 @@ const HEADBAND_TYPE_LABEL: Record<string, string> = {
   premium: "Премиум",
 };
 
+// Доработка 19: справочник прессовки блока.
+type BlockPressingRow = {
+  id: string;
+  name: string;
+  pressing_type: string;       // block | final | sewing | endpaper
+  machine_type: string;        // manual | mechanical | hydraulic | auto
+  calc_mode: string;           // per_item | per_time
+  price_per_item: number;
+  price_per_hour: number;
+  time_per_item_sec: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_thickness_thin: number;
+  coef_thickness_med: number;
+  coef_thickness_thick: number;
+  coef_thickness_extra: number;
+  thickness_thin_max: number;
+  thickness_med_max: number;
+  thickness_thick_max: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  coef_thick_block: number;
+  coef_heavy_block: number;
+  coef_manual: number;
+  coef_designer_paper: number;
+  coef_small_circulation: number;
+  thick_block_threshold: number;
+  heavy_block_threshold: number;
+  small_circulation_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  max_block_weight: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const PRESSING_TYPE_LABEL: Record<string, string> = {
+  block: "Прессовка блока",
+  final: "Финальная прессовка",
+  sewing: "После шитья",
+  endpaper: "После форзацев",
+};
+const PRESSING_MACHINE_LABEL: Record<string, string> = {
+  manual: "Ручной",
+  mechanical: "Механический",
+  hydraulic: "Гидравлический",
+  auto: "Автоматический",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
