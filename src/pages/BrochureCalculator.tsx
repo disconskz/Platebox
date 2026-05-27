@@ -813,6 +813,24 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                   <div className="flex justify-between text-accent font-semibold"><span>За штуку</span><span>{fmtMoney(totals.perItem)}</span></div>
                 </CardContent>
               </Card>
+
+              <TemplateActions
+                productType={
+                  isQuarterCal ? "calendar_quarter"
+                  : isMemocube ? "kubus"
+                  : isNotepad || isPlanner ? "notepad"
+                  : isHardcover || isSoftcover ? "book"
+                  : isMagazine ? "magazine"
+                  : isCatalog ? "brochure"
+                  : "brochure"
+                }
+                defaultName={`${isQuarterCal ? "Календарь квартальный" : isMemocube ? "Кубарик" : isNotepad ? "Блокнот" : isPlanner ? "Ежедневник" : isHardcover ? "Книга (7БЦ)" : isSoftcover ? "Книга (КБС)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"} ${circulation} шт`}
+                circulation={circulation}
+                totals={totals}
+                margin={margin}
+                vatPercent={vatPercent}
+                spec={lines.map((l) => ({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total }))}
+              />
             </div>
           </div>
 
