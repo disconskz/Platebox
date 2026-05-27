@@ -8595,6 +8595,38 @@ const Calculator = () => {
                       });
                     }}
                   />
+                  {/* Подсказка: какие переплётные операции недоступны для текущего типа продукции */}
+                  {(() => {
+                    const unavailable: string[] = [];
+                    if (!SPRING_PRODUCT_TYPES.has(productType)) unavailable.push("Металлическая пружина (Wire-O)");
+                    if (!THERMAL_PRODUCT_TYPES.has(productType)) unavailable.push("Термопереплёт (КБС)");
+                    if (!SIGNATURE_PRODUCT_TYPES.has(productType)) unavailable.push("Фальцовка тетрадей, подборка, шитьё блока");
+                    if (!ENDPAPER_PRODUCT_TYPES.has(productType)) unavailable.push("Форзацы, марля, каптал, прессовка блока, обрезка, переплётный картон, резка картона, кашировка, сборка крышки, вставка блока, финальная прессовка");
+                    if (!STAPLING_PRODUCT_TYPES.has(productType)) unavailable.push("Скрепление на скобу");
+                    if (!unavailable.length) return null;
+                    return (
+                      <details className="rounded-md border border-dashed bg-muted/30 p-3 mt-2 group">
+                        <summary className="text-sm cursor-pointer list-none flex items-center justify-between gap-2 select-none">
+                          <span className="text-muted-foreground">
+                            Переплётные операции, недоступные для текущего типа продукции
+                          </span>
+                          <span className="text-[11px] text-muted-foreground group-open:hidden">показать ▾</span>
+                          <span className="text-[11px] text-muted-foreground hidden group-open:inline">скрыть ▴</span>
+                        </summary>
+                        <div className="mt-2 space-y-1">
+                          {unavailable.map((op) => (
+                            <div key={op} className="text-[12px] text-muted-foreground flex items-start gap-2">
+                              <span className="text-muted-foreground/60">○</span>
+                              <span>{op}</span>
+                            </div>
+                          ))}
+                          <p className="text-[11px] text-muted-foreground/80 pt-1">
+                            Чтобы воспользоваться этими операциями, выберите соответствующий тип продукции: книгу/ежедневник/альбом в твёрдом переплёте, брошюру/каталог/журнал на скобе, блокнот или каталог на пружине, либо термопереплёт.
+                          </p>
+                        </div>
+                      </details>
+                    );
+                  })()}
                   <div className="pt-3 border-t mt-3 space-y-2">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary" />
