@@ -16,6 +16,7 @@ import { runCalculation, FORMAT_PRESETS } from "@/lib/calc/engine";
 import type { CalcInput, FormatType, SpecItem } from "@/lib/calc/types";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
+import TemplateActions from "@/components/calc/TemplateActions";
 
 /**
  * Доработка 36 — выделенный шаблон «Листовка».
