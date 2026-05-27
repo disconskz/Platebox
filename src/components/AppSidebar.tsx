@@ -1,4 +1,4 @@
-import { LayoutGrid, BarChart3, Database, Plus, LogOut, BookOpen, Layers, Sparkles } from "lucide-react";
+import { LayoutGrid, BarChart3, Database, Plus, LogOut, BookOpen, Layers, Sparkles, FileText } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 const main = [
   { title: "Расчёты", url: "/app", icon: LayoutGrid, exact: true },
   { title: "Новый расчёт", url: "/calculator", icon: Plus },
+  { title: "Шаблон: Листовка", url: "/calculator/leaflet", icon: FileText },
   { title: "Групповой спуск", url: "/calculator/multi-sku", icon: Layers },
   { title: "ИИ-расчёт", url: "/ai-calc", icon: Sparkles },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },

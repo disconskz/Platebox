@@ -12,6 +12,7 @@ import AppLayout from "@/components/AppLayout";
 import AiChatLayout from "@/components/ai-calc/AiChatLayout";
 import Calculator from "./pages/Calculator.tsx";
 import MultiSkuCalculator from "./pages/MultiSkuCalculator.tsx";
+import LeafletCalculator from "./pages/LeafletCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/app" element={<Index />} />
               <Route path="/calculator" element={<Calculator />} />
               <Route path="/calculator/multi-sku" element={<MultiSkuCalculator />} />
+              <Route path="/calculator/leaflet" element={<LeafletCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
