@@ -138,6 +138,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   const isInsert = mode === "insert";
   const isCoupon = mode === "coupon";
   const isForm = mode === "form";
+  const isBooklet = mode === "booklet";
   const isEurobooklet = mode === "eurobooklet";
   // Флаер/визитка/купон — без фальцовки/биговки/склейки. Еврофлаер/вкладыш/анкета — с фальцовкой.
   const hideFoldBlock = isFlyer || isCard || isCoupon;
