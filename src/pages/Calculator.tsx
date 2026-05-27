@@ -840,6 +840,21 @@ const Calculator = () => {
   const [gzMinOverride, setGzMinOverride] = useState<number | "">("");
   const [gzManualGlue, setGzManualGlue] = useState(false);
 
+  // Доработка 18: каптал.
+  const [headbandRows, setHeadbandRows] = useState<HeadbandRow[]>([]);
+  const [hbEnabled, setHbEnabled] = useState(false);
+  const [hbManualId, setHbManualId] = useState<string | null>(null);
+  const [hbCountOverride, setHbCountOverride] = useState<number | "">("");
+  const [hbLengthOverride, setHbLengthOverride] = useState<number | "">("");
+  const [hbAllowanceOverride, setHbAllowanceOverride] = useState<number | "">("");
+  const [hbPricePerMeterOverride, setHbPricePerMeterOverride] = useState<number | "">("");
+  const [hbInstallPriceOverride, setHbInstallPriceOverride] = useState<number | "">("");
+  const [hbCoefOverride, setHbCoefOverride] = useState<number | "">("");
+  const [hbSetupOverride, setHbSetupOverride] = useState<number | "">("");
+  const [hbMinOverride, setHbMinOverride] = useState<number | "">("");
+  const [hbManualInstall, setHbManualInstall] = useState(false);
+  const [hbNonstandardColor, setHbNonstandardColor] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
