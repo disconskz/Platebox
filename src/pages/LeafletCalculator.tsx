@@ -688,6 +688,16 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                   <Row label="За штуку" value={fmtMoney(totals.perItem)} />
                 </CardContent>
               </Card>
+
+              <TemplateActions
+                productType={isCard ? "businesscard" : isBooklet || isEurobooklet ? "booklet" : "leaflet"}
+                defaultName={`${titleLabel} ${circulation} шт`}
+                circulation={circulation}
+                totals={totals}
+                margin={margin}
+                vatPercent={vatPercent}
+                spec={fullSpec}
+              />
             </div>
           </div>
 
