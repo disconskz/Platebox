@@ -850,6 +850,63 @@ const BLOCK_INSERTION_METHOD_LABEL: Record<string, string> = {
   semi_auto: "Полуавтомат",
   auto: "Автомат",
 };
+// Доработка 26: справочник финальной прессовки книги.
+type FinalPressingRow = {
+  id: string;
+  name: string;
+  pressing_method: string;     // manual | mechanical | hydraulic | auto | batch | time
+  machine_type: string;        // manual | mechanical | hydraulic | auto | industrial
+  calc_mode: string;           // per_item | per_time
+  price_per_item: number;
+  price_per_hour: number;
+  books_per_load: number;
+  load_time_hours: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  thickness_thin_max: number;
+  thickness_med_max: number;
+  thickness_thick_max: number;
+  coef_thickness_thin: number;
+  coef_thickness_med: number;
+  coef_thickness_thick: number;
+  coef_thickness_extra: number;
+  weight_light_max: number;
+  weight_med_max: number;
+  weight_heavy_max: number;
+  coef_weight_light: number;
+  coef_weight_med: number;
+  coef_weight_heavy: number;
+  coef_weight_extra: number;
+  coef_standard: number;
+  coef_manual: number;
+  coef_fabric_leatherette: number;
+  coef_thick_block: number;
+  coef_large_format: number;
+  coef_small_circulation: number;
+  coef_nonstandard_format: number;
+  small_circulation_threshold: number;
+  large_format_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  max_book_thickness: number;
+  max_book_weight: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const FINAL_PRESSING_METHOD_LABEL: Record<string, string> = {
+  manual: "Ручная",
+  mechanical: "Механическая",
+  hydraulic: "Гидравлическая",
+  auto: "Автоматическая",
+  batch: "Партиями",
+  time: "По времени",
+};
 // Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
 function bestFitOnSheet(
   partW: number, partH: number,
