@@ -5267,6 +5267,13 @@ const Calculator = () => {
                       </Select>
                     </div>
                     {pouchEnabled && (() => {
+                      const longSide = Math.max(dims.w, dims.h);
+                      const shortSide = Math.min(dims.w, dims.h);
+                      if (longSide > 420 || shortSide > 297) return (
+                        <p className="text-[11px] text-destructive">
+                          Изделие {dims.w}×{dims.h} мм больше A3 (297×420 мм) — пакетная ламинация не выполняется. Используйте рулонную ламинацию или припресс плёнкой.
+                        </p>
+                      );
                       const pouch = pickPouchFor(pouches, dims.w, dims.h, pouchManualId);
                       if (!pouch) return (
                         <p className="text-[11px] text-destructive">Не найден подходящий пакет — добавьте записи в Справочник «Пакетная ламинация».</p>
