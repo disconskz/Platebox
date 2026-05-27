@@ -177,7 +177,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
   const [presetKey, setPresetKey] = useState<string>(
-    isCard ? "90x50" : isCoupon ? "70x150" : isForm ? "A4" : isBooklet ? "A4" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
+    isCard ? "90x50" : isEurobooklet ? "EUROBOOKLET" : isCoupon ? "70x150" : isForm ? "A4" : isBooklet ? "A4" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
   );
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
