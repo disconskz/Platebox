@@ -1123,6 +1123,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load headband_prices failed", e);
       }
+      // Доработка 19: справочник прессовки блока.
+      try {
+        const prR = await (supabase as any)
+          .from("block_pressing_prices")
+          .select("*")
+          .order("sort_order");
+        setPressingRows(((prR.data as BlockPressingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load block_pressing_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
