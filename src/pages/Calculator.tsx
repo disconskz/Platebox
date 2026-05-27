@@ -422,6 +422,62 @@ const ENDPAPER_TYPE_LABEL: Record<string, string> = {
 const ENDPAPER_PRODUCT_TYPES = new Set<string>([
   "book", "notepad", "catalog",
 ]);
+// Доработка 27: продукты, для которых актуально скрепление на скобу.
+const STAPLING_PRODUCT_TYPES = new Set<string>([
+  "booklet", "brochure", "magazine", "catalog", "notepad",
+]);
+
+// Доработка 27: справочник «Скрепление на скобу».
+type StaplingRow = {
+  id: string;
+  name: string;
+  staple_type: string;          // standard | loop | reinforced | nonstandard
+  machine_type: string;         // auto | semi_auto | manual
+  price_per_staple: number;
+  price_per_item: number;
+  default_staples_count: number;
+  setup_cost: number;
+  min_cost: number;
+  thickness_t1_max: number;
+  thickness_t2_max: number;
+  thickness_t3_max: number;
+  thickness_t4_max: number;
+  coef_thickness_t1: number;
+  coef_thickness_t2: number;
+  coef_thickness_t3: number;
+  coef_thickness_t4: number;
+  coef_format_a6: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  coef_standard_staple: number;
+  coef_loop_staple: number;
+  coef_reinforced_staple: number;
+  coef_manual: number;
+  coef_heavy_paper: number;
+  coef_small_circulation: number;
+  heavy_paper_threshold: number;
+  small_circulation_threshold: number;
+  max_block_thickness: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const STAPLING_STAPLE_LABEL: Record<string, string> = {
+  standard: "Обычная",
+  loop: "Петлевая",
+  reinforced: "Усиленная",
+  nonstandard: "Нестандартная",
+};
+const STAPLING_MACHINE_LABEL: Record<string, string> = {
+  auto: "Авто",
+  semi_auto: "Полуавто",
+  manual: "Ручное",
+};
 
 // Доработка 17: справочник марли.
 type GauzeRow = {
@@ -1417,6 +1473,22 @@ const Calculator = () => {
   const [fpManual, setFpManual] = useState(false);
   const [fpFabric, setFpFabric] = useState(false);
 
+  // Доработка 27: скрепление на скобу.
+  const [stRows, setStRows] = useState<StaplingRow[]>([]);
+  const [stEnabled, setStEnabled] = useState(false);
+  const [stManualId, setStManualId] = useState<string | null>(null);
+  const [stStaplesCountOverride, setStStaplesCountOverride] = useState<number | "">("");
+  const [stStapleTypeOverride, setStStapleTypeOverride] = useState<string>("");
+  const [stMachineOverride, setStMachineOverride] = useState<string>("");
+  const [stPricePerStapleOverride, setStPricePerStapleOverride] = useState<number | "">("");
+  const [stPriceItemOverride, setStPriceItemOverride] = useState<number | "">("");
+  const [stBlockThicknessOverride, setStBlockThicknessOverride] = useState<number | "">("");
+  const [stCoefOverride, setStCoefOverride] = useState<number | "">("");
+  const [stSetupOverride, setStSetupOverride] = useState<number | "">("");
+  const [stMinOverride, setStMinOverride] = useState<number | "">("");
+  const [stManual, setStManual] = useState(false);
+  const [stHeavyPaper, setStHeavyPaper] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -1696,6 +1768,16 @@ const Calculator = () => {
         setFpRows(((fpR.data as FinalPressingRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load final_pressing_prices failed", e);
+      }
+      // Доработка 27: справочник скрепления на скобу.
+      try {
+        const stR = await (supabase as any)
+          .from("stapling_prices")
+          .select("*")
+          .order("sort_order");
+        setStRows(((stR.data as StaplingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load stapling_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -3874,7 +3956,104 @@ const Calculator = () => {
       (items as any).__meta = { row, mode, bookThickness, bookWeight, baseCost, loadsCount, totalHours, formatCoef, thicknessCoef, weightCoef, manualCoef, fabricCoef, thickBlockCoef, largeFmtCoef, nonstdFmtCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems];
+    // Доработка 27: «Скрепление на скобу».
+    const staplingItems: SpecItem[] = (() => {
+      if (!stEnabled || !(circulation > 0)) return [];
+      if (!stRows.length) return [];
+      const active = stRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const shortS = Math.min(dims.w, dims.h);
+      const longS = Math.max(dims.w, dims.h);
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0.1;
+      })();
+      const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+      const autoBT = sheetThickness > 0 ? sheets * sheetThickness : 0;
+      const blockThickness = stBlockThicknessOverride !== "" ? Number(stBlockThicknessOverride) : autoBT;
+      const density = Number((effectiveMaterial as any)?.density) || 0;
+      const fits = (r: StaplingRow) =>
+        longS <= r.max_format_long && shortS >= r.min_format_short
+        && blockThickness <= r.max_block_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation;
+      const wantManual = stManual || circulation < 100 || longS > 500 || blockThickness > 6;
+      const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+      const row = (stManualId && active.find((r) => r.id === stManualId))
+        || (wantManual ? sorted.find((r) => r.machine_type === "manual" && fits(r)) : null)
+        || sorted.find(fits)
+        || sorted[0];
+      if (!row) return [];
+      const machine = stMachineOverride || row.machine_type;
+      const stapleType = stStapleTypeOverride || row.staple_type;
+      const staplesCount = stStaplesCountOverride !== "" ? Math.max(1, Number(stStaplesCountOverride)) : Math.max(1, row.default_staples_count);
+      const pricePerStaple = stPricePerStapleOverride !== "" ? Number(stPricePerStapleOverride) : row.price_per_staple;
+      const priceItem = stPriceItemOverride !== "" ? Number(stPriceItemOverride) : row.price_per_item;
+      const staplesCost = circulation * staplesCount * pricePerStaple;
+      const workBase = circulation * priceItem;
+      // Коэффициенты.
+      const thicknessCoef = blockThickness <= row.thickness_t1_max ? row.coef_thickness_t1
+        : blockThickness <= row.thickness_t2_max ? row.coef_thickness_t2
+        : blockThickness <= row.thickness_t3_max ? row.coef_thickness_t3
+        : row.coef_thickness_t4;
+      const formatCoef = longS <= 148 ? row.coef_format_a6
+        : longS <= 210 ? row.coef_format_a5
+        : longS <= 297 ? row.coef_format_a4
+        : longS <= 420 ? row.coef_format_a3
+        : row.coef_format_nonstandard;
+      const stapleCoef = stapleType === "loop" ? row.coef_loop_staple
+        : stapleType === "reinforced" ? row.coef_reinforced_staple
+        : row.coef_standard_staple;
+      const machineCoef = (machine === "manual" || stManual) ? row.coef_manual : 1;
+      const heavyPaperCoef = (stHeavyPaper || (density > 0 && density >= row.heavy_paper_threshold)) ? row.coef_heavy_paper : 1;
+      const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = thicknessCoef * formatCoef * stapleCoef * machineCoef * heavyPaperCoef * smallCircCoef;
+      const coef = stCoefOverride !== "" ? Math.max(0, Number(stCoefOverride)) : autoCoef;
+      const setup = stSetupOverride !== "" ? Number(stSetupOverride) : row.setup_cost;
+      const minCost = stMinOverride !== "" ? Number(stMinOverride) : row.min_cost;
+      const workCost = workBase * coef;
+      const raw = staplesCost + workCost + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (staplesCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Скобы — ${STAPLING_STAPLE_LABEL[stapleType] || stapleType} (${staplesCount} шт × ${pricePerStaple} ₸)`,
+          quantity: circulation * staplesCount,
+          unit: "шт",
+          unitPrice: pricePerStaple,
+          total: staplesCost,
+        });
+      }
+      if (workBase > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Скрепление на скобу — ${STAPLING_MACHINE_LABEL[machine] || machine} (за изделие)`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: priceItem,
+          total: workBase,
+        });
+      }
+      if (coef !== 1 && workBase > 0) {
+        const delta = workCost - workBase;
+        items.push({ stage: "postpress", name: `Скрепление на скобу — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Скрепление на скобу — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Скрепление на скобу — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4067,7 +4246,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -8165,6 +8344,203 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(База × коэф + приладка)</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. При расчёте по времени <code>Загрузок = CEIL(Тираж / Книг за загрузку)</code>, <code>База = Загрузок × Время × Цена часа</code>.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 27: Скрепление на скобу */}
+                  {STAPLING_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={stEnabled} onCheckedChange={(v) => setStEnabled(!!v)} id="st" />
+                        <Label htmlFor="st" className="flex-1 font-medium">Скрепление на скобу</Label>
+                        <Select
+                          value={stManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setStManualId(v === "auto" ? null : v);
+                            setStStaplesCountOverride(""); setStStapleTypeOverride(""); setStMachineOverride("");
+                            setStPricePerStapleOverride(""); setStPriceItemOverride(""); setStBlockThicknessOverride("");
+                            setStCoefOverride(""); setStSetupOverride(""); setStMinOverride("");
+                          }}
+                          disabled={!stEnabled || stRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по формату/толщине/тиражу)</SelectItem>
+                            {stRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {stEnabled && (() => {
+                        if (!stRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Скрепление на скобу» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = stRows.filter((r) => r.is_active !== false);
+                        if (!active.length) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const shortS = Math.min(dims.w, dims.h);
+                        const longS = Math.max(dims.w, dims.h);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0.1;
+                        })();
+                        const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+                        const autoBT = sheetThickness > 0 ? sheets * sheetThickness : 0;
+                        const blockThickness = stBlockThicknessOverride !== "" ? Number(stBlockThicknessOverride) : autoBT;
+                        const density = Number((effectiveMaterial as any)?.density) || 0;
+                        const fits = (r: StaplingRow) =>
+                          longS <= r.max_format_long && shortS >= r.min_format_short
+                          && blockThickness <= r.max_block_thickness
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation;
+                        const wantManual = stManual || circulation < 100 || longS > 500 || blockThickness > 6;
+                        const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+                        const row = (stManualId && active.find((r) => r.id === stManualId))
+                          || (wantManual ? sorted.find((r) => r.machine_type === "manual" && fits(r)) : null)
+                          || sorted.find(fits)
+                          || sorted[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет подходящих записей.</p>;
+                        const machine = stMachineOverride || row.machine_type;
+                        const stapleType = stStapleTypeOverride || row.staple_type;
+                        const staplesCount = stStaplesCountOverride !== "" ? Math.max(1, Number(stStaplesCountOverride)) : Math.max(1, row.default_staples_count);
+                        const pricePerStaple = stPricePerStapleOverride !== "" ? Number(stPricePerStapleOverride) : row.price_per_staple;
+                        const priceItem = stPriceItemOverride !== "" ? Number(stPriceItemOverride) : row.price_per_item;
+                        const staplesCost = circulation * staplesCount * pricePerStaple;
+                        const workBase = circulation * priceItem;
+                        const thicknessCoef = blockThickness <= row.thickness_t1_max ? row.coef_thickness_t1
+                          : blockThickness <= row.thickness_t2_max ? row.coef_thickness_t2
+                          : blockThickness <= row.thickness_t3_max ? row.coef_thickness_t3
+                          : row.coef_thickness_t4;
+                        const formatCoef = longS <= 148 ? row.coef_format_a6
+                          : longS <= 210 ? row.coef_format_a5
+                          : longS <= 297 ? row.coef_format_a4
+                          : longS <= 420 ? row.coef_format_a3
+                          : row.coef_format_nonstandard;
+                        const stapleCoef = stapleType === "loop" ? row.coef_loop_staple
+                          : stapleType === "reinforced" ? row.coef_reinforced_staple
+                          : row.coef_standard_staple;
+                        const machineCoef = (machine === "manual" || stManual) ? row.coef_manual : 1;
+                        const heavyPaperCoef = (stHeavyPaper || (density > 0 && density >= row.heavy_paper_threshold)) ? row.coef_heavy_paper : 1;
+                        const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const autoCoef = thicknessCoef * formatCoef * stapleCoef * machineCoef * heavyPaperCoef * smallCircCoef;
+                        const coef = stCoefOverride !== "" ? Math.max(0, Number(stCoefOverride)) : autoCoef;
+                        const setup = stSetupOverride !== "" ? Number(stSetupOverride) : row.setup_cost;
+                        const minCost = stMinOverride !== "" ? Number(stMinOverride) : row.min_cost;
+                        const workCost = workBase * coef;
+                        const raw = staplesCost + workCost + setup;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const warnings: string[] = [];
+                        if (blockThickness > row.max_block_thickness) warnings.push(`толщина блока ${blockThickness.toFixed(2)} мм > предела ${row.max_block_thickness} мм — рекомендуется пружина, КБС, термобиндер или шитьё`);
+                        if (longS > row.max_format_long) warnings.push(`формат ${longS} мм > предела ${row.max_format_long} мм`);
+                        if (circulation > row.max_circulation) warnings.push(`тираж ${circulation} > предела ${row.max_circulation}`);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Кол-во скоб на изделие</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={stStaplesCountOverride === "" ? staplesCount : stStaplesCountOverride}
+                                  onChange={(e) => setStStaplesCountOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тип скобы</Label>
+                                <Select value={stapleType} onValueChange={(v) => setStStapleTypeOverride(v)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="standard">Обычная</SelectItem>
+                                    <SelectItem value="loop">Петлевая</SelectItem>
+                                    <SelectItem value="reinforced">Усиленная</SelectItem>
+                                    <SelectItem value="nonstandard">Нестандартная</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Оборудование</Label>
+                                <Select value={machine} onValueChange={(v) => setStMachineOverride(v)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="auto">Авто</SelectItem>
+                                    <SelectItem value="semi_auto">Полуавто</SelectItem>
+                                    <SelectItem value="manual">Ручное</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена 1 скобы, ₸</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={stPricePerStapleOverride === "" ? pricePerStaple : stPricePerStapleOverride}
+                                  onChange={(e) => setStPricePerStapleOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена работы, ₸/шт</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={stPriceItemOverride === "" ? priceItem : stPriceItemOverride}
+                                  onChange={(e) => setStPriceItemOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина блока, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={stBlockThicknessOverride === "" ? Number(blockThickness.toFixed(2)) : stBlockThicknessOverride}
+                                  onChange={(e) => setStBlockThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={stCoefOverride === "" ? Number(autoCoef.toFixed(3)) : stCoefOverride}
+                                  onChange={(e) => setStCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={stSetupOverride === "" ? row.setup_cost : stSetupOverride}
+                                  onChange={(e) => setStSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={stMinOverride === "" ? row.min_cost : stMinOverride}
+                                  onChange={(e) => setStMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="st-manual" checked={stManual} onCheckedChange={(v) => setStManual(!!v)} />
+                                <Label htmlFor="st-manual" className="text-[12px]">Ручное скрепление</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="st-heavy" checked={stHeavyPaper} onCheckedChange={(v) => setStHeavyPaper(!!v)} />
+                                <Label htmlFor="st-heavy" className="text-[12px]">Плотная бумага</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> · {STAPLING_MACHINE_LABEL[machine] || machine} · скоба: <b>{STAPLING_STAPLE_LABEL[stapleType] || stapleType}</b>
+                              </div>
+                              <div>
+                                Блок: толщ. <b>{blockThickness.toFixed(2)} мм</b> ({sheets} л × {sheetThickness.toFixed(3)} мм) · скоб на изделие: <b>{staplesCount}</b>
+                              </div>
+                              <div>
+                                Материал: {circulation} × {staplesCount} × {pricePerStaple} = <b>{Math.round(staplesCost).toLocaleString("ru-RU")} ₸</b> · работа: {circulation} × {priceItem} = <b>{Math.round(workBase).toLocaleString("ru-RU")} ₸</b> · приладка: <b>{setup} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: толщ. {thicknessCoef} × формат {formatCoef} × скоба {stapleCoef} × оборуд. {machineCoef} × плотн. {heavyPaperCoef} × мал.тираж {smallCircCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: {Math.round(staplesCost).toLocaleString("ru-RU")} + {Math.round(workCost).toLocaleString("ru-RU")} + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {warnings.length > 0 && (
+                                <div className="text-destructive">Предупреждение: {warnings.join("; ")}</div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>Скобы + Работа×Коэф + Приладка</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Скобы = Тираж × Кол-во × Цена; Работа = Тираж × Цена работы.
                             </p>
                           </div>
                         );

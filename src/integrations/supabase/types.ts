@@ -2996,6 +2996,135 @@ export type Database = {
         }
         Relationships: []
       }
+      stapling_prices: {
+        Row: {
+          coef_format_a3: number
+          coef_format_a4: number
+          coef_format_a5: number
+          coef_format_a6: number
+          coef_format_nonstandard: number
+          coef_heavy_paper: number
+          coef_loop_staple: number
+          coef_manual: number
+          coef_reinforced_staple: number
+          coef_small_circulation: number
+          coef_standard_staple: number
+          coef_thickness_t1: number
+          coef_thickness_t2: number
+          coef_thickness_t3: number
+          coef_thickness_t4: number
+          created_at: string
+          default_staples_count: number
+          heavy_paper_threshold: number
+          id: string
+          is_active: boolean
+          machine_type: string
+          max_block_thickness: number
+          max_circulation: number
+          max_format_long: number
+          min_circulation: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          price_per_item: number
+          price_per_staple: number
+          setup_cost: number
+          small_circulation_threshold: number
+          sort_order: number
+          staple_type: string
+          thickness_t1_max: number
+          thickness_t2_max: number
+          thickness_t3_max: number
+          thickness_t4_max: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coef_format_a3?: number
+          coef_format_a4?: number
+          coef_format_a5?: number
+          coef_format_a6?: number
+          coef_format_nonstandard?: number
+          coef_heavy_paper?: number
+          coef_loop_staple?: number
+          coef_manual?: number
+          coef_reinforced_staple?: number
+          coef_small_circulation?: number
+          coef_standard_staple?: number
+          coef_thickness_t1?: number
+          coef_thickness_t2?: number
+          coef_thickness_t3?: number
+          coef_thickness_t4?: number
+          created_at?: string
+          default_staples_count?: number
+          heavy_paper_threshold?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_block_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          price_per_item?: number
+          price_per_staple?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          staple_type?: string
+          thickness_t1_max?: number
+          thickness_t2_max?: number
+          thickness_t3_max?: number
+          thickness_t4_max?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coef_format_a3?: number
+          coef_format_a4?: number
+          coef_format_a5?: number
+          coef_format_a6?: number
+          coef_format_nonstandard?: number
+          coef_heavy_paper?: number
+          coef_loop_staple?: number
+          coef_manual?: number
+          coef_reinforced_staple?: number
+          coef_small_circulation?: number
+          coef_standard_staple?: number
+          coef_thickness_t1?: number
+          coef_thickness_t2?: number
+          coef_thickness_t3?: number
+          coef_thickness_t4?: number
+          created_at?: string
+          default_staples_count?: number
+          heavy_paper_threshold?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_block_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          price_per_item?: number
+          price_per_staple?: number
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          staple_type?: string
+          thickness_t1_max?: number
+          thickness_t2_max?: number
+          thickness_t3_max?: number
+          thickness_t4_max?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           description: string | null
