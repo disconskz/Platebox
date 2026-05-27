@@ -1769,6 +1769,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load final_pressing_prices failed", e);
       }
+      // Доработка 27: справочник скрепления на скобу.
+      try {
+        const stR = await (supabase as any)
+          .from("stapling_prices")
+          .select("*")
+          .order("sort_order");
+        setStRows(((stR.data as StaplingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load stapling_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
