@@ -326,14 +326,14 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                   </div>
                   <div>
                     <Label>Готовый размер</Label>
-                    <Select value={formatType} onValueChange={(v) => setFormatType(v as FormatType)}>
+                    <Select value={presetKey} onValueChange={(v) => setPresetKey(v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {FORMAT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        {FORMATS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  {formatType === "custom" && (
+                  {preset.value === "custom" && (
                     <>
                       <div>
                         <Label>Ширина, мм</Label>
