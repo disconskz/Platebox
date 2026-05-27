@@ -58,12 +58,13 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 ];
 
 export interface BrochureLikeProps {
-  mode?: "brochure" | "catalog" | "magazine" | "softcover";
+  mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover";
 }
 
 export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
-  const isCatalog = mode === "catalog" || isSoftcover;
+  const isHardcover = mode === "hardcover";
+  const isCatalog = mode === "catalog" || isSoftcover || isHardcover;
   const isMagazine = mode === "magazine";
   const isCatalogLike = isCatalog || isMagazine;
   const BINDINGS = isCatalogLike ? [...BINDINGS_BASE, ...BINDINGS_CATALOG_EXTRA] : BINDINGS_BASE;
@@ -79,7 +80,7 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [colorCoverBack, setColorCoverBack] = useState(0);
   const [blockPaperKey, setBlockPaperKey] = useState(isCatalogLike ? "coated130" : "coated115");
   const [coverPaperKey, setCoverPaperKey] = useState(isCatalogLike ? "coated300" : "coated250");
-  const [bindingKind, setBindingKind] = useState<BindingKind>(isCatalog ? "kbs" : "staple");
+  const [bindingKind, setBindingKind] = useState<BindingKind>(isHardcover ? "sewn" : isCatalog ? "kbs" : "staple");
   const [printMode, setPrintMode] = useState<"auto" | "offset" | "digital">("auto");
   const [hasDesign, setHasDesign] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(false);
@@ -107,6 +108,16 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [optCoverBig, setOptCoverBig] = useState(true);
   const [optRound, setOptRound] = useState(false);
   const [roundCorners, setRoundCorners] = useState(4);
+
+  // Твёрдый переплёт: книжные операции
+  const [hcBoardThicknessMm, setHcBoardThicknessMm] = useState(2.5);
+  const [hcCoverMaterial, setHcCoverMaterial] = useState<"coated" | "designer" | "bumvinyl" | "fabric" | "leather" | "balacron">("bumvinyl");
+  const [hcOptLasse, setHcOptLasse] = useState(true);
+  const [hcOptEdgeColor, setHcOptEdgeColor] = useState(false);
+  const [hcOptEdgeFoil, setHcOptEdgeFoil] = useState(false);
+  const [hcOptSuperjacket, setHcOptSuperjacket] = useState(false);
+  const [hcOptSlipcase, setHcOptSlipcase] = useState(false);
+  const [hcOptShubr, setHcOptShubr] = useState(false);
 
   // Журнал: серия / выпуск / периодичность / вложения / адресация / термоусадка
   const [issueNumber, setIssueNumber] = useState("01");
