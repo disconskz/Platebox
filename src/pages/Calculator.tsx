@@ -4667,6 +4667,23 @@ const Calculator = () => {
                           </div>
                         );
                       })()}
+                      {(() => {
+                        const sheets = Math.max(0, Math.floor(sigPages / 2));
+                        const density = Number((effectiveMaterial as any)?.density ?? 0);
+                        const ptRow = paperThickness.find((p) => p.density === density);
+                        const sheetTh = Number(ptRow?.thickness_mm ?? 0);
+                        const blockTh = sheets * sheetTh;
+                        return (
+                          <div className="mt-3 rounded-md border bg-muted/30 px-3 py-2 text-xs space-y-0.5">
+                            <div className="font-medium text-foreground mb-1">Внутренний блок</div>
+                            <div>Бумага: <b>{(effectiveMaterial as any)?.name ?? "—"}</b></div>
+                            <div>Плотность: <b>{density || "—"}</b> г/м²</div>
+                            <div>Толщина листа: <b>{sheetTh ? sheetTh.toFixed(3) : "—"}</b> мм{!sheetTh && density ? " (нет в справочнике paper_thickness)" : ""}</div>
+                            <div>Листов: <b>{sheets}</b> (страниц / 2)</div>
+                            <div>Толщина блока: <b>{blockTh ? blockTh.toFixed(2) : "—"}</b> мм</div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                   <div>
