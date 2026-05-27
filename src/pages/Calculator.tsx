@@ -2423,6 +2423,41 @@ const Calculator = () => {
     tapeNonstandardFormat, tapeComplexPosition, circulation, dims.w, dims.h,
   ]);
 
+  // Доработка 31: ряд «Наклейка окна на коробку».
+  const windowItems = useMemo(() => {
+    if (!windowEnabled) return [] as any[];
+    const active = windowRows.filter((r) => (r as any).is_active !== false);
+    const rule = (windowManualId ? windowRows.find((r) => r.id === windowManualId) : active[0]) as WindowRule | undefined;
+    if (!rule) return [];
+    const r = calcWindow(rule, {
+      circulation,
+      windowWidthMm,
+      windowHeightMm,
+      windowsPerItem,
+      shapeOverride: windowShapeOverride || undefined,
+      nonstandardFormat: windowNonstandardFormat,
+      complexPosition: windowComplexPosition,
+      calcModeOverride: windowCalcModeOverride || undefined,
+      priceMaterialOverride: windowPriceMaterialOverride !== "" ? Number(windowPriceMaterialOverride) : undefined,
+      priceApplyItemOverride: windowPriceApplyItemOverride !== "" ? Number(windowPriceApplyItemOverride) : undefined,
+      priceApplyM2Override: windowPriceApplyM2Override !== "" ? Number(windowPriceApplyM2Override) : undefined,
+      complexityCoefOverride: windowComplexityCoefOverride !== "" ? Number(windowComplexityCoefOverride) : undefined,
+      setupOverride: windowSetupOverride !== "" ? Number(windowSetupOverride) : undefined,
+      minCostOverride: windowMinCostOverride !== "" ? Number(windowMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Наклейка окна (${rule.name || rule.window_material}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    windowEnabled, windowRows, windowManualId, windowWidthMm, windowHeightMm, windowsPerItem,
+    windowShapeOverride, windowCalcModeOverride, windowPriceMaterialOverride,
+    windowPriceApplyItemOverride, windowPriceApplyM2Override, windowComplexityCoefOverride,
+    windowSetupOverride, windowMinCostOverride, windowNonstandardFormat, windowComplexPosition,
+    circulation,
+  ]);
+
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
