@@ -2360,6 +2360,41 @@ const Calculator = () => {
     baseResult, effectiveMaterial, circulation, dims.w, dims.h,
   ]);
 
+  // Доработка 30: ряд «Наклейка скотча».
+  const tapeItems = useMemo(() => {
+    if (!tapeEnabled) return [] as any[];
+    const active = tapeRows.filter((r) => (r as any).is_active !== false);
+    const rule = (tapeManualId ? tapeRows.find((r) => r.id === tapeManualId) : active[0]) as TapeRule | undefined;
+    if (!rule) return [];
+    const r = calcTape(rule, {
+      circulation,
+      stripLengthMm: tapeStripLengthMm,
+      stripsPerItem: tapeStripsPerItem,
+      pointsPerItem: tapePointsPerItem,
+      formatShortMm: Math.min(dims.w, dims.h),
+      formatLongMm: Math.max(dims.w, dims.h),
+      nonstandardFormat: tapeNonstandardFormat,
+      complexPosition: tapeComplexPosition,
+      calcModeOverride: tapeCalcModeOverride || undefined,
+      pricePerMeterOverride: tapePricePerMeterOverride !== "" ? Number(tapePricePerMeterOverride) : undefined,
+      pricePerPointOverride: tapePricePerPointOverride !== "" ? Number(tapePricePerPointOverride) : undefined,
+      pricePerItemApplyOverride: tapePricePerItemOverride !== "" ? Number(tapePricePerItemOverride) : undefined,
+      complexityCoefOverride: tapeComplexityCoefOverride !== "" ? Number(tapeComplexityCoefOverride) : undefined,
+      setupOverride: tapeSetupOverride !== "" ? Number(tapeSetupOverride) : undefined,
+      minCostOverride: tapeMinCostOverride !== "" ? Number(tapeMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Наклейка скотча (${rule.name || rule.tape_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    tapeEnabled, tapeRows, tapeManualId, tapeStripLengthMm, tapeStripsPerItem, tapePointsPerItem,
+    tapeCalcModeOverride, tapePricePerMeterOverride, tapePricePerPointOverride, tapePricePerItemOverride,
+    tapeComplexityCoefOverride, tapeSetupOverride, tapeMinCostOverride,
+    tapeNonstandardFormat, tapeComplexPosition, circulation, dims.w, dims.h,
+  ]);
+
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
