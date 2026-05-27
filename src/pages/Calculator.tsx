@@ -18,6 +18,7 @@ import { loadCalcRules, loadCutRules, loadMaterialPrices } from "@/lib/calc/rule
 import { runVariant as runVariantFormula, collectStageRefs } from "@/lib/calc/variants/engine";
 import { VARIABLE_KEYS } from "@/lib/calc/variants/types";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
+import { calcPerforation, type PerforationRule, type PerforationCalcMode } from "@/lib/calc/perforation";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
