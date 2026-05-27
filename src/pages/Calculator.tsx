@@ -422,6 +422,62 @@ const ENDPAPER_TYPE_LABEL: Record<string, string> = {
 const ENDPAPER_PRODUCT_TYPES = new Set<string>([
   "book", "notepad", "catalog",
 ]);
+// Доработка 27: продукты, для которых актуально скрепление на скобу.
+const STAPLING_PRODUCT_TYPES = new Set<string>([
+  "booklet", "brochure", "magazine", "catalog", "notepad",
+]);
+
+// Доработка 27: справочник «Скрепление на скобу».
+type StaplingRow = {
+  id: string;
+  name: string;
+  staple_type: string;          // standard | loop | reinforced | nonstandard
+  machine_type: string;         // auto | semi_auto | manual
+  price_per_staple: number;
+  price_per_item: number;
+  default_staples_count: number;
+  setup_cost: number;
+  min_cost: number;
+  thickness_t1_max: number;
+  thickness_t2_max: number;
+  thickness_t3_max: number;
+  thickness_t4_max: number;
+  coef_thickness_t1: number;
+  coef_thickness_t2: number;
+  coef_thickness_t3: number;
+  coef_thickness_t4: number;
+  coef_format_a6: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  coef_standard_staple: number;
+  coef_loop_staple: number;
+  coef_reinforced_staple: number;
+  coef_manual: number;
+  coef_heavy_paper: number;
+  coef_small_circulation: number;
+  heavy_paper_threshold: number;
+  small_circulation_threshold: number;
+  max_block_thickness: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const STAPLING_STAPLE_LABEL: Record<string, string> = {
+  standard: "Обычная",
+  loop: "Петлевая",
+  reinforced: "Усиленная",
+  nonstandard: "Нестандартная",
+};
+const STAPLING_MACHINE_LABEL: Record<string, string> = {
+  auto: "Авто",
+  semi_auto: "Полуавто",
+  manual: "Ручное",
+};
 
 // Доработка 17: справочник марли.
 type GauzeRow = {
