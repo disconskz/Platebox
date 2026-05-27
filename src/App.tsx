@@ -22,6 +22,7 @@ import CouponCalculator from "./pages/CouponCalculator.tsx";
 import FormCalculator from "./pages/FormCalculator.tsx";
 import MenuCalculator from "./pages/MenuCalculator.tsx";
 import BookletCalculator from "./pages/BookletCalculator.tsx";
+import EurobookletCalculator from "./pages/EurobookletCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/calculator/form" element={<FormCalculator />} />
               <Route path="/calculator/menu" element={<MenuCalculator />} />
               <Route path="/calculator/booklet" element={<BookletCalculator />} />
+              <Route path="/calculator/eurobooklet" element={<EurobookletCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
