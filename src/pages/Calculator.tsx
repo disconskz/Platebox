@@ -1251,6 +1251,25 @@ const Calculator = () => {
   const [csDesignerMaterial, setCsDesignerMaterial] = useState(false);
   const [csPrintedCover, setCsPrintedCover] = useState(false);
 
+  // Доработка 24: сборка переплётной крышки.
+  const [coverAsmRows, setCoverAsmRows] = useState<CoverAssemblyRow[]>([]);
+  const [caEnabled, setCaEnabled] = useState(false);
+  const [caManualId, setCaManualId] = useState<string | null>(null);
+  const [caSideWOverride, setCaSideWOverride] = useState<number | "">("");
+  const [caSideHOverride, setCaSideHOverride] = useState<number | "">("");
+  const [caSpineWOverride, setCaSpineWOverride] = useState<number | "">("");
+  const [caGapLeftOverride, setCaGapLeftOverride] = useState<number | "">("");
+  const [caGapRightOverride, setCaGapRightOverride] = useState<number | "">("");
+  const [caCoverWOverride, setCaCoverWOverride] = useState<number | "">("");
+  const [caCoverHOverride, setCaCoverHOverride] = useState<number | "">("");
+  const [caWorkCostOverride, setCaWorkCostOverride] = useState<number | "">("");
+  const [caCoefOverride, setCaCoefOverride] = useState<number | "">("");
+  const [caSetupOverride, setCaSetupOverride] = useState<number | "">("");
+  const [caMinOverride, setCaMinOverride] = useState<number | "">("");
+  const [caManualMethod, setCaManualMethod] = useState(false);
+  const [caFabric, setCaFabric] = useState(false);
+  const [caComplexMaterial, setCaComplexMaterial] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
