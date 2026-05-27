@@ -1325,6 +1325,24 @@ const Calculator = () => {
   const [caFabric, setCaFabric] = useState(false);
   const [caComplexMaterial, setCaComplexMaterial] = useState(false);
 
+  // Доработка 25: вставка блока в крышку.
+  const [biRows, setBiRows] = useState<BlockInsertionRow[]>([]);
+  const [biEnabled, setBiEnabled] = useState(false);
+  const [biManualId, setBiManualId] = useState<string | null>(null);
+  const [biPriceOverride, setBiPriceOverride] = useState<number | "">("");
+  const [biGlueModeOverride, setBiGlueModeOverride] = useState<"" | "per_item" | "per_m2">("");
+  const [biGluePriceItemOverride, setBiGluePriceItemOverride] = useState<number | "">("");
+  const [biGluePriceM2Override, setBiGluePriceM2Override] = useState<number | "">("");
+  const [biEndpaperAreaOverride, setBiEndpaperAreaOverride] = useState<number | "">("");
+  const [biBlockThicknessOverride, setBiBlockThicknessOverride] = useState<number | "">("");
+  const [biBlockWeightOverride, setBiBlockWeightOverride] = useState<number | "">("");
+  const [biCoefOverride, setBiCoefOverride] = useState<number | "">("");
+  const [biSetupOverride, setBiSetupOverride] = useState<number | "">("");
+  const [biMinOverride, setBiMinOverride] = useState<number | "">("");
+  const [biManualMethod, setBiManualMethod] = useState(false);
+  const [biFabric, setBiFabric] = useState(false);
+  const [biComplexAlign, setBiComplexAlign] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
