@@ -112,6 +112,13 @@ const BOOKLET_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const EUROBOOKLET_FORMATS: PresetFormat[] = [
+  { value: "EUROBOOKLET", label: "Евробуклет (100×210, разворот A4)", type: "custom", w: 100, h: 210 },
+  { value: "DL", label: "DL (99×210, разворот A4)", type: "custom", w: 99, h: 210 },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
