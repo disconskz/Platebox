@@ -6704,6 +6704,221 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 23: Кашировка */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={csEnabled} onCheckedChange={(v) => setCsEnabled(!!v)} id="cs" />
+                        <Label htmlFor="cs" className="flex-1 font-medium">Кашировка</Label>
+                        <Select
+                          value={csManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setCsManualId(v === "auto" ? null : v);
+                            setCsCoverWidthOverride(""); setCsCoverHeightOverride("");
+                            setCsMaterialCostOverride(""); setCsGlueCostOverride(""); setCsWorkCostOverride("");
+                            setCsCoefOverride(""); setCsSetupOverride(""); setCsMinOverride("");
+                          }}
+                          disabled={!csEnabled || casingRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по материалу/формату/тиражу)</SelectItem>
+                            {casingRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {csEnabled && (() => {
+                        if (!casingRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Кашировка» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = casingRows.filter((r) => r.is_active !== false);
+                        const shortS = Math.min(dims.w, dims.h);
+                        const longS = Math.max(dims.w, dims.h);
+                        let boardThickness = 2;
+                        let coverSpreadW = 0;
+                        let coverSpreadH = dims.h;
+                        if (boardRows.length) {
+                          const bActive = boardRows.filter((r) => r.is_active !== false);
+                          const bRow = (bdManualId && bActive.find((r) => r.id === bdManualId))
+                            || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)
+                                 .find((r) => longS <= r.max_format_long && shortS >= r.min_format_short)
+                            || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                          if (bRow) {
+                            const sheetThickness = (() => {
+                              const direct = Number(sewPaperThicknessOverride);
+                              if (Number.isFinite(direct) && direct > 0) return direct;
+                              if (paperThickness.length) {
+                                const dens = Number((effectiveMaterial as any)?.density);
+                                const match = paperThickness.find((p) => p.density === dens);
+                                if (match) return Number(match.thickness_mm) || 0;
+                              }
+                              return 0;
+                            })();
+                            const autoBT = Number(sewBlockThicknessOverride)
+                              || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                              || 20;
+                            const sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + bRow.width_allowance;
+                            const sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + bRow.height_allowance;
+                            const spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBT + bRow.spine_allowance;
+                            boardThickness = bRow.board_thickness;
+                            coverSpreadH = sideH;
+                            coverSpreadW = sideW * 2 + spineW;
+                          }
+                        }
+                        if (!(coverSpreadW > 0)) coverSpreadW = dims.w * 2 + boardThickness;
+                        const fits = (r: CasingRow) =>
+                          longS <= r.max_format_long && shortS >= r.min_format_short
+                          && boardThickness <= r.max_board_thickness
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation;
+                        const row = (csManualId && active.find((r) => r.id === csManualId))
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const coverW = csCoverWidthOverride !== ""
+                          ? Number(csCoverWidthOverride)
+                          : coverSpreadW + row.spine_gap * 2 + row.fold_left + row.fold_right;
+                        const coverH = csCoverHeightOverride !== ""
+                          ? Number(csCoverHeightOverride)
+                          : coverSpreadH + row.fold_top + row.fold_bottom;
+                        const areaM2 = (coverW * coverH) / 1_000_000;
+                        let materialCost = 0;
+                        if (csMaterialCostOverride !== "") materialCost = Number(csMaterialCostOverride);
+                        else if (row.material_calc_mode === "per_sheet") {
+                          const sheetsPerItem = Math.max(1, bestFitOnSheet(coverW, coverH, row.sheet_width, row.sheet_height, 5, 10) || 1);
+                          const totalSheets = Math.ceil(circulation / sheetsPerItem);
+                          materialCost = totalSheets * row.material_price_per_sheet;
+                        } else {
+                          materialCost = areaM2 * row.material_price_per_m2 * circulation;
+                        }
+                        const glueCost = csGlueCostOverride !== ""
+                          ? Number(csGlueCostOverride)
+                          : row.glue_calc_mode === "per_item"
+                            ? circulation * row.glue_price_per_item
+                            : areaM2 * row.glue_price_per_m2 * circulation;
+                        const workCost = csWorkCostOverride !== ""
+                          ? Number(csWorkCostOverride)
+                          : row.work_calc_mode === "per_item"
+                            ? circulation * row.work_price_per_item
+                            : areaM2 * row.work_price_per_m2 * circulation;
+                        const formatCoef = longS > row.large_format_threshold
+                          ? row.coef_large_format
+                          : longS > 297 ? row.coef_nonstandard_format : row.coef_standard_format;
+                        const manualCoef = (csManualMethod || row.casing_method === "manual") ? row.coef_manual : 1;
+                        const fabricCoef = (csFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+                        const thickCoef = boardThickness >= row.thick_board_threshold ? row.coef_thick_board : 1;
+                        const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const designerCoef = (csDesignerMaterial || row.cover_material_type === "designer_paper") ? row.coef_designer_material : 1;
+                        const printedCoef = (csPrintedCover || row.cover_material_type === "printed") ? row.coef_printed_cover : 1;
+                        const autoCoef = formatCoef * manualCoef * fabricCoef * thickCoef * smallCircCoef * designerCoef * printedCoef;
+                        const coef = csCoefOverride !== "" ? Math.max(0, Number(csCoefOverride)) : autoCoef;
+                        const setup = csSetupOverride !== "" ? Number(csSetupOverride) : row.setup_cost;
+                        const minCost = csMinOverride !== "" ? Number(csMinOverride) : row.min_cost;
+                        const baseSum = materialCost + glueCost + workCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const warnings: string[] = [];
+                        if (boardThickness > row.max_board_thickness) warnings.push(`толщина картона ${boardThickness} мм > предела ${row.max_board_thickness} мм`);
+                        if (longS > row.max_format_long) warnings.push(`длинная сторона ${longS} мм > предела ${row.max_format_long} мм`);
+                        if (circulation > row.max_circulation) warnings.push(`тираж ${circulation} > предела ${row.max_circulation}`);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Ширина покровного, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={csCoverWidthOverride === "" ? Number(coverW.toFixed(1)) : csCoverWidthOverride}
+                                  onChange={(e) => setCsCoverWidthOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Высота покровного, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={csCoverHeightOverride === "" ? Number(coverH.toFixed(1)) : csCoverHeightOverride}
+                                  onChange={(e) => setCsCoverHeightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Материал, ₸ (тираж)</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={csMaterialCostOverride === "" ? Math.round(materialCost) : csMaterialCostOverride}
+                                  onChange={(e) => setCsMaterialCostOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Клей, ₸ (тираж)</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={csGlueCostOverride === "" ? Math.round(glueCost) : csGlueCostOverride}
+                                  onChange={(e) => setCsGlueCostOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Работа, ₸ (тираж)</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={csWorkCostOverride === "" ? Math.round(workCost) : csWorkCostOverride}
+                                  onChange={(e) => setCsWorkCostOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={csCoefOverride === "" ? Number(autoCoef.toFixed(3)) : csCoefOverride}
+                                  onChange={(e) => setCsCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={csSetupOverride === "" ? row.setup_cost : csSetupOverride}
+                                  onChange={(e) => setCsSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={csMinOverride === "" ? row.min_cost : csMinOverride}
+                                  onChange={(e) => setCsMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="cs-manual" checked={csManualMethod} onCheckedChange={(v) => setCsManualMethod(!!v)} />
+                                <Label htmlFor="cs-manual" className="text-[12px]">Ручная кашировка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="cs-fabric" checked={csFabric} onCheckedChange={(v) => setCsFabric(!!v)} />
+                                <Label htmlFor="cs-fabric" className="text-[12px]">Ткань / кожзам</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="cs-design" checked={csDesignerMaterial} onCheckedChange={(v) => setCsDesignerMaterial(!!v)} />
+                                <Label htmlFor="cs-design" className="text-[12px]">Дизайн. материал</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="cs-print" checked={csPrintedCover} onCheckedChange={(v) => setCsPrintedCover(!!v)} />
+                                <Label htmlFor="cs-print" className="text-[12px]">Печатная обложка</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> · {CASING_METHOD_LABEL[row.casing_method] || row.casing_method} · {CASING_COVER_LABEL[row.cover_material_type] || row.cover_material_type}
+                              </div>
+                              <div>
+                                Разворот крышки <b>{coverSpreadW.toFixed(0)}×{coverSpreadH.toFixed(0)} мм</b> · покровный <b>{coverW.toFixed(0)}×{coverH.toFixed(0)} мм</b> · площадь <b>{areaM2.toFixed(4)} м²</b>
+                              </div>
+                              <div>
+                                Материал: <b>{Math.round(materialCost).toLocaleString("ru-RU")} ₸</b> · клей: <b>{Math.round(glueCost).toLocaleString("ru-RU")} ₸</b> · работа: <b>{Math.round(workCost).toLocaleString("ru-RU")} ₸</b> · приладка: <b>{setup} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × ручн. {manualCoef} × ткань {fabricCoef} × толст.карт. {thickCoef} × мал.тираж {smallCircCoef} × дизайн. {designerCoef} × печать {printedCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {warnings.length > 0 && (
+                                <div className="text-destructive">Предупреждение: {warnings.join("; ")}</div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(материал + клей + работа + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Размер покровного = разворот крышки + загибы; разворот = 2×сторонка + отстав + расставы.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
