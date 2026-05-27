@@ -750,8 +750,28 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                 </Card>
               )}
 
+              {isPlanner && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">6. Фурнитура и персонализация</CardTitle></CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <Row label="Датированный (календарная сетка)" checked={plDated} onChange={setPlDated} />
+                    <Row label="Резинка (+ пробивка, авто)" checked={plOptElastic} onChange={setPlOptElastic} />
+                    <Row label="Магнит" checked={plOptMagnet} onChange={setPlOptMagnet} />
+                    <Row label="Карман" checked={plOptPocket} onChange={setPlOptPocket} />
+                    <Row label="Петля под ручку" checked={plOptPenLoop} onChange={setPlOptPenLoop} />
+                    <Row label="Металлические уголки (ручная установка)" checked={plOptCorners} onChange={setPlOptCorners}>
+                      <Input className="h-8 w-20" type="number" min={1} max={4} value={plCornersCount} onChange={(e) => setPlCornersCount(+e.target.value || 1)} />
+                      <span className="text-xs text-muted-foreground">уг./изд.</span>
+                    </Row>
+                    <Row label="Шильдик" checked={plOptNameplate} onChange={setPlOptNameplate} />
+                    <Row label="Персонализация (имя/логотип)" checked={plOptPersonalize} onChange={setPlOptPersonalize} />
+                    <Row label="Индивидуальная подарочная упаковка" checked={plOptGiftBox} onChange={setPlOptGiftBox} />
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
-                <CardHeader><CardTitle className="text-sm">{isHardcover ? "6" : "5"}. Упаковка и доставка</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">{isPlanner ? "7" : isHardcover ? "6" : "5"}. Упаковка и доставка</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="flex items-end gap-2">
                     <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />

@@ -29,6 +29,7 @@ import CatalogCalculator from "./pages/CatalogCalculator.tsx";
 import MagazineCalculator from "./pages/MagazineCalculator.tsx";
 import SoftcoverBookCalculator from "./pages/SoftcoverBookCalculator.tsx";
 import HardcoverBookCalculator from "./pages/HardcoverBookCalculator.tsx";
+import PlannerCalculator from "./pages/PlannerCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="/calculator/magazine" element={<MagazineCalculator />} />
               <Route path="/calculator/softcover-book" element={<SoftcoverBookCalculator />} />
               <Route path="/calculator/hardcover-book" element={<HardcoverBookCalculator />} />
+              <Route path="/calculator/planner" element={<PlannerCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
