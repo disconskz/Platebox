@@ -7948,6 +7948,229 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 26: Финальная прессовка книги */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={fpEnabled} onCheckedChange={(v) => setFpEnabled(!!v)} id="fp" />
+                        <Label htmlFor="fp" className="flex-1 font-medium">Финальная прессовка книги</Label>
+                        <Select
+                          value={fpManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setFpManualId(v === "auto" ? null : v);
+                            setFpCalcModeOverride(""); setFpPriceOverride(""); setFpHourPriceOverride("");
+                            setFpBooksPerLoadOverride(""); setFpLoadTimeOverride("");
+                            setFpBookThicknessOverride(""); setFpBookWeightOverride("");
+                            setFpCoefOverride(""); setFpSetupOverride(""); setFpMinOverride("");
+                          }}
+                          disabled={!fpEnabled || fpRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по формату/толщине/весу/тиражу)</SelectItem>
+                            {fpRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {fpEnabled && (() => {
+                        if (!fpRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Финальная прессовка книги» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = fpRows.filter((r) => r.is_active !== false);
+                        if (!active.length) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const shortS = Math.min(dims.w, dims.h);
+                        const longS = Math.max(dims.w, dims.h);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBT = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const autoBookThickness = autoBT + 3;
+                        const bookThickness = fpBookThicknessOverride !== "" ? Number(fpBookThicknessOverride) : autoBookThickness;
+                        const density = Number((effectiveMaterial as any)?.density) || 0;
+                        const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+                        const autoBlockWeight = density > 0 ? density * ((dims.w * dims.h) / 1_000_000) * sheets : 0;
+                        const autoBookWeight = autoBlockWeight > 0 ? autoBlockWeight + 50 : 0;
+                        const bookWeight = fpBookWeightOverride !== "" ? Number(fpBookWeightOverride) : autoBookWeight;
+                        const fits = (r: FinalPressingRow) =>
+                          longS <= r.max_format_long && shortS >= r.min_format_short
+                          && bookThickness <= r.max_book_thickness
+                          && (!(bookWeight > 0) || bookWeight <= r.max_book_weight)
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation;
+                        const wantManual = fpManual || fpFabric || circulation < 100 || longS > 500 || bookThickness > 40;
+                        const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+                        const row = (fpManualId && active.find((r) => r.id === fpManualId))
+                          || (wantManual ? sorted.find((r) => r.pressing_method === "manual" && fits(r)) : null)
+                          || sorted.find(fits)
+                          || sorted[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет подходящих записей.</p>;
+                        const mode: "per_item" | "per_time" = fpCalcModeOverride || (row.calc_mode as any) || "per_item";
+                        const booksPerLoad = fpBooksPerLoadOverride !== "" ? Math.max(1, Number(fpBooksPerLoadOverride)) : Math.max(1, row.books_per_load);
+                        const loadTime = fpLoadTimeOverride !== "" ? Number(fpLoadTimeOverride) : row.load_time_hours;
+                        const hourPrice = fpHourPriceOverride !== "" ? Number(fpHourPriceOverride) : row.price_per_hour;
+                        const priceItem = fpPriceOverride !== "" ? Number(fpPriceOverride) : row.price_per_item;
+                        let baseCost = 0;
+                        let loadsCount = 0;
+                        let totalHours = 0;
+                        if (mode === "per_time") {
+                          loadsCount = Math.ceil(circulation / booksPerLoad);
+                          totalHours = loadsCount * loadTime;
+                          baseCost = totalHours * hourPrice;
+                        } else {
+                          baseCost = circulation * priceItem;
+                        }
+                        const formatCoef = longS <= 210 ? row.coef_format_a5
+                          : longS <= 297 ? row.coef_format_a4
+                          : longS <= 420 ? row.coef_format_a3
+                          : row.coef_format_nonstandard;
+                        const thicknessCoef = bookThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+                          : bookThickness <= row.thickness_med_max ? row.coef_thickness_med
+                          : bookThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+                          : row.coef_thickness_extra;
+                        const weightCoef = bookWeight <= 0 ? row.coef_weight_light
+                          : bookWeight <= row.weight_light_max ? row.coef_weight_light
+                          : bookWeight <= row.weight_med_max ? row.coef_weight_med
+                          : bookWeight <= row.weight_heavy_max ? row.coef_weight_heavy
+                          : row.coef_weight_extra;
+                        const manualCoef = (fpManual || row.pressing_method === "manual") ? row.coef_manual : row.coef_standard;
+                        const fabricCoef = fpFabric ? row.coef_fabric_leatherette : 1;
+                        const thickBlockCoef = autoBT >= 25 ? row.coef_thick_block : 1;
+                        const largeFmtCoef = longS > row.large_format_threshold ? row.coef_large_format : 1;
+                        const nonstdFmtCoef = longS > 420 ? row.coef_nonstandard_format : 1;
+                        const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const autoCoef = formatCoef * thicknessCoef * weightCoef * manualCoef * fabricCoef * thickBlockCoef * largeFmtCoef * nonstdFmtCoef * smallCircCoef;
+                        const coef = fpCoefOverride !== "" ? Math.max(0, Number(fpCoefOverride)) : autoCoef;
+                        const setup = fpSetupOverride !== "" ? Number(fpSetupOverride) : row.setup_cost;
+                        const minCost = fpMinOverride !== "" ? Number(fpMinOverride) : row.min_cost;
+                        const raw = baseCost * coef + setup;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const warnings: string[] = [];
+                        if (!biEnabled) warnings.push("операция «Вставка блока в крышку» не включена — финальная прессовка должна идти после неё");
+                        if (longS > row.max_format_long) warnings.push(`длинная сторона ${longS} мм > предела ${row.max_format_long} мм`);
+                        if (bookThickness > row.max_book_thickness) warnings.push(`толщина книги ${bookThickness.toFixed(1)} мм > предела ${row.max_book_thickness} мм`);
+                        if (bookWeight > row.max_book_weight) warnings.push(`вес книги ${bookWeight.toFixed(0)} г > предела ${row.max_book_weight} г`);
+                        if (circulation > row.max_circulation) warnings.push(`тираж ${circulation} > предела ${row.max_circulation}`);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина книги, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={fpBookThicknessOverride === "" ? Number(bookThickness.toFixed(1)) : fpBookThicknessOverride}
+                                  onChange={(e) => setFpBookThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Вес книги, г</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={fpBookWeightOverride === "" ? Math.round(bookWeight) : fpBookWeightOverride}
+                                  onChange={(e) => setFpBookWeightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Тип расчёта</Label>
+                                <Select value={mode} onValueChange={(v) => setFpCalcModeOverride(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="per_item">За изделие</SelectItem>
+                                    <SelectItem value="per_time">По времени</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {mode === "per_item" ? (
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Цена прессовки, ₸/шт</Label>
+                                  <Input type="number" inputMode="decimal"
+                                    value={fpPriceOverride === "" ? priceItem : fpPriceOverride}
+                                    onChange={(e) => setFpPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                </div>
+                              ) : (
+                                <>
+                                  <div>
+                                    <Label className="text-[11px] text-muted-foreground">Книг за загрузку</Label>
+                                    <Input type="number" inputMode="numeric"
+                                      value={fpBooksPerLoadOverride === "" ? booksPerLoad : fpBooksPerLoadOverride}
+                                      onChange={(e) => setFpBooksPerLoadOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[11px] text-muted-foreground">Время загрузки, ч</Label>
+                                    <Input type="number" inputMode="decimal" step="0.05"
+                                      value={fpLoadTimeOverride === "" ? loadTime : fpLoadTimeOverride}
+                                      onChange={(e) => setFpLoadTimeOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[11px] text-muted-foreground">Цена часа, ₸</Label>
+                                    <Input type="number" inputMode="decimal"
+                                      value={fpHourPriceOverride === "" ? hourPrice : fpHourPriceOverride}
+                                      onChange={(e) => setFpHourPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                  </div>
+                                </>
+                              )}
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={fpCoefOverride === "" ? Number(autoCoef.toFixed(3)) : fpCoefOverride}
+                                  onChange={(e) => setFpCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={fpSetupOverride === "" ? row.setup_cost : fpSetupOverride}
+                                  onChange={(e) => setFpSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={fpMinOverride === "" ? row.min_cost : fpMinOverride}
+                                  onChange={(e) => setFpMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="fp-manual" checked={fpManual} onCheckedChange={(v) => setFpManual(!!v)} />
+                                <Label htmlFor="fp-manual" className="text-[12px]">Ручная прессовка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="fp-fabric" checked={fpFabric} onCheckedChange={(v) => setFpFabric(!!v)} />
+                                <Label htmlFor="fp-fabric" className="text-[12px]">Ткань / кожзам</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> · {FINAL_PRESSING_METHOD_LABEL[row.pressing_method] || row.pressing_method} · режим: <b>{mode === "per_time" ? "по времени" : "за изделие"}</b>
+                              </div>
+                              <div>
+                                Книга: толщ. <b>{bookThickness.toFixed(1)} мм</b> · вес <b>{Math.round(bookWeight)} г</b>
+                                {mode === "per_time" && <> · загрузок: <b>{loadsCount}</b> × {loadTime} ч = <b>{totalHours.toFixed(2)} ч</b></>}
+                              </div>
+                              <div>
+                                База: <b>{Math.round(baseCost).toLocaleString("ru-RU")} ₸</b> · приладка: <b>{setup} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × толщ. {thicknessCoef} × вес {weightCoef} × способ {manualCoef} × ткань {fabricCoef} × толст.бл. {thickBlockCoef} × больш.форм. {largeFmtCoef} × нестанд. {nonstdFmtCoef} × мал.тираж {smallCircCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseCost).toLocaleString("ru-RU")} × {coef.toFixed(2)} + {setup}) = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {warnings.length > 0 && (
+                                <div className="text-destructive">Предупреждение: {warnings.join("; ")}</div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(База × коэф + приладка)</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. При расчёте по времени <code>Загрузок = CEIL(Тираж / Книг за загрузку)</code>, <code>База = Загрузок × Время × Цена часа</code>.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
