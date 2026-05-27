@@ -1450,6 +1450,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load board_cutting_prices failed", e);
       }
+      // Доработка 23: справочник кашировки.
+      try {
+        const csR = await (supabase as any)
+          .from("casing_prices")
+          .select("*")
+          .order("sort_order");
+        setCasingRows(((csR.data as CasingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load casing_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
