@@ -697,6 +697,63 @@ const BOARD_CUT_TYPE_LABEL: Record<string, string> = {
   package: "Пакетная",
   figured: "Фигурная",
 };
+// Доработка 23: кашировка.
+type CasingRow = {
+  id: string;
+  name: string;
+  casing_method: string;        // manual | semi_auto | auto
+  cover_material_type: string;  // paper | designer_paper | fabric | leatherette | printed
+  base_type: string;            // chipboard | grey | designer
+  material_calc_mode: "per_m2" | "per_sheet";
+  material_price_per_m2: number;
+  material_price_per_sheet: number;
+  sheet_width: number;
+  sheet_height: number;
+  glue_calc_mode: "per_m2" | "per_item";
+  glue_price_per_m2: number;
+  glue_price_per_item: number;
+  work_calc_mode: "per_m2" | "per_item";
+  work_price_per_m2: number;
+  work_price_per_item: number;
+  fold_left: number;
+  fold_right: number;
+  fold_top: number;
+  fold_bottom: number;
+  spine_gap: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_standard_format: number;
+  coef_nonstandard_format: number;
+  coef_manual: number;
+  coef_fabric_leatherette: number;
+  coef_thick_board: number;
+  coef_large_format: number;
+  coef_small_circulation: number;
+  coef_designer_material: number;
+  coef_printed_cover: number;
+  thick_board_threshold: number;
+  large_format_threshold: number;
+  small_circulation_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  max_board_thickness: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const CASING_METHOD_LABEL: Record<string, string> = {
+  manual: "Ручная",
+  semi_auto: "Полуавтомат",
+  auto: "Автомат",
+};
+const CASING_COVER_LABEL: Record<string, string> = {
+  paper: "Покровная бумага",
+  designer_paper: "Дизайнерская бумага",
+  fabric: "Ткань",
+  leatherette: "Кожзам",
+  printed: "Печатная обложка",
+};
 // Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
 function bestFitOnSheet(
   partW: number, partH: number,
