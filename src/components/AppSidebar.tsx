@@ -1,5 +1,7 @@
-import { LayoutGrid, BarChart3, Database, Plus, LogOut, BookOpen, Layers, Sparkles, FileText } from "lucide-react";
+import { LayoutGrid, BarChart3, Database, Plus, LogOut, BookOpen, Layers, Sparkles, FileText, ChevronDown, FileStack } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -19,33 +21,36 @@ import { cn } from "@/lib/utils";
 const main = [
   { title: "Расчёты", url: "/app", icon: LayoutGrid, exact: true },
   { title: "Новый расчёт", url: "/calculator", icon: Plus },
-  { title: "Шаблон: Листовка", url: "/calculator/leaflet", icon: FileText },
-  { title: "Шаблон: Флаер", url: "/calculator/flyer", icon: FileText },
-  { title: "Шаблон: Еврофлаер", url: "/calculator/euroflyer", icon: FileText },
-  { title: "Шаблон: Визитка", url: "/calculator/businesscard", icon: FileText },
- { title: "Шаблон: Плакат / постер", url: "/calculator/poster", icon: FileText },
-  { title: "Шаблон: Вкладыш", url: "/calculator/insert", icon: FileText },
-  { title: "Шаблон: Купон", url: "/calculator/coupon", icon: FileText },
-  { title: "Шаблон: Анкета", url: "/calculator/form", icon: FileText },
-  { title: "Шаблон: Меню", url: "/calculator/menu", icon: FileText },
-  { title: "Шаблон: Буклет", url: "/calculator/booklet", icon: FileText },
-  { title: "Шаблон: Евробуклет", url: "/calculator/eurobooklet", icon: FileText },
-  { title: "Шаблон: Лифлет", url: "/calculator/liflet", icon: FileText },
-  { title: "Шаблон: Брошюра", url: "/calculator/brochure", icon: FileText },
-  { title: "Шаблон: Каталог", url: "/calculator/catalog", icon: FileText },
-  { title: "Шаблон: Журнал", url: "/calculator/magazine", icon: FileText },
-  { title: "Шаблон: Книга (мягкий переплёт)", url: "/calculator/softcover-book", icon: FileText },
-  { title: "Шаблон: Книга (твёрдый переплёт)", url: "/calculator/hardcover-book", icon: FileText },
-  { title: "Шаблон: Ежедневник", url: "/calculator/planner", icon: FileText },
-  { title: "Шаблон: Блокнот", url: "/calculator/notepad", icon: FileText },
-  { title: "Шаблон: Кубарик / блок", url: "/calculator/memocube", icon: FileText },
-  { title: "Шаблон: Календарь квартальный", url: "/calculator/quarter-calendar", icon: FileText },
-  { title: "Шаблон: Календарь-домик", url: "/calculator/desk-calendar", icon: FileText },
   { title: "Групповой спуск", url: "/calculator/multi-sku", icon: Layers },
   { title: "ИИ-расчёт", url: "/ai-calc", icon: Sparkles },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },
   { title: "Справочники", url: "/references", icon: Database },
   { title: "База знаний", url: "/knowledge", icon: BookOpen },
+];
+
+const templates = [
+  { title: "Листовка", url: "/calculator/leaflet" },
+  { title: "Флаер", url: "/calculator/flyer" },
+  { title: "Еврофлаер", url: "/calculator/euroflyer" },
+  { title: "Визитка", url: "/calculator/businesscard" },
+  { title: "Плакат / постер", url: "/calculator/poster" },
+  { title: "Вкладыш", url: "/calculator/insert" },
+  { title: "Купон", url: "/calculator/coupon" },
+  { title: "Анкета", url: "/calculator/form" },
+  { title: "Меню", url: "/calculator/menu" },
+  { title: "Буклет", url: "/calculator/booklet" },
+  { title: "Евробуклет", url: "/calculator/eurobooklet" },
+  { title: "Лифлет", url: "/calculator/liflet" },
+  { title: "Брошюра", url: "/calculator/brochure" },
+  { title: "Каталог", url: "/calculator/catalog" },
+  { title: "Журнал", url: "/calculator/magazine" },
+  { title: "Книга (мягкий переплёт)", url: "/calculator/softcover-book" },
+  { title: "Книга (твёрдый переплёт)", url: "/calculator/hardcover-book" },
+  { title: "Ежедневник", url: "/calculator/planner" },
+  { title: "Блокнот", url: "/calculator/notepad" },
+  { title: "Кубарик / блок", url: "/calculator/memocube" },
+  { title: "Календарь квартальный", url: "/calculator/quarter-calendar" },
+  { title: "Календарь-домик", url: "/calculator/desk-calendar" },
 ];
 
 export function AppSidebar() {
@@ -62,6 +67,38 @@ export function AppSidebar() {
 
   const isActive = (url: string, exact?: boolean) =>
     exact ? pathname === url : pathname === url || pathname.startsWith(url + "/");
+
+  const anyTemplateActive = templates.some((t) => isActive(t.url));
+  const [templatesOpen, setTemplatesOpen] = useState<boolean>(anyTemplateActive);
+
+  // Split main into pre/post (templates inserted after "Новый расчёт").
+  const preIndex = main.findIndex((m) => m.url === "/calculator");
+  const preItems = main.slice(0, preIndex + 1);
+  const postItems = main.slice(preIndex + 1);
+
+  const renderItem = (item: typeof main[number]) => {
+    const active = isActive(item.url, item.exact);
+    return (
+      <SidebarMenuItem key={item.url}>
+        <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+          <NavLink
+            to={item.url}
+            className={cn(
+              "group flex items-center gap-2 rounded-md transition-all duration-200",
+              "hover:bg-muted/60 hover:translate-x-0.5",
+              active && "font-medium bg-muted/70 shadow-[inset_2px_0_0_hsl(var(--accent))]"
+            )}
+          >
+            <item.icon className={cn(
+              "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
+              active && "text-accent"
+            )} />
+            {!collapsed && <span>{item.title}</span>}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -84,29 +121,61 @@ export function AppSidebar() {
           <SidebarGroupLabel>Навигация</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {main.map((item) => {
-                const active = isActive(item.url, item.exact);
-                return (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                      <NavLink
-                        to={item.url}
-                        className={cn(
-                          "group flex items-center gap-2 rounded-md transition-all duration-200",
-                          "hover:bg-muted/60 hover:translate-x-0.5",
-                          active && "font-medium bg-muted/70 shadow-[inset_2px_0_0_hsl(var(--accent))]"
-                        )}
-                      >
-                        <item.icon className={cn(
-                          "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
-                          active && "text-accent"
-                        )} />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
+              {preItems.map(renderItem)}
+
+              {/* Сворачиваемая группа «Шаблоны» */}
+              <Collapsible open={templatesOpen} onOpenChange={setTemplatesOpen} className="group/coll">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      isActive={anyTemplateActive}
+                      tooltip="Шаблоны"
+                      className={cn(
+                        "group flex items-center gap-2 rounded-md transition-all duration-200 w-full",
+                        "hover:bg-muted/60",
+                        anyTemplateActive && "font-medium bg-muted/70 shadow-[inset_2px_0_0_hsl(var(--accent))]"
+                      )}
+                    >
+                      <FileStack className={cn("h-4 w-4 transition-transform duration-200 group-hover:scale-110", anyTemplateActive && "text-accent")} />
+                      {!collapsed && (
+                        <>
+                          <span className="flex-1 text-left">Шаблоны</span>
+                          <span className="text-[10px] text-muted-foreground tabular-nums">{templates.length}</span>
+                          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", templatesOpen && "rotate-180")} />
+                        </>
+                      )}
                     </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+                  </CollapsibleTrigger>
+                </SidebarMenuItem>
+                <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                  {!collapsed && (
+                    <div className="ml-3 mt-0.5 mb-1 border-l border-border/60 pl-1">
+                      {templates.map((t) => {
+                        const active = isActive(t.url);
+                        return (
+                          <SidebarMenuItem key={t.url}>
+                            <SidebarMenuButton asChild isActive={active} size="sm" tooltip={t.title}>
+                              <NavLink
+                                to={t.url}
+                                className={cn(
+                                  "group flex items-center gap-2 rounded-md text-sm transition-all duration-200",
+                                  "hover:bg-muted/60 hover:translate-x-0.5",
+                                  active && "font-medium bg-muted/70 shadow-[inset_2px_0_0_hsl(var(--accent))]"
+                                )}
+                              >
+                                <FileText className={cn("h-3.5 w-3.5", active && "text-accent")} />
+                                <span className="truncate">{t.title}</span>
+                              </NavLink>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              {postItems.map(renderItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
