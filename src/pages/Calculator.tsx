@@ -5457,6 +5457,112 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  {/* Доработка 30: блок «Наклейка скотча». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={tapeEnabled} onCheckedChange={(v) => setTapeEnabled(!!v)} id="tape" />
+                      <Label htmlFor="tape" className="flex-1 font-medium">Наклейка скотча</Label>
+                      {tapeEnabled && (
+                        <Select value={tapeManualId} onValueChange={setTapeManualId} disabled={tapeRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={tapeRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {tapeRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {tapeEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Длина отрезка, мм</Label>
+                            <Input type="number" min={0} value={tapeStripLengthMm || ""} onChange={(e) => setTapeStripLengthMm(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Полос на изделие</Label>
+                            <Input type="number" min={0} value={tapeStripsPerItem || ""} onChange={(e) => setTapeStripsPerItem(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Точек на изделие</Label>
+                            <Input type="number" min={0} value={tapePointsPerItem || ""} onChange={(e) => setTapePointsPerItem(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Способ расчёта</Label>
+                            <Select value={tapeCalcModeOverride || "__auto"} onValueChange={(v) => setTapeCalcModeOverride(v === "__auto" ? "" : (v as TapeCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_length">По длине</SelectItem>
+                                <SelectItem value="per_point">По точкам</SelectItem>
+                                <SelectItem value="per_item">За изделие</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за метр (override)</Label>
+                            <Input type="number" step="0.1" value={tapePricePerMeterOverride} placeholder="из справочника" onChange={(e) => setTapePricePerMeterOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за точку (override)</Label>
+                            <Input type="number" step="0.1" value={tapePricePerPointOverride} placeholder="из справочника" onChange={(e) => setTapePricePerPointOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена нанесения за изделие (override)</Label>
+                            <Input type="number" step="0.1" value={tapePricePerItemOverride} placeholder="из справочника" onChange={(e) => setTapePricePerItemOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={tapeComplexityCoefOverride} placeholder="авто" onChange={(e) => setTapeComplexityCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={tapeSetupOverride} placeholder="из справочника" onChange={(e) => setTapeSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={tapeMinCostOverride} placeholder="из справочника" onChange={(e) => setTapeMinCostOverride(e.target.value)} />
+                          </div>
+                          <div className="flex items-center gap-2 pt-5">
+                            <Checkbox id="tape-nf" checked={tapeNonstandardFormat} onCheckedChange={(v) => setTapeNonstandardFormat(!!v)} />
+                            <Label htmlFor="tape-nf" className="text-[12px]">Нестандартный формат</Label>
+                          </div>
+                          <div className="flex items-center gap-2 pt-5">
+                            <Checkbox id="tape-cp" checked={tapeComplexPosition} onCheckedChange={(v) => setTapeComplexPosition(!!v)} />
+                            <Label htmlFor="tape-cp" className="text-[12px]">Сложная позиция нанесения</Label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (tapeManualId ? tapeRows.find((r) => r.id === tapeManualId) : tapeRows.filter((r: any) => r.is_active !== false)[0]) as TapeRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Наклейка скотча».</p>;
+                          const r = calcTape(rule, {
+                            circulation,
+                            stripLengthMm: tapeStripLengthMm, stripsPerItem: tapeStripsPerItem, pointsPerItem: tapePointsPerItem,
+                            formatShortMm: Math.min(dims.w, dims.h), formatLongMm: Math.max(dims.w, dims.h),
+                            nonstandardFormat: tapeNonstandardFormat, complexPosition: tapeComplexPosition,
+                            calcModeOverride: tapeCalcModeOverride || undefined,
+                            pricePerMeterOverride: tapePricePerMeterOverride !== "" ? Number(tapePricePerMeterOverride) : undefined,
+                            pricePerPointOverride: tapePricePerPointOverride !== "" ? Number(tapePricePerPointOverride) : undefined,
+                            pricePerItemApplyOverride: tapePricePerItemOverride !== "" ? Number(tapePricePerItemOverride) : undefined,
+                            complexityCoefOverride: tapeComplexityCoefOverride !== "" ? Number(tapeComplexityCoefOverride) : undefined,
+                            setupOverride: tapeSetupOverride !== "" ? Number(tapeSetupOverride) : undefined,
+                            minCostOverride: tapeMinCostOverride !== "" ? Number(tapeMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · тип скотча: <b>{rule.tape_type}</b> · способ: <b>{rule.application_method}</b></div>
+                              <div>Общая длина: <b>{r.totalLengthM.toFixed(2)} м</b> · материал: <b>{r.materialCost.toFixed(0)} ₸</b> · нанесение: <b>{r.applyCost.toFixed(0)} ₸</b></div>
+                              <div>Коэф. сложности: <b>{r.complexityCoef.toFixed(2)}</b> · приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
