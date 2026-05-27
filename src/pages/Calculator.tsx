@@ -3181,7 +3181,127 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems];
+    // Доработка 23: кашировка (наклейка покровного материала на переплётный картон).
+    const casingItems: SpecItem[] = (() => {
+      if (!csEnabled || !(circulation > 0)) return [];
+      if (!casingRows.length) return [];
+      const active = casingRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      // Толщина картона из «Переплётного картона», если задано.
+      let boardThickness = 2;
+      let coverSpreadW = 0;
+      let coverSpreadH = dims.h;
+      if (boardRows.length) {
+        const bActive = boardRows.filter((r) => r.is_active !== false);
+        const bRow = (bdManualId && bActive.find((r) => r.id === bdManualId))
+          || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)
+               .find((r) => longSide <= r.max_format_long && shortSide >= r.min_format_short)
+          || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+        if (bRow) {
+          const sheetThickness = (() => {
+            const direct = Number(sewPaperThicknessOverride);
+            if (Number.isFinite(direct) && direct > 0) return direct;
+            if (paperThickness.length) {
+              const dens = Number((effectiveMaterial as any)?.density);
+              const match = paperThickness.find((p) => p.density === dens);
+              if (match) return Number(match.thickness_mm) || 0;
+            }
+            return 0;
+          })();
+          const autoBT = Number(sewBlockThicknessOverride)
+            || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+            || 20;
+          const sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + bRow.width_allowance;
+          const sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + bRow.height_allowance;
+          const spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBT + bRow.spine_allowance;
+          boardThickness = bRow.board_thickness;
+          coverSpreadH = sideH;
+          coverSpreadW = sideW * 2 + spineW;
+        }
+      }
+      if (!(coverSpreadW > 0)) coverSpreadW = dims.w * 2 + boardThickness;
+      const fits = (r: CasingRow) =>
+        longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && boardThickness <= r.max_board_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation;
+      const row = (csManualId && active.find((r) => r.id === csManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      // Размер покровного материала (с загибами + расставы между сторонками и отставом)
+      const coverW = csCoverWidthOverride !== ""
+        ? Number(csCoverWidthOverride)
+        : coverSpreadW + row.spine_gap * 2 + row.fold_left + row.fold_right;
+      const coverH = csCoverHeightOverride !== ""
+        ? Number(csCoverHeightOverride)
+        : coverSpreadH + row.fold_top + row.fold_bottom;
+      const areaM2 = (coverW * coverH) / 1_000_000;
+      if (!(areaM2 > 0)) return [];
+      // Покровный материал
+      let materialCost = 0;
+      if (csMaterialCostOverride !== "") {
+        materialCost = Number(csMaterialCostOverride);
+      } else if (row.material_calc_mode === "per_sheet") {
+        const sheetsPerItem = Math.max(1, bestFitOnSheet(coverW, coverH, row.sheet_width, row.sheet_height, 5, 10) || 1);
+        const totalSheets = Math.ceil(circulation / sheetsPerItem);
+        materialCost = totalSheets * row.material_price_per_sheet;
+      } else {
+        materialCost = areaM2 * row.material_price_per_m2 * circulation;
+      }
+      // Клей
+      const glueCost = csGlueCostOverride !== ""
+        ? Number(csGlueCostOverride)
+        : row.glue_calc_mode === "per_item"
+          ? circulation * row.glue_price_per_item
+          : areaM2 * row.glue_price_per_m2 * circulation;
+      // Работа
+      const workCost = csWorkCostOverride !== ""
+        ? Number(csWorkCostOverride)
+        : row.work_calc_mode === "per_item"
+          ? circulation * row.work_price_per_item
+          : areaM2 * row.work_price_per_m2 * circulation;
+      // Коэффициенты
+      const formatCoef = longSide > row.large_format_threshold
+        ? row.coef_large_format
+        : longSide > 297 ? row.coef_nonstandard_format : row.coef_standard_format;
+      const manualCoef = (csManualMethod || row.casing_method === "manual") ? row.coef_manual : 1;
+      const fabricCoef = (csFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+      const thickCoef = boardThickness >= row.thick_board_threshold ? row.coef_thick_board : 1;
+      const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const designerCoef = (csDesignerMaterial || row.cover_material_type === "designer_paper") ? row.coef_designer_material : 1;
+      const printedCoef = (csPrintedCover || row.cover_material_type === "printed") ? row.coef_printed_cover : 1;
+      const autoCoef = formatCoef * manualCoef * fabricCoef * thickCoef * smallCircCoef * designerCoef * printedCoef;
+      const coef = csCoefOverride !== "" ? Math.max(0, Number(csCoefOverride)) : autoCoef;
+      const setup = csSetupOverride !== "" ? Number(csSetupOverride) : row.setup_cost;
+      const minCost = csMinOverride !== "" ? Number(csMinOverride) : row.min_cost;
+      const baseSum = materialCost + glueCost + workCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (materialCost > 0) {
+        items.push({ stage: "postpress", name: `Кашировка — покровный материал (${CASING_COVER_LABEL[row.cover_material_type] || row.cover_material_type})`, quantity: Number(areaM2.toFixed(4)), unit: "м²/шт", unitPrice: materialCost / Math.max(1, circulation), total: materialCost });
+      }
+      if (glueCost > 0) {
+        items.push({ stage: "postpress", name: `Кашировка — клей`, quantity: circulation, unit: "шт", unitPrice: glueCost / Math.max(1, circulation), total: glueCost });
+      }
+      if (workCost > 0) {
+        items.push({ stage: "postpress", name: `Кашировка — работа (${CASING_METHOD_LABEL[row.casing_method] || row.casing_method})`, quantity: circulation, unit: "шт", unitPrice: workCost / Math.max(1, circulation), total: workCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Кашировка — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = baseSum * coef - baseSum;
+        items.push({ stage: "postpress", name: `Кашировка — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Кашировка — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
