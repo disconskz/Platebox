@@ -2309,7 +2309,94 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems];
+    // Доработка 18: каптал.
+    const headbandItems: SpecItem[] = (() => {
+      if (!hbEnabled || !(circulation > 0)) return [];
+      if (!headbandRows.length) return [];
+      const active = headbandRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const row = (hbManualId && active.find((r) => r.id === hbManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      // Толщина блока: из шитья / тетрадей / fallback.
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const allowance = hbAllowanceOverride !== "" ? Number(hbAllowanceOverride) : row.tech_allowance_mm;
+      const perItem = hbCountOverride !== "" ? Number(hbCountOverride) : row.headbands_per_item;
+      const lenOne = hbLengthOverride !== "" ? Number(hbLengthOverride) : autoBlockThickness + allowance;
+      const totalPieces = perItem * circulation;
+      const totalMeters = (lenOne * totalPieces) / 1000;
+      const pricePerMeter = hbPricePerMeterOverride !== "" ? Number(hbPricePerMeterOverride) : row.price_per_meter;
+      const matCost = totalMeters * pricePerMeter;
+      const installPrice = hbInstallPriceOverride !== "" ? Number(hbInstallPriceOverride) : row.install_price_per_piece;
+      const installCost = totalPieces * installPrice;
+      const setup = hbSetupOverride !== "" ? Number(hbSetupOverride) : row.setup_cost;
+      const minCost = hbMinOverride !== "" ? Number(hbMinOverride) : row.min_cost;
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long;
+      const formatCoef = isStandardFormat ? 1 : row.coef_nonstandard_format;
+      const thickCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const manualCoef = hbManualInstall ? row.coef_manual_install : 1;
+      const colorCoef = hbNonstandardColor ? row.coef_nonstandard_color : 1;
+      const smallCircCoef = circulation > 0 && circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = formatCoef * thickCoef * manualCoef * colorCoef * smallCircCoef;
+      const coef = hbCoefOverride !== "" ? Math.max(0, Number(hbCoefOverride)) : autoCoef;
+      const baseSum = matCost + installCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (matCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Каптал — материал (${HEADBAND_TYPE_LABEL[row.headband_type] || row.headband_type}, ${row.color}, ${totalMeters.toFixed(2)} м × ${pricePerMeter} ₸/м)`,
+          quantity: Number(totalMeters.toFixed(3)),
+          unit: "м",
+          unitPrice: pricePerMeter,
+          total: matCost,
+        });
+      }
+      if (installCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Каптал — установка (${totalPieces} шт × ${installPrice} ₸)`,
+          quantity: totalPieces,
+          unit: "шт",
+          unitPrice: installPrice,
+          total: installCost,
+        });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Каптал — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = raw - baseSum;
+        items.push({
+          stage: "postpress",
+          name: `Каптал — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Каптал — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
