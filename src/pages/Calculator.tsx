@@ -1833,6 +1833,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load flash_removal_prices failed", e);
       }
+      // Доработка 33: справочник «Установка ригеля».
+      try {
+        const rgR = await (supabase as any)
+          .from("rigel_prices")
+          .select("*")
+          .order("sort_order");
+        setRigelRows(((rgR.data as RigelRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load rigel_prices failed", e);
+      }
       // Доработка 21: справочник переплётного картона.
       try {
         const bdR = await (supabase as any)
