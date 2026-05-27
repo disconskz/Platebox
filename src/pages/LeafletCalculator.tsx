@@ -176,10 +176,10 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
 
   // Еврофлаер: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
   useEffect(() => {
-    if (!isEuro) return;
     const density = Number(material?.density) || 0;
-    if (optFold && density > 170 && !optBig) setOptBig(true);
-  }, [isEuro, optFold, material?.density, optBig]);
+    const threshold = isCard ? 300 : isEuro ? 170 : Infinity;
+    if (optFold && density > threshold && !optBig) setOptBig(true);
+  }, [isCard, isEuro, optFold, material?.density, optBig]);
 
   const preset = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [FORMATS, presetKey]);
   const formatType: FormatType = preset.type;
