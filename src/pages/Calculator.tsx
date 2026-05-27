@@ -22,6 +22,7 @@ import { calcPerforation, type PerforationRule, type PerforationCalcMode } from 
 import { calcTape, type TapeRule, type TapeCalcMode } from "@/lib/calc/tape";
 import { calcWindow, type WindowRule, type WindowCalcMode, type WindowShape } from "@/lib/calc/window";
 import { calcFlashRemoval, type FlashRemovalRule, type FlashRemovalCalcMode, type FlashContour, type FlashMaterial } from "@/lib/calc/flash_removal";
+import { calcRigel, type RigelRule, type RigelCalcMode } from "@/lib/calc/rigel";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
@@ -1276,6 +1277,23 @@ const Calculator = () => {
   const [flashMethodCoefOverride, setFlashMethodCoefOverride] = useState<string>("");
   const [flashSetupOverride, setFlashSetupOverride] = useState<string>("");
   const [flashMinCostOverride, setFlashMinCostOverride] = useState<string>("");
+  // Доработка 33: «Установка ригеля».
+  const [rigelRows, setRigelRows] = useState<RigelRule[]>([]);
+  const [rigelEnabled, setRigelEnabled] = useState(false);
+  const [rigelManualId, setRigelManualId] = useState<string>("");
+  const [rigelCalcModeOverride, setRigelCalcModeOverride] = useState<"" | RigelCalcMode>("");
+  const [rigelLengthOverride, setRigelLengthOverride] = useState<string>("");
+  const [rigelPriceItemOverride, setRigelPriceItemOverride] = useState<string>("");
+  const [rigelPriceMeterOverride, setRigelPriceMeterOverride] = useState<string>("");
+  const [rigelHangerPriceOverride, setRigelHangerPriceOverride] = useState<string>("");
+  const [rigelInstallPriceOverride, setRigelInstallPriceOverride] = useState<string>("");
+  const [rigelCoefOverride, setRigelCoefOverride] = useState<string>("");
+  const [rigelSetupOverride, setRigelSetupOverride] = useState<string>("");
+  const [rigelMinCostOverride, setRigelMinCostOverride] = useState<string>("");
+  const [rigelHasHangerOverride, setRigelHasHangerOverride] = useState<"" | "yes" | "no">("");
+  const [rigelHangerIncludedOverride, setRigelHangerIncludedOverride] = useState<"" | "yes" | "no">("");
+  const [rigelNonstandardColor, setRigelNonstandardColor] = useState<boolean>(false);
+  const [rigelComplexPosition, setRigelComplexPosition] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
@@ -1814,6 +1832,16 @@ const Calculator = () => {
         setFlashRows(((frR.data as FlashRemovalRule[]) || []));
       } catch (e) {
         console.warn("[Calculator] load flash_removal_prices failed", e);
+      }
+      // Доработка 33: справочник «Установка ригеля».
+      try {
+        const rgR = await (supabase as any)
+          .from("rigel_prices")
+          .select("*")
+          .order("sort_order");
+        setRigelRows(((rgR.data as RigelRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load rigel_prices failed", e);
       }
       // Доработка 21: справочник переплётного картона.
       try {
@@ -2524,6 +2552,44 @@ const Calculator = () => {
     flashPriceItemOverride, flashPriceSheetOverride, flashPriceHourOverride,
     flashContourCoefOverride, flashMaterialCoefOverride, flashBridgesCoefOverride, flashMethodCoefOverride,
     flashSetupOverride, flashMinCostOverride,
+  ]);
+
+  // Доработка 33: ряд «Установка ригеля».
+  const rigelItems = useMemo(() => {
+    if (!rigelEnabled) return [] as any[];
+    const active = rigelRows.filter((r) => (r as any).is_active !== false);
+    const rule = (rigelManualId ? rigelRows.find((r) => r.id === rigelManualId) : active[0]) as RigelRule | undefined;
+    if (!rule) return [];
+    const calendarWidthMm = Math.max(dims.w || 0, dims.h || 0);
+    const r = calcRigel(rule, {
+      circulation,
+      calendarWidthMm,
+      nonstandardColor: rigelNonstandardColor,
+      complexPosition: rigelComplexPosition,
+      hasHangerOverride: rigelHasHangerOverride === "" ? undefined : rigelHasHangerOverride === "yes",
+      hangerIncludedOverride: rigelHangerIncludedOverride === "" ? undefined : rigelHangerIncludedOverride === "yes",
+      calcModeOverride: rigelCalcModeOverride || undefined,
+      rigelLengthMmOverride: rigelLengthOverride !== "" ? Number(rigelLengthOverride) : undefined,
+      pricePerItemOverride: rigelPriceItemOverride !== "" ? Number(rigelPriceItemOverride) : undefined,
+      pricePerMeterOverride: rigelPriceMeterOverride !== "" ? Number(rigelPriceMeterOverride) : undefined,
+      hangerPriceOverride: rigelHangerPriceOverride !== "" ? Number(rigelHangerPriceOverride) : undefined,
+      installPriceOverride: rigelInstallPriceOverride !== "" ? Number(rigelInstallPriceOverride) : undefined,
+      complexityCoefOverride: rigelCoefOverride !== "" ? Number(rigelCoefOverride) : undefined,
+      setupOverride: rigelSetupOverride !== "" ? Number(rigelSetupOverride) : undefined,
+      minCostOverride: rigelMinCostOverride !== "" ? Number(rigelMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Установка ригеля (${rule.name || rule.rigel_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    rigelEnabled, rigelRows, rigelManualId, dims.w, dims.h, circulation,
+    rigelNonstandardColor, rigelComplexPosition,
+    rigelHasHangerOverride, rigelHangerIncludedOverride,
+    rigelCalcModeOverride, rigelLengthOverride,
+    rigelPriceItemOverride, rigelPriceMeterOverride, rigelHangerPriceOverride, rigelInstallPriceOverride,
+    rigelCoefOverride, rigelSetupOverride, rigelMinCostOverride,
   ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
@@ -4308,7 +4374,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4501,7 +4567,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems, rigelItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5944,6 +6010,135 @@ const Calculator = () => {
                             <div className="text-[11px] text-muted-foreground space-y-0.5">
                               <div>Режим: <b>{r.calcMode}</b> · способ: <b>{rule.removal_method}</b> · печ. листов: <b>{printSheets}</b> · на листе: <b>{itemsPerSheet}</b> · всего изделий: <b>{r.totalItems}</b></div>
                               <div>Коэф.: контур <b>{r.contourCoef}</b> · материал <b>{r.materialCoef}</b> · перемычки <b>{r.bridgesCoef}</b> · способ <b>{r.methodCoef}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                  {/* Доработка 33: блок «Установка ригеля». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={rigelEnabled} onCheckedChange={(v) => setRigelEnabled(!!v)} id="rigel" />
+                      <Label htmlFor="rigel" className="flex-1 font-medium">Установка ригеля</Label>
+                      {rigelEnabled && (
+                        <Select value={rigelManualId} onValueChange={setRigelManualId} disabled={rigelRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={rigelRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {rigelRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {rigelEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                            <Select value={rigelCalcModeOverride || "__auto"} onValueChange={(v) => setRigelCalcModeOverride(v === "__auto" ? "" : (v as RigelCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_item">Готовый (за шт.)</SelectItem>
+                                <SelectItem value="per_length">По метражу</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Длина ригеля, мм (override)</Label>
+                            <Input type="number" min={0} value={rigelLengthOverride} placeholder="авто = ширина + запас" onChange={(e) => setRigelLengthOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена готового, ₸/шт</Label>
+                            <Input type="number" step="0.1" value={rigelPriceItemOverride} placeholder="из справочника" onChange={(e) => setRigelPriceItemOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена по метражу, ₸/м</Label>
+                            <Input type="number" step="0.1" value={rigelPriceMeterOverride} placeholder="из справочника" onChange={(e) => setRigelPriceMeterOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Подвес есть?</Label>
+                            <Select value={rigelHasHangerOverride || "__auto"} onValueChange={(v) => setRigelHasHangerOverride(v === "__auto" ? "" : (v as "yes" | "no"))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="yes">Да</SelectItem>
+                                <SelectItem value="no">Нет</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Подвес входит в цену?</Label>
+                            <Select value={rigelHangerIncludedOverride || "__auto"} onValueChange={(v) => setRigelHangerIncludedOverride(v === "__auto" ? "" : (v as "yes" | "no"))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="yes">Да</SelectItem>
+                                <SelectItem value="no">Нет</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена подвеса, ₸/шт</Label>
+                            <Input type="number" step="0.1" value={rigelHangerPriceOverride} placeholder="из справочника" onChange={(e) => setRigelHangerPriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена установки, ₸/шт</Label>
+                            <Input type="number" step="0.1" value={rigelInstallPriceOverride} placeholder="из справочника" onChange={(e) => setRigelInstallPriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={rigelCoefOverride} placeholder="авто" onChange={(e) => setRigelCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={rigelSetupOverride} placeholder="из справочника" onChange={(e) => setRigelSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={rigelMinCostOverride} placeholder="из справочника" onChange={(e) => setRigelMinCostOverride(e.target.value)} />
+                          </div>
+                          <div className="flex items-end gap-3 sm:col-span-2">
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={rigelNonstandardColor} onCheckedChange={(v) => setRigelNonstandardColor(!!v)} />
+                              Нестанд. цвет
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={rigelComplexPosition} onCheckedChange={(v) => setRigelComplexPosition(!!v)} />
+                              Сложное позиционирование
+                            </label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (rigelManualId ? rigelRows.find((r) => r.id === rigelManualId) : rigelRows.filter((r: any) => r.is_active !== false)[0]) as RigelRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Установка ригеля».</p>;
+                          const calendarWidthMm = Math.max(dims.w || 0, dims.h || 0);
+                          const r = calcRigel(rule, {
+                            circulation, calendarWidthMm,
+                            nonstandardColor: rigelNonstandardColor,
+                            complexPosition: rigelComplexPosition,
+                            hasHangerOverride: rigelHasHangerOverride === "" ? undefined : rigelHasHangerOverride === "yes",
+                            hangerIncludedOverride: rigelHangerIncludedOverride === "" ? undefined : rigelHangerIncludedOverride === "yes",
+                            calcModeOverride: rigelCalcModeOverride || undefined,
+                            rigelLengthMmOverride: rigelLengthOverride !== "" ? Number(rigelLengthOverride) : undefined,
+                            pricePerItemOverride: rigelPriceItemOverride !== "" ? Number(rigelPriceItemOverride) : undefined,
+                            pricePerMeterOverride: rigelPriceMeterOverride !== "" ? Number(rigelPriceMeterOverride) : undefined,
+                            hangerPriceOverride: rigelHangerPriceOverride !== "" ? Number(rigelHangerPriceOverride) : undefined,
+                            installPriceOverride: rigelInstallPriceOverride !== "" ? Number(rigelInstallPriceOverride) : undefined,
+                            complexityCoefOverride: rigelCoefOverride !== "" ? Number(rigelCoefOverride) : undefined,
+                            setupOverride: rigelSetupOverride !== "" ? Number(rigelSetupOverride) : undefined,
+                            minCostOverride: rigelMinCostOverride !== "" ? Number(rigelMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · ширина изделия: <b>{calendarWidthMm} мм</b> · длина ригеля: <b>{r.rigelLengthMm} мм</b> · тираж: <b>{circulation}</b></div>
+                              <div>Ригель: <b>{r.rigelCost.toFixed(0)} ₸</b> · подвес: <b>{r.hangerCost.toFixed(0)} ₸</b> · установка: <b>{r.installCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef}</b></div>
                               <div>Расчёт: {r.breakdown}</div>
                               <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
                               <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
