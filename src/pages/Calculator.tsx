@@ -5312,6 +5312,91 @@ const Calculator = () => {
                       </p>
                     )}
                   </div>
+                  {/* Доработка 29: блок «Перфорация». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={perfEnabled} onCheckedChange={(v) => setPerfEnabled(!!v)} id="perf" />
+                      <Label htmlFor="perf" className="flex-1 font-medium">Перфорация</Label>
+                      {perfEnabled && (
+                        <Select value={perfManualId} onValueChange={setPerfManualId} disabled={perfRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={perfRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {perfRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {perfEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Длина линии, мм</Label>
+                            <Input type="number" min={0} value={perfLineLengthMm || ""} onChange={(e) => setPerfLineLengthMm(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Линий на изделие</Label>
+                            <Input type="number" min={0} value={perfLinesPerItem || ""} onChange={(e) => setPerfLinesPerItem(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Проходов (per_pass)</Label>
+                            <Input type="number" min={1} value={perfPasses || 1} onChange={(e) => setPerfPasses(Math.max(1, Number(e.target.value) || 1))} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Способ расчёта</Label>
+                            <Select value={perfCalcModeOverride || "__auto"} onValueChange={(v) => setPerfCalcModeOverride(v === "__auto" ? "" : (v as PerforationCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_length">По длине</SelectItem>
+                                <SelectItem value="per_sheet">По листу</SelectItem>
+                                <SelectItem value="per_pass">По проходу</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. материала (override)</Label>
+                            <Input type="number" step="0.1" value={perfMaterialCoefOverride} placeholder="авто" onChange={(e) => setPerfMaterialCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={perfComplexityCoefOverride} placeholder="авто" onChange={(e) => setPerfComplexityCoefOverride(e.target.value)} />
+                          </div>
+                          <div className="col-span-2 sm:col-span-2 flex items-center gap-2 pt-5">
+                            <Checkbox id="perf-die" checked={perfIncludedInDieCut} onCheckedChange={(v) => setPerfIncludedInDieCut(!!v)} />
+                            <Label htmlFor="perf-die" className="text-[12px]">Учтена в штампе высечки (не добавлять в стоимость)</Label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (perfManualId ? perfRows.find((r) => r.id === perfManualId) : perfRows.filter((r: any) => r.is_active !== false)[0]) as PerforationRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Перфорация».</p>;
+                          const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+                          const density = Number((effectiveMaterial as any)?.density ?? 0);
+                          const r = calcPerforation(rule, {
+                            circulation, printSheets,
+                            lineLengthMm: perfLineLengthMm, linesPerItem: perfLinesPerItem, passes: perfPasses,
+                            paperDensity: density, materialKind: "paper",
+                            formatShortMm: Math.min(dims.w, dims.h), formatLongMm: Math.max(dims.w, dims.h),
+                            calcModeOverride: perfCalcModeOverride || undefined,
+                            materialCoefOverride: perfMaterialCoefOverride !== "" ? Number(perfMaterialCoefOverride) : undefined,
+                            complexityCoefOverride: perfComplexityCoefOverride !== "" ? Number(perfComplexityCoefOverride) : undefined,
+                            includedInDieCut: perfIncludedInDieCut,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · общая длина: <b>{r.totalLengthM.toFixed(2)} м</b></div>
+                              <div>Коэф. материала: <b>{r.materialCoef}</b> · коэф. сложности: <b>{r.complexityCoef.toFixed(2)}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Приладка: <b>{r.setupCost} ₸</b> · мин. стоимость: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b>{perfIncludedInDieCut && " (учтено в высечке, не добавляется)"}</div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
