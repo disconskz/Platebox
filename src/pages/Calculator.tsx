@@ -5816,6 +5816,144 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  {/* Доработка 32: блок «Удаление облоя». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={flashEnabled} onCheckedChange={(v) => setFlashEnabled(!!v)} id="flash" />
+                      <Label htmlFor="flash" className="flex-1 font-medium">Удаление облоя</Label>
+                      {flashEnabled && (
+                        <Select value={flashManualId} onValueChange={setFlashManualId} disabled={flashRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={flashRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {flashRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {flashEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                            <Select value={flashCalcModeOverride || "__auto"} onValueChange={(v) => setFlashCalcModeOverride(v === "__auto" ? "" : (v as FlashRemovalCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_item">За изделие</SelectItem>
+                                <SelectItem value="per_sheet">За лист</SelectItem>
+                                <SelectItem value="per_time">По времени</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Сложность контура</Label>
+                            <Select value={flashContour} onValueChange={(v) => setFlashContour(v as FlashContour)}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="simple">Простой</SelectItem>
+                                <SelectItem value="std_box">Станд. коробка</SelectItem>
+                                <SelectItem value="complex_box">Сложная коробка</SelectItem>
+                                <SelectItem value="small_parts">Мелкие элементы</SelectItem>
+                                <SelectItem value="label">Наклейки / этикетки</SelectItem>
+                                <SelectItem value="microflute">Микрогофра</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Материал</Label>
+                            <Select value={flashMaterial} onValueChange={(v) => setFlashMaterial(v as FlashMaterial)}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="paper">Бумага</SelectItem>
+                                <SelectItem value="cardboard">Картон</SelectItem>
+                                <SelectItem value="thick_cardboard">Плотный картон</SelectItem>
+                                <SelectItem value="microflute">Микрогофра</SelectItem>
+                                <SelectItem value="plastic">Пластик / PET</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Перемычек на изделие</Label>
+                            <Input type="number" min={0} value={flashBridges} onChange={(e) => setFlashBridges(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Время работы, ч (для «по времени»)</Label>
+                            <Input type="number" step="0.1" value={flashTotalHours} placeholder="авто" onChange={(e) => setFlashTotalHours(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за изделие (override)</Label>
+                            <Input type="number" step="0.1" value={flashPriceItemOverride} placeholder="из справочника" onChange={(e) => setFlashPriceItemOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за лист (override)</Label>
+                            <Input type="number" step="0.1" value={flashPriceSheetOverride} placeholder="из справочника" onChange={(e) => setFlashPriceSheetOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена часа (override)</Label>
+                            <Input type="number" step="1" value={flashPriceHourOverride} placeholder="из справочника" onChange={(e) => setFlashPriceHourOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. контура (override)</Label>
+                            <Input type="number" step="0.1" value={flashContourCoefOverride} placeholder="авто" onChange={(e) => setFlashContourCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. материала (override)</Label>
+                            <Input type="number" step="0.1" value={flashMaterialCoefOverride} placeholder="авто" onChange={(e) => setFlashMaterialCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. перемычек (override)</Label>
+                            <Input type="number" step="0.1" value={flashBridgesCoefOverride} placeholder="авто" onChange={(e) => setFlashBridgesCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. способа (override)</Label>
+                            <Input type="number" step="0.1" value={flashMethodCoefOverride} placeholder="авто" onChange={(e) => setFlashMethodCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={flashSetupOverride} placeholder="из справочника" onChange={(e) => setFlashSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={flashMinCostOverride} placeholder="из справочника" onChange={(e) => setFlashMinCostOverride(e.target.value)} />
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (flashManualId ? flashRows.find((r) => r.id === flashManualId) : flashRows.filter((r: any) => r.is_active !== false)[0]) as FlashRemovalRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Удаление облоя».</p>;
+                          const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+                          const itemsPerSheet = (baseResult && !("error" in baseResult)) ? (baseResult.layout?.itemsPerSheet ?? 0) : 0;
+                          const r = calcFlashRemoval(rule, {
+                            printSheets, itemsPerSheet,
+                            contour: flashContour, material: flashMaterial,
+                            bridgesPerItem: flashBridges,
+                            totalTimeHours: flashTotalHours !== "" ? Number(flashTotalHours) : undefined,
+                            calcModeOverride: flashCalcModeOverride || undefined,
+                            pricePerItemOverride: flashPriceItemOverride !== "" ? Number(flashPriceItemOverride) : undefined,
+                            pricePerSheetOverride: flashPriceSheetOverride !== "" ? Number(flashPriceSheetOverride) : undefined,
+                            pricePerHourOverride: flashPriceHourOverride !== "" ? Number(flashPriceHourOverride) : undefined,
+                            contourCoefOverride: flashContourCoefOverride !== "" ? Number(flashContourCoefOverride) : undefined,
+                            materialCoefOverride: flashMaterialCoefOverride !== "" ? Number(flashMaterialCoefOverride) : undefined,
+                            bridgesCoefOverride: flashBridgesCoefOverride !== "" ? Number(flashBridgesCoefOverride) : undefined,
+                            methodCoefOverride: flashMethodCoefOverride !== "" ? Number(flashMethodCoefOverride) : undefined,
+                            setupOverride: flashSetupOverride !== "" ? Number(flashSetupOverride) : undefined,
+                            minCostOverride: flashMinCostOverride !== "" ? Number(flashMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · способ: <b>{rule.removal_method}</b> · печ. листов: <b>{printSheets}</b> · на листе: <b>{itemsPerSheet}</b> · всего изделий: <b>{r.totalItems}</b></div>
+                              <div>Коэф.: контур <b>{r.contourCoef}</b> · материал <b>{r.materialCoef}</b> · перемычки <b>{r.bridgesCoef}</b> · способ <b>{r.methodCoef}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
