@@ -535,13 +535,56 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(+e.target.value || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </Row>
-                  {isCatalog && (
+                  {isCatalogLike && (
                     <div className="text-xs text-muted-foreground pt-1">
                       Коэф. сложности обложки: <span className="font-medium">×{premiumCoef.toFixed(2)}</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {isMagazine && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">5. Выпуск, вложения и адресация</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div><Label>Номер выпуска</Label><Input value={issueNumber} onChange={(e) => setIssueNumber(e.target.value)} /></div>
+                    <div>
+                      <Label>Периодичность</Label>
+                      <Select value={periodicity} onValueChange={(v) => setPeriodicity(v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">Еженедельно</SelectItem>
+                          <SelectItem value="monthly">Ежемесячно</SelectItem>
+                          <SelectItem value="quarterly">Ежеквартально</SelectItem>
+                          <SelectItem value="oneoff">Разовый</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2 space-y-2 text-sm">
+                      <Row label="Вложения / вкладка образцов" checked={optInserts} onChange={setOptInserts}>
+                        <Input className="h-8 w-20" type="number" min={1} value={insertCount} onChange={(e) => setInsertCount(+e.target.value || 1)} />
+                        <span className="text-xs text-muted-foreground">вложений/изд.</span>
+                        <Checkbox id="insertauto" checked={insertAuto} onCheckedChange={(v) => setInsertAuto(!!v)} />
+                        <Label htmlFor="insertauto" className="cursor-pointer text-xs">авто-вкладка</Label>
+                      </Row>
+                      <Row label="Адресация (почтовая)" checked={optAddress} onChange={setOptAddress}>
+                        <Select value={addressMode} onValueChange={(v) => setAddressMode(v as any)}>
+                          <SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sticker">Наклейка адресов</SelectItem>
+                            <SelectItem value="print">Печать адресов</SelectItem>
+                            <SelectItem value="personal">Персонализация</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Row>
+                      <Row label="Термоусадка" checked={optShrink} onChange={setOptShrink} />
+                    </div>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
+                      Шаблон выпуска №{issueNumber} ({periodicity}) — параметры сохраняются для повторных тиражей.
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">5. Упаковка и доставка</CardTitle></CardHeader>
