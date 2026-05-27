@@ -22,6 +22,7 @@ import CouponCalculator from "./pages/CouponCalculator.tsx";
 import FormCalculator from "./pages/FormCalculator.tsx";
 import MenuCalculator from "./pages/MenuCalculator.tsx";
 import BookletCalculator from "./pages/BookletCalculator.tsx";
+import EurobookletCalculator from "./pages/EurobookletCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
