@@ -5316,8 +5316,19 @@ const Calculator = () => {
                     })()}
                   </div>
                   {/* Доработка 10: Переменная печать */}
-                  <div className="space-y-2 rounded-md border p-3">
-                    <div className="font-medium text-sm">Переменная печать (нумерация / штрихкоды / QR / персонализация)</div>
+                  <details className="rounded-md border p-3 group">
+                    <summary className="font-medium text-sm cursor-pointer list-none flex items-center justify-between gap-2 select-none">
+                      <span>
+                        Переменная печать (нумерация / штрихкоды / QR / персонализация)
+                        {(() => {
+                          const active = Object.values(varPrintSel).filter((s) => s?.enabled).length;
+                          return active > 0 ? <span className="ml-2 text-[11px] text-primary">· включено: {active}</span> : null;
+                        })()}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground group-open:hidden">развернуть ▾</span>
+                      <span className="text-[11px] text-muted-foreground hidden group-open:inline">свернуть ▴</span>
+                    </summary>
+                    <div className="mt-2 space-y-2">
                     <p className="text-[11px] text-muted-foreground">
                       Формула: <code>MAX(приладка + тираж × элементов × цена × сложность, мин. стоимость)</code>. Цены и приладка берутся из справочника «Переменная печать»; при необходимости поля можно перебить вручную.
                     </p>
@@ -5404,7 +5415,8 @@ const Calculator = () => {
                         </div>
                       );
                     })}
-                  </div>
+                    </div>
+                  </details>
                   {/* Доработка 11: Металлическая пружина (Wire-O) */}
                   {SPRING_PRODUCT_TYPES.has(productType) && (
                     <div className="space-y-2 rounded-md border p-3">
