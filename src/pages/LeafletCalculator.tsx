@@ -245,6 +245,23 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       const price = varnishType === "uv_full" ? 8 : varnishType === "uv_spot" ? 12 : 4;
       out.push({ stage: "postpress", name: `Лак (${varnishType === "vd" ? "ВД" : varnishType === "uv_spot" ? "УФ выборочный" : "УФ сплошной"}) — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
       out.push({ stage: "postpress", name: "Лак — нанесение", quantity: sheets, unit: "лист", unitPrice: price, total: sheets * price });
+      // Выборочный лак — отдельная подготовка + доп. приладка (ТЗ 39 §13.2, §14)
+      if (varnishType === "uv_spot") {
+        out.push({ stage: "prepress", name: "Выборочный лак — подготовка трафарета", quantity: 1, unit: "шт", unitPrice: 3000, total: 3000 });
+        out.push({ stage: "postpress", name: "Выборочный лак — доп. приладка", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+    }
+    // Soft-touch ламинация
+    if (optSoftTouch) {
+      const sheets = calc?.printSheets ?? circulation;
+      const price = 35; // тг за лист
+      out.push({ stage: "postpress", name: "Soft-touch (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      out.push({ stage: "postpress", name: "Soft-touch ламинация", quantity: sheets, unit: "лист", unitPrice: price, total: sheets * price });
+      // Коэффициент сложности при сочетании soft-touch + тиснение (ТЗ 39 §14)
+      if (optStamp) {
+        const surcharge = 0.25 * (calc?.totalCost ? 0 : 0) + 1500; // фикс. доплата за совместимость материалов
+        out.push({ stage: "postpress", name: "Тиснение по soft-touch (коэф. сложности)", quantity: 1, unit: "шт", unitPrice: surcharge, total: surcharge });
+      }
     }
     if (optBig) {
       const price = 1.5;
