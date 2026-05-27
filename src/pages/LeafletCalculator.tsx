@@ -35,7 +35,27 @@ type Material = {
 
 type PrintFormatRow = { id: string; name: string; width: number; height: number; sort_order?: number };
 
-const FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
+type PresetFormat = { value: string; label: string; type: FormatType; w?: number; h?: number };
+
+const LEAFLET_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "A3", label: "A3 (297×420)", type: "A3" },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
+const FLYER_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "DL", label: "DL (99×210)", type: "custom", w: 99, h: 210 },
+  { value: "EURO", label: "Евроформат (100×210)", type: "custom", w: 100, h: 210 },
+  { value: "105x148", label: "105×148 мм", type: "custom", w: 105, h: 148 },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
+const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
   { value: "A4", label: "A4 (210×297)" },
@@ -43,10 +63,21 @@ const FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "custom", label: "Свой размер" },
 ];
 
-export default function LeafletCalculator() {
+export interface LeafletLikeProps {
+  mode?: "leaflet" | "flyer";
+}
+
+export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
+  const isFlyer = mode === "flyer";
+  const FORMATS = isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
+  const titleLabel = isFlyer ? "Флаер" : "Листовка";
+  const subtitle = isFlyer
+    ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
+    : "Динамический маршрут — операции подключаются по выбранным опциям";
+  const dorNum = isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
-  const [formatType, setFormatType] = useState<FormatType>("A4");
+  const [presetKey, setPresetKey] = useState<string>(isFlyer ? "DL" : "A4");
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
   const [colorFront, setColorFront] = useState(4);
