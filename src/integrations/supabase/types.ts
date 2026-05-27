@@ -574,6 +574,114 @@ export type Database = {
         }
         Relationships: []
       }
+      board_cutting_prices: {
+        Row: {
+          coef_complex_layout: number
+          coef_figured: number
+          coef_manual: number
+          coef_nonstandard_format: number
+          coef_standard_format: number
+          coef_thick_board: number
+          coef_thickness_extra: number
+          coef_thickness_med: number
+          coef_thickness_thick: number
+          coef_thickness_thin: number
+          created_at: string
+          cutting_type: string
+          default_cuts: number
+          id: string
+          is_active: boolean
+          machine_type: string
+          max_board_thickness: number
+          max_circulation: number
+          max_format_long: number
+          max_stack_height: number
+          min_board_thickness: number
+          min_circulation: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          price_per_cut: number
+          setup_cost: number
+          sort_order: number
+          thickness_med_max: number
+          thickness_thick_max: number
+          thickness_thin_max: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coef_complex_layout?: number
+          coef_figured?: number
+          coef_manual?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_board?: number
+          coef_thickness_extra?: number
+          coef_thickness_med?: number
+          coef_thickness_thick?: number
+          coef_thickness_thin?: number
+          created_at?: string
+          cutting_type?: string
+          default_cuts?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_board_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          max_stack_height?: number
+          min_board_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          price_per_cut?: number
+          setup_cost?: number
+          sort_order?: number
+          thickness_med_max?: number
+          thickness_thick_max?: number
+          thickness_thin_max?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coef_complex_layout?: number
+          coef_figured?: number
+          coef_manual?: number
+          coef_nonstandard_format?: number
+          coef_standard_format?: number
+          coef_thick_board?: number
+          coef_thickness_extra?: number
+          coef_thickness_med?: number
+          coef_thickness_thick?: number
+          coef_thickness_thin?: number
+          created_at?: string
+          cutting_type?: string
+          default_cuts?: number
+          id?: string
+          is_active?: boolean
+          machine_type?: string
+          max_board_thickness?: number
+          max_circulation?: number
+          max_format_long?: number
+          max_stack_height?: number
+          min_board_thickness?: number
+          min_circulation?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          price_per_cut?: number
+          setup_cost?: number
+          sort_order?: number
+          thickness_med_max?: number
+          thickness_thick_max?: number
+          thickness_thin_max?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       calc_constants: {
         Row: {
           created_at: string
