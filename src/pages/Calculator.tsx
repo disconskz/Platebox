@@ -2659,7 +2659,102 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems];
+    // Доработка 20: обрезка блока.
+    const trimItems: SpecItem[] = (() => {
+      if (!trEnabled || !(circulation > 0)) return [];
+      if (!trimRows.length) return [];
+      const active = trimRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const density = Number((effectiveMaterial as any)?.density) || 0;
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const fits = (r: BlockTrimmingRow) =>
+        autoBlockThickness >= r.min_block_thickness && autoBlockThickness <= r.max_block_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation
+        && longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && density <= r.max_paper_density;
+      const row = (trManualId && active.find((r) => r.id === trManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const trimType = trTypeOverride || row.trim_type;
+      const cuts = trCutsOverride !== "" ? Number(trCutsOverride) : (TRIM_DEFAULT_CUTS[trimType] ?? row.cuts_count);
+      const mode = trCalcModeOverride || row.calc_mode;
+      let baseCost = 0;
+      if (mode === "per_time") {
+        const timeSec = trTimeOverride !== "" ? Number(trTimeOverride) : row.time_per_item_sec;
+        const hourPrice = trHourPriceOverride !== "" ? Number(trHourPriceOverride) : row.price_per_hour;
+        baseCost = (timeSec * circulation / 3600) * hourPrice;
+      } else if (mode === "per_item") {
+        const price = trPriceItemOverride !== "" ? Number(trPriceItemOverride) : row.price_per_item;
+        baseCost = price * circulation;
+      } else {
+        const price = trPriceCutOverride !== "" ? Number(trPriceCutOverride) : row.price_per_cut;
+        baseCost = circulation * cuts * price;
+      }
+      const thickCoef = autoBlockThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+        : autoBlockThickness <= row.thickness_med_max ? row.coef_thickness_med
+        : autoBlockThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+        : row.coef_thickness_extra;
+      const formatCoef = longSide <= 210 ? row.coef_format_a5
+        : longSide <= 297 ? row.coef_format_a4
+        : longSide <= 420 ? row.coef_format_a3
+        : row.coef_format_nonstandard;
+      const figuredCoef = trimType === "figured" ? row.coef_figured : 1;
+      const manualCoef = (trManualTrim || trimType === "manual" || row.machine_type === "manual") ? row.coef_manual : 1;
+      const heavyPaperCoef = density >= row.heavy_paper_threshold ? row.coef_heavy_paper : 1;
+      const thickBlockCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const designerCoef = trDesignerPaper ? row.coef_designer_paper : 1;
+      const autoCoef = thickCoef * formatCoef * figuredCoef * manualCoef * heavyPaperCoef * thickBlockCoef * designerCoef;
+      const coef = trCoefOverride !== "" ? Math.max(0, Number(trCoefOverride)) : autoCoef;
+      const setup = trSetupOverride !== "" ? Number(trSetupOverride) : row.setup_cost;
+      const minCost = trMinOverride !== "" ? Number(trMinOverride) : row.min_cost;
+      const raw = baseCost * coef + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (baseCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Обрезка блока — ${TRIM_TYPE_LABEL[trimType] || trimType} (${TRIM_MACHINE_LABEL[row.machine_type] || row.machine_type}, ${cuts} рез${cuts === 1 ? "" : cuts < 5 ? "а" : "ов"})`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: baseCost / Math.max(1, circulation),
+          total: baseCost,
+        });
+      }
+      if (coef !== 1 && baseCost > 0) {
+        const delta = baseCost * coef - baseCost;
+        items.push({
+          stage: "postpress",
+          name: `Обрезка — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Обрезка — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Обрезка — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
