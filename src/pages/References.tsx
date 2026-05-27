@@ -586,6 +586,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "signature_collation_prices", title: "Подборка тетрадей", desc: "Цена подборки одной тетради, коэффициенты сложности (формат, оборудование, последовательность, вкладки, тонкая бумага), ограничения. Используется для авто-расчёта операции подборки тетрадей.", countKey: "signature_collation_prices", relatedKeys: ["signature_folding_prices"] },
       { key: "block_sewing_prices", title: "Шитьё блока", desc: "Тип шитья и оборудования, цена шитья тетради, нитки (на изделие или тетрадь), марля/каптал/форзацы, коэффициенты сложности и ограничения. Используется для авто-расчёта операции шитья книжного блока.", countKey: "block_sewing_prices", relatedKeys: ["signature_folding_prices", "signature_collation_prices", "paper_thickness"] },
       { key: "endpaper_prices", title: "Форзацы", desc: "Бумага форзаца (по м² или по листам), плотность, печать, фальцовка/биговка по плотности, приклейка, коэффициенты сложности, приладка и минимальная стоимость. Используется для авто-расчёта операции «Форзацы».", countKey: "endpaper_prices", relatedKeys: ["block_sewing_prices"] },
+      { key: "gauze_prices", title: "Марля", desc: "Тип марли и плотность, три режима расчёта (по м², по метру, за изделие), цена приклейки, технологический запас по высоте и заходы на корешок, коэффициенты сложности и ограничения. Используется для авто-расчёта операции «Марля».", countKey: "gauze_prices", relatedKeys: ["block_sewing_prices", "endpaper_prices", "paper_thickness"] },
     ],
   },
   {
