@@ -1687,6 +1687,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load block_insertion_prices failed", e);
       }
+      // Доработка 26: справочник финальной прессовки книги.
+      try {
+        const fpR = await (supabase as any)
+          .from("final_pressing_prices")
+          .select("*")
+          .order("sort_order");
+        setFpRows(((fpR.data as FinalPressingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load final_pressing_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
