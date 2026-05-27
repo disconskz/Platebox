@@ -3956,7 +3956,104 @@ const Calculator = () => {
       (items as any).__meta = { row, mode, bookThickness, bookWeight, baseCost, loadsCount, totalHours, formatCoef, thicknessCoef, weightCoef, manualCoef, fabricCoef, thickBlockCoef, largeFmtCoef, nonstdFmtCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems];
+    // Доработка 27: «Скрепление на скобу».
+    const staplingItems: SpecItem[] = (() => {
+      if (!stEnabled || !(circulation > 0)) return [];
+      if (!stRows.length) return [];
+      const active = stRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const shortS = Math.min(dims.w, dims.h);
+      const longS = Math.max(dims.w, dims.h);
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0.1;
+      })();
+      const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+      const autoBT = sheetThickness > 0 ? sheets * sheetThickness : 0;
+      const blockThickness = stBlockThicknessOverride !== "" ? Number(stBlockThicknessOverride) : autoBT;
+      const density = Number((effectiveMaterial as any)?.density) || 0;
+      const fits = (r: StaplingRow) =>
+        longS <= r.max_format_long && shortS >= r.min_format_short
+        && blockThickness <= r.max_block_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation;
+      const wantManual = stManual || circulation < 100 || longS > 500 || blockThickness > 6;
+      const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+      const row = (stManualId && active.find((r) => r.id === stManualId))
+        || (wantManual ? sorted.find((r) => r.machine_type === "manual" && fits(r)) : null)
+        || sorted.find(fits)
+        || sorted[0];
+      if (!row) return [];
+      const machine = stMachineOverride || row.machine_type;
+      const stapleType = stStapleTypeOverride || row.staple_type;
+      const staplesCount = stStaplesCountOverride !== "" ? Math.max(1, Number(stStaplesCountOverride)) : Math.max(1, row.default_staples_count);
+      const pricePerStaple = stPricePerStapleOverride !== "" ? Number(stPricePerStapleOverride) : row.price_per_staple;
+      const priceItem = stPriceItemOverride !== "" ? Number(stPriceItemOverride) : row.price_per_item;
+      const staplesCost = circulation * staplesCount * pricePerStaple;
+      const workBase = circulation * priceItem;
+      // Коэффициенты.
+      const thicknessCoef = blockThickness <= row.thickness_t1_max ? row.coef_thickness_t1
+        : blockThickness <= row.thickness_t2_max ? row.coef_thickness_t2
+        : blockThickness <= row.thickness_t3_max ? row.coef_thickness_t3
+        : row.coef_thickness_t4;
+      const formatCoef = longS <= 148 ? row.coef_format_a6
+        : longS <= 210 ? row.coef_format_a5
+        : longS <= 297 ? row.coef_format_a4
+        : longS <= 420 ? row.coef_format_a3
+        : row.coef_format_nonstandard;
+      const stapleCoef = stapleType === "loop" ? row.coef_loop_staple
+        : stapleType === "reinforced" ? row.coef_reinforced_staple
+        : row.coef_standard_staple;
+      const machineCoef = (machine === "manual" || stManual) ? row.coef_manual : 1;
+      const heavyPaperCoef = (stHeavyPaper || (density > 0 && density >= row.heavy_paper_threshold)) ? row.coef_heavy_paper : 1;
+      const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = thicknessCoef * formatCoef * stapleCoef * machineCoef * heavyPaperCoef * smallCircCoef;
+      const coef = stCoefOverride !== "" ? Math.max(0, Number(stCoefOverride)) : autoCoef;
+      const setup = stSetupOverride !== "" ? Number(stSetupOverride) : row.setup_cost;
+      const minCost = stMinOverride !== "" ? Number(stMinOverride) : row.min_cost;
+      const workCost = workBase * coef;
+      const raw = staplesCost + workCost + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (staplesCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Скобы — ${STAPLING_STAPLE_LABEL[stapleType] || stapleType} (${staplesCount} шт × ${pricePerStaple} ₸)`,
+          quantity: circulation * staplesCount,
+          unit: "шт",
+          unitPrice: pricePerStaple,
+          total: staplesCost,
+        });
+      }
+      if (workBase > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Скрепление на скобу — ${STAPLING_MACHINE_LABEL[machine] || machine} (за изделие)`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: priceItem,
+          total: workBase,
+        });
+      }
+      if (coef !== 1 && workBase > 0) {
+        const delta = workCost - workBase;
+        items.push({ stage: "postpress", name: `Скрепление на скобу — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Скрепление на скобу — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Скрепление на скобу — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
