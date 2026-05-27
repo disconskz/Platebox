@@ -19,6 +19,7 @@ import { runVariant as runVariantFormula, collectStageRefs } from "@/lib/calc/va
 import { VARIABLE_KEYS } from "@/lib/calc/variants/types";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { calcPerforation, type PerforationRule, type PerforationCalcMode } from "@/lib/calc/perforation";
+import { calcTape, type TapeRule, type TapeCalcMode } from "@/lib/calc/tape";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
@@ -1222,6 +1223,22 @@ const Calculator = () => {
   const [perfMaterialCoefOverride, setPerfMaterialCoefOverride] = useState<string>("");
   const [perfComplexityCoefOverride, setPerfComplexityCoefOverride] = useState<string>("");
   const [perfIncludedInDieCut, setPerfIncludedInDieCut] = useState<boolean>(false);
+  // Доработка 30 — Наклейка скотча
+  const [tapeRows, setTapeRows] = useState<TapeRule[]>([]);
+  const [tapeEnabled, setTapeEnabled] = useState(false);
+  const [tapeManualId, setTapeManualId] = useState<string>("");
+  const [tapeStripLengthMm, setTapeStripLengthMm] = useState<number>(0);
+  const [tapeStripsPerItem, setTapeStripsPerItem] = useState<number>(1);
+  const [tapePointsPerItem, setTapePointsPerItem] = useState<number>(0);
+  const [tapeCalcModeOverride, setTapeCalcModeOverride] = useState<"" | TapeCalcMode>("");
+  const [tapePricePerMeterOverride, setTapePricePerMeterOverride] = useState<string>("");
+  const [tapePricePerPointOverride, setTapePricePerPointOverride] = useState<string>("");
+  const [tapePricePerItemOverride, setTapePricePerItemOverride] = useState<string>("");
+  const [tapeComplexityCoefOverride, setTapeComplexityCoefOverride] = useState<string>("");
+  const [tapeSetupOverride, setTapeSetupOverride] = useState<string>("");
+  const [tapeMinCostOverride, setTapeMinCostOverride] = useState<string>("");
+  const [tapeNonstandardFormat, setTapeNonstandardFormat] = useState<boolean>(false);
+  const [tapeComplexPosition, setTapeComplexPosition] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
@@ -1730,6 +1747,16 @@ const Calculator = () => {
         setPerfRows(((pfR.data as PerforationRule[]) || []));
       } catch (e) {
         console.warn("[Calculator] load perforation_prices failed", e);
+      }
+      // Доработка 30: справочник наклейки скотча.
+      try {
+        const tpR = await (supabase as any)
+          .from("tape_prices")
+          .select("*")
+          .order("sort_order");
+        setTapeRows(((tpR.data as TapeRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load tape_prices failed", e);
       }
       // Доработка 21: справочник переплётного картона.
       try {
@@ -2331,6 +2358,41 @@ const Calculator = () => {
     perfEnabled, perfRows, perfManualId, perfLineLengthMm, perfLinesPerItem, perfPasses,
     perfCalcModeOverride, perfMaterialCoefOverride, perfComplexityCoefOverride, perfIncludedInDieCut,
     baseResult, effectiveMaterial, circulation, dims.w, dims.h,
+  ]);
+
+  // Доработка 30: ряд «Наклейка скотча».
+  const tapeItems = useMemo(() => {
+    if (!tapeEnabled) return [] as any[];
+    const active = tapeRows.filter((r) => (r as any).is_active !== false);
+    const rule = (tapeManualId ? tapeRows.find((r) => r.id === tapeManualId) : active[0]) as TapeRule | undefined;
+    if (!rule) return [];
+    const r = calcTape(rule, {
+      circulation,
+      stripLengthMm: tapeStripLengthMm,
+      stripsPerItem: tapeStripsPerItem,
+      pointsPerItem: tapePointsPerItem,
+      formatShortMm: Math.min(dims.w, dims.h),
+      formatLongMm: Math.max(dims.w, dims.h),
+      nonstandardFormat: tapeNonstandardFormat,
+      complexPosition: tapeComplexPosition,
+      calcModeOverride: tapeCalcModeOverride || undefined,
+      pricePerMeterOverride: tapePricePerMeterOverride !== "" ? Number(tapePricePerMeterOverride) : undefined,
+      pricePerPointOverride: tapePricePerPointOverride !== "" ? Number(tapePricePerPointOverride) : undefined,
+      pricePerItemApplyOverride: tapePricePerItemOverride !== "" ? Number(tapePricePerItemOverride) : undefined,
+      complexityCoefOverride: tapeComplexityCoefOverride !== "" ? Number(tapeComplexityCoefOverride) : undefined,
+      setupOverride: tapeSetupOverride !== "" ? Number(tapeSetupOverride) : undefined,
+      minCostOverride: tapeMinCostOverride !== "" ? Number(tapeMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Наклейка скотча (${rule.name || rule.tape_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    tapeEnabled, tapeRows, tapeManualId, tapeStripLengthMm, tapeStripsPerItem, tapePointsPerItem,
+    tapeCalcModeOverride, tapePricePerMeterOverride, tapePricePerPointOverride, tapePricePerItemOverride,
+    tapeComplexityCoefOverride, tapeSetupOverride, tapeMinCostOverride,
+    tapeNonstandardFormat, tapeComplexPosition, circulation, dims.w, dims.h,
   ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
@@ -4115,7 +4177,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4308,7 +4370,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5388,6 +5450,112 @@ const Calculator = () => {
                               <div>Расчёт: {r.breakdown}</div>
                               <div>Приладка: <b>{r.setupCost} ₸</b> · мин. стоимость: <b>{r.minCost} ₸</b></div>
                               <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b>{perfIncludedInDieCut && " (учтено в высечке, не добавляется)"}</div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                  {/* Доработка 30: блок «Наклейка скотча». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={tapeEnabled} onCheckedChange={(v) => setTapeEnabled(!!v)} id="tape" />
+                      <Label htmlFor="tape" className="flex-1 font-medium">Наклейка скотча</Label>
+                      {tapeEnabled && (
+                        <Select value={tapeManualId} onValueChange={setTapeManualId} disabled={tapeRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={tapeRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {tapeRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {tapeEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Длина отрезка, мм</Label>
+                            <Input type="number" min={0} value={tapeStripLengthMm || ""} onChange={(e) => setTapeStripLengthMm(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Полос на изделие</Label>
+                            <Input type="number" min={0} value={tapeStripsPerItem || ""} onChange={(e) => setTapeStripsPerItem(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Точек на изделие</Label>
+                            <Input type="number" min={0} value={tapePointsPerItem || ""} onChange={(e) => setTapePointsPerItem(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Способ расчёта</Label>
+                            <Select value={tapeCalcModeOverride || "__auto"} onValueChange={(v) => setTapeCalcModeOverride(v === "__auto" ? "" : (v as TapeCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_length">По длине</SelectItem>
+                                <SelectItem value="per_point">По точкам</SelectItem>
+                                <SelectItem value="per_item">За изделие</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за метр (override)</Label>
+                            <Input type="number" step="0.1" value={tapePricePerMeterOverride} placeholder="из справочника" onChange={(e) => setTapePricePerMeterOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за точку (override)</Label>
+                            <Input type="number" step="0.1" value={tapePricePerPointOverride} placeholder="из справочника" onChange={(e) => setTapePricePerPointOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена нанесения за изделие (override)</Label>
+                            <Input type="number" step="0.1" value={tapePricePerItemOverride} placeholder="из справочника" onChange={(e) => setTapePricePerItemOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={tapeComplexityCoefOverride} placeholder="авто" onChange={(e) => setTapeComplexityCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={tapeSetupOverride} placeholder="из справочника" onChange={(e) => setTapeSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={tapeMinCostOverride} placeholder="из справочника" onChange={(e) => setTapeMinCostOverride(e.target.value)} />
+                          </div>
+                          <div className="flex items-center gap-2 pt-5">
+                            <Checkbox id="tape-nf" checked={tapeNonstandardFormat} onCheckedChange={(v) => setTapeNonstandardFormat(!!v)} />
+                            <Label htmlFor="tape-nf" className="text-[12px]">Нестандартный формат</Label>
+                          </div>
+                          <div className="flex items-center gap-2 pt-5">
+                            <Checkbox id="tape-cp" checked={tapeComplexPosition} onCheckedChange={(v) => setTapeComplexPosition(!!v)} />
+                            <Label htmlFor="tape-cp" className="text-[12px]">Сложная позиция нанесения</Label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (tapeManualId ? tapeRows.find((r) => r.id === tapeManualId) : tapeRows.filter((r: any) => r.is_active !== false)[0]) as TapeRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Наклейка скотча».</p>;
+                          const r = calcTape(rule, {
+                            circulation,
+                            stripLengthMm: tapeStripLengthMm, stripsPerItem: tapeStripsPerItem, pointsPerItem: tapePointsPerItem,
+                            formatShortMm: Math.min(dims.w, dims.h), formatLongMm: Math.max(dims.w, dims.h),
+                            nonstandardFormat: tapeNonstandardFormat, complexPosition: tapeComplexPosition,
+                            calcModeOverride: tapeCalcModeOverride || undefined,
+                            pricePerMeterOverride: tapePricePerMeterOverride !== "" ? Number(tapePricePerMeterOverride) : undefined,
+                            pricePerPointOverride: tapePricePerPointOverride !== "" ? Number(tapePricePerPointOverride) : undefined,
+                            pricePerItemApplyOverride: tapePricePerItemOverride !== "" ? Number(tapePricePerItemOverride) : undefined,
+                            complexityCoefOverride: tapeComplexityCoefOverride !== "" ? Number(tapeComplexityCoefOverride) : undefined,
+                            setupOverride: tapeSetupOverride !== "" ? Number(tapeSetupOverride) : undefined,
+                            minCostOverride: tapeMinCostOverride !== "" ? Number(tapeMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · тип скотча: <b>{rule.tape_type}</b> · способ: <b>{rule.application_method}</b></div>
+                              <div>Общая длина: <b>{r.totalLengthM.toFixed(2)} м</b> · материал: <b>{r.materialCost.toFixed(0)} ₸</b> · нанесение: <b>{r.applyCost.toFixed(0)} ₸</b></div>
+                              <div>Коэф. сложности: <b>{r.complexityCoef.toFixed(2)}</b> · приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
                               {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
                             </div>
                           );
