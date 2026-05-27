@@ -2052,6 +2052,120 @@ export type Database = {
         }
         Relationships: []
       }
+      flash_removal_prices: {
+        Row: {
+          bridges_high_max: number
+          bridges_low_max: number
+          bridges_med_max: number
+          calc_mode: string
+          coef_bridges_extra: number
+          coef_bridges_high: number
+          coef_bridges_low: number
+          coef_bridges_med: number
+          coef_contour_complex_box: number
+          coef_contour_label: number
+          coef_contour_microflute: number
+          coef_contour_simple: number
+          coef_contour_small_parts: number
+          coef_contour_std_box: number
+          coef_manual: number
+          coef_mat_cardboard: number
+          coef_mat_microflute: number
+          coef_mat_paper: number
+          coef_mat_plastic: number
+          coef_mat_thick_cardboard: number
+          created_at: string
+          default_seconds_per_sheet: number
+          id: string
+          is_active: boolean
+          min_cost: number
+          name: string
+          price_per_hour: number
+          price_per_item: number
+          price_per_sheet: number
+          product_type: string
+          removal_method: string
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bridges_high_max?: number
+          bridges_low_max?: number
+          bridges_med_max?: number
+          calc_mode?: string
+          coef_bridges_extra?: number
+          coef_bridges_high?: number
+          coef_bridges_low?: number
+          coef_bridges_med?: number
+          coef_contour_complex_box?: number
+          coef_contour_label?: number
+          coef_contour_microflute?: number
+          coef_contour_simple?: number
+          coef_contour_small_parts?: number
+          coef_contour_std_box?: number
+          coef_manual?: number
+          coef_mat_cardboard?: number
+          coef_mat_microflute?: number
+          coef_mat_paper?: number
+          coef_mat_plastic?: number
+          coef_mat_thick_cardboard?: number
+          created_at?: string
+          default_seconds_per_sheet?: number
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name: string
+          price_per_hour?: number
+          price_per_item?: number
+          price_per_sheet?: number
+          product_type?: string
+          removal_method?: string
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bridges_high_max?: number
+          bridges_low_max?: number
+          bridges_med_max?: number
+          calc_mode?: string
+          coef_bridges_extra?: number
+          coef_bridges_high?: number
+          coef_bridges_low?: number
+          coef_bridges_med?: number
+          coef_contour_complex_box?: number
+          coef_contour_label?: number
+          coef_contour_microflute?: number
+          coef_contour_simple?: number
+          coef_contour_small_parts?: number
+          coef_contour_std_box?: number
+          coef_manual?: number
+          coef_mat_cardboard?: number
+          coef_mat_microflute?: number
+          coef_mat_paper?: number
+          coef_mat_plastic?: number
+          coef_mat_thick_cardboard?: number
+          created_at?: string
+          default_seconds_per_sheet?: number
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name?: string
+          price_per_hour?: number
+          price_per_item?: number
+          price_per_sheet?: number
+          product_type?: string
+          removal_method?: string
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       format_presets: {
         Row: {
           category: string | null

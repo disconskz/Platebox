@@ -21,6 +21,7 @@ import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
 import { calcPerforation, type PerforationRule, type PerforationCalcMode } from "@/lib/calc/perforation";
 import { calcTape, type TapeRule, type TapeCalcMode } from "@/lib/calc/tape";
 import { calcWindow, type WindowRule, type WindowCalcMode, type WindowShape } from "@/lib/calc/window";
+import { calcFlashRemoval, type FlashRemovalRule, type FlashRemovalCalcMode, type FlashContour, type FlashMaterial } from "@/lib/calc/flash_removal";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
@@ -1257,6 +1258,24 @@ const Calculator = () => {
   const [windowMinCostOverride, setWindowMinCostOverride] = useState<string>("");
   const [windowNonstandardFormat, setWindowNonstandardFormat] = useState<boolean>(false);
   const [windowComplexPosition, setWindowComplexPosition] = useState<boolean>(false);
+  // Доработка 32: «Удаление облоя».
+  const [flashRows, setFlashRows] = useState<FlashRemovalRule[]>([]);
+  const [flashEnabled, setFlashEnabled] = useState(false);
+  const [flashManualId, setFlashManualId] = useState<string>("");
+  const [flashCalcModeOverride, setFlashCalcModeOverride] = useState<"" | FlashRemovalCalcMode>("");
+  const [flashContour, setFlashContour] = useState<FlashContour>("simple");
+  const [flashMaterial, setFlashMaterial] = useState<FlashMaterial>("paper");
+  const [flashBridges, setFlashBridges] = useState<number>(0);
+  const [flashTotalHours, setFlashTotalHours] = useState<string>("");
+  const [flashPriceItemOverride, setFlashPriceItemOverride] = useState<string>("");
+  const [flashPriceSheetOverride, setFlashPriceSheetOverride] = useState<string>("");
+  const [flashPriceHourOverride, setFlashPriceHourOverride] = useState<string>("");
+  const [flashContourCoefOverride, setFlashContourCoefOverride] = useState<string>("");
+  const [flashMaterialCoefOverride, setFlashMaterialCoefOverride] = useState<string>("");
+  const [flashBridgesCoefOverride, setFlashBridgesCoefOverride] = useState<string>("");
+  const [flashMethodCoefOverride, setFlashMethodCoefOverride] = useState<string>("");
+  const [flashSetupOverride, setFlashSetupOverride] = useState<string>("");
+  const [flashMinCostOverride, setFlashMinCostOverride] = useState<string>("");
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
@@ -1785,6 +1804,16 @@ const Calculator = () => {
         setWindowRows(((wnR.data as WindowRule[]) || []));
       } catch (e) {
         console.warn("[Calculator] load window_attachment_prices failed", e);
+      }
+      // Доработка 32: справочник «Удаление облоя».
+      try {
+        const frR = await (supabase as any)
+          .from("flash_removal_prices")
+          .select("*")
+          .order("sort_order");
+        setFlashRows(((frR.data as FlashRemovalRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load flash_removal_prices failed", e);
       }
       // Доработка 21: справочник переплётного картона.
       try {
@@ -2456,6 +2485,45 @@ const Calculator = () => {
     windowPriceApplyItemOverride, windowPriceApplyM2Override, windowComplexityCoefOverride,
     windowSetupOverride, windowMinCostOverride, windowNonstandardFormat, windowComplexPosition,
     circulation,
+  ]);
+
+  // Доработка 32: ряд «Удаление облоя».
+  const flashItems = useMemo(() => {
+    if (!flashEnabled) return [] as any[];
+    const active = flashRows.filter((r) => (r as any).is_active !== false);
+    const rule = (flashManualId ? flashRows.find((r) => r.id === flashManualId) : active[0]) as FlashRemovalRule | undefined;
+    if (!rule) return [];
+    const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+    const itemsPerSheet = (baseResult && !("error" in baseResult)) ? (baseResult.layout?.itemsPerSheet ?? 0) : 0;
+    const r = calcFlashRemoval(rule, {
+      printSheets,
+      itemsPerSheet,
+      contour: flashContour,
+      material: flashMaterial,
+      bridgesPerItem: flashBridges,
+      totalTimeHours: flashTotalHours !== "" ? Number(flashTotalHours) : undefined,
+      calcModeOverride: flashCalcModeOverride || undefined,
+      pricePerItemOverride: flashPriceItemOverride !== "" ? Number(flashPriceItemOverride) : undefined,
+      pricePerSheetOverride: flashPriceSheetOverride !== "" ? Number(flashPriceSheetOverride) : undefined,
+      pricePerHourOverride: flashPriceHourOverride !== "" ? Number(flashPriceHourOverride) : undefined,
+      contourCoefOverride: flashContourCoefOverride !== "" ? Number(flashContourCoefOverride) : undefined,
+      materialCoefOverride: flashMaterialCoefOverride !== "" ? Number(flashMaterialCoefOverride) : undefined,
+      bridgesCoefOverride: flashBridgesCoefOverride !== "" ? Number(flashBridgesCoefOverride) : undefined,
+      methodCoefOverride: flashMethodCoefOverride !== "" ? Number(flashMethodCoefOverride) : undefined,
+      setupOverride: flashSetupOverride !== "" ? Number(flashSetupOverride) : undefined,
+      minCostOverride: flashMinCostOverride !== "" ? Number(flashMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Удаление облоя (${rule.name || rule.product_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    flashEnabled, flashRows, flashManualId, baseResult,
+    flashCalcModeOverride, flashContour, flashMaterial, flashBridges, flashTotalHours,
+    flashPriceItemOverride, flashPriceSheetOverride, flashPriceHourOverride,
+    flashContourCoefOverride, flashMaterialCoefOverride, flashBridgesCoefOverride, flashMethodCoefOverride,
+    flashSetupOverride, flashMinCostOverride,
   ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
@@ -4240,7 +4308,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4433,7 +4501,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5738,6 +5806,144 @@ const Calculator = () => {
                               <div>Режим: <b>{r.calcMode}</b> · материал: <b>{rule.window_material}</b> · форма: <b>{windowShapeOverride || rule.window_shape}</b> · способ: <b>{rule.application_method}</b></div>
                               <div>Площадь окна: <b>{r.windowAreaM2.toFixed(4)} м²</b> · общая: <b>{r.totalAreaM2.toFixed(4)} м²</b></div>
                               <div>Материал: <b>{r.materialCost.toFixed(0)} ₸</b> · нанесение: <b>{r.applyCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef.toFixed(2)}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                  {/* Доработка 32: блок «Удаление облоя». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={flashEnabled} onCheckedChange={(v) => setFlashEnabled(!!v)} id="flash" />
+                      <Label htmlFor="flash" className="flex-1 font-medium">Удаление облоя</Label>
+                      {flashEnabled && (
+                        <Select value={flashManualId} onValueChange={setFlashManualId} disabled={flashRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={flashRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {flashRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {flashEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                            <Select value={flashCalcModeOverride || "__auto"} onValueChange={(v) => setFlashCalcModeOverride(v === "__auto" ? "" : (v as FlashRemovalCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_item">За изделие</SelectItem>
+                                <SelectItem value="per_sheet">За лист</SelectItem>
+                                <SelectItem value="per_time">По времени</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Сложность контура</Label>
+                            <Select value={flashContour} onValueChange={(v) => setFlashContour(v as FlashContour)}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="simple">Простой</SelectItem>
+                                <SelectItem value="std_box">Станд. коробка</SelectItem>
+                                <SelectItem value="complex_box">Сложная коробка</SelectItem>
+                                <SelectItem value="small_parts">Мелкие элементы</SelectItem>
+                                <SelectItem value="label">Наклейки / этикетки</SelectItem>
+                                <SelectItem value="microflute">Микрогофра</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Материал</Label>
+                            <Select value={flashMaterial} onValueChange={(v) => setFlashMaterial(v as FlashMaterial)}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="paper">Бумага</SelectItem>
+                                <SelectItem value="cardboard">Картон</SelectItem>
+                                <SelectItem value="thick_cardboard">Плотный картон</SelectItem>
+                                <SelectItem value="microflute">Микрогофра</SelectItem>
+                                <SelectItem value="plastic">Пластик / PET</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Перемычек на изделие</Label>
+                            <Input type="number" min={0} value={flashBridges} onChange={(e) => setFlashBridges(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Время работы, ч (для «по времени»)</Label>
+                            <Input type="number" step="0.1" value={flashTotalHours} placeholder="авто" onChange={(e) => setFlashTotalHours(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за изделие (override)</Label>
+                            <Input type="number" step="0.1" value={flashPriceItemOverride} placeholder="из справочника" onChange={(e) => setFlashPriceItemOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена за лист (override)</Label>
+                            <Input type="number" step="0.1" value={flashPriceSheetOverride} placeholder="из справочника" onChange={(e) => setFlashPriceSheetOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена часа (override)</Label>
+                            <Input type="number" step="1" value={flashPriceHourOverride} placeholder="из справочника" onChange={(e) => setFlashPriceHourOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. контура (override)</Label>
+                            <Input type="number" step="0.1" value={flashContourCoefOverride} placeholder="авто" onChange={(e) => setFlashContourCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. материала (override)</Label>
+                            <Input type="number" step="0.1" value={flashMaterialCoefOverride} placeholder="авто" onChange={(e) => setFlashMaterialCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. перемычек (override)</Label>
+                            <Input type="number" step="0.1" value={flashBridgesCoefOverride} placeholder="авто" onChange={(e) => setFlashBridgesCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. способа (override)</Label>
+                            <Input type="number" step="0.1" value={flashMethodCoefOverride} placeholder="авто" onChange={(e) => setFlashMethodCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={flashSetupOverride} placeholder="из справочника" onChange={(e) => setFlashSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={flashMinCostOverride} placeholder="из справочника" onChange={(e) => setFlashMinCostOverride(e.target.value)} />
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (flashManualId ? flashRows.find((r) => r.id === flashManualId) : flashRows.filter((r: any) => r.is_active !== false)[0]) as FlashRemovalRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Удаление облоя».</p>;
+                          const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+                          const itemsPerSheet = (baseResult && !("error" in baseResult)) ? (baseResult.layout?.itemsPerSheet ?? 0) : 0;
+                          const r = calcFlashRemoval(rule, {
+                            printSheets, itemsPerSheet,
+                            contour: flashContour, material: flashMaterial,
+                            bridgesPerItem: flashBridges,
+                            totalTimeHours: flashTotalHours !== "" ? Number(flashTotalHours) : undefined,
+                            calcModeOverride: flashCalcModeOverride || undefined,
+                            pricePerItemOverride: flashPriceItemOverride !== "" ? Number(flashPriceItemOverride) : undefined,
+                            pricePerSheetOverride: flashPriceSheetOverride !== "" ? Number(flashPriceSheetOverride) : undefined,
+                            pricePerHourOverride: flashPriceHourOverride !== "" ? Number(flashPriceHourOverride) : undefined,
+                            contourCoefOverride: flashContourCoefOverride !== "" ? Number(flashContourCoefOverride) : undefined,
+                            materialCoefOverride: flashMaterialCoefOverride !== "" ? Number(flashMaterialCoefOverride) : undefined,
+                            bridgesCoefOverride: flashBridgesCoefOverride !== "" ? Number(flashBridgesCoefOverride) : undefined,
+                            methodCoefOverride: flashMethodCoefOverride !== "" ? Number(flashMethodCoefOverride) : undefined,
+                            setupOverride: flashSetupOverride !== "" ? Number(flashSetupOverride) : undefined,
+                            minCostOverride: flashMinCostOverride !== "" ? Number(flashMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · способ: <b>{rule.removal_method}</b> · печ. листов: <b>{printSheets}</b> · на листе: <b>{itemsPerSheet}</b> · всего изделий: <b>{r.totalItems}</b></div>
+                              <div>Коэф.: контур <b>{r.contourCoef}</b> · материал <b>{r.materialCoef}</b> · перемычки <b>{r.bridgesCoef}</b> · способ <b>{r.methodCoef}</b></div>
                               <div>Расчёт: {r.breakdown}</div>
                               <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
                               <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
