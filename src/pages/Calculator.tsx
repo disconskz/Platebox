@@ -1400,6 +1400,23 @@ const Calculator = () => {
   const [biFabric, setBiFabric] = useState(false);
   const [biComplexAlign, setBiComplexAlign] = useState(false);
 
+  // Доработка 26: финальная прессовка книги.
+  const [fpRows, setFpRows] = useState<FinalPressingRow[]>([]);
+  const [fpEnabled, setFpEnabled] = useState(false);
+  const [fpManualId, setFpManualId] = useState<string | null>(null);
+  const [fpCalcModeOverride, setFpCalcModeOverride] = useState<"" | "per_item" | "per_time">("");
+  const [fpPriceOverride, setFpPriceOverride] = useState<number | "">("");
+  const [fpHourPriceOverride, setFpHourPriceOverride] = useState<number | "">("");
+  const [fpBooksPerLoadOverride, setFpBooksPerLoadOverride] = useState<number | "">("");
+  const [fpLoadTimeOverride, setFpLoadTimeOverride] = useState<number | "">("");
+  const [fpBookThicknessOverride, setFpBookThicknessOverride] = useState<number | "">("");
+  const [fpBookWeightOverride, setFpBookWeightOverride] = useState<number | "">("");
+  const [fpCoefOverride, setFpCoefOverride] = useState<number | "">("");
+  const [fpSetupOverride, setFpSetupOverride] = useState<number | "">("");
+  const [fpMinOverride, setFpMinOverride] = useState<number | "">("");
+  const [fpManual, setFpManual] = useState(false);
+  const [fpFabric, setFpFabric] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
