@@ -3007,7 +3007,97 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems];
+    // Доработка 22: резка переплётного картона.
+    const boardCutItems: SpecItem[] = (() => {
+      if (!bcEnabled || !(circulation > 0)) return [];
+      if (!bcRows.length) return [];
+      const active = bcRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      // Воспроизводим раскладку из «Переплётного картона», чтобы получить число листов.
+      let totalSheets = 0;
+      let boardThickness = 2;
+      if (boardRows.length) {
+        const bActive = boardRows.filter((r) => r.is_active !== false);
+        if (bActive.length) {
+          const shortSide = Math.min(dims.w, dims.h);
+          const longSide = Math.max(dims.w, dims.h);
+          const bRow = (bdManualId && bActive.find((r) => r.id === bdManualId))
+            || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)
+                 .find((r) => longSide <= r.max_format_long && shortSide >= r.min_format_short)
+            || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+          if (bRow) {
+            const sheetThickness = (() => {
+              const direct = Number(sewPaperThicknessOverride);
+              if (Number.isFinite(direct) && direct > 0) return direct;
+              if (paperThickness.length) {
+                const dens = Number((effectiveMaterial as any)?.density);
+                const match = paperThickness.find((p) => p.density === dens);
+                if (match) return Number(match.thickness_mm) || 0;
+              }
+              return 0;
+            })();
+            const autoBlockThickness = Number(sewBlockThicknessOverride)
+              || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+              || 20;
+            const sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + bRow.width_allowance;
+            const sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + bRow.height_allowance;
+            const spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBlockThickness + bRow.spine_allowance;
+            const sidesPerSheet = bestFitOnSheet(sideW, sideH, bRow.sheet_width, bRow.sheet_height, bRow.gap_between, bRow.edge_margin);
+            const spinesPerSheet = bestFitOnSheet(spineW, sideH, bRow.sheet_width, bRow.sheet_height, bRow.gap_between, bRow.edge_margin);
+            const totalSides = bRow.sides_per_item * circulation;
+            const totalSpines = bRow.spines_per_item * circulation;
+            const sh1 = sidesPerSheet > 0 ? Math.ceil(totalSides / sidesPerSheet) : 0;
+            const sh2 = spinesPerSheet > 0 ? Math.ceil(totalSpines / spinesPerSheet) : 0;
+            totalSheets = sh1 + sh2;
+            boardThickness = bRow.board_thickness;
+          }
+        }
+      }
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const fits = (r: BoardCuttingRow) =>
+        longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && boardThickness <= r.max_board_thickness && boardThickness >= r.min_board_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation;
+      const row = (bcManualId && active.find((r) => r.id === bcManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const sheets = bcSheetsOverride !== "" ? Number(bcSheetsOverride) : totalSheets;
+      const cuts = bcCutsOverride !== "" ? Number(bcCutsOverride) : row.default_cuts;
+      const priceCut = bcPriceCutOverride !== "" ? Number(bcPriceCutOverride) : row.price_per_cut;
+      if (!(sheets > 0) || !(cuts > 0) || !(priceCut > 0)) return [];
+      const thickCoef = boardThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+        : boardThickness <= row.thickness_med_max ? row.coef_thickness_med
+        : boardThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+        : row.coef_thickness_extra;
+      const formatCoef = longSide <= 297 ? row.coef_standard_format : row.coef_nonstandard_format;
+      const thickBoardCoef = boardThickness > row.thickness_med_max ? row.coef_thick_board : 1;
+      const manualCoef = (bcManualCut || row.cutting_type === "manual" || row.machine_type === "manual_guillotine") ? row.coef_manual : 1;
+      const figuredCoef = (bcFigured || row.cutting_type === "figured") ? row.coef_figured : 1;
+      const complexCoef = bcComplexLayout ? row.coef_complex_layout : 1;
+      const autoCoef = thickCoef * formatCoef * thickBoardCoef * manualCoef * figuredCoef * complexCoef;
+      const coef = bcCoefOverride !== "" ? Math.max(0, Number(bcCoefOverride)) : autoCoef;
+      const setup = bcSetupOverride !== "" ? Number(bcSetupOverride) : row.setup_cost;
+      const minCost = bcMinOverride !== "" ? Number(bcMinOverride) : row.min_cost;
+      const baseCost = sheets * cuts * priceCut;
+      const raw = baseCost * coef + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      items.push({ stage: "postpress", name: `Резка картона — ${BOARD_CUT_MACHINE_LABEL[row.machine_type] || row.machine_type} (${sheets} л. × ${cuts} рез × ${priceCut} ₸)`, quantity: sheets, unit: "лист", unitPrice: baseCost / Math.max(1, sheets), total: baseCost });
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Резка картона — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseCost > 0) {
+        const delta = baseCost * coef - baseCost;
+        items.push({ stage: "postpress", name: `Резка картона — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Резка картона — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
