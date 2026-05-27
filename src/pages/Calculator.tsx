@@ -6020,6 +6020,135 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  {/* Доработка 33: блок «Установка ригеля». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={rigelEnabled} onCheckedChange={(v) => setRigelEnabled(!!v)} id="rigel" />
+                      <Label htmlFor="rigel" className="flex-1 font-medium">Установка ригеля</Label>
+                      {rigelEnabled && (
+                        <Select value={rigelManualId} onValueChange={setRigelManualId} disabled={rigelRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={rigelRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {rigelRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {rigelEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                            <Select value={rigelCalcModeOverride || "__auto"} onValueChange={(v) => setRigelCalcModeOverride(v === "__auto" ? "" : (v as RigelCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_item">Готовый (за шт.)</SelectItem>
+                                <SelectItem value="per_length">По метражу</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Длина ригеля, мм (override)</Label>
+                            <Input type="number" min={0} value={rigelLengthOverride} placeholder="авто = ширина + запас" onChange={(e) => setRigelLengthOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена готового, ₸/шт</Label>
+                            <Input type="number" step="0.1" value={rigelPriceItemOverride} placeholder="из справочника" onChange={(e) => setRigelPriceItemOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена по метражу, ₸/м</Label>
+                            <Input type="number" step="0.1" value={rigelPriceMeterOverride} placeholder="из справочника" onChange={(e) => setRigelPriceMeterOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Подвес есть?</Label>
+                            <Select value={rigelHasHangerOverride || "__auto"} onValueChange={(v) => setRigelHasHangerOverride(v === "__auto" ? "" : (v as "yes" | "no"))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="yes">Да</SelectItem>
+                                <SelectItem value="no">Нет</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Подвес входит в цену?</Label>
+                            <Select value={rigelHangerIncludedOverride || "__auto"} onValueChange={(v) => setRigelHangerIncludedOverride(v === "__auto" ? "" : (v as "yes" | "no"))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="yes">Да</SelectItem>
+                                <SelectItem value="no">Нет</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена подвеса, ₸/шт</Label>
+                            <Input type="number" step="0.1" value={rigelHangerPriceOverride} placeholder="из справочника" onChange={(e) => setRigelHangerPriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена установки, ₸/шт</Label>
+                            <Input type="number" step="0.1" value={rigelInstallPriceOverride} placeholder="из справочника" onChange={(e) => setRigelInstallPriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={rigelCoefOverride} placeholder="авто" onChange={(e) => setRigelCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={rigelSetupOverride} placeholder="из справочника" onChange={(e) => setRigelSetupOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={rigelMinCostOverride} placeholder="из справочника" onChange={(e) => setRigelMinCostOverride(e.target.value)} />
+                          </div>
+                          <div className="flex items-end gap-3 sm:col-span-2">
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={rigelNonstandardColor} onCheckedChange={(v) => setRigelNonstandardColor(!!v)} />
+                              Нестанд. цвет
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={rigelComplexPosition} onCheckedChange={(v) => setRigelComplexPosition(!!v)} />
+                              Сложное позиционирование
+                            </label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (rigelManualId ? rigelRows.find((r) => r.id === rigelManualId) : rigelRows.filter((r: any) => r.is_active !== false)[0]) as RigelRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Установка ригеля».</p>;
+                          const calendarWidthMm = Math.max(dims.w || 0, dims.h || 0);
+                          const r = calcRigel(rule, {
+                            circulation, calendarWidthMm,
+                            nonstandardColor: rigelNonstandardColor,
+                            complexPosition: rigelComplexPosition,
+                            hasHangerOverride: rigelHasHangerOverride === "" ? undefined : rigelHasHangerOverride === "yes",
+                            hangerIncludedOverride: rigelHangerIncludedOverride === "" ? undefined : rigelHangerIncludedOverride === "yes",
+                            calcModeOverride: rigelCalcModeOverride || undefined,
+                            rigelLengthMmOverride: rigelLengthOverride !== "" ? Number(rigelLengthOverride) : undefined,
+                            pricePerItemOverride: rigelPriceItemOverride !== "" ? Number(rigelPriceItemOverride) : undefined,
+                            pricePerMeterOverride: rigelPriceMeterOverride !== "" ? Number(rigelPriceMeterOverride) : undefined,
+                            hangerPriceOverride: rigelHangerPriceOverride !== "" ? Number(rigelHangerPriceOverride) : undefined,
+                            installPriceOverride: rigelInstallPriceOverride !== "" ? Number(rigelInstallPriceOverride) : undefined,
+                            complexityCoefOverride: rigelCoefOverride !== "" ? Number(rigelCoefOverride) : undefined,
+                            setupOverride: rigelSetupOverride !== "" ? Number(rigelSetupOverride) : undefined,
+                            minCostOverride: rigelMinCostOverride !== "" ? Number(rigelMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · ширина изделия: <b>{calendarWidthMm} мм</b> · длина ригеля: <b>{r.rigelLengthMm} мм</b> · тираж: <b>{circulation}</b></div>
+                              <div>Ригель: <b>{r.rigelCost.toFixed(0)} ₸</b> · подвес: <b>{r.hangerCost.toFixed(0)} ₸</b> · установка: <b>{r.installCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Приладка: <b>{r.setupCost} ₸</b> · мин.: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
