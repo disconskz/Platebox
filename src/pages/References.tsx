@@ -885,7 +885,7 @@ const TABLES = [
       { k: "is_active", t: "select", label: "Активна", opts: ["true", "false"] },
       { k: "sort_order", t: "number", label: "Порядок" },
     ],
-    defaults: { name: "Отрывная (тигель), по длине", perforation_type: "tear", equipment_type: "tigel", calc_mode: "per_length", price_per_meter: 15, price_per_sheet: 0, price_per_pass: 0, setup_cost: 3000, min_cost: 3000, coef_paper_light: 1, coef_paper_med: 1.2, coef_paper_heavy: 1.5, coef_cardboard: 2, coef_plastic: 2.5, density_light_max: 130, density_med_max: 250, density_heavy_max: 400, coef_micro: 1.2, coef_figured: 1.5, coef_manual: 1.5, coef_nonstandard_format: 1.3, coef_many_lines: 1.2, many_lines_threshold: 3, min_format_short: 0, max_format_long: 1200, max_paper_density: 400, max_lines_per_pass: 10, setup_cost: 3000, min_cost: 3000, is_active: true, sort_order: 100 },
+    defaults: { name: "Отрывная (тигель), по длине", perforation_type: "tear", equipment_type: "tigel", calc_mode: "per_length", price_per_meter: 15, price_per_sheet: 0, price_per_pass: 0, coef_paper_light: 1, coef_paper_med: 1.2, coef_paper_heavy: 1.5, coef_cardboard: 2, coef_plastic: 2.5, density_light_max: 130, density_med_max: 250, density_heavy_max: 400, coef_micro: 1.2, coef_figured: 1.5, coef_manual: 1.5, coef_nonstandard_format: 1.3, coef_many_lines: 1.2, many_lines_threshold: 3, min_format_short: 0, max_format_long: 1200, max_paper_density: 400, max_lines_per_pass: 10, setup_cost: 3000, min_cost: 3000, is_active: true, sort_order: 100 },
   },
   {
     key: "system_settings",
