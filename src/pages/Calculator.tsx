@@ -4617,6 +4617,58 @@ const Calculator = () => {
                       ))}
                     </div>
                   </div>
+                  {SIGNATURE_PRODUCT_TYPES.has(productType) && (
+                    <div>
+                      <Label>
+                        Количество страниц
+                        <HelpHint title="Количество страниц">
+                          Общее число страниц издания (включая обложку считается отдельно). Должно быть чётным;
+                          для тетрадной фальцовки желательно кратно 4, 8, 16 или 32.
+                        </HelpHint>
+                      </Label>
+                      <Input
+                        type="number"
+                        min={2}
+                        step={2}
+                        value={sigPages}
+                        onChange={(e) => setSigPages(Math.max(0, Number(e.target.value) || 0))}
+                      />
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {[16, 32, 64, 96, 128, 160, 192, 256].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setSigPages(n)}
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-xs border transition-colors",
+                              sigPages === n
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                            )}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                      {(() => {
+                        if (!(sigPages > 0)) {
+                          return <div className="text-xs text-destructive mt-1">⚠ Укажите количество страниц больше 0.</div>;
+                        }
+                        if (sigPages % 2 !== 0) {
+                          return <div className="text-xs text-destructive mt-1">⚠ Количество страниц должно быть чётным.</div>;
+                        }
+                        if (sigPages % 4 !== 0) {
+                          return <div className="text-xs text-amber-600 mt-1">⚠ Желательно кратно 4 (для фальцовки тетрадей).</div>;
+                        }
+                        const sheets = Math.floor(sigPages / 2);
+                        return (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            ≈ {sheets} листов внутреннего блока (страниц/2).
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <div>
                     <Label>
                       Формат
