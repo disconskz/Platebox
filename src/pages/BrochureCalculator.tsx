@@ -1,0 +1,524 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, FileText } from "lucide-react";
+import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fmtMoney, fmtNum } from "@/lib/format";
+
+/**
+ * Доработка 48 — выделенный шаблон «Брошюра».
+ * Многостраничное изделие: отдельный внутренний блок + обложка,
+ * автоматический расчёт тетрадей, виды скрепления, постпечатные операции.
+ */
+
+type BroFormat = { value: string; label: string; w: number; h: number };
+const FORMATS: BroFormat[] = [
+  { value: "A6", label: "A6 (105×148)", w: 105, h: 148 },
+  { value: "A5", label: "A5 (148×210)", w: 148, h: 210 },
+  { value: "A4", label: "A4 (210×297)", w: 210, h: 297 },
+  { value: "210x210", label: "Квадрат 210×210", w: 210, h: 210 },
+  { value: "custom", label: "Свой размер", w: 210, h: 297 },
+];
+
+type Paper = { value: string; label: string; pricePerSheet: number; sheetW: number; sheetH: number; density: number };
+const BLOCK_PAPERS: Paper[] = [
+  { value: "offset80", label: "Офсет 80 г/м²", pricePerSheet: 18, sheetW: 620, sheetH: 940, density: 80 },
+  { value: "offset90", label: "Офсет 90 г/м²", pricePerSheet: 22, sheetW: 620, sheetH: 940, density: 90 },
+  { value: "coated115", label: "Мелованная 115 г/м²", pricePerSheet: 28, sheetW: 620, sheetH: 940, density: 115 },
+  { value: "coated130", label: "Мелованная 130 г/м²", pricePerSheet: 34, sheetW: 620, sheetH: 940, density: 130 },
+  { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170 },
+];
+const COVER_PAPERS: Paper[] = [
+  { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170 },
+  { value: "coated250", label: "Мелованная 250 г/м²", pricePerSheet: 70, sheetW: 620, sheetH: 940, density: 250 },
+  { value: "coated300", label: "Мелованная 300 г/м²", pricePerSheet: 90, sheetW: 620, sheetH: 940, density: 300 },
+  { value: "designer300", label: "Дизайнерская 300 г/м²", pricePerSheet: 220, sheetW: 720, sheetH: 1020, density: 300 },
+];
+
+type BindingKind = "staple" | "eurostaple" | "kbs" | "thermo" | "spiral" | "pva";
+const BINDINGS: { value: BindingKind; label: string }[] = [
+  { value: "staple", label: "Скоба (saddle stitch)" },
+  { value: "eurostaple", label: "Евроскоба" },
+  { value: "kbs", label: "КБС" },
+  { value: "thermo", label: "Термобиндер" },
+  { value: "spiral", label: "Пружина" },
+  { value: "pva", label: "Проклейка ПВА" },
+];
+
+export default function BrochureCalculator() {
+  // Основные параметры
+  const [presetKey, setPresetKey] = useState("A5");
+  const [customW, setCustomW] = useState(148);
+  const [customH, setCustomH] = useState(210);
+  const [circulation, setCirculation] = useState(500);
+  const [pages, setPages] = useState(16);
+  const [colorBlockFront, setColorBlockFront] = useState(4);
+  const [colorBlockBack, setColorBlockBack] = useState(4);
+  const [colorCoverFront, setColorCoverFront] = useState(4);
+  const [colorCoverBack, setColorCoverBack] = useState(0);
+  const [blockPaperKey, setBlockPaperKey] = useState("coated115");
+  const [coverPaperKey, setCoverPaperKey] = useState("coated250");
+  const [bindingKind, setBindingKind] = useState<BindingKind>("staple");
+  const [printMode, setPrintMode] = useState<"auto" | "offset" | "digital">("auto");
+  const [hasDesign, setHasDesign] = useState(false);
+  const [hasDelivery, setHasDelivery] = useState(false);
+  const [deliveryCost, setDeliveryCost] = useState(0);
+  const [margin, setMargin] = useState(30);
+  const [vatPercent] = useState(16);
+  const [ownTurn, setOwnTurn] = useState(true);
+
+  // Постпечатные опции
+  const [optCoverLam, setOptCoverLam] = useState(true);
+  const [coverLamSides, setCoverLamSides] = useState<1 | 2>(1);
+  const [optVarnish, setOptVarnish] = useState(false);
+  const [optSpotVarnish, setOptSpotVarnish] = useState(false);
+  const [optStamp, setOptStamp] = useState(false);
+  const [stampArea, setStampArea] = useState(15);
+  const [optEmboss, setOptEmboss] = useState(false);
+  const [optPerf, setOptPerf] = useState(false);
+  const [perfLineMm, setPerfLineMm] = useState(150);
+  const [perfLines, setPerfLines] = useState(1);
+  const [optNum, setOptNum] = useState(false);
+  const [numCount, setNumCount] = useState(1);
+  const [optDieCut, setOptDieCut] = useState(false);
+  const [optDeflash, setOptDeflash] = useState(false);
+  const [optCoverBig, setOptCoverBig] = useState(true);
+
+  const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[1], [presetKey]);
+  const itemW = format.value === "custom" ? customW : format.w;
+  const itemH = format.value === "custom" ? customH : format.h;
+  const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
+  const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
+
+  // Авто-логика
+  useEffect(() => {
+    if (optDieCut && !optDeflash) setOptDeflash(true);
+  }, [optDieCut, optDeflash]);
+  useEffect(() => {
+    // Биговка обложки при ламинации или плотной обложке
+    if ((optCoverLam || coverPaper.density >= 200) && !optCoverBig) setOptCoverBig(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optCoverLam, coverPaper.density]);
+
+  // Кратность страниц
+  const pagesValid = useMemo(() => {
+    if (bindingKind === "staple" || bindingKind === "eurostaple") return pages % 4 === 0;
+    return pages % 2 === 0;
+  }, [pages, bindingKind]);
+
+  // ====== РАСЧЁТЫ ======
+  // Тетрадь = 8 или 16 страниц. Выбираем по плотности/количеству.
+  const signaturePages = useMemo(() => {
+    if (bindingKind === "staple" || bindingKind === "eurostaple") return Math.min(pages, 16);
+    return blockPaper.density >= 150 ? 8 : 16;
+  }, [bindingKind, pages, blockPaper.density]);
+
+  const signatures = useMemo(() => Math.max(1, Math.ceil(pages / signaturePages)), [pages, signaturePages]);
+
+  // Раскладка блока
+  const blockLayout = useMemo(() => {
+    const sheetW = blockPaper.sheetW;
+    const sheetH = blockPaper.sheetH;
+    // печатный лист = закупочный (упрощённо), полос на лист = 2 × signaturePages/2 (двусторонняя печать)
+    const upPerSide = signaturePages / 2;
+    const cols = Math.max(1, Math.floor(sheetW / itemW));
+    const rows = Math.max(1, Math.floor(sheetH / itemH));
+    const fit = cols * rows;
+    const effectiveUp = Math.min(fit, upPerSide);
+    // листов на тетрадь = 1 (двусторонний печатный лист = signaturePages страниц)
+    const sheetsPerSignature = Math.ceil(upPerSide / Math.max(1, effectiveUp));
+    const netSheets = circulation * signatures * sheetsPerSignature;
+    const setup = printMode === "offset" || (printMode === "auto" && circulation >= 300) ? 200 : 30;
+    const printSheets = netSheets + setup * signatures;
+    return { upPerSide, effectiveUp, sheetsPerSignature, netSheets, printSheets, setup, sheetW, sheetH };
+  }, [blockPaper, itemW, itemH, signaturePages, circulation, signatures, printMode]);
+
+  // Раскладка обложки (4 страницы на разворот)
+  const coverLayout = useMemo(() => {
+    const sheetW = coverPaper.sheetW;
+    const sheetH = coverPaper.sheetH;
+    // обложка разворот: 2×itemW × itemH (с корешком)
+    const spineMm = Math.max(0, (pages * blockPaper.density) / 1000); // приблизительный корешок
+    const spreadW = itemW * 2 + spineMm;
+    const cols = Math.max(1, Math.floor(sheetW / spreadW));
+    const rows = Math.max(1, Math.floor(sheetH / itemH));
+    const upPerSheet = Math.max(1, cols * rows);
+    const netSheets = Math.ceil(circulation / upPerSheet);
+    const setup = printMode === "offset" || (printMode === "auto" && circulation >= 300) ? 150 : 20;
+    const printSheets = netSheets + setup;
+    return { spineMm, spreadW, upPerSheet, netSheets, printSheets, setup };
+  }, [coverPaper, itemW, itemH, pages, blockPaper.density, circulation, printMode]);
+
+  const offset = printMode === "offset" || (printMode === "auto" && circulation >= 300);
+
+  const lines = useMemo(() => {
+    const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
+    const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
+      out.push({ stage, name, qty, unit, price, total: qty * price });
+
+    if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", 12000);
+    push("Препресс", "Проверка макета и спуск полос", signatures + 1, "форма", 600);
+
+    // Бумага
+    push("Материалы", `Бумага блока: ${blockPaper.label}`, blockLayout.printSheets, "лист", blockPaper.pricePerSheet);
+    push("Материалы", `Бумага обложки: ${coverPaper.label}`, coverLayout.printSheets, "лист", coverPaper.pricePerSheet);
+
+    // Печать — блок
+    if (offset) {
+      const formsBlock = ((colorBlockFront > 0 ? colorBlockFront : 0) + (colorBlockBack > 0 ? colorBlockBack : 0)) * signatures;
+      push("Печать", "Формы блока", formsBlock, "форма", 1500);
+      const setupBase = ownTurn ? 150 : 300;
+      push("Печать", "Приладка блок", signatures, "усл.", setupBase + 0.01 * (blockLayout.printSheets / signatures) * 100);
+
+      const formsCover = (colorCoverFront > 0 ? colorCoverFront : 0) + (colorCoverBack > 0 ? colorCoverBack : 0);
+      push("Печать", "Формы обложки", formsCover, "форма", 1500);
+      push("Печать", "Приладка обложки", 1, "усл.", setupBase + 0.01 * coverLayout.printSheets * 100);
+    }
+    const printPriceBlock = offset ? 5 : 30;
+    const printPriceCover = offset ? 7 : 35;
+    push("Печать", offset ? "Печать блок (офсет)" : "Печать блок (цифра)", blockLayout.printSheets, "лист", printPriceBlock);
+    push("Печать", offset ? "Печать обложка (офсет)" : "Печать обложка (цифра)", coverLayout.printSheets, "лист", printPriceCover);
+
+    // Ламинация обложки
+    if (optCoverLam) {
+      const areaM2 = (coverLayout.spreadW * itemH) / 1_000_000;
+      push("Постпечать", `Ламинация обложки (${coverLamSides} ст.)`,
+        +(areaM2 * coverLayout.printSheets * coverLamSides).toFixed(3), "м²", 220);
+    }
+    if (optCoverBig) push("Постпечать", "Биговка обложки", circulation * 2, "биг", 1.5);
+    if (optVarnish) push("Постпечать", "УФ/ВД-лак обложки", coverLayout.printSheets, "лист", 5);
+    if (optSpotVarnish) {
+      push("Постпечать", "Подготовка выб. лака", 1, "усл.", 3000);
+      push("Постпечать", "Приладка выб. лака", 1, "усл.", 1500);
+      push("Постпечать", "Выборочный лак", coverLayout.printSheets, "лист", 8);
+    }
+    if (optStamp) push("Постпечать", "Тиснение фольгой", circulation, "оттиск", Math.max(8, stampArea * 0.6));
+    if (optEmboss) push("Постпечать", "Конгрев", circulation, "оттиск", 12);
+    if (optPerf) {
+      const meters = (perfLineMm * perfLines * circulation) / 1000;
+      push("Постпечать", "Перфорация", +meters.toFixed(2), "м", 12);
+    }
+    if (optNum) push("Постпечать", "Нумерация", circulation * numCount, "номер", 1.2);
+    if (optDieCut) push("Постпечать", "Высечка обложки", coverLayout.printSheets, "лист", 4);
+    if (optDieCut && optDeflash) push("Постпечать", "Удаление облоя", coverLayout.printSheets, "лист", 1.5);
+
+    // Фальцовка тетрадей (офсет/многостраничные)
+    const needsFold = offset || pages > 4;
+    if (needsFold) {
+      push("Сборка блока", "Фальцовка тетрадей", circulation * signatures, "тетр.", 0.8);
+    }
+    // Подборка
+    if (signatures > 1 || bindingKind !== "staple") {
+      push("Сборка блока", "Подборка блока", circulation * signatures, "тетр.", 0.6);
+    }
+    // Скрепление
+    if (bindingKind === "staple") {
+      const staples = 2;
+      push("Скрепление", "Скоба", circulation * staples, "скоба", 0.6);
+      push("Скрепление", "Приладка скобы", 1, "усл.", 800);
+    } else if (bindingKind === "eurostaple") {
+      const staples = 2;
+      push("Скрепление", "Евроскоба", circulation * staples, "скоба", 1.2);
+      push("Скрепление", "Приладка евроскобы", 1, "усл.", 1200);
+    } else if (bindingKind === "kbs") {
+      push("Скрепление", "Фрезеровка корешка", circulation, "шт.", 1.5);
+      push("Скрепление", "Проклейка КБС", circulation, "шт.", 6);
+      push("Скрепление", "Клей (термоплавкий)", circulation, "шт.", 1.2);
+      push("Скрепление", "Приладка КБС", 1, "усл.", 2500);
+    } else if (bindingKind === "thermo") {
+      push("Скрепление", "Термосклейка", circulation, "шт.", 7);
+      push("Скрепление", "Приладка термобиндера", 1, "усл.", 2000);
+    } else if (bindingKind === "spiral") {
+      const holes = Math.max(20, Math.round(itemH / 6));
+      push("Скрепление", "Перфорация под пружину", holes * circulation, "отв.", 0.5);
+      push("Скрепление", "Навивка пружины", circulation, "шт.", 35);
+      push("Скрепление", "Пружина (материал)", circulation, "шт.", 45);
+      push("Скрепление", "Приладка пружины", 1, "усл.", 1500);
+    } else if (bindingKind === "pva") {
+      push("Скрепление", "Клей ПВА", circulation, "шт.", 1.0);
+      push("Скрепление", "Проклейка ПВА", circulation, "шт.", 4);
+      push("Скрепление", "Приладка ПВА", 1, "усл.", 1500);
+    }
+
+    // Обрезка готового изделия (3 стороны)
+    push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.5);
+    push("Логистика", "Контроль качества", 1, "усл.", 1500);
+    push("Логистика", "Упаковка", circulation, "шт.", 4);
+    if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
+
+    return out;
+  }, [hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, pages, bindingKind, hasDelivery, deliveryCost]);
+
+  const totals = useMemo(() => {
+    const cost = lines.reduce((s, l) => s + l.total, 0);
+    const sale = cost * (1 + margin / 100);
+    const withVat = sale * (1 + vatPercent / 100);
+    const perItem = circulation > 0 ? withVat / circulation : 0;
+    return { cost, sale, withVat, perItem };
+  }, [lines, margin, vatPercent, circulation]);
+
+  const route = useMemo(() => {
+    const s: string[] = [];
+    if (hasDesign) s.push("Дизайн");
+    s.push("Проверка макета", "Спуск полос", "Бумага блока", "Бумага обложки");
+    if (offset) s.push("Вывод печатных форм", "Приладка");
+    s.push(offset ? "Печать блока (офсет)" : "Печать блока (цифра)");
+    s.push(offset ? "Печать обложки (офсет)" : "Печать обложки (цифра)");
+    if (optCoverLam) s.push("Ламинация обложки");
+    if (optCoverBig) s.push("Биговка обложки");
+    if (optVarnish) s.push("Лак обложки");
+    if (optSpotVarnish) s.push("Выборочный лак");
+    if (optStamp) s.push("Тиснение");
+    if (optEmboss) s.push("Конгрев");
+    if (optPerf) s.push("Перфорация");
+    if (optNum) s.push("Нумерация");
+    if (optDieCut) s.push("Высечка обложки");
+    if (optDieCut && optDeflash) s.push("Удаление облоя");
+    if (offset || pages > 4) s.push("Фальцовка тетрадей");
+    if (signatures > 1 || bindingKind !== "staple") s.push("Подборка блока");
+    s.push(`Скрепление: ${BINDINGS.find((b) => b.value === bindingKind)?.label}`);
+    s.push("Обрезка готового изделия", "Контроль качества", "Упаковка");
+    if (hasDelivery) s.push("Доставка");
+    return s;
+  }, [hasDesign, offset, optCoverLam, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, pages, signatures, bindingKind, hasDelivery]);
+
+  return (
+    <PageShell>
+      <PageHeader>
+        <PageHeaderRow>
+          <div className="flex items-center gap-2 min-w-0">
+            <Button asChild variant="ghost" size="icon">
+              <Link to="/app" aria-label="Назад"><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
+            <FileText className="h-5 w-5 text-accent" />
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: Брошюра</h1>
+              <p className="text-[11px] text-muted-foreground truncate">Многостраничное изделие — блок + обложка, авто-расчёт тетрадей и скрепления</p>
+            </div>
+          </div>
+          <Badge variant="secondary" className="ml-auto">Доработка 48</Badge>
+        </PageHeaderRow>
+      </PageHeader>
+
+      <PageMain>
+        <PageContainer>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-4">
+              <Card>
+                <CardHeader><CardTitle className="text-sm">1. Основные параметры</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Готовый формат</Label>
+                    <Select value={presetKey} onValueChange={setPresetKey}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FORMATS.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Тираж</Label><Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(+e.target.value || 0)} /></div>
+                  {presetKey === "custom" && (<>
+                    <div><Label>Ширина, мм</Label><Input type="number" value={customW} onChange={(e) => setCustomW(+e.target.value || 0)} /></div>
+                    <div><Label>Высота, мм</Label><Input type="number" value={customH} onChange={(e) => setCustomH(+e.target.value || 0)} /></div>
+                  </>)}
+                  <div>
+                    <Label>Количество страниц {pagesValid ? "" : <span className="text-destructive text-xs">(кратность нарушена)</span>}</Label>
+                    <Input type="number" min={2} value={pages} onChange={(e) => setPages(+e.target.value || 2)} />
+                  </div>
+                  <div>
+                    <Label>Скрепление</Label>
+                    <Select value={bindingKind} onValueChange={(v) => setBindingKind(v as BindingKind)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {BINDINGS.map((b) => <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Тип печати</Label>
+                    <Select value={printMode} onValueChange={(v) => setPrintMode(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Авто</SelectItem>
+                        <SelectItem value="offset">Офсет</SelectItem>
+                        <SelectItem value="digital">Цифра</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Checkbox id="design" checked={hasDesign} onCheckedChange={(v) => setHasDesign(!!v)} />
+                    <Label htmlFor="design" className="cursor-pointer">Нужен дизайн</Label>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Checkbox id="ownturn" checked={ownTurn} onCheckedChange={(v) => setOwnTurn(!!v)} />
+                    <Label htmlFor="ownturn" className="cursor-pointer">Свой оборот</Label>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-sm">2. Внутренний блок</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label>Бумага блока</Label>
+                    <Select value={blockPaperKey} onValueChange={setBlockPaperKey}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {BLOCK_PAPERS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label} ({fmtMoney(p.pricePerSheet)}/лист)</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Цветность блока (лицо)</Label><Input type="number" min={0} max={6} value={colorBlockFront} onChange={(e) => setColorBlockFront(+e.target.value || 0)} /></div>
+                  <div><Label>Цветность блока (оборот)</Label><Input type="number" min={0} max={6} value={colorBlockBack} onChange={(e) => setColorBlockBack(+e.target.value || 0)} /></div>
+                  <div className="sm:col-span-2 text-xs text-muted-foreground">
+                    Тетрадей: <span className="font-medium">{signatures}</span> × {signaturePages} стр.{" "}
+                    Печатных листов блока: <span className="font-medium">{blockLayout.printSheets}</span>{" "}
+                    (приладка {blockLayout.setup}/тетр.).
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-sm">3. Обложка</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label>Бумага обложки</Label>
+                    <Select value={coverPaperKey} onValueChange={setCoverPaperKey}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {COVER_PAPERS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label} ({fmtMoney(p.pricePerSheet)}/лист)</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Цветность обл. (лицо)</Label><Input type="number" min={0} max={6} value={colorCoverFront} onChange={(e) => setColorCoverFront(+e.target.value || 0)} /></div>
+                  <div><Label>Цветность обл. (оборот)</Label><Input type="number" min={0} max={6} value={colorCoverBack} onChange={(e) => setColorCoverBack(+e.target.value || 0)} /></div>
+                  <div className="sm:col-span-2 text-xs text-muted-foreground">
+                    Корешок: ~{coverLayout.spineMm.toFixed(1)} мм. Разворот обложки: {Math.round(coverLayout.spreadW)}×{itemH} мм.{" "}
+                    Печатных листов: <span className="font-medium">{coverLayout.printSheets}</span>.
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-sm">4. Постпечатные операции (обложка)</CardTitle></CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <Row label="Ламинация обложки" checked={optCoverLam} onChange={setOptCoverLam}>
+                    <Select value={String(coverLamSides)} onValueChange={(v) => setCoverLamSides(+v as 1 | 2)}>
+                      <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 сторона</SelectItem>
+                        <SelectItem value="2">2 стороны</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Row>
+                  <Row label="Биговка обложки (авто при ламинации/плотной)" checked={optCoverBig} onChange={setOptCoverBig} />
+                  <Row label="Лак (УФ/ВД)" checked={optVarnish} onChange={setOptVarnish} />
+                  <Row label="Выборочный лак (+ подготовка/приладка)" checked={optSpotVarnish} onChange={setOptSpotVarnish} />
+                  <Row label="Тиснение фольгой" checked={optStamp} onChange={setOptStamp}>
+                    <Input className="h-8 w-24" type="number" min={0} value={stampArea} onChange={(e) => setStampArea(+e.target.value || 0)} />
+                    <span className="text-xs text-muted-foreground">см² клише</span>
+                  </Row>
+                  <Row label="Конгрев" checked={optEmboss} onChange={setOptEmboss} />
+                  <Row label="Перфорация" checked={optPerf} onChange={setOptPerf}>
+                    <Input className="h-8 w-20" type="number" min={1} value={perfLines} onChange={(e) => setPerfLines(+e.target.value || 1)} />
+                    <span className="text-xs text-muted-foreground">лин. ×</span>
+                    <Input className="h-8 w-20" type="number" min={1} value={perfLineMm} onChange={(e) => setPerfLineMm(+e.target.value || 1)} />
+                    <span className="text-xs text-muted-foreground">мм</span>
+                  </Row>
+                  <Row label="Нумерация" checked={optNum} onChange={setOptNum}>
+                    <Input className="h-8 w-20" type="number" min={1} value={numCount} onChange={(e) => setNumCount(+e.target.value || 1)} />
+                    <span className="text-xs text-muted-foreground">ном./изд.</span>
+                  </Row>
+                  <Row label="Высечка обложки" checked={optDieCut} onChange={setOptDieCut} />
+                  <Row label="Удаление облоя (авто после высечки)" checked={optDeflash} onChange={setOptDeflash} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-sm">5. Упаковка и доставка</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex items-end gap-2">
+                    <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />
+                    <Label htmlFor="delivery" className="cursor-pointer">Включить доставку</Label>
+                  </div>
+                  {hasDelivery && (<div><Label>Стоимость доставки</Label><Input type="number" value={deliveryCost} onChange={(e) => setDeliveryCost(+e.target.value || 0)} /></div>)}
+                  <div><Label>Наценка, %</Label><Input type="number" value={margin} onChange={(e) => setMargin(+e.target.value || 0)} /></div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-4">
+              <Card>
+                <CardHeader><CardTitle className="text-sm">Маршрут</CardTitle></CardHeader>
+                <CardContent>
+                  <ol className="text-xs space-y-1 list-decimal pl-4">
+                    {route.map((s, i) => <li key={i}>{s}</li>)}
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-sm">Итого</CardTitle></CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  <div className="flex justify-between"><span>Себестоимость</span><span>{fmtMoney(totals.cost)}</span></div>
+                  <div className="flex justify-between"><span>Цена продажи</span><span>{fmtMoney(totals.sale)}</span></div>
+                  <Separator />
+                  <div className="flex justify-between font-medium"><span>С НДС {vatPercent}%</span><span>{fmtMoney(totals.withVat)}</span></div>
+                  <div className="flex justify-between text-accent font-semibold"><span>За штуку</span><span>{fmtMoney(totals.perItem)}</span></div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <Card className="mt-4">
+            <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Этап</TableHead>
+                    <TableHead>Операция</TableHead>
+                    <TableHead className="text-right">Кол-во</TableHead>
+                    <TableHead>Ед.</TableHead>
+                    <TableHead className="text-right">Цена</TableHead>
+                    <TableHead className="text-right">Итого</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lines.map((l, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs text-muted-foreground">{l.stage}</TableCell>
+                      <TableCell>{l.name}</TableCell>
+                      <TableCell className="text-right">{fmtNum(l.qty)}</TableCell>
+                      <TableCell>{l.unit}</TableCell>
+                      <TableCell className="text-right">{fmtMoney(l.price)}</TableCell>
+                      <TableCell className="text-right font-medium">{fmtMoney(l.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </PageContainer>
+      </PageMain>
+    </PageShell>
+  );
+}
+
+function Row({ label, checked, onChange, children }: { label: React.ReactNode; checked: boolean; onChange: (v: boolean) => void; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <Checkbox checked={checked} onCheckedChange={(v) => onChange(!!v)} />
+      <span className="flex-1 min-w-0">{label}</span>
+      {children}
+    </div>
+  );
+}
