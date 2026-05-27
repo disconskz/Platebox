@@ -2239,12 +2239,10 @@ const Calculator = () => {
       const next = { ...prev };
       for (const op of autoOps) {
         if (userRemovedOpIds.has(op.id)) continue;
-        if (!next[op.id]) {
-          const q = qtyForUnit(op.unit);
-          if (q > 0) {
-            next[op.id] = { qty: q };
-            changed = true;
-          }
+        const q = qtyForUnit(op.unit);
+        if (q > 0 && (!next[op.id] || next[op.id].qty !== q)) {
+          next[op.id] = { ...(next[op.id] || {}), qty: q };
+          changed = true;
         }
       }
       return changed ? next : prev;
