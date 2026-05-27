@@ -2530,6 +2530,114 @@ export type Database = {
         }
         Relationships: []
       }
+      perforation_prices: {
+        Row: {
+          calc_mode: string
+          coef_cardboard: number
+          coef_figured: number
+          coef_manual: number
+          coef_many_lines: number
+          coef_micro: number
+          coef_nonstandard_format: number
+          coef_paper_heavy: number
+          coef_paper_light: number
+          coef_paper_med: number
+          coef_plastic: number
+          created_at: string
+          density_heavy_max: number
+          density_light_max: number
+          density_med_max: number
+          equipment_type: string
+          id: string
+          is_active: boolean
+          many_lines_threshold: number
+          max_format_long: number
+          max_lines_per_pass: number
+          max_paper_density: number
+          min_cost: number
+          min_format_short: number
+          name: string
+          perforation_type: string
+          price_per_meter: number
+          price_per_pass: number
+          price_per_sheet: number
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          calc_mode?: string
+          coef_cardboard?: number
+          coef_figured?: number
+          coef_manual?: number
+          coef_many_lines?: number
+          coef_micro?: number
+          coef_nonstandard_format?: number
+          coef_paper_heavy?: number
+          coef_paper_light?: number
+          coef_paper_med?: number
+          coef_plastic?: number
+          created_at?: string
+          density_heavy_max?: number
+          density_light_max?: number
+          density_med_max?: number
+          equipment_type?: string
+          id?: string
+          is_active?: boolean
+          many_lines_threshold?: number
+          max_format_long?: number
+          max_lines_per_pass?: number
+          max_paper_density?: number
+          min_cost?: number
+          min_format_short?: number
+          name: string
+          perforation_type?: string
+          price_per_meter?: number
+          price_per_pass?: number
+          price_per_sheet?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          calc_mode?: string
+          coef_cardboard?: number
+          coef_figured?: number
+          coef_manual?: number
+          coef_many_lines?: number
+          coef_micro?: number
+          coef_nonstandard_format?: number
+          coef_paper_heavy?: number
+          coef_paper_light?: number
+          coef_paper_med?: number
+          coef_plastic?: number
+          created_at?: string
+          density_heavy_max?: number
+          density_light_max?: number
+          density_med_max?: number
+          equipment_type?: string
+          id?: string
+          is_active?: boolean
+          many_lines_threshold?: number
+          max_format_long?: number
+          max_lines_per_pass?: number
+          max_paper_density?: number
+          min_cost?: number
+          min_format_short?: number
+          name?: string
+          perforation_type?: string
+          price_per_meter?: number
+          price_per_pass?: number
+          price_per_sheet?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       pouch_lamination_prices: {
         Row: {
           created_at: string

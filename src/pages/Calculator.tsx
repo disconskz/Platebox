@@ -18,6 +18,7 @@ import { loadCalcRules, loadCutRules, loadMaterialPrices } from "@/lib/calc/rule
 import { runVariant as runVariantFormula, collectStageRefs } from "@/lib/calc/variants/engine";
 import { VARIABLE_KEYS } from "@/lib/calc/variants/types";
 import { CalcInput, ProductType, FormatType } from "@/lib/calc/types";
+import { calcPerforation, type PerforationRule, type PerforationCalcMode } from "@/lib/calc/perforation";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
@@ -1210,6 +1211,17 @@ const Calculator = () => {
   const [embossCliches, setEmbossCliches] = useState<Array<{ w: number; h: number; points?: number }>>([{ w: 5, h: 3, points: 1 }]);
   const [hasLamPrepress, setHasLamPrepress] = useState(false);
   const [lamPrepressSides, setLamPrepressSides] = useState<1 | 2>(1);
+  // Доработка 29: блок «Перфорация».
+  const [perfRows, setPerfRows] = useState<PerforationRule[]>([]);
+  const [perfEnabled, setPerfEnabled] = useState(false);
+  const [perfManualId, setPerfManualId] = useState<string>("");
+  const [perfLineLengthMm, setPerfLineLengthMm] = useState<number>(0);
+  const [perfLinesPerItem, setPerfLinesPerItem] = useState<number>(1);
+  const [perfPasses, setPerfPasses] = useState<number>(1);
+  const [perfCalcModeOverride, setPerfCalcModeOverride] = useState<"" | PerforationCalcMode>("");
+  const [perfMaterialCoefOverride, setPerfMaterialCoefOverride] = useState<string>("");
+  const [perfComplexityCoefOverride, setPerfComplexityCoefOverride] = useState<string>("");
+  const [perfIncludedInDieCut, setPerfIncludedInDieCut] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
@@ -1708,6 +1720,16 @@ const Calculator = () => {
         setTrimRows(((trR.data as BlockTrimmingRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load block_trimming_prices failed", e);
+      }
+      // Доработка 29: справочник перфорации.
+      try {
+        const pfR = await (supabase as any)
+          .from("perforation_prices")
+          .select("*")
+          .order("sort_order");
+        setPerfRows(((pfR.data as PerforationRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load perforation_prices failed", e);
       }
       // Доработка 21: справочник переплётного картона.
       try {
@@ -2274,6 +2296,44 @@ const Calculator = () => {
       })
       ;
   }, [extraOps, operations]);
+
+  // Доработка 29: ряд «Перфорация» — собирается отдельно и подмешивается в allExtras.
+  const perforationItems = useMemo(() => {
+    if (!perfEnabled) return [] as any[];
+    const active = perfRows.filter((r) => (r as any).is_active !== false);
+    const rule = (perfManualId ? perfRows.find((r) => r.id === perfManualId) : active[0]) as PerforationRule | undefined;
+    if (!rule) return [];
+    const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+    const density = Number((effectiveMaterial as any)?.density ?? 0);
+    const matKind: "paper" | "cardboard" | "plastic" =
+      ((effectiveMaterial as any)?.type ?? "").toString().toLowerCase().includes("cardboard") ? "cardboard"
+      : ((effectiveMaterial as any)?.type ?? "").toString().toLowerCase().includes("plastic") ? "plastic"
+      : "paper";
+    const r = calcPerforation(rule, {
+      circulation,
+      printSheets,
+      lineLengthMm: perfLineLengthMm,
+      linesPerItem: perfLinesPerItem,
+      passes: perfPasses,
+      paperDensity: density,
+      materialKind: matKind,
+      formatShortMm: Math.min(dims.w, dims.h),
+      formatLongMm: Math.max(dims.w, dims.h),
+      calcModeOverride: perfCalcModeOverride || undefined,
+      materialCoefOverride: perfMaterialCoefOverride !== "" ? Number(perfMaterialCoefOverride) : undefined,
+      complexityCoefOverride: perfComplexityCoefOverride !== "" ? Number(perfComplexityCoefOverride) : undefined,
+      includedInDieCut: perfIncludedInDieCut,
+    });
+    if (perfIncludedInDieCut || r.finalCost <= 0) return [];
+    const label = `Перфорация (${rule.name || rule.perforation_type}, ${r.calcMode})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    perfEnabled, perfRows, perfManualId, perfLineLengthMm, perfLinesPerItem, perfPasses,
+    perfCalcModeOverride, perfMaterialCoefOverride, perfComplexityCoefOverride, perfIncludedInDieCut,
+    baseResult, effectiveMaterial, circulation, dims.w, dims.h,
+  ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
@@ -4057,7 +4117,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4250,7 +4310,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5250,6 +5310,91 @@ const Calculator = () => {
                         <br />
                         Авто-добавляется «Выдергивание облоя после высечки»: печ.листов × изделий_на_листе × {wastePickPerItem} ₸/изделие (правится в Справочниках → Константы формул, ключ <code>diecut_waste_pick_per_item</code>).
                       </p>
+                    )}
+                  </div>
+                  {/* Доработка 29: блок «Перфорация». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={perfEnabled} onCheckedChange={(v) => setPerfEnabled(!!v)} id="perf" />
+                      <Label htmlFor="perf" className="flex-1 font-medium">Перфорация</Label>
+                      {perfEnabled && (
+                        <Select value={perfManualId} onValueChange={setPerfManualId} disabled={perfRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={perfRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {perfRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {perfEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Длина линии, мм</Label>
+                            <Input type="number" min={0} value={perfLineLengthMm || ""} onChange={(e) => setPerfLineLengthMm(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Линий на изделие</Label>
+                            <Input type="number" min={0} value={perfLinesPerItem || ""} onChange={(e) => setPerfLinesPerItem(Number(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Проходов (per_pass)</Label>
+                            <Input type="number" min={1} value={perfPasses || 1} onChange={(e) => setPerfPasses(Math.max(1, Number(e.target.value) || 1))} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Способ расчёта</Label>
+                            <Select value={perfCalcModeOverride || "__auto"} onValueChange={(v) => setPerfCalcModeOverride(v === "__auto" ? "" : (v as PerforationCalcMode))}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__auto">Из справочника</SelectItem>
+                                <SelectItem value="per_length">По длине</SelectItem>
+                                <SelectItem value="per_sheet">По листу</SelectItem>
+                                <SelectItem value="per_pass">По проходу</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. материала (override)</Label>
+                            <Input type="number" step="0.1" value={perfMaterialCoefOverride} placeholder="авто" onChange={(e) => setPerfMaterialCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={perfComplexityCoefOverride} placeholder="авто" onChange={(e) => setPerfComplexityCoefOverride(e.target.value)} />
+                          </div>
+                          <div className="col-span-2 sm:col-span-2 flex items-center gap-2 pt-5">
+                            <Checkbox id="perf-die" checked={perfIncludedInDieCut} onCheckedChange={(v) => setPerfIncludedInDieCut(!!v)} />
+                            <Label htmlFor="perf-die" className="text-[12px]">Учтена в штампе высечки (не добавлять в стоимость)</Label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (perfManualId ? perfRows.find((r) => r.id === perfManualId) : perfRows.filter((r: any) => r.is_active !== false)[0]) as PerforationRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Перфорация».</p>;
+                          const printSheets = (baseResult && !("error" in baseResult)) ? (baseResult.printSheets ?? 0) : 0;
+                          const density = Number((effectiveMaterial as any)?.density ?? 0);
+                          const r = calcPerforation(rule, {
+                            circulation, printSheets,
+                            lineLengthMm: perfLineLengthMm, linesPerItem: perfLinesPerItem, passes: perfPasses,
+                            paperDensity: density, materialKind: "paper",
+                            formatShortMm: Math.min(dims.w, dims.h), formatLongMm: Math.max(dims.w, dims.h),
+                            calcModeOverride: perfCalcModeOverride || undefined,
+                            materialCoefOverride: perfMaterialCoefOverride !== "" ? Number(perfMaterialCoefOverride) : undefined,
+                            complexityCoefOverride: perfComplexityCoefOverride !== "" ? Number(perfComplexityCoefOverride) : undefined,
+                            includedInDieCut: perfIncludedInDieCut,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Режим: <b>{r.calcMode}</b> · общая длина: <b>{r.totalLengthM.toFixed(2)} м</b></div>
+                              <div>Коэф. материала: <b>{r.materialCoef}</b> · коэф. сложности: <b>{r.complexityCoef.toFixed(2)}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Приладка: <b>{r.setupCost} ₸</b> · мин. стоимость: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b>{perfIncludedInDieCut && " (учтено в высечке, не добавляется)"}</div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
                     )}
                   </div>
                   <div className="space-y-2 rounded-md border p-3">
