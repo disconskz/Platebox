@@ -983,6 +983,22 @@ const Calculator = () => {
   const [prCalcModeOverride, setPrCalcModeOverride] = useState<"" | "per_item" | "per_time">("");
   const [prManual, setPrManual] = useState(false);
   const [prDesignerPaper, setPrDesignerPaper] = useState(false);
+  // Доработка 20: обрезка блока.
+  const [trimRows, setTrimRows] = useState<BlockTrimmingRow[]>([]);
+  const [trEnabled, setTrEnabled] = useState(false);
+  const [trManualId, setTrManualId] = useState<string | null>(null);
+  const [trTypeOverride, setTrTypeOverride] = useState<"" | "three_sided" | "one_sided" | "two_sided" | "figured" | "manual" | "auto">("");
+  const [trCutsOverride, setTrCutsOverride] = useState<number | "">("");
+  const [trCalcModeOverride, setTrCalcModeOverride] = useState<"" | "per_cut" | "per_item" | "per_time">("");
+  const [trPriceCutOverride, setTrPriceCutOverride] = useState<number | "">("");
+  const [trPriceItemOverride, setTrPriceItemOverride] = useState<number | "">("");
+  const [trTimeOverride, setTrTimeOverride] = useState<number | "">("");
+  const [trHourPriceOverride, setTrHourPriceOverride] = useState<number | "">("");
+  const [trCoefOverride, setTrCoefOverride] = useState<number | "">("");
+  const [trSetupOverride, setTrSetupOverride] = useState<number | "">("");
+  const [trMinOverride, setTrMinOverride] = useState<number | "">("");
+  const [trManualTrim, setTrManualTrim] = useState(false);
+  const [trDesignerPaper, setTrDesignerPaper] = useState(false);
 
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
