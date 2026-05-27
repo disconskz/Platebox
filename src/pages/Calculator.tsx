@@ -7099,6 +7099,231 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 24: Сборка переплётной крышки */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={caEnabled} onCheckedChange={(v) => setCaEnabled(!!v)} id="ca" />
+                        <Label htmlFor="ca" className="flex-1 font-medium">Сборка переплётной крышки</Label>
+                        <Select
+                          value={caManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setCaManualId(v === "auto" ? null : v);
+                            setCaSideWOverride(""); setCaSideHOverride(""); setCaSpineWOverride("");
+                            setCaGapLeftOverride(""); setCaGapRightOverride("");
+                            setCaCoverWOverride(""); setCaCoverHOverride("");
+                            setCaWorkCostOverride(""); setCaCoefOverride("");
+                            setCaSetupOverride(""); setCaMinOverride("");
+                          }}
+                          disabled={!caEnabled || coverAsmRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по материалу/формату/тиражу)</SelectItem>
+                            {coverAsmRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {caEnabled && (() => {
+                        if (!coverAsmRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Сборка переплётной крышки» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = coverAsmRows.filter((r) => r.is_active !== false);
+                        if (!active.length) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const shortS = Math.min(dims.w, dims.h);
+                        const longS = Math.max(dims.w, dims.h);
+                        let boardThickness = 2;
+                        let sideW = dims.w;
+                        let sideH = dims.h;
+                        let spineW = 22;
+                        let bdMissing = true;
+                        if (boardRows.length) {
+                          const bActive = boardRows.filter((r) => r.is_active !== false);
+                          const bRow = (bdManualId && bActive.find((r) => r.id === bdManualId))
+                            || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)
+                                 .find((r) => longS <= r.max_format_long && shortS >= r.min_format_short)
+                            || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                          if (bRow) {
+                            const sheetThickness = (() => {
+                              const direct = Number(sewPaperThicknessOverride);
+                              if (Number.isFinite(direct) && direct > 0) return direct;
+                              if (paperThickness.length) {
+                                const dens = Number((effectiveMaterial as any)?.density);
+                                const match = paperThickness.find((p) => p.density === dens);
+                                if (match) return Number(match.thickness_mm) || 0;
+                              }
+                              return 0;
+                            })();
+                            const autoBT = Number(sewBlockThicknessOverride)
+                              || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                              || 20;
+                            sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + bRow.width_allowance;
+                            sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + bRow.height_allowance;
+                            spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBT + bRow.spine_allowance;
+                            boardThickness = bRow.board_thickness;
+                            bdMissing = !bdEnabled;
+                          }
+                        }
+                        const fits = (r: CoverAssemblyRow) =>
+                          longS <= r.max_format_long && shortS >= r.min_format_short
+                          && boardThickness <= r.max_board_thickness
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation;
+                        const wantManual = caManualMethod || caFabric || caComplexMaterial
+                          || circulation < 100 || longS > 500;
+                        const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+                        const row = (caManualId && active.find((r) => r.id === caManualId))
+                          || (wantManual ? sorted.find((r) => r.assembly_method === "manual" && fits(r)) : null)
+                          || sorted.find(fits)
+                          || sorted[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет подходящих записей.</p>;
+                        const sideWUse = caSideWOverride !== "" ? Number(caSideWOverride) : sideW;
+                        const sideHUse = caSideHOverride !== "" ? Number(caSideHOverride) : sideH;
+                        const spineWUse = caSpineWOverride !== "" ? Number(caSpineWOverride) : spineW;
+                        const gapL = caGapLeftOverride !== "" ? Number(caGapLeftOverride) : row.gap_left;
+                        const gapR = caGapRightOverride !== "" ? Number(caGapRightOverride) : row.gap_right;
+                        const spreadW = sideWUse * 2 + spineWUse + gapL + gapR;
+                        const spreadH = sideHUse;
+                        const coverW = caCoverWOverride !== "" ? Number(caCoverWOverride) : spreadW + row.fold_left + row.fold_right;
+                        const coverH = caCoverHOverride !== "" ? Number(caCoverHOverride) : spreadH + row.fold_top + row.fold_bottom;
+                        const areaM2 = (spreadW * spreadH) / 1_000_000;
+                        let workCost = 0;
+                        if (caWorkCostOverride !== "") workCost = Number(caWorkCostOverride);
+                        else if (row.calc_mode === "per_item") workCost = circulation * row.price_per_item;
+                        else if (row.calc_mode === "combined") workCost = areaM2 * row.price_per_m2 * circulation + circulation * row.price_per_item;
+                        else workCost = areaM2 * row.price_per_m2 * circulation;
+                        const formatCoef = longS > row.large_format_threshold
+                          ? row.coef_large_format
+                          : longS > 297 ? row.coef_nonstandard_format : row.coef_standard_format;
+                        const manualCoef = (caManualMethod || row.assembly_method === "manual") ? row.coef_manual : 1;
+                        const fabricCoef = (caFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+                        const thickCoef = boardThickness >= row.thick_board_threshold ? row.coef_thick_board : 1;
+                        const complexCoef = (caComplexMaterial || row.cover_material_type === "designer_paper" || row.cover_material_type === "printed") ? row.coef_complex_material : 1;
+                        const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const autoCoef = formatCoef * manualCoef * fabricCoef * thickCoef * complexCoef * smallCircCoef;
+                        const coef = caCoefOverride !== "" ? Math.max(0, Number(caCoefOverride)) : autoCoef;
+                        const setup = caSetupOverride !== "" ? Number(caSetupOverride) : row.setup_cost;
+                        const minCost = caMinOverride !== "" ? Number(caMinOverride) : row.min_cost;
+                        const baseSum = workCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const warnings: string[] = [];
+                        if (bdMissing) warnings.push("операция «Переплётный картон» не включена — сторонки/отстав не передаются автоматически");
+                        if (boardThickness > row.max_board_thickness) warnings.push(`толщина картона ${boardThickness} мм > предела ${row.max_board_thickness} мм`);
+                        if (longS > row.max_format_long) warnings.push(`длинная сторона ${longS} мм > предела ${row.max_format_long} мм`);
+                        if (circulation > row.max_circulation) warnings.push(`тираж ${circulation} > предела ${row.max_circulation}`);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сторонка Ш, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caSideWOverride === "" ? Number(sideWUse.toFixed(1)) : caSideWOverride}
+                                  onChange={(e) => setCaSideWOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Сторонка В, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caSideHOverride === "" ? Number(sideHUse.toFixed(1)) : caSideHOverride}
+                                  onChange={(e) => setCaSideHOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Отстав Ш, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caSpineWOverride === "" ? Number(spineWUse.toFixed(1)) : caSpineWOverride}
+                                  onChange={(e) => setCaSpineWOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Расстав слева, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caGapLeftOverride === "" ? row.gap_left : caGapLeftOverride}
+                                  onChange={(e) => setCaGapLeftOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Расстав справа, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caGapRightOverride === "" ? row.gap_right : caGapRightOverride}
+                                  onChange={(e) => setCaGapRightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Покровный Ш, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caCoverWOverride === "" ? Number(coverW.toFixed(1)) : caCoverWOverride}
+                                  onChange={(e) => setCaCoverWOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Покровный В, мм</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caCoverHOverride === "" ? Number(coverH.toFixed(1)) : caCoverHOverride}
+                                  onChange={(e) => setCaCoverHOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Стоимость сборки, ₸ (тираж)</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caWorkCostOverride === "" ? Math.round(workCost) : caWorkCostOverride}
+                                  onChange={(e) => setCaWorkCostOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={caCoefOverride === "" ? Number(autoCoef.toFixed(3)) : caCoefOverride}
+                                  onChange={(e) => setCaCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caSetupOverride === "" ? row.setup_cost : caSetupOverride}
+                                  onChange={(e) => setCaSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={caMinOverride === "" ? row.min_cost : caMinOverride}
+                                  onChange={(e) => setCaMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="ca-manual" checked={caManualMethod} onCheckedChange={(v) => setCaManualMethod(!!v)} />
+                                <Label htmlFor="ca-manual" className="text-[12px]">Ручная сборка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="ca-fabric" checked={caFabric} onCheckedChange={(v) => setCaFabric(!!v)} />
+                                <Label htmlFor="ca-fabric" className="text-[12px]">Ткань / кожзам</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="ca-complex" checked={caComplexMaterial} onCheckedChange={(v) => setCaComplexMaterial(!!v)} />
+                                <Label htmlFor="ca-complex" className="text-[12px]">Сложный материал</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> · {COVER_ASM_METHOD_LABEL[row.assembly_method] || row.assembly_method} · {CASING_COVER_LABEL[row.cover_material_type] || row.cover_material_type} · режим: <b>{row.calc_mode}</b>
+                              </div>
+                              <div>
+                                Разворот крышки <b>{spreadW.toFixed(0)}×{spreadH.toFixed(0)} мм</b> · покровный <b>{coverW.toFixed(0)}×{coverH.toFixed(0)} мм</b> · площадь <b>{areaM2.toFixed(4)} м²</b>
+                              </div>
+                              <div>
+                                Работа: <b>{Math.round(workCost).toLocaleString("ru-RU")} ₸</b> · приладка: <b>{setup} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × ручн. {manualCoef} × ткань {fabricCoef} × толст.карт. {thickCoef} × сложн. {complexCoef} × мал.тираж {smallCircCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {warnings.length > 0 && (
+                                <div className="text-destructive">Предупреждение: {warnings.join("; ")}</div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(стоимость сборки + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Разворот крышки = 2×сторонка + отстав + расставы. Покровный = разворот + загибы.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
