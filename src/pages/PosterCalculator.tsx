@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtMoney, fmtNum } from "@/lib/format";
+import TemplateActions from "@/components/calc/TemplateActions";
 
 /**
  * Доработка 40 — выделенный шаблон «Афиша».
@@ -629,6 +630,16 @@ export default function PosterCalculator() {
                 </div>
               </CardContent>
             </Card>
+
+            <TemplateActions
+              productType="poster"
+              defaultName={`Плакат ${circulation} шт`}
+              circulation={circulation}
+              totals={totals}
+              margin={margin}
+              vatPercent={vatPercent}
+              spec={lines.map((l) => ({ stage: l.stage, name: l.name, quantity: l.quantity, unit: l.unit, unitPrice: l.unitPrice, total: l.total }))}
+            />
           </div>
         </PageContainer>
       </PageMain>

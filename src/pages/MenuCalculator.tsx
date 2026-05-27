@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtMoney, fmtNum } from "@/lib/format";
+import TemplateActions from "@/components/calc/TemplateActions";
 
 /**
  * Доработка 44 — выделенный шаблон «Меню».
@@ -514,6 +515,16 @@ export default function MenuCalculator() {
                   <div className="flex justify-between text-accent font-semibold"><span>За штуку</span><span>{fmtMoney(totals.perItem)}</span></div>
                 </CardContent>
               </Card>
+
+              <TemplateActions
+                productType="leaflet"
+                defaultName={`Меню ${circulation} шт`}
+                circulation={circulation}
+                totals={totals}
+                margin={margin}
+                vatPercent={vatPercent}
+                spec={lines.map((l) => ({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total }))}
+              />
             </div>
           </div>
 

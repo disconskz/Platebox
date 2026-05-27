@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtMoney, fmtNum } from "@/lib/format";
+import TemplateActions from "@/components/calc/TemplateActions";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
@@ -812,6 +813,24 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                   <div className="flex justify-between text-accent font-semibold"><span>За штуку</span><span>{fmtMoney(totals.perItem)}</span></div>
                 </CardContent>
               </Card>
+
+              <TemplateActions
+                productType={
+                  isQuarterCal ? "calendar_quarter"
+                  : isMemocube ? "kubus"
+                  : isNotepad || isPlanner ? "notepad"
+                  : isHardcover || isSoftcover ? "book"
+                  : isMagazine ? "magazine"
+                  : isCatalog ? "brochure"
+                  : "brochure"
+                }
+                defaultName={`${isQuarterCal ? "Календарь квартальный" : isMemocube ? "Кубарик" : isNotepad ? "Блокнот" : isPlanner ? "Ежедневник" : isHardcover ? "Книга (7БЦ)" : isSoftcover ? "Книга (КБС)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"} ${circulation} шт`}
+                circulation={circulation}
+                totals={totals}
+                margin={margin}
+                vatPercent={vatPercent}
+                spec={lines.map((l) => ({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total }))}
+              />
             </div>
           </div>
 
