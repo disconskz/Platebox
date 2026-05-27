@@ -2679,6 +2679,39 @@ const Calculator = () => {
     embossCoefOverride, embossMinCostOverride,
   ]);
 
+  // Доработка 35: ряд «Конгрев».
+  const congrevItems = useMemo(() => {
+    if (!congrevEnabled) return [] as any[];
+    const active = congrevRows.filter((r) => (r as any).is_active !== false);
+    const rule = (congrevManualId ? congrevRows.find((r) => r.id === congrevManualId) : active[0]) as CongrevRule | undefined;
+    if (!rule) return [];
+    const r = calcCongrev(rule, {
+      circulation,
+      clicheWidthCm: Number(congrevWidthCm) || 0,
+      clicheHeightCm: Number(congrevHeightCm) || 0,
+      leather: congrevLeather,
+      complexPosition: congrevComplexPos,
+      smallElements: congrevSmallElements,
+      clicheCostOverride: congrevClicheCostOverride !== "" ? Number(congrevClicheCostOverride) : undefined,
+      clichePricePerCm2Override: congrevClichePriceOverride !== "" ? Number(congrevClichePriceOverride) : undefined,
+      setupOverride: congrevSetupOverride !== "" ? Number(congrevSetupOverride) : undefined,
+      pricePerImpressionOverride: congrevPriceImpOverride !== "" ? Number(congrevPriceImpOverride) : undefined,
+      complexityCoefOverride: congrevCoefOverride !== "" ? Number(congrevCoefOverride) : undefined,
+      minCostOverride: congrevMinCostOverride !== "" ? Number(congrevMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Конгрев (${rule.name || rule.congrev_type})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    congrevEnabled, congrevRows, congrevManualId, circulation,
+    congrevWidthCm, congrevHeightCm, congrevLeather, congrevComplexPos, congrevSmallElements,
+    congrevClicheCostOverride, congrevClichePriceOverride,
+    congrevSetupOverride, congrevPriceImpOverride,
+    congrevCoefOverride, congrevMinCostOverride,
+  ]);
+
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
   // Авто-значения переменных формулы (как вычисляет калькулятор)
   const autoVars = useMemo<Record<string, number>>(() => {
