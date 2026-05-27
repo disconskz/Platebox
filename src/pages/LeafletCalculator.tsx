@@ -73,6 +73,15 @@ const BUSINESSCARD_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const INSERT_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "A3", label: "A3 (297×420)", type: "A3" },
+  { value: "100x210", label: "100×210 мм (folded)", type: "custom", w: 100, h: 210 },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
@@ -82,31 +91,36 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard";
+  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
   const isFlyer = mode === "flyer";
   const isEuro = mode === "euroflyer";
   const isCard = mode === "businesscard";
+  const isInsert = mode === "insert";
   // Флаер/визитка — без фальцовки/биговки/склейки. Еврофлаер использует фальцовку + биговку.
   const hideFoldBlock = isFlyer || isCard;
   const FORMATS = isCard
     ? BUSINESSCARD_FORMATS
-    : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isCard ? "Визитка" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+    : isInsert
+      ? INSERT_FORMATS
+      : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
+  const titleLabel = isCard ? "Визитка" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
   const subtitle = isCard
     ? "Премиальная мелкоформатная продукция — акцент на постпечатные операции"
-    : isEuro
+    : isInsert
+      ? "Вкладыши и инструкции — акцент на фальцовку, автобиговка при плотной бумаге"
+      : isEuro
       ? "Рекламный евроформат — автоматическая биговка при плотной бумаге + фальцовка"
       : isFlyer
         ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
         : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isCard ? 39 : isEuro ? 38 : isFlyer ? 37 : 36;
+  const dorNum = isCard ? 39 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
   const [presetKey, setPresetKey] = useState<string>(
-    isCard ? "90x50" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
+    isCard ? "90x50" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
   );
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
