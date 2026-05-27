@@ -6378,6 +6378,103 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  {/* Доработка 35: блок «Конгрев». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={congrevEnabled} onCheckedChange={(v) => setCongrevEnabled(!!v)} id="congrev" />
+                      <Label htmlFor="congrev" className="flex-1 font-medium">Конгрев</Label>
+                      {congrevEnabled && (
+                        <Select value={congrevManualId} onValueChange={setCongrevManualId} disabled={congrevRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={congrevRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {congrevRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {congrevEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Ширина клише, см</Label>
+                            <Input type="number" step="0.1" min={0} value={congrevWidthCm} onChange={(e) => setCongrevWidthCm(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Высота клише, см</Label>
+                            <Input type="number" step="0.1" min={0} value={congrevHeightCm} onChange={(e) => setCongrevHeightCm(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={congrevCoefOverride} placeholder="авто" onChange={(e) => setCongrevCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={congrevMinCostOverride} placeholder="из справочника" onChange={(e) => setCongrevMinCostOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена клише, ₸/см²</Label>
+                            <Input type="number" step="0.1" value={congrevClichePriceOverride} placeholder="из справочника" onChange={(e) => setCongrevClichePriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Стоимость клише, ₸ (override)</Label>
+                            <Input type="number" step="1" value={congrevClicheCostOverride} placeholder="авто" onChange={(e) => setCongrevClicheCostOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена оттиска, ₸</Label>
+                            <Input type="number" step="0.1" value={congrevPriceImpOverride} placeholder="из справочника" onChange={(e) => setCongrevPriceImpOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={congrevSetupOverride} placeholder="из справочника" onChange={(e) => setCongrevSetupOverride(e.target.value)} />
+                          </div>
+                          <div className="flex flex-wrap items-end gap-3 sm:col-span-4">
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={congrevLeather} onCheckedChange={(v) => setCongrevLeather(!!v)} />
+                              Кожа / кожзам
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={congrevComplexPos} onCheckedChange={(v) => setCongrevComplexPos(!!v)} />
+                              Сложное совмещение
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={congrevSmallElements} onCheckedChange={(v) => setCongrevSmallElements(!!v)} />
+                              Мелкие элементы
+                            </label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (congrevManualId ? congrevRows.find((r) => r.id === congrevManualId) : congrevRows.filter((r: any) => r.is_active !== false)[0]) as CongrevRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Конгрев».</p>;
+                          const r = calcCongrev(rule, {
+                            circulation,
+                            clicheWidthCm: Number(congrevWidthCm) || 0,
+                            clicheHeightCm: Number(congrevHeightCm) || 0,
+                            leather: congrevLeather,
+                            complexPosition: congrevComplexPos,
+                            smallElements: congrevSmallElements,
+                            clicheCostOverride: congrevClicheCostOverride !== "" ? Number(congrevClicheCostOverride) : undefined,
+                            clichePricePerCm2Override: congrevClichePriceOverride !== "" ? Number(congrevClichePriceOverride) : undefined,
+                            setupOverride: congrevSetupOverride !== "" ? Number(congrevSetupOverride) : undefined,
+                            pricePerImpressionOverride: congrevPriceImpOverride !== "" ? Number(congrevPriceImpOverride) : undefined,
+                            complexityCoefOverride: congrevCoefOverride !== "" ? Number(congrevCoefOverride) : undefined,
+                            minCostOverride: congrevMinCostOverride !== "" ? Number(congrevMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Тип: <b>{rule.congrev_type}</b> · клише: <b>{Number(congrevWidthCm) || 0}×{Number(congrevHeightCm) || 0} см</b> = <b>{r.clicheAreaCm2.toFixed(2)} см²</b> · тираж: <b>{circulation}</b></div>
+                              <div>Клише: <b>{r.clicheCost.toFixed(0)} ₸</b> · приладка: <b>{r.setupCost.toFixed(0)} ₸</b> · нанесение: <b>{r.impressionCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Мин. стоимость: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
