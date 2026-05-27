@@ -92,6 +92,15 @@ const COUPON_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const FORM_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "A3", label: "A3 (297×420)", type: "A3" },
+  { value: "DL", label: "DL (99×210)", type: "custom", w: 99, h: 210 },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
@@ -101,7 +110,7 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon";
+  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon" | "form";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
@@ -110,20 +119,25 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   const isCard = mode === "businesscard";
   const isInsert = mode === "insert";
   const isCoupon = mode === "coupon";
-  // Флаер/визитка/купон — без фальцовки/биговки/склейки. Еврофлаер использует фальцовку + биговку.
+  const isForm = mode === "form";
+  // Флаер/визитка/купон — без фальцовки/биговки/склейки. Еврофлаер/вкладыш/анкета — с фальцовкой.
   const hideFoldBlock = isFlyer || isCard || isCoupon;
   const FORMATS = isCard
     ? BUSINESSCARD_FORMATS
     : isCoupon
       ? COUPON_FORMATS
+      : isForm
+      ? FORM_FORMATS
       : isInsert
       ? INSERT_FORMATS
       : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isCard ? "Визитка" : isCoupon ? "Купон" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+  const titleLabel = isCard ? "Визитка" : isCoupon ? "Купон" : isForm ? "Анкета" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
   const subtitle = isCard
     ? "Премиальная мелкоформатная продукция — акцент на постпечатные операции"
     : isCoupon
       ? "Купоны, талоны, билеты — обязательная перфорация, нумерация, QR/штрихкоды"
+      : isForm
+      ? "Анкеты и опросные листы — поддержка NCR, нумерации, скрепления и сборки в блок"
       : isInsert
       ? "Вкладыши и инструкции — акцент на фальцовку, автобиговка при плотной бумаге"
       : isEuro
@@ -131,11 +145,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       : isFlyer
         ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
         : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isCard ? 39 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
+  const dorNum = isCard ? 39 : isForm ? 43 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
   const [presetKey, setPresetKey] = useState<string>(
-    isCard ? "90x50" : isCoupon ? "70x150" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
+    isCard ? "90x50" : isCoupon ? "70x150" : isForm ? "A4" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
   );
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
