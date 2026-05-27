@@ -1486,6 +1486,90 @@ export type Database = {
         }
         Relationships: []
       }
+      congrev_prices: {
+        Row: {
+          allowed_materials: string
+          cliche_min_cost: number
+          cliche_price_per_cm2: number
+          coef_3d: number
+          coef_complex_position: number
+          coef_deep: number
+          coef_leather: number
+          coef_micro: number
+          coef_multilevel: number
+          coef_reverse: number
+          coef_small_elements: number
+          coef_standard: number
+          coef_with_foil: number
+          complexity_coef: number
+          congrev_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          min_cost: number
+          name: string
+          price_per_impression: number
+          setup_cost: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allowed_materials?: string
+          cliche_min_cost?: number
+          cliche_price_per_cm2?: number
+          coef_3d?: number
+          coef_complex_position?: number
+          coef_deep?: number
+          coef_leather?: number
+          coef_micro?: number
+          coef_multilevel?: number
+          coef_reverse?: number
+          coef_small_elements?: number
+          coef_standard?: number
+          coef_with_foil?: number
+          complexity_coef?: number
+          congrev_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name: string
+          price_per_impression?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allowed_materials?: string
+          cliche_min_cost?: number
+          cliche_price_per_cm2?: number
+          coef_3d?: number
+          coef_complex_position?: number
+          coef_deep?: number
+          coef_leather?: number
+          coef_micro?: number
+          coef_multilevel?: number
+          coef_reverse?: number
+          coef_small_elements?: number
+          coef_standard?: number
+          coef_with_foil?: number
+          complexity_coef?: number
+          congrev_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_cost?: number
+          name?: string
+          price_per_impression?: number
+          setup_cost?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       cover_assembly_prices: {
         Row: {
           assembly_method: string

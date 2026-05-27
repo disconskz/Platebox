@@ -24,6 +24,7 @@ import { calcWindow, type WindowRule, type WindowCalcMode, type WindowShape } fr
 import { calcFlashRemoval, type FlashRemovalRule, type FlashRemovalCalcMode, type FlashContour, type FlashMaterial } from "@/lib/calc/flash_removal";
 import { calcRigel, type RigelRule, type RigelCalcMode } from "@/lib/calc/rigel";
 import { calcEmbossing, type EmbossingRule, type EmbossingType } from "@/lib/calc/embossing";
+import { calcCongrev, type CongrevRule, type CongrevType } from "@/lib/calc/congrev";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
@@ -1311,6 +1312,21 @@ const Calculator = () => {
   const [embossFoilPriceOverride, setEmbossFoilPriceOverride] = useState<string>("");
   const [embossCoefOverride, setEmbossCoefOverride] = useState<string>("");
   const [embossMinCostOverride, setEmbossMinCostOverride] = useState<string>("");
+  // Доработка 35: «Конгрев».
+  const [congrevRows, setCongrevRows] = useState<CongrevRule[]>([]);
+  const [congrevEnabled, setCongrevEnabled] = useState(false);
+  const [congrevManualId, setCongrevManualId] = useState<string>("");
+  const [congrevWidthCm, setCongrevWidthCm] = useState<string>("10");
+  const [congrevHeightCm, setCongrevHeightCm] = useState<string>("5");
+  const [congrevLeather, setCongrevLeather] = useState<boolean>(false);
+  const [congrevComplexPos, setCongrevComplexPos] = useState<boolean>(false);
+  const [congrevSmallElements, setCongrevSmallElements] = useState<boolean>(false);
+  const [congrevClicheCostOverride, setCongrevClicheCostOverride] = useState<string>("");
+  const [congrevClichePriceOverride, setCongrevClichePriceOverride] = useState<string>("");
+  const [congrevSetupOverride, setCongrevSetupOverride] = useState<string>("");
+  const [congrevPriceImpOverride, setCongrevPriceImpOverride] = useState<string>("");
+  const [congrevCoefOverride, setCongrevCoefOverride] = useState<string>("");
+  const [congrevMinCostOverride, setCongrevMinCostOverride] = useState<string>("");
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
@@ -1869,6 +1885,16 @@ const Calculator = () => {
         setEmbossRows(((emR.data as EmbossingRule[]) || []));
       } catch (e) {
         console.warn("[Calculator] load embossing_prices failed", e);
+      }
+      // Доработка 35: справочник «Конгрев».
+      try {
+        const cgR = await (supabase as any)
+          .from("congrev_prices")
+          .select("*")
+          .order("sort_order");
+        setCongrevRows(((cgR.data as CongrevRule[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load congrev_prices failed", e);
       }
       // Доработка 21: справочник переплётного картона.
       try {
@@ -2651,6 +2677,39 @@ const Calculator = () => {
     embossUsesFoilOverride, embossClicheCostOverride, embossClichePriceOverride,
     embossSetupOverride, embossPriceImpOverride, embossFoilPriceOverride,
     embossCoefOverride, embossMinCostOverride,
+  ]);
+
+  // Доработка 35: ряд «Конгрев».
+  const congrevItems = useMemo(() => {
+    if (!congrevEnabled) return [] as any[];
+    const active = congrevRows.filter((r) => (r as any).is_active !== false);
+    const rule = (congrevManualId ? congrevRows.find((r) => r.id === congrevManualId) : active[0]) as CongrevRule | undefined;
+    if (!rule) return [];
+    const r = calcCongrev(rule, {
+      circulation,
+      clicheWidthCm: Number(congrevWidthCm) || 0,
+      clicheHeightCm: Number(congrevHeightCm) || 0,
+      leather: congrevLeather,
+      complexPosition: congrevComplexPos,
+      smallElements: congrevSmallElements,
+      clicheCostOverride: congrevClicheCostOverride !== "" ? Number(congrevClicheCostOverride) : undefined,
+      clichePricePerCm2Override: congrevClichePriceOverride !== "" ? Number(congrevClichePriceOverride) : undefined,
+      setupOverride: congrevSetupOverride !== "" ? Number(congrevSetupOverride) : undefined,
+      pricePerImpressionOverride: congrevPriceImpOverride !== "" ? Number(congrevPriceImpOverride) : undefined,
+      complexityCoefOverride: congrevCoefOverride !== "" ? Number(congrevCoefOverride) : undefined,
+      minCostOverride: congrevMinCostOverride !== "" ? Number(congrevMinCostOverride) : undefined,
+    });
+    if (r.finalCost <= 0) return [];
+    const label = `Конгрев (${rule.name || rule.congrev_type})`;
+    return [
+      { stage: "postpress", name: label, quantity: 1, unit: "шт", unitPrice: r.finalCost, total: r.finalCost },
+    ];
+  }, [
+    congrevEnabled, congrevRows, congrevManualId, circulation,
+    congrevWidthCm, congrevHeightCm, congrevLeather, congrevComplexPos, congrevSmallElements,
+    congrevClicheCostOverride, congrevClichePriceOverride,
+    congrevSetupOverride, congrevPriceImpOverride,
+    congrevCoefOverride, congrevMinCostOverride,
   ]);
 
   // Итоговый result со склеенной спецификацией и пересчитанной суммой
@@ -4435,7 +4494,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems, ...embossItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems, ...embossItems, ...congrevItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4628,7 +4687,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems, rigelItems, embossItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems, rigelItems, embossItems, congrevItems]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -6309,6 +6368,103 @@ const Calculator = () => {
                             <div className="text-[11px] text-muted-foreground space-y-0.5">
                               <div>Тип: <b>{rule.embossing_type}</b> · фольга: <b>{r.usesFoil ? rule.foil_type : "нет"}</b> · клише: <b>{Number(embossWidthCm) || 0}×{Number(embossHeightCm) || 0} см</b> = <b>{r.clicheAreaCm2.toFixed(2)} см²</b> · тираж: <b>{circulation}</b></div>
                               <div>Клише: <b>{r.clicheCost.toFixed(0)} ₸</b> · приладка: <b>{r.setupCost.toFixed(0)} ₸</b> · нанесение: <b>{r.impressionCost.toFixed(0)} ₸</b> · фольга: <b>{r.foilCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef}</b></div>
+                              <div>Расчёт: {r.breakdown}</div>
+                              <div>Мин. стоимость: <b>{r.minCost} ₸</b></div>
+                              <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
+                              {r.warnings.map((w, i) => <div key={i} className="text-destructive">⚠ {w}</div>)}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                  {/* Доработка 35: блок «Конгрев». */}
+                  <div className="rounded-md border bg-card p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Checkbox checked={congrevEnabled} onCheckedChange={(v) => setCongrevEnabled(!!v)} id="congrev" />
+                      <Label htmlFor="congrev" className="flex-1 font-medium">Конгрев</Label>
+                      {congrevEnabled && (
+                        <Select value={congrevManualId} onValueChange={setCongrevManualId} disabled={congrevRows.length === 0}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder={congrevRows.length ? "Выберите запись" : "Заполните справочник"} /></SelectTrigger>
+                          <SelectContent>
+                            {congrevRows.filter((r) => (r as any).is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id!}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    {congrevEnabled && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Ширина клише, см</Label>
+                            <Input type="number" step="0.1" min={0} value={congrevWidthCm} onChange={(e) => setCongrevWidthCm(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Высота клише, см</Label>
+                            <Input type="number" step="0.1" min={0} value={congrevHeightCm} onChange={(e) => setCongrevHeightCm(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Коэф. сложности (override)</Label>
+                            <Input type="number" step="0.1" value={congrevCoefOverride} placeholder="авто" onChange={(e) => setCongrevCoefOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Мин. стоимость (override)</Label>
+                            <Input type="number" step="1" value={congrevMinCostOverride} placeholder="из справочника" onChange={(e) => setCongrevMinCostOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена клише, ₸/см²</Label>
+                            <Input type="number" step="0.1" value={congrevClichePriceOverride} placeholder="из справочника" onChange={(e) => setCongrevClichePriceOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Стоимость клише, ₸ (override)</Label>
+                            <Input type="number" step="1" value={congrevClicheCostOverride} placeholder="авто" onChange={(e) => setCongrevClicheCostOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Цена оттиска, ₸</Label>
+                            <Input type="number" step="0.1" value={congrevPriceImpOverride} placeholder="из справочника" onChange={(e) => setCongrevPriceImpOverride(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground">Приладка (override)</Label>
+                            <Input type="number" step="1" value={congrevSetupOverride} placeholder="из справочника" onChange={(e) => setCongrevSetupOverride(e.target.value)} />
+                          </div>
+                          <div className="flex flex-wrap items-end gap-3 sm:col-span-4">
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={congrevLeather} onCheckedChange={(v) => setCongrevLeather(!!v)} />
+                              Кожа / кожзам
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={congrevComplexPos} onCheckedChange={(v) => setCongrevComplexPos(!!v)} />
+                              Сложное совмещение
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              <Checkbox checked={congrevSmallElements} onCheckedChange={(v) => setCongrevSmallElements(!!v)} />
+                              Мелкие элементы
+                            </label>
+                          </div>
+                        </div>
+                        {(() => {
+                          const rule = (congrevManualId ? congrevRows.find((r) => r.id === congrevManualId) : congrevRows.filter((r: any) => r.is_active !== false)[0]) as CongrevRule | undefined;
+                          if (!rule) return <p className="text-[11px] text-muted-foreground">Добавьте записи в справочник «Конгрев».</p>;
+                          const r = calcCongrev(rule, {
+                            circulation,
+                            clicheWidthCm: Number(congrevWidthCm) || 0,
+                            clicheHeightCm: Number(congrevHeightCm) || 0,
+                            leather: congrevLeather,
+                            complexPosition: congrevComplexPos,
+                            smallElements: congrevSmallElements,
+                            clicheCostOverride: congrevClicheCostOverride !== "" ? Number(congrevClicheCostOverride) : undefined,
+                            clichePricePerCm2Override: congrevClichePriceOverride !== "" ? Number(congrevClichePriceOverride) : undefined,
+                            setupOverride: congrevSetupOverride !== "" ? Number(congrevSetupOverride) : undefined,
+                            pricePerImpressionOverride: congrevPriceImpOverride !== "" ? Number(congrevPriceImpOverride) : undefined,
+                            complexityCoefOverride: congrevCoefOverride !== "" ? Number(congrevCoefOverride) : undefined,
+                            minCostOverride: congrevMinCostOverride !== "" ? Number(congrevMinCostOverride) : undefined,
+                          });
+                          return (
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>Тип: <b>{rule.congrev_type}</b> · клише: <b>{Number(congrevWidthCm) || 0}×{Number(congrevHeightCm) || 0} см</b> = <b>{r.clicheAreaCm2.toFixed(2)} см²</b> · тираж: <b>{circulation}</b></div>
+                              <div>Клише: <b>{r.clicheCost.toFixed(0)} ₸</b> · приладка: <b>{r.setupCost.toFixed(0)} ₸</b> · нанесение: <b>{r.impressionCost.toFixed(0)} ₸</b> · коэф.: <b>{r.complexityCoef}</b></div>
                               <div>Расчёт: {r.breakdown}</div>
                               <div>Мин. стоимость: <b>{r.minCost} ₸</b></div>
                               <div className="text-foreground">Итого: <b>{r.finalCost.toFixed(0)} ₸</b></div>
