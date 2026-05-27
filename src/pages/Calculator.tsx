@@ -496,6 +496,60 @@ const HEADBAND_TYPE_LABEL: Record<string, string> = {
   premium: "Премиум",
 };
 
+// Доработка 19: справочник прессовки блока.
+type BlockPressingRow = {
+  id: string;
+  name: string;
+  pressing_type: string;       // block | final | sewing | endpaper
+  machine_type: string;        // manual | mechanical | hydraulic | auto
+  calc_mode: string;           // per_item | per_time
+  price_per_item: number;
+  price_per_hour: number;
+  time_per_item_sec: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_thickness_thin: number;
+  coef_thickness_med: number;
+  coef_thickness_thick: number;
+  coef_thickness_extra: number;
+  thickness_thin_max: number;
+  thickness_med_max: number;
+  thickness_thick_max: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  coef_thick_block: number;
+  coef_heavy_block: number;
+  coef_manual: number;
+  coef_designer_paper: number;
+  coef_small_circulation: number;
+  thick_block_threshold: number;
+  heavy_block_threshold: number;
+  small_circulation_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  max_block_weight: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const PRESSING_TYPE_LABEL: Record<string, string> = {
+  block: "Прессовка блока",
+  final: "Финальная прессовка",
+  sewing: "После шитья",
+  endpaper: "После форзацев",
+};
+const PRESSING_MACHINE_LABEL: Record<string, string> = {
+  manual: "Ручной",
+  mechanical: "Механический",
+  hydraulic: "Гидравлический",
+  auto: "Автоматический",
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
@@ -855,6 +909,20 @@ const Calculator = () => {
   const [hbManualInstall, setHbManualInstall] = useState(false);
   const [hbNonstandardColor, setHbNonstandardColor] = useState(false);
 
+  // Доработка 19: прессовка блока.
+  const [pressingRows, setPressingRows] = useState<BlockPressingRow[]>([]);
+  const [prEnabled, setPrEnabled] = useState(false);
+  const [prManualId, setPrManualId] = useState<string | null>(null);
+  const [prPriceOverride, setPrPriceOverride] = useState<number | "">("");
+  const [prTimeOverride, setPrTimeOverride] = useState<number | "">("");
+  const [prHourPriceOverride, setPrHourPriceOverride] = useState<number | "">("");
+  const [prCoefOverride, setPrCoefOverride] = useState<number | "">("");
+  const [prSetupOverride, setPrSetupOverride] = useState<number | "">("");
+  const [prMinOverride, setPrMinOverride] = useState<number | "">("");
+  const [prCalcModeOverride, setPrCalcModeOverride] = useState<"" | "per_item" | "per_time">("");
+  const [prManual, setPrManual] = useState(false);
+  const [prDesignerPaper, setPrDesignerPaper] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -1054,6 +1122,16 @@ const Calculator = () => {
         setHeadbandRows(((hbR.data as HeadbandRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load headband_prices failed", e);
+      }
+      // Доработка 19: справочник прессовки блока.
+      try {
+        const prR = await (supabase as any)
+          .from("block_pressing_prices")
+          .select("*")
+          .order("sort_order");
+        setPressingRows(((prR.data as BlockPressingRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load block_pressing_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -2396,7 +2474,105 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems];
+    // Доработка 19: прессовка блока.
+    const pressingItems: SpecItem[] = (() => {
+      if (!prEnabled || !(circulation > 0)) return [];
+      if (!pressingRows.length) return [];
+      const active = pressingRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      // Вес блока в граммах: S(м²) × плотн(г/м²) × листов.
+      const density = Number((effectiveMaterial as any)?.density) || 0;
+      const sheets = Math.max(0, sigPages / 2);
+      const blockWeight = (dims.w * dims.h) / 1_000_000 * density * sheets;
+      // Авто-подбор записи: предпочтительно совпадение по толщине/тиражу/весу/формату.
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const fits = (r: BlockPressingRow) =>
+        autoBlockThickness >= r.min_block_thickness && autoBlockThickness <= r.max_block_thickness
+        && circulation >= r.min_circulation && circulation <= r.max_circulation
+        && longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && blockWeight <= r.max_block_weight;
+      const row = (prManualId && active.find((r) => r.id === prManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const mode = prCalcModeOverride || row.calc_mode;
+      // Базовая стоимость.
+      let baseCost = 0;
+      if (mode === "per_time") {
+        const timeSec = prTimeOverride !== "" ? Number(prTimeOverride) : row.time_per_item_sec;
+        const hourPrice = prHourPriceOverride !== "" ? Number(prHourPriceOverride) : row.price_per_hour;
+        baseCost = (timeSec * circulation / 3600) * hourPrice;
+      } else {
+        const price = prPriceOverride !== "" ? Number(prPriceOverride) : row.price_per_item;
+        baseCost = price * circulation;
+      }
+      // Коэф. толщины.
+      const thickCoef = autoBlockThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+        : autoBlockThickness <= row.thickness_med_max ? row.coef_thickness_med
+        : autoBlockThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+        : row.coef_thickness_extra;
+      // Коэф. формата (по длинной стороне).
+      const formatCoef = longSide <= 210 ? row.coef_format_a5
+        : longSide <= 297 ? row.coef_format_a4
+        : longSide <= 420 ? row.coef_format_a3
+        : row.coef_format_nonstandard;
+      // Доп. коэф. сложности.
+      const heavyBlockCoef = blockWeight >= row.heavy_block_threshold ? row.coef_heavy_block : 1;
+      const thickBlockCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const manualCoef = (prManual || row.machine_type === "manual") ? row.coef_manual : 1;
+      const designerCoef = prDesignerPaper ? row.coef_designer_paper : 1;
+      const smallCircCoef = circulation > 0 && circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = thickCoef * formatCoef * heavyBlockCoef * thickBlockCoef * manualCoef * designerCoef * smallCircCoef;
+      const coef = prCoefOverride !== "" ? Math.max(0, Number(prCoefOverride)) : autoCoef;
+      const setup = prSetupOverride !== "" ? Number(prSetupOverride) : row.setup_cost;
+      const minCost = prMinOverride !== "" ? Number(prMinOverride) : row.min_cost;
+      const raw = baseCost * coef + setup;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (baseCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Прессовка блока — ${PRESSING_TYPE_LABEL[row.pressing_type] || row.pressing_type} (${PRESSING_MACHINE_LABEL[row.machine_type] || row.machine_type}, ${mode === "per_time" ? "по времени" : "за изделие"})`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: baseCost / Math.max(1, circulation),
+          total: baseCost,
+        });
+      }
+      if (coef !== 1 && baseCost > 0) {
+        const delta = baseCost * coef - baseCost;
+        items.push({
+          stage: "postpress",
+          name: `Прессовка — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Прессовка — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Прессовка — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -2589,7 +2765,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5015,6 +5191,184 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(материал + установка + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Длина каптала = толщина блока + тех. запас; общая длина = длина × тираж × кол-во на изделие.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 19: Прессовка блока */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={prEnabled} onCheckedChange={(v) => setPrEnabled(!!v)} id="pr" />
+                        <Label htmlFor="pr" className="flex-1 font-medium">Прессовка блока</Label>
+                        <Select
+                          value={prManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setPrManualId(v === "auto" ? null : v);
+                            setPrPriceOverride(""); setPrTimeOverride(""); setPrHourPriceOverride("");
+                            setPrCoefOverride(""); setPrSetupOverride(""); setPrMinOverride(""); setPrCalcModeOverride("");
+                          }}
+                          disabled={!prEnabled || pressingRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по тиражу/толщине/формату)</SelectItem>
+                            {pressingRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {prEnabled && (() => {
+                        if (!pressingRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Прессовка блока» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = pressingRows.filter((r) => r.is_active !== false);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBlockThickness = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const density = Number((effectiveMaterial as any)?.density) || 0;
+                        const sheets = Math.max(0, sigPages / 2);
+                        const blockWeight = (dims.w * dims.h) / 1_000_000 * density * sheets;
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const fits = (r: BlockPressingRow) =>
+                          autoBlockThickness >= r.min_block_thickness && autoBlockThickness <= r.max_block_thickness
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation
+                          && longSide <= r.max_format_long && shortSide >= r.min_format_short
+                          && blockWeight <= r.max_block_weight;
+                        const row = (prManualId && active.find((r) => r.id === prManualId))
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const mode = prCalcModeOverride || row.calc_mode;
+                        const price = prPriceOverride !== "" ? Number(prPriceOverride) : row.price_per_item;
+                        const timeSec = prTimeOverride !== "" ? Number(prTimeOverride) : row.time_per_item_sec;
+                        const hourPrice = prHourPriceOverride !== "" ? Number(prHourPriceOverride) : row.price_per_hour;
+                        const baseCost = mode === "per_time"
+                          ? (timeSec * circulation / 3600) * hourPrice
+                          : price * circulation;
+                        const thickCoef = autoBlockThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+                          : autoBlockThickness <= row.thickness_med_max ? row.coef_thickness_med
+                          : autoBlockThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+                          : row.coef_thickness_extra;
+                        const formatCoef = longSide <= 210 ? row.coef_format_a5
+                          : longSide <= 297 ? row.coef_format_a4
+                          : longSide <= 420 ? row.coef_format_a3
+                          : row.coef_format_nonstandard;
+                        const heavyBlockCoef = blockWeight >= row.heavy_block_threshold ? row.coef_heavy_block : 1;
+                        const thickBlockCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+                        const manualCoef = (prManual || row.machine_type === "manual") ? row.coef_manual : 1;
+                        const designerCoef = prDesignerPaper ? row.coef_designer_paper : 1;
+                        const smallCircCoef = circulation > 0 && circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const autoCoef = thickCoef * formatCoef * heavyBlockCoef * thickBlockCoef * manualCoef * designerCoef * smallCircCoef;
+                        const coef = prCoefOverride !== "" ? Math.max(0, Number(prCoefOverride)) : autoCoef;
+                        const setup = prSetupOverride !== "" ? Number(prSetupOverride) : row.setup_cost;
+                        const minCost = prMinOverride !== "" ? Number(prMinOverride) : row.min_cost;
+                        const raw = baseCost * coef + setup;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const outOfThickness = autoBlockThickness < row.min_block_thickness || autoBlockThickness > row.max_block_thickness;
+                        const outOfWeight = blockWeight > row.max_block_weight;
+                        const outOfCirc = circulation < row.min_circulation || circulation > row.max_circulation;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Режим расчёта</Label>
+                                <Select value={prCalcModeOverride || row.calc_mode} onValueChange={(v) => setPrCalcModeOverride(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="per_item">За изделие</SelectItem>
+                                    <SelectItem value="per_time">По времени</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена, ₸/изд</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={prPriceOverride === "" ? row.price_per_item : prPriceOverride}
+                                  onChange={(e) => setPrPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Время, сек/изд</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={prTimeOverride === "" ? row.time_per_item_sec : prTimeOverride}
+                                  onChange={(e) => setPrTimeOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена часа, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={prHourPriceOverride === "" ? row.price_per_hour : prHourPriceOverride}
+                                  onChange={(e) => setPrHourPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={prCoefOverride === "" ? Number(autoCoef.toFixed(3)) : prCoefOverride}
+                                  onChange={(e) => setPrCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={prSetupOverride === "" ? row.setup_cost : prSetupOverride}
+                                  onChange={(e) => setPrSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={prMinOverride === "" ? row.min_cost : prMinOverride}
+                                  onChange={(e) => setPrMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="pr-manual" checked={prManual} onCheckedChange={(v) => setPrManual(!!v)} />
+                                <Label htmlFor="pr-manual" className="text-[12px]">Ручная прессовка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="pr-des" checked={prDesignerPaper} onCheckedChange={(v) => setPrDesignerPaper(!!v)} />
+                                <Label htmlFor="pr-des" className="text-[12px]">Дизайнерская бумага</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> ({PRESSING_TYPE_LABEL[row.pressing_type] || row.pressing_type}, {PRESSING_MACHINE_LABEL[row.machine_type] || row.machine_type})
+                              </div>
+                              <div>
+                                Формат <b>{longSide}×{shortSide} мм</b> · блок <b>{autoBlockThickness.toFixed(1)} мм</b> · вес ≈ <b>{Math.round(blockWeight)} г</b>
+                              </div>
+                              <div>
+                                База: {mode === "per_time"
+                                  ? <>{timeSec} с × {circulation} / 3600 × {hourPrice} ₸ = <b>{Math.round(baseCost).toLocaleString("ru-RU")} ₸</b></>
+                                  : <>{circulation} × {price} ₸ = <b>{Math.round(baseCost).toLocaleString("ru-RU")} ₸</b></>}
+                              </div>
+                              <div>
+                                Коэф.: толщ. {thickCoef} × формат {formatCoef} × тяж. {heavyBlockCoef} × толст. {thickBlockCoef} × ручн. {manualCoef} × дизайн. {designerCoef} × тираж {smallCircCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseCost).toLocaleString("ru-RU")} × {coef.toFixed(2)}) + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {(outOfThickness || outOfWeight || outOfCirc) && (
+                                <div className="text-warning">
+                                  ⚠ {outOfThickness && <>толщина блока вне диапазона {row.min_block_thickness}–{row.max_block_thickness} мм</>}
+                                  {outOfWeight && <>; вес блока превышает {row.max_block_weight} г</>}
+                                  {outOfCirc && <>; тираж вне диапазона {row.min_circulation}–{row.max_circulation}</>}
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(тираж × цена × коэф) + приладка</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Коэф = толщина × формат × сложность.
                             </p>
                           </div>
                         );
