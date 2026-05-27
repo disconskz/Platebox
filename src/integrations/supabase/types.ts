@@ -3053,6 +3053,105 @@ export type Database = {
         }
         Relationships: []
       }
+      rigel_prices: {
+        Row: {
+          calc_mode: string
+          coef_complex_position: number
+          coef_manual: number
+          coef_nonstandard_color: number
+          coef_nonstandard_length: number
+          coef_small_circulation: number
+          coef_standard: number
+          created_at: string
+          hanger_included: boolean
+          hanger_price: number
+          has_hanger: boolean
+          id: string
+          install_method: string
+          install_price: number
+          is_active: boolean
+          length_allowance: number
+          max_width: number
+          min_cost: number
+          min_width: number
+          name: string
+          price_per_item: number
+          price_per_meter: number
+          rigel_color: string
+          rigel_material: string
+          rigel_type: string
+          setup_cost: number
+          small_circulation_threshold: number
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          calc_mode?: string
+          coef_complex_position?: number
+          coef_manual?: number
+          coef_nonstandard_color?: number
+          coef_nonstandard_length?: number
+          coef_small_circulation?: number
+          coef_standard?: number
+          created_at?: string
+          hanger_included?: boolean
+          hanger_price?: number
+          has_hanger?: boolean
+          id?: string
+          install_method?: string
+          install_price?: number
+          is_active?: boolean
+          length_allowance?: number
+          max_width?: number
+          min_cost?: number
+          min_width?: number
+          name: string
+          price_per_item?: number
+          price_per_meter?: number
+          rigel_color?: string
+          rigel_material?: string
+          rigel_type?: string
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          calc_mode?: string
+          coef_complex_position?: number
+          coef_manual?: number
+          coef_nonstandard_color?: number
+          coef_nonstandard_length?: number
+          coef_small_circulation?: number
+          coef_standard?: number
+          created_at?: string
+          hanger_included?: boolean
+          hanger_price?: number
+          has_hanger?: boolean
+          id?: string
+          install_method?: string
+          install_price?: number
+          is_active?: boolean
+          length_allowance?: number
+          max_width?: number
+          min_cost?: number
+          min_width?: number
+          name?: string
+          price_per_item?: number
+          price_per_meter?: number
+          rigel_color?: string
+          rigel_material?: string
+          rigel_type?: string
+          setup_cost?: number
+          small_circulation_threshold?: number
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       signature_collation_prices: {
         Row: {
           coef_complex_sequence: number
