@@ -33,6 +33,7 @@ import PlannerCalculator from "./pages/PlannerCalculator.tsx";
 import NotepadCalculator from "./pages/NotepadCalculator.tsx";
 import MemocubeCalculator from "./pages/MemocubeCalculator.tsx";
 import QuarterCalendarCalculator from "./pages/QuarterCalendarCalculator.tsx";
+import DeskCalendarCalculator from "./pages/DeskCalendarCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -92,6 +93,7 @@ const App = () => (
               <Route path="/calculator/notepad" element={<NotepadCalculator />} />
               <Route path="/calculator/memocube" element={<MemocubeCalculator />} />
               <Route path="/calculator/quarter-calendar" element={<QuarterCalendarCalculator />} />
+              <Route path="/calculator/desk-calendar" element={<DeskCalendarCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
