@@ -1056,6 +1056,25 @@ const Calculator = () => {
   const [trMinOverride, setTrMinOverride] = useState<number | "">("");
   const [trManualTrim, setTrManualTrim] = useState(false);
   const [trDesignerPaper, setTrDesignerPaper] = useState(false);
+  // Доработка 21: переплётный картон.
+  const [boardRows, setBoardRows] = useState<BindingCardboardRow[]>([]);
+  const [bdEnabled, setBdEnabled] = useState(false);
+  const [bdManualId, setBdManualId] = useState<string | null>(null);
+  const [bdCalcModeOverride, setBdCalcModeOverride] = useState<"" | "per_m2" | "per_sheet" | "per_cover">("");
+  const [bdSideWidthOverride, setBdSideWidthOverride] = useState<number | "">("");
+  const [bdSideHeightOverride, setBdSideHeightOverride] = useState<number | "">("");
+  const [bdSpineWidthOverride, setBdSpineWidthOverride] = useState<number | "">("");
+  const [bdPriceM2Override, setBdPriceM2Override] = useState<number | "">("");
+  const [bdPriceSheetOverride, setBdPriceSheetOverride] = useState<number | "">("");
+  const [bdPriceCoverOverride, setBdPriceCoverOverride] = useState<number | "">("");
+  const [bdCutsOverride, setBdCutsOverride] = useState<number | "">("");
+  const [bdPriceCutOverride, setBdPriceCutOverride] = useState<number | "">("");
+  const [bdCoefOverride, setBdCoefOverride] = useState<number | "">("");
+  const [bdSetupOverride, setBdSetupOverride] = useState<number | "">("");
+  const [bdMinOverride, setBdMinOverride] = useState<number | "">("");
+  const [bdManualCut, setBdManualCut] = useState(false);
+  const [bdComplexLayout, setBdComplexLayout] = useState(false);
+  const [bdDesignerBoard, setBdDesignerBoard] = useState(false);
 
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
