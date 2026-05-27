@@ -4374,7 +4374,7 @@ const Calculator = () => {
       (items as any).__meta = { row, machine, stapleType, staplesCount, pricePerStaple, priceItem, blockThickness, staplesCost, workBase, workCost, thicknessCoef, formatCoef, stapleCoef, machineCoef, heavyPaperCoef, smallCircCoef, autoCoef, coef, setup, minCost, raw, total };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems];
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
