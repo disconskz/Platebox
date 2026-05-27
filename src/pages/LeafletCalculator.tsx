@@ -331,6 +331,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
     }
     steps.push(offset ? "Печать офсет" : "Печать цифра");
     if (optLam) steps.push("Ламинация");
+    if (optSoftTouch) steps.push("Soft-touch ламинация");
     if (optVarnish) steps.push("Лакировка");
     if (optBig) steps.push("Биговка");
     if (optFold) steps.push("Фальцовка");
@@ -347,7 +348,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
     steps.push("Упаковка");
     if (hasDelivery) steps.push("Доставка");
     return steps;
-  }, [hasDesign, printMode, circulation, optLam, optVarnish, optBig, optFold, optPerf, optNum, optStamp, optEmboss, optDieCut, optDeflash, optRound, optBlockGlue]);
+  }, [hasDesign, printMode, circulation, optLam, optSoftTouch, optVarnish, optBig, optFold, optPerf, optNum, optStamp, optEmboss, optDieCut, optDeflash, optRound, optBlockGlue]);
 
   return (
     <PageShell>
