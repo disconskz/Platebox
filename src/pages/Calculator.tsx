@@ -795,6 +795,61 @@ const COVER_ASM_METHOD_LABEL: Record<string, string> = {
   semi_auto: "Полуавтомат",
   auto: "Автомат",
 };
+// Доработка 25: вставка блока в крышку.
+type BlockInsertionRow = {
+  id: string;
+  name: string;
+  insertion_method: string;       // manual | semi_auto | auto
+  cover_material_type: string;    // paper | designer_paper | fabric | leatherette | printed
+  endpaper_type: string;
+  price_per_item: number;
+  glue_calc_mode: "per_item" | "per_m2";
+  glue_price_per_item: number;
+  glue_price_per_m2: number;
+  endpapers_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  thickness_thin_max: number;
+  thickness_med_max: number;
+  thickness_thick_max: number;
+  coef_thickness_thin: number;
+  coef_thickness_med: number;
+  coef_thickness_thick: number;
+  coef_thickness_extra: number;
+  weight_light_max: number;
+  weight_med_max: number;
+  weight_heavy_max: number;
+  coef_weight_light: number;
+  coef_weight_med: number;
+  coef_weight_heavy: number;
+  coef_weight_extra: number;
+  coef_standard: number;
+  coef_manual: number;
+  coef_fabric_leatherette: number;
+  coef_nonstandard_format: number;
+  coef_thick_block: number;
+  coef_complex_align: number;
+  coef_small_circulation: number;
+  thick_block_threshold: number;
+  small_circulation_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  max_block_thickness: number;
+  max_block_weight: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const BLOCK_INSERTION_METHOD_LABEL: Record<string, string> = {
+  manual: "Ручная",
+  semi_auto: "Полуавтомат",
+  auto: "Автомат",
+};
 // Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
 function bestFitOnSheet(
   partW: number, partH: number,
@@ -1270,6 +1325,24 @@ const Calculator = () => {
   const [caFabric, setCaFabric] = useState(false);
   const [caComplexMaterial, setCaComplexMaterial] = useState(false);
 
+  // Доработка 25: вставка блока в крышку.
+  const [biRows, setBiRows] = useState<BlockInsertionRow[]>([]);
+  const [biEnabled, setBiEnabled] = useState(false);
+  const [biManualId, setBiManualId] = useState<string | null>(null);
+  const [biPriceOverride, setBiPriceOverride] = useState<number | "">("");
+  const [biGlueModeOverride, setBiGlueModeOverride] = useState<"" | "per_item" | "per_m2">("");
+  const [biGluePriceItemOverride, setBiGluePriceItemOverride] = useState<number | "">("");
+  const [biGluePriceM2Override, setBiGluePriceM2Override] = useState<number | "">("");
+  const [biEndpaperAreaOverride, setBiEndpaperAreaOverride] = useState<number | "">("");
+  const [biBlockThicknessOverride, setBiBlockThicknessOverride] = useState<number | "">("");
+  const [biBlockWeightOverride, setBiBlockWeightOverride] = useState<number | "">("");
+  const [biCoefOverride, setBiCoefOverride] = useState<number | "">("");
+  const [biSetupOverride, setBiSetupOverride] = useState<number | "">("");
+  const [biMinOverride, setBiMinOverride] = useState<number | "">("");
+  const [biManualMethod, setBiManualMethod] = useState(false);
+  const [biFabric, setBiFabric] = useState(false);
+  const [biComplexAlign, setBiComplexAlign] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
@@ -1529,6 +1602,16 @@ const Calculator = () => {
         setCoverAsmRows(((caR.data as CoverAssemblyRow[]) || []));
       } catch (e) {
         console.warn("[Calculator] load cover_assembly_prices failed", e);
+      }
+      // Доработка 25: справочник вставки блока в крышку.
+      try {
+        const biR = await (supabase as any)
+          .from("block_insertion_prices")
+          .select("*")
+          .order("sort_order");
+        setBiRows(((biR.data as BlockInsertionRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load block_insertion_prices failed", e);
       }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
@@ -3481,7 +3564,123 @@ const Calculator = () => {
       (items as any).__meta = { row, sideWUse, sideHUse, spineWUse, gapL, gapR, spreadW, spreadH, coverW, coverH, areaM2, workCost, setup, coef, autoCoef, formatCoef, manualCoef, fabricCoef, thickCoef, complexCoef, smallCircCoef, baseSum, raw, total, minCost, boardThickness };
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems];
+    // Доработка 25: вставка блока в крышку.
+    const blockInsertionItems: SpecItem[] = (() => {
+      if (!biEnabled || !(circulation > 0)) return [];
+      if (!biRows.length) return [];
+      const active = biRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      // Толщина блока (берём из шитья/настроек, как в других операциях).
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBT = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const blockThickness = biBlockThicknessOverride !== "" ? Number(biBlockThicknessOverride) : autoBT;
+      // Вес одного блока (граммы): плотность × площадь × число листов.
+      const density = Number((effectiveMaterial as any)?.density) || 0;
+      const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+      const autoWeight = density > 0
+        ? density * ((dims.w * dims.h) / 1_000_000) * sheets
+        : 0;
+      const blockWeight = biBlockWeightOverride !== "" ? Number(biBlockWeightOverride) : autoWeight;
+      const fits = (r: BlockInsertionRow) =>
+        longSide <= r.max_format_long && shortSide >= r.min_format_short
+        && blockThickness <= r.max_block_thickness
+        && (!(blockWeight > 0) || blockWeight <= r.max_block_weight)
+        && circulation >= r.min_circulation && circulation <= r.max_circulation;
+      const wantManual = biManualMethod || biFabric || biComplexAlign
+        || circulation < 100 || longSide > 500
+        || blockThickness > 40;
+      const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+      const row = (biManualId && active.find((r) => r.id === biManualId))
+        || (wantManual ? sorted.find((r) => r.insertion_method === "manual" && fits(r)) : null)
+        || sorted.find(fits)
+        || sorted[0];
+      if (!row) return [];
+      // Размеры форзаца (для площади приклейки по м²) — из «Форзацев».
+      const epW = epWidthOverride !== "" ? Number(epWidthOverride) : dims.w * 2;
+      const epH = epHeightOverride !== "" ? Number(epHeightOverride) : dims.h;
+      const epCount = epCountOverride !== "" ? Math.max(0, Math.floor(Number(epCountOverride) || 0)) : row.endpapers_per_item;
+      const autoEpArea = (epW * epH) / 1_000_000 * Math.max(1, epCount);
+      const endpaperArea = biEndpaperAreaOverride !== "" ? Number(biEndpaperAreaOverride) : autoEpArea;
+      // Базовая стоимость вставки.
+      const priceItem = biPriceOverride !== "" ? Number(biPriceOverride) : row.price_per_item;
+      const insertionCost = circulation * priceItem;
+      // Клей.
+      const glueMode: "per_item" | "per_m2" = biGlueModeOverride || row.glue_calc_mode;
+      let glueCost = 0;
+      if (glueMode === "per_item") {
+        const gluePrice = biGluePriceItemOverride !== "" ? Number(biGluePriceItemOverride) : row.glue_price_per_item;
+        glueCost = circulation * gluePrice;
+      } else {
+        const gluePrice = biGluePriceM2Override !== "" ? Number(biGluePriceM2Override) : row.glue_price_per_m2;
+        glueCost = endpaperArea * gluePrice * circulation;
+      }
+      // Коэффициенты.
+      const formatCoef = (() => {
+        if (longSide <= 148) return row.coef_format_a5; // A6-A5
+        if (longSide <= 210) return row.coef_format_a5;
+        if (longSide <= 297) return row.coef_format_a4;
+        if (longSide <= 420) return row.coef_format_a3;
+        return row.coef_format_nonstandard;
+      })();
+      const thicknessCoef = blockThickness <= row.thickness_thin_max
+        ? row.coef_thickness_thin
+        : blockThickness <= row.thickness_med_max
+        ? row.coef_thickness_med
+        : blockThickness <= row.thickness_thick_max
+        ? row.coef_thickness_thick
+        : row.coef_thickness_extra;
+      const weightCoef = blockWeight <= 0 ? row.coef_weight_light
+        : blockWeight <= row.weight_light_max ? row.coef_weight_light
+        : blockWeight <= row.weight_med_max ? row.coef_weight_med
+        : blockWeight <= row.weight_heavy_max ? row.coef_weight_heavy
+        : row.coef_weight_extra;
+      const manualCoef = (biManualMethod || row.insertion_method === "manual") ? row.coef_manual : row.coef_standard;
+      const fabricCoef = (biFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+      const nonstdFmtCoef = longSide > 420 ? row.coef_nonstandard_format : 1;
+      const thickBlockCoef = blockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const complexCoef = biComplexAlign ? row.coef_complex_align : 1;
+      const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+      const autoCoef = formatCoef * thicknessCoef * weightCoef * manualCoef * fabricCoef * nonstdFmtCoef * thickBlockCoef * complexCoef * smallCircCoef;
+      const coef = biCoefOverride !== "" ? Math.max(0, Number(biCoefOverride)) : autoCoef;
+      const setup = biSetupOverride !== "" ? Number(biSetupOverride) : row.setup_cost;
+      const minCost = biMinOverride !== "" ? Number(biMinOverride) : row.min_cost;
+      const baseSum = insertionCost + glueCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (insertionCost > 0) {
+        items.push({ stage: "postpress", name: `Вставка блока в крышку — ${BLOCK_INSERTION_METHOD_LABEL[row.insertion_method] || row.insertion_method}`, quantity: circulation, unit: "шт", unitPrice: priceItem, total: insertionCost });
+      }
+      if (glueCost > 0) {
+        items.push({ stage: "postpress", name: `Вставка блока — клей (${glueMode === "per_m2" ? "по м²" : "за изделие"})`, quantity: circulation, unit: "шт", unitPrice: glueCost / Math.max(1, circulation), total: glueCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Вставка блока — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = baseSum * coef - baseSum;
+        items.push({ stage: "postpress", name: `Вставка блока — коэф. сложности ×${coef.toFixed(2)}`, quantity: 1, unit: "шт", unitPrice: delta, total: delta });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Вставка блока — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      (items as any).__meta = { row, blockThickness, blockWeight, endpaperArea, priceItem, insertionCost, glueMode, glueCost, setup, coef, autoCoef, formatCoef, thicknessCoef, weightCoef, manualCoef, fabricCoef, nonstdFmtCoef, thickBlockCoef, complexCoef, smallCircCoef, baseSum, raw, total, minCost };
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -3674,7 +3873,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -7318,6 +7517,237 @@ const Calculator = () => {
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               Формула: <code>(стоимость сборки + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Разворот крышки = 2×сторонка + отстав + расставы. Покровный = разворот + загибы.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Доработка 25: Вставка блока в крышку */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={biEnabled} onCheckedChange={(v) => setBiEnabled(!!v)} id="bi" />
+                        <Label htmlFor="bi" className="flex-1 font-medium">Вставка блока в крышку</Label>
+                        <Select
+                          value={biManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setBiManualId(v === "auto" ? null : v);
+                            setBiPriceOverride(""); setBiGlueModeOverride("");
+                            setBiGluePriceItemOverride(""); setBiGluePriceM2Override("");
+                            setBiEndpaperAreaOverride("");
+                            setBiBlockThicknessOverride(""); setBiBlockWeightOverride("");
+                            setBiCoefOverride(""); setBiSetupOverride(""); setBiMinOverride("");
+                          }}
+                          disabled={!biEnabled || biRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по формату/толщине/весу/тиражу)</SelectItem>
+                            {biRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {biEnabled && (() => {
+                        if (!biRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Вставка блока в крышку» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = biRows.filter((r) => r.is_active !== false);
+                        if (!active.length) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const shortS = Math.min(dims.w, dims.h);
+                        const longS = Math.max(dims.w, dims.h);
+                        const sheetThickness = (() => {
+                          const direct = Number(sewPaperThicknessOverride);
+                          if (Number.isFinite(direct) && direct > 0) return direct;
+                          if (paperThickness.length) {
+                            const dens = Number((effectiveMaterial as any)?.density);
+                            const match = paperThickness.find((p) => p.density === dens);
+                            if (match) return Number(match.thickness_mm) || 0;
+                          }
+                          return 0;
+                        })();
+                        const autoBT = Number(sewBlockThicknessOverride)
+                          || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                          || 20;
+                        const blockThickness = biBlockThicknessOverride !== "" ? Number(biBlockThicknessOverride) : autoBT;
+                        const density = Number((effectiveMaterial as any)?.density) || 0;
+                        const sheets = Math.max(1, Math.round(sigPages / 2)) || 1;
+                        const autoWeight = density > 0
+                          ? density * ((dims.w * dims.h) / 1_000_000) * sheets
+                          : 0;
+                        const blockWeight = biBlockWeightOverride !== "" ? Number(biBlockWeightOverride) : autoWeight;
+                        const fits = (r: BlockInsertionRow) =>
+                          longS <= r.max_format_long && shortS >= r.min_format_short
+                          && blockThickness <= r.max_block_thickness
+                          && (!(blockWeight > 0) || blockWeight <= r.max_block_weight)
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation;
+                        const wantManual = biManualMethod || biFabric || biComplexAlign
+                          || circulation < 100 || longS > 500 || blockThickness > 40;
+                        const sorted = active.slice().sort((a, b) => a.sort_order - b.sort_order);
+                        const row = (biManualId && active.find((r) => r.id === biManualId))
+                          || (wantManual ? sorted.find((r) => r.insertion_method === "manual" && fits(r)) : null)
+                          || sorted.find(fits)
+                          || sorted[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет подходящих записей.</p>;
+                        const epW = epWidthOverride !== "" ? Number(epWidthOverride) : dims.w * 2;
+                        const epH = epHeightOverride !== "" ? Number(epHeightOverride) : dims.h;
+                        const epCount = epCountOverride !== "" ? Math.max(0, Math.floor(Number(epCountOverride) || 0)) : row.endpapers_per_item;
+                        const autoEpArea = (epW * epH) / 1_000_000 * Math.max(1, epCount);
+                        const endpaperArea = biEndpaperAreaOverride !== "" ? Number(biEndpaperAreaOverride) : autoEpArea;
+                        const priceItem = biPriceOverride !== "" ? Number(biPriceOverride) : row.price_per_item;
+                        const insertionCost = circulation * priceItem;
+                        const glueMode: "per_item" | "per_m2" = biGlueModeOverride || row.glue_calc_mode;
+                        let glueCost = 0;
+                        if (glueMode === "per_item") {
+                          const gp = biGluePriceItemOverride !== "" ? Number(biGluePriceItemOverride) : row.glue_price_per_item;
+                          glueCost = circulation * gp;
+                        } else {
+                          const gp = biGluePriceM2Override !== "" ? Number(biGluePriceM2Override) : row.glue_price_per_m2;
+                          glueCost = endpaperArea * gp * circulation;
+                        }
+                        const formatCoef = longS <= 210 ? row.coef_format_a5
+                          : longS <= 297 ? row.coef_format_a4
+                          : longS <= 420 ? row.coef_format_a3
+                          : row.coef_format_nonstandard;
+                        const thicknessCoef = blockThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+                          : blockThickness <= row.thickness_med_max ? row.coef_thickness_med
+                          : blockThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+                          : row.coef_thickness_extra;
+                        const weightCoef = blockWeight <= 0 ? row.coef_weight_light
+                          : blockWeight <= row.weight_light_max ? row.coef_weight_light
+                          : blockWeight <= row.weight_med_max ? row.coef_weight_med
+                          : blockWeight <= row.weight_heavy_max ? row.coef_weight_heavy
+                          : row.coef_weight_extra;
+                        const manualCoef = (biManualMethod || row.insertion_method === "manual") ? row.coef_manual : row.coef_standard;
+                        const fabricCoef = (biFabric || row.cover_material_type === "fabric" || row.cover_material_type === "leatherette") ? row.coef_fabric_leatherette : 1;
+                        const nonstdFmtCoef = longS > 420 ? row.coef_nonstandard_format : 1;
+                        const thickBlockCoef = blockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+                        const complexCoef = biComplexAlign ? row.coef_complex_align : 1;
+                        const smallCircCoef = circulation < row.small_circulation_threshold ? row.coef_small_circulation : 1;
+                        const autoCoef = formatCoef * thicknessCoef * weightCoef * manualCoef * fabricCoef * nonstdFmtCoef * thickBlockCoef * complexCoef * smallCircCoef;
+                        const coef = biCoefOverride !== "" ? Math.max(0, Number(biCoefOverride)) : autoCoef;
+                        const setup = biSetupOverride !== "" ? Number(biSetupOverride) : row.setup_cost;
+                        const minCost = biMinOverride !== "" ? Number(biMinOverride) : row.min_cost;
+                        const baseSum = insertionCost + glueCost + setup;
+                        const raw = baseSum * coef;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const warnings: string[] = [];
+                        if (!epEnabled) warnings.push("операция «Форзацы» не включена — площадь приклейки берётся ориентировочно");
+                        if (!caEnabled) warnings.push("операция «Сборка переплётной крышки» не включена — крышка не подготовлена");
+                        if (longS > row.max_format_long) warnings.push(`длинная сторона ${longS} мм > предела ${row.max_format_long} мм`);
+                        if (blockThickness > row.max_block_thickness) warnings.push(`толщина блока ${blockThickness.toFixed(1)} мм > предела ${row.max_block_thickness} мм`);
+                        if (blockWeight > row.max_block_weight) warnings.push(`вес блока ${blockWeight.toFixed(0)} г > предела ${row.max_block_weight} г`);
+                        if (circulation > row.max_circulation) warnings.push(`тираж ${circulation} > предела ${row.max_circulation}`);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Толщина блока, мм</Label>
+                                <Input type="number" inputMode="decimal" step="0.1"
+                                  value={biBlockThicknessOverride === "" ? Number(blockThickness.toFixed(1)) : biBlockThicknessOverride}
+                                  onChange={(e) => setBiBlockThicknessOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Вес блока, г</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biBlockWeightOverride === "" ? Math.round(blockWeight) : biBlockWeightOverride}
+                                  onChange={(e) => setBiBlockWeightOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена вставки, ₸/шт</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biPriceOverride === "" ? priceItem : biPriceOverride}
+                                  onChange={(e) => setBiPriceOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Расчёт клея</Label>
+                                <Select value={glueMode} onValueChange={(v) => setBiGlueModeOverride(v as any)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="per_item">За изделие</SelectItem>
+                                    <SelectItem value="per_m2">По площади (м²)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {glueMode === "per_item" ? (
+                                <div>
+                                  <Label className="text-[11px] text-muted-foreground">Клей, ₸/шт</Label>
+                                  <Input type="number" inputMode="decimal"
+                                    value={biGluePriceItemOverride === "" ? row.glue_price_per_item : biGluePriceItemOverride}
+                                    onChange={(e) => setBiGluePriceItemOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                </div>
+                              ) : (
+                                <>
+                                  <div>
+                                    <Label className="text-[11px] text-muted-foreground">Клей, ₸/м²</Label>
+                                    <Input type="number" inputMode="decimal"
+                                      value={biGluePriceM2Override === "" ? row.glue_price_per_m2 : biGluePriceM2Override}
+                                      onChange={(e) => setBiGluePriceM2Override(e.target.value === "" ? "" : Number(e.target.value))} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[11px] text-muted-foreground">Площадь приклейки, м²</Label>
+                                    <Input type="number" inputMode="decimal" step="0.0001"
+                                      value={biEndpaperAreaOverride === "" ? Number(endpaperArea.toFixed(4)) : biEndpaperAreaOverride}
+                                      onChange={(e) => setBiEndpaperAreaOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                                  </div>
+                                </>
+                              )}
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={biCoefOverride === "" ? Number(autoCoef.toFixed(3)) : biCoefOverride}
+                                  onChange={(e) => setBiCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biSetupOverride === "" ? row.setup_cost : biSetupOverride}
+                                  onChange={(e) => setBiSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={biMinOverride === "" ? row.min_cost : biMinOverride}
+                                  onChange={(e) => setBiMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bi-manual" checked={biManualMethod} onCheckedChange={(v) => setBiManualMethod(!!v)} />
+                                <Label htmlFor="bi-manual" className="text-[12px]">Ручная вставка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bi-fabric" checked={biFabric} onCheckedChange={(v) => setBiFabric(!!v)} />
+                                <Label htmlFor="bi-fabric" className="text-[12px]">Ткань / кожзам</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bi-complex" checked={biComplexAlign} onCheckedChange={(v) => setBiComplexAlign(!!v)} />
+                                <Label htmlFor="bi-complex" className="text-[12px]">Сложн. совмещение</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> · {BLOCK_INSERTION_METHOD_LABEL[row.insertion_method] || row.insertion_method} · клей: <b>{glueMode === "per_m2" ? "по м²" : "за изделие"}</b>
+                              </div>
+                              <div>
+                                Блок: толщ. <b>{blockThickness.toFixed(1)} мм</b> · вес <b>{Math.round(blockWeight)} г</b>{glueMode === "per_m2" && <> · площадь приклейки <b>{endpaperArea.toFixed(4)} м²</b></>}
+                              </div>
+                              <div>
+                                Вставка: <b>{Math.round(insertionCost).toLocaleString("ru-RU")} ₸</b> · клей: <b>{Math.round(glueCost).toLocaleString("ru-RU")} ₸</b> · приладка: <b>{setup} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: формат {formatCoef} × толщ. {thicknessCoef} × вес {weightCoef} × способ {manualCoef} × ткань {fabricCoef} × нестанд. {nonstdFmtCoef} × толст.бл. {thickBlockCoef} × сложн. {complexCoef} × мал.тираж {smallCircCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({Math.round(baseSum).toLocaleString("ru-RU")}) × {coef.toFixed(2)} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {warnings.length > 0 && (
+                                <div className="text-destructive">Предупреждение: {warnings.join("; ")}</div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(Тираж×цена + клей + приладка) × коэф</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Толщина блока берётся из шитья, вес — из плотности бумаги и формата.
                             </p>
                           </div>
                         );
