@@ -1296,6 +1296,16 @@ const Calculator = () => {
       } catch (e) {
         console.warn("[Calculator] load block_trimming_prices failed", e);
       }
+      // Доработка 21: справочник переплётного картона.
+      try {
+        const bdR = await (supabase as any)
+          .from("binding_cardboard_prices")
+          .select("*")
+          .order("sort_order");
+        setBoardRows(((bdR.data as BindingCardboardRow[]) || []));
+      } catch (e) {
+        console.warn("[Calculator] load binding_cardboard_prices failed", e);
+      }
       setEquipment((e as Equipment[]) || []);
       setPrintFormats(((pf as any) || []) as PrintFormatRow[]);
       setPurchaseFormats(((buyf as any) || []) as PurchaseFormatRow[]);
