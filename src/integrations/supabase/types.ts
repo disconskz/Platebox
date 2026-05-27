@@ -3452,6 +3452,108 @@ export type Database = {
         }
         Relationships: []
       }
+      window_attachment_prices: {
+        Row: {
+          allowed_shapes: string
+          application_method: string
+          calc_mode: string
+          coef_complex_position: number
+          coef_figured: number
+          coef_manual: number
+          coef_many_windows: number
+          coef_nonstandard_format: number
+          coef_standard: number
+          coef_thick_pet: number
+          created_at: string
+          equipment_type: string
+          id: string
+          is_active: boolean
+          many_windows_threshold: number
+          material_thickness_mkm: number
+          max_material_thickness_mkm: number
+          max_window_mm: number
+          min_cost: number
+          min_window_mm: number
+          name: string
+          price_apply_per_item: number
+          price_apply_per_m2: number
+          price_material_per_m2: number
+          setup_cost: number
+          sort_order: number
+          thick_pet_threshold_mkm: number
+          updated_at: string
+          updated_by: string | null
+          window_material: string
+          window_shape: string
+        }
+        Insert: {
+          allowed_shapes?: string
+          application_method?: string
+          calc_mode?: string
+          coef_complex_position?: number
+          coef_figured?: number
+          coef_manual?: number
+          coef_many_windows?: number
+          coef_nonstandard_format?: number
+          coef_standard?: number
+          coef_thick_pet?: number
+          created_at?: string
+          equipment_type?: string
+          id?: string
+          is_active?: boolean
+          many_windows_threshold?: number
+          material_thickness_mkm?: number
+          max_material_thickness_mkm?: number
+          max_window_mm?: number
+          min_cost?: number
+          min_window_mm?: number
+          name: string
+          price_apply_per_item?: number
+          price_apply_per_m2?: number
+          price_material_per_m2?: number
+          setup_cost?: number
+          sort_order?: number
+          thick_pet_threshold_mkm?: number
+          updated_at?: string
+          updated_by?: string | null
+          window_material?: string
+          window_shape?: string
+        }
+        Update: {
+          allowed_shapes?: string
+          application_method?: string
+          calc_mode?: string
+          coef_complex_position?: number
+          coef_figured?: number
+          coef_manual?: number
+          coef_many_windows?: number
+          coef_nonstandard_format?: number
+          coef_standard?: number
+          coef_thick_pet?: number
+          created_at?: string
+          equipment_type?: string
+          id?: string
+          is_active?: boolean
+          many_windows_threshold?: number
+          material_thickness_mkm?: number
+          max_material_thickness_mkm?: number
+          max_window_mm?: number
+          min_cost?: number
+          min_window_mm?: number
+          name?: string
+          price_apply_per_item?: number
+          price_apply_per_m2?: number
+          price_material_per_m2?: number
+          setup_cost?: number
+          sort_order?: number
+          thick_pet_threshold_mkm?: number
+          updated_at?: string
+          updated_by?: string | null
+          window_material?: string
+          window_shape?: string
+        }
+        Relationships: []
+      }
       wire_spring_prices: {
         Row: {
           color: string
