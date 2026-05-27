@@ -2366,6 +2366,10 @@ const Calculator = () => {
     // Доработка 9: пакетная ламинация — поштучно по формату пакета.
     const pouchItems: SpecItem[] = (() => {
       if (!pouchEnabled || !(circulation > 0) || !pouches.length) return [];
+      // Пакетная ламинация делается только для изделий до A3 включительно (297×420 мм).
+      const longSide = Math.max(dims.w, dims.h);
+      const shortSide = Math.min(dims.w, dims.h);
+      if (longSide > 420 || shortSide > 297) return [];
       const pouch = pickPouchFor(pouches, dims.w, dims.h, pouchManualId);
       if (!pouch) return [];
       const price = pouchPriceOverride !== "" ? Number(pouchPriceOverride) : pouch.price_per_item;
