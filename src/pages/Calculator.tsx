@@ -795,6 +795,61 @@ const COVER_ASM_METHOD_LABEL: Record<string, string> = {
   semi_auto: "Полуавтомат",
   auto: "Автомат",
 };
+// Доработка 25: вставка блока в крышку.
+type BlockInsertionRow = {
+  id: string;
+  name: string;
+  insertion_method: string;       // manual | semi_auto | auto
+  cover_material_type: string;    // paper | designer_paper | fabric | leatherette | printed
+  endpaper_type: string;
+  price_per_item: number;
+  glue_calc_mode: "per_item" | "per_m2";
+  glue_price_per_item: number;
+  glue_price_per_m2: number;
+  endpapers_per_item: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  thickness_thin_max: number;
+  thickness_med_max: number;
+  thickness_thick_max: number;
+  coef_thickness_thin: number;
+  coef_thickness_med: number;
+  coef_thickness_thick: number;
+  coef_thickness_extra: number;
+  weight_light_max: number;
+  weight_med_max: number;
+  weight_heavy_max: number;
+  coef_weight_light: number;
+  coef_weight_med: number;
+  coef_weight_heavy: number;
+  coef_weight_extra: number;
+  coef_standard: number;
+  coef_manual: number;
+  coef_fabric_leatherette: number;
+  coef_nonstandard_format: number;
+  coef_thick_block: number;
+  coef_complex_align: number;
+  coef_small_circulation: number;
+  thick_block_threshold: number;
+  small_circulation_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  max_block_thickness: number;
+  max_block_weight: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const BLOCK_INSERTION_METHOD_LABEL: Record<string, string> = {
+  manual: "Ручная",
+  semi_auto: "Полуавтомат",
+  auto: "Автомат",
+};
 // Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
 function bestFitOnSheet(
   partW: number, partH: number,
