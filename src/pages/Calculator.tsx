@@ -550,6 +550,67 @@ const PRESSING_MACHINE_LABEL: Record<string, string> = {
   auto: "Автоматический",
 };
 
+// Доработка 20: справочник обрезки блока.
+type BlockTrimmingRow = {
+  id: string;
+  name: string;
+  trim_type: string;          // three_sided | one_sided | two_sided | figured | manual | auto
+  machine_type: string;       // guillotine | three_knife | auto_line | manual
+  calc_mode: string;          // per_cut | per_item | per_time
+  cuts_count: number;
+  price_per_cut: number;
+  price_per_item: number;
+  price_per_hour: number;
+  time_per_item_sec: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_thickness_thin: number;
+  coef_thickness_med: number;
+  coef_thickness_thick: number;
+  coef_thickness_extra: number;
+  thickness_thin_max: number;
+  thickness_med_max: number;
+  thickness_thick_max: number;
+  coef_format_a5: number;
+  coef_format_a4: number;
+  coef_format_a3: number;
+  coef_format_nonstandard: number;
+  coef_figured: number;
+  coef_manual: number;
+  coef_heavy_paper: number;
+  coef_thick_block: number;
+  coef_designer_paper: number;
+  coef_nonstandard_format: number;
+  thick_block_threshold: number;
+  heavy_paper_threshold: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_block_thickness: number;
+  max_block_thickness: number;
+  max_paper_density: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const TRIM_TYPE_LABEL: Record<string, string> = {
+  three_sided: "С трёх сторон",
+  one_sided: "С одной стороны",
+  two_sided: "С двух сторон",
+  figured: "Фигурная",
+  manual: "Ручная",
+  auto: "Автоматическая",
+};
+const TRIM_MACHINE_LABEL: Record<string, string> = {
+  guillotine: "Гильотина",
+  three_knife: "Трёхножевой резак",
+  auto_line: "Автоматическая линия",
+  manual: "Ручная",
+};
+const TRIM_DEFAULT_CUTS: Record<string, number> = {
+  three_sided: 3, one_sided: 1, two_sided: 2, figured: 3, manual: 3, auto: 3,
+};
+
 // Доработка 12: подобрать запись термобиндера по толщине блока.
 function pickThermalFor(
   rows: ThermalBindingRow[],
