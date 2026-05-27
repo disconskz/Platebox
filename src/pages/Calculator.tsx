@@ -6320,6 +6320,186 @@ const Calculator = () => {
                       })()}
                     </div>
                   )}
+                  {/* Доработка 22: Резка переплётного картона */}
+                  {ENDPAPER_PRODUCT_TYPES.has(productType) && (
+                    <div className="space-y-2 rounded-md border p-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Checkbox checked={bcEnabled} onCheckedChange={(v) => setBcEnabled(!!v)} id="bc" />
+                        <Label htmlFor="bc" className="flex-1 font-medium">Резка переплётного картона</Label>
+                        <Select
+                          value={bcManualId ?? "auto"}
+                          onValueChange={(v) => {
+                            setBcManualId(v === "auto" ? null : v);
+                            setBcCutsOverride(""); setBcSheetsOverride(""); setBcPriceCutOverride("");
+                            setBcCoefOverride(""); setBcSetupOverride(""); setBcMinOverride("");
+                          }}
+                          disabled={!bcEnabled || bcRows.length === 0}
+                        >
+                          <SelectTrigger className="w-80"><SelectValue placeholder="Запись справочника" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Авто (по толщине/тиражу/формату)</SelectItem>
+                            {bcRows.filter((r) => r.is_active !== false).map((r) => (
+                              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {bcEnabled && (() => {
+                        if (!bcRows.length) {
+                          return <p className="text-[11px] text-destructive">Справочник «Резка переплётного картона» пуст — добавьте записи в Справочниках.</p>;
+                        }
+                        const active = bcRows.filter((r) => r.is_active !== false);
+                        // Получаем кол-во листов и толщину картона из «Переплётного картона».
+                        let totalSheets = 0;
+                        let boardThickness = 2;
+                        if (boardRows.length) {
+                          const bActive = boardRows.filter((r) => r.is_active !== false);
+                          if (bActive.length) {
+                            const shortS = Math.min(dims.w, dims.h);
+                            const longS = Math.max(dims.w, dims.h);
+                            const bRow = (bdManualId && bActive.find((r) => r.id === bdManualId))
+                              || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)
+                                   .find((r) => longS <= r.max_format_long && shortS >= r.min_format_short)
+                              || bActive.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                            if (bRow) {
+                              const sheetThickness = (() => {
+                                const direct = Number(sewPaperThicknessOverride);
+                                if (Number.isFinite(direct) && direct > 0) return direct;
+                                if (paperThickness.length) {
+                                  const dens = Number((effectiveMaterial as any)?.density);
+                                  const match = paperThickness.find((p) => p.density === dens);
+                                  if (match) return Number(match.thickness_mm) || 0;
+                                }
+                                return 0;
+                              })();
+                              const autoBT = Number(sewBlockThicknessOverride)
+                                || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+                                || 20;
+                              const sideW = bdSideWidthOverride !== "" ? Number(bdSideWidthOverride) : dims.w + bRow.width_allowance;
+                              const sideH = bdSideHeightOverride !== "" ? Number(bdSideHeightOverride) : dims.h + bRow.height_allowance;
+                              const spineW = bdSpineWidthOverride !== "" ? Number(bdSpineWidthOverride) : autoBT + bRow.spine_allowance;
+                              const sidesPerSheet = bestFitOnSheet(sideW, sideH, bRow.sheet_width, bRow.sheet_height, bRow.gap_between, bRow.edge_margin);
+                              const spinesPerSheet = bestFitOnSheet(spineW, sideH, bRow.sheet_width, bRow.sheet_height, bRow.gap_between, bRow.edge_margin);
+                              const totalSides = bRow.sides_per_item * circulation;
+                              const totalSpines = bRow.spines_per_item * circulation;
+                              const sh1 = sidesPerSheet > 0 ? Math.ceil(totalSides / sidesPerSheet) : 0;
+                              const sh2 = spinesPerSheet > 0 ? Math.ceil(totalSpines / spinesPerSheet) : 0;
+                              totalSheets = sh1 + sh2;
+                              boardThickness = bRow.board_thickness;
+                            }
+                          }
+                        }
+                        const shortSide = Math.min(dims.w, dims.h);
+                        const longSide = Math.max(dims.w, dims.h);
+                        const fits = (r: BoardCuttingRow) =>
+                          longSide <= r.max_format_long && shortSide >= r.min_format_short
+                          && boardThickness <= r.max_board_thickness && boardThickness >= r.min_board_thickness
+                          && circulation >= r.min_circulation && circulation <= r.max_circulation;
+                        const row = (bcManualId && active.find((r) => r.id === bcManualId))
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order).find(fits)
+                          || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+                        if (!row) return <p className="text-[11px] text-destructive">Нет активных записей.</p>;
+                        const sheets = bcSheetsOverride !== "" ? Number(bcSheetsOverride) : totalSheets;
+                        const cuts = bcCutsOverride !== "" ? Number(bcCutsOverride) : row.default_cuts;
+                        const priceCut = bcPriceCutOverride !== "" ? Number(bcPriceCutOverride) : row.price_per_cut;
+                        const thickCoef = boardThickness <= row.thickness_thin_max ? row.coef_thickness_thin
+                          : boardThickness <= row.thickness_med_max ? row.coef_thickness_med
+                          : boardThickness <= row.thickness_thick_max ? row.coef_thickness_thick
+                          : row.coef_thickness_extra;
+                        const formatCoef = longSide <= 297 ? row.coef_standard_format : row.coef_nonstandard_format;
+                        const thickBoardCoef = boardThickness > row.thickness_med_max ? row.coef_thick_board : 1;
+                        const manualCoef = (bcManualCut || row.cutting_type === "manual" || row.machine_type === "manual_guillotine") ? row.coef_manual : 1;
+                        const figuredCoef = (bcFigured || row.cutting_type === "figured") ? row.coef_figured : 1;
+                        const complexCoef = bcComplexLayout ? row.coef_complex_layout : 1;
+                        const autoCoef = thickCoef * formatCoef * thickBoardCoef * manualCoef * figuredCoef * complexCoef;
+                        const coef = bcCoefOverride !== "" ? Math.max(0, Number(bcCoefOverride)) : autoCoef;
+                        const setup = bcSetupOverride !== "" ? Number(bcSetupOverride) : row.setup_cost;
+                        const minCost = bcMinOverride !== "" ? Number(bcMinOverride) : row.min_cost;
+                        const baseCost = sheets * cuts * priceCut;
+                        const raw = baseCost * coef + setup;
+                        const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+                        const warnings: string[] = [];
+                        if (boardThickness > row.max_board_thickness) warnings.push(`толщина картона ${boardThickness} мм > предела ${row.max_board_thickness} мм`);
+                        if (longSide > row.max_format_long) warnings.push(`длинная сторона ${longSide} мм > предела ${row.max_format_long} мм`);
+                        if (circulation > row.max_circulation) warnings.push(`тираж ${circulation} > предела ${row.max_circulation}`);
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Кол-во листов</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={bcSheetsOverride === "" ? sheets : bcSheetsOverride}
+                                  onChange={(e) => setBcSheetsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Кол-во резов</Label>
+                                <Input type="number" inputMode="numeric"
+                                  value={bcCutsOverride === "" ? row.default_cuts : bcCutsOverride}
+                                  onChange={(e) => setBcCutsOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Цена реза, ₸</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={bcPriceCutOverride === "" ? row.price_per_cut : bcPriceCutOverride}
+                                  onChange={(e) => setBcPriceCutOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Коэф. сложности</Label>
+                                <Input type="number" inputMode="decimal" step="0.01"
+                                  value={bcCoefOverride === "" ? Number(autoCoef.toFixed(3)) : bcCoefOverride}
+                                  onChange={(e) => setBcCoefOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Приладка, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={bcSetupOverride === "" ? row.setup_cost : bcSetupOverride}
+                                  onChange={(e) => setBcSetupOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div>
+                                <Label className="text-[11px] text-muted-foreground">Мин. стоимость, ₸</Label>
+                                <Input type="number" inputMode="decimal"
+                                  value={bcMinOverride === "" ? row.min_cost : bcMinOverride}
+                                  onChange={(e) => setBcMinOverride(e.target.value === "" ? "" : Number(e.target.value))} />
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bc-manual" checked={bcManualCut} onCheckedChange={(v) => setBcManualCut(!!v)} />
+                                <Label htmlFor="bc-manual" className="text-[12px]">Ручная резка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bc-fig" checked={bcFigured} onCheckedChange={(v) => setBcFigured(!!v)} />
+                                <Label htmlFor="bc-fig" className="text-[12px]">Фигурная резка</Label>
+                              </div>
+                              <div className="flex items-center gap-2 pt-5">
+                                <Checkbox id="bc-cx" checked={bcComplexLayout} onCheckedChange={(v) => setBcComplexLayout(!!v)} />
+                                <Label htmlFor="bc-cx" className="text-[12px]">Сложная раскладка</Label>
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground space-y-0.5">
+                              <div>
+                                Подобрано: <b>{row.name}</b> · {BOARD_CUT_TYPE_LABEL[row.cutting_type] || row.cutting_type} · {BOARD_CUT_MACHINE_LABEL[row.machine_type] || row.machine_type}
+                              </div>
+                              <div>
+                                Картон <b>{boardThickness} мм</b> · листов <b>{sheets}</b> · резов <b>{cuts}</b> · цена реза <b>{priceCut} ₸</b>
+                              </div>
+                              <div>
+                                Коэф.: толщ. {thickCoef} × формат {formatCoef} × толст.карт. {thickBoardCoef} × ручн. {manualCoef} × фигур. {figuredCoef} × раскл. {complexCoef} = <b>{coef.toFixed(2)}</b>
+                              </div>
+                              <div>
+                                Итог: ({sheets} × {cuts} × {priceCut}) × {coef.toFixed(2)} + {setup} = <b>{Math.round(total).toLocaleString("ru-RU")} ₸</b>
+                                {minCost > 0 && raw < minCost && <> (доплата до мин. {minCost} ₸)</>}
+                              </div>
+                              {warnings.length > 0 && (
+                                <div className="text-destructive">Предупреждение: {warnings.join("; ")}</div>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Формула: <code>(листы × резы × цена реза × коэф) + приладка</code>; итог = <code>MAX(расчёт, мин. стоимость)</code>. Кол-во листов берётся из операции «Переплётный картон».
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <ExtraOpsPicker
                     operations={operations.filter((o) => {
                       const cat = (o.category || "").toLowerCase();
