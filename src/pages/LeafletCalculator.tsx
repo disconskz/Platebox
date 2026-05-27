@@ -610,7 +610,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </PostpressRow>
-                  {!hideFoldBlock && !isEuro && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
+                  {!hideFoldBlock && !isEuro && !isEurobooklet && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
                     <Input className="h-8 w-24" type="number" min={1} value={blockCount} onChange={(e) => setBlockCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">листов/блок</span>
                   </PostpressRow>}
