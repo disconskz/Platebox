@@ -2158,7 +2158,102 @@ const Calculator = () => {
       }
       return items;
     })();
-    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems];
+    // Доработка 17: марля.
+    const gauzeItems: SpecItem[] = (() => {
+      if (!gzEnabled || !(circulation > 0)) return [];
+      if (!gauzeRows.length) return [];
+      const active = gauzeRows.filter((r) => r.is_active !== false);
+      if (!active.length) return [];
+      const row = (gzManualId && active.find((r) => r.id === gzManualId))
+        || active.slice().sort((a, b) => a.sort_order - b.sort_order)[0];
+      if (!row) return [];
+      const blockHeight = Math.max(dims.w, dims.h);
+      // Толщина блока: из шитья (если задано) или из тетрадей × толщину листа, иначе fallback 20мм.
+      const sheetThickness = (() => {
+        const direct = Number(sewPaperThicknessOverride);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (paperThickness.length) {
+          const dens = Number((effectiveMaterial as any)?.density);
+          const match = paperThickness.find((p) => p.density === dens);
+          if (match) return Number(match.thickness_mm) || 0;
+        }
+        return 0;
+      })();
+      const autoBlockThickness = Number(sewBlockThicknessOverride)
+        || (sheetThickness > 0 ? (sigPages / 2) * sheetThickness : 0)
+        || 20;
+      const spineWidth = gzSpineWidthOverride !== "" ? Number(gzSpineWidthOverride) : autoBlockThickness;
+      const gzWidth = gzWidthOverride !== "" ? Number(gzWidthOverride) : Math.max(0, spineWidth + row.side_overlap * 2);
+      const gzHeight = gzHeightOverride !== "" ? Number(gzHeightOverride) : Math.max(0, blockHeight + row.height_allowance);
+      const area = Math.max(0, (gzWidth * gzHeight) / 1_000_000);
+      // Стоимость материала по выбранному режиму.
+      let matCost = 0;
+      let matHint = "";
+      if (row.calc_mode === "per_meter") {
+        const price = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_meter;
+        matCost = (gzHeight / 1000) * price * circulation;
+        matHint = `${(gzHeight / 1000).toFixed(3)} м × ${price} ₸ × ${circulation}`;
+      } else if (row.calc_mode === "per_item") {
+        const price = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_item;
+        matCost = price * circulation;
+        matHint = `${price} ₸ × ${circulation}`;
+      } else {
+        const price = gzPriceOverride !== "" ? Number(gzPriceOverride) : row.price_per_m2;
+        matCost = area * price * circulation;
+        matHint = `${area.toFixed(4)} м² × ${price} ₸ × ${circulation}`;
+      }
+      const gluePrice = gzGluePriceOverride !== "" ? Number(gzGluePriceOverride) : row.glue_price_per_item;
+      const glueCost = gluePrice * circulation;
+      const setup = gzSetupOverride !== "" ? Number(gzSetupOverride) : row.setup_cost;
+      const minCost = gzMinOverride !== "" ? Number(gzMinOverride) : row.min_cost;
+      // Коэффициенты сложности.
+      const shortSide = Math.min(dims.w, dims.h);
+      const longSide = Math.max(dims.w, dims.h);
+      const isStandardFormat = shortSide >= row.min_format_short && longSide <= row.max_format_long;
+      const formatCoef = isStandardFormat ? row.coef_standard_format : row.coef_nonstandard_format;
+      const thickCoef = autoBlockThickness >= row.thick_block_threshold ? row.coef_thick_block : 1;
+      const heavyBlockCoef = autoBlockThickness >= row.max_block_thickness * 0.85 ? row.coef_heavy_block : 1;
+      const manualGlueCoef = gzManualGlue ? row.coef_manual_glue : 1;
+      const designerCoef = row.gauze_type === "designer" ? row.coef_designer : 1;
+      const autoCoef = formatCoef * thickCoef * heavyBlockCoef * manualGlueCoef * designerCoef;
+      const coef = gzCoefOverride !== "" ? Math.max(0, Number(gzCoefOverride)) : autoCoef;
+      const baseSum = matCost + glueCost + setup;
+      const raw = baseSum * coef;
+      const total = minCost > 0 ? Math.max(raw, minCost) : raw;
+      const items: SpecItem[] = [];
+      if (matCost > 0) {
+        items.push({
+          stage: "postpress",
+          name: `Марля — материал (${GAUZE_TYPE_LABEL[row.gauze_type] || row.gauze_type}, ${GAUZE_CALC_LABEL[row.calc_mode] || row.calc_mode})`,
+          quantity: circulation,
+          unit: "шт",
+          unitPrice: matCost / Math.max(1, circulation),
+          total: matCost,
+        });
+      }
+      if (glueCost > 0) {
+        items.push({ stage: "postpress", name: `Марля — приклейка (${gluePrice} ₸/шт)`, quantity: circulation, unit: "шт", unitPrice: gluePrice, total: glueCost });
+      }
+      if (setup > 0) {
+        items.push({ stage: "postpress", name: `Марля — приладка`, quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      }
+      if (coef !== 1 && baseSum > 0) {
+        const delta = raw - baseSum;
+        items.push({
+          stage: "postpress",
+          name: `Марля — коэф. сложности ×${coef.toFixed(2)}`,
+          quantity: 1,
+          unit: "шт",
+          unitPrice: delta,
+          total: delta,
+        });
+      }
+      if (total > raw) {
+        items.push({ stage: "postpress", name: `Марля — доплата до минимума`, quantity: 1, unit: "шт", unitPrice: total - raw, total: total - raw });
+      }
+      return items;
+    })();
+    const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems];
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
