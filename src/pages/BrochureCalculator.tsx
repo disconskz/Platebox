@@ -513,7 +513,9 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {isMemocube ? "Кубарик / блок для записей" : isNotepad ? "Блокнот" : isPlanner ? "Ежедневник" : isHardcover ? "Книга (твёрдый переплёт)" : isSoftcover ? "Книга (мягкий переплёт)" : isMagazine ? "Журнал" : isCatalog ? "Каталог" : "Брошюра"}{isMagazine ? ` №${issueNumber}` : ""}</h1>
               <p className="text-[11px] text-muted-foreground truncate">
-                {isNotepad
+                {isMemocube
+                  ? "Memo cube — толстый бумажный блок, проклейка, подложка, брендирование торца"
+                  : isNotepad
                   ? "Notepad — пружина/скоба/проклейка, отрывные листы, подложка, брендирование"
                   : isPlanner
                   ? "Daily planner — персонализация, фурнитура, премиум-материалы"
