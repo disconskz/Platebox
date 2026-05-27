@@ -1223,6 +1223,22 @@ const Calculator = () => {
   const [perfMaterialCoefOverride, setPerfMaterialCoefOverride] = useState<string>("");
   const [perfComplexityCoefOverride, setPerfComplexityCoefOverride] = useState<string>("");
   const [perfIncludedInDieCut, setPerfIncludedInDieCut] = useState<boolean>(false);
+  // Доработка 30 — Наклейка скотча
+  const [tapeRows, setTapeRows] = useState<TapeRule[]>([]);
+  const [tapeEnabled, setTapeEnabled] = useState(false);
+  const [tapeManualId, setTapeManualId] = useState<string>("");
+  const [tapeStripLengthMm, setTapeStripLengthMm] = useState<number>(0);
+  const [tapeStripsPerItem, setTapeStripsPerItem] = useState<number>(1);
+  const [tapePointsPerItem, setTapePointsPerItem] = useState<number>(0);
+  const [tapeCalcModeOverride, setTapeCalcModeOverride] = useState<"" | TapeCalcMode>("");
+  const [tapePricePerMeterOverride, setTapePricePerMeterOverride] = useState<string>("");
+  const [tapePricePerPointOverride, setTapePricePerPointOverride] = useState<string>("");
+  const [tapePricePerItemOverride, setTapePricePerItemOverride] = useState<string>("");
+  const [tapeComplexityCoefOverride, setTapeComplexityCoefOverride] = useState<string>("");
+  const [tapeSetupOverride, setTapeSetupOverride] = useState<string>("");
+  const [tapeMinCostOverride, setTapeMinCostOverride] = useState<string>("");
+  const [tapeNonstandardFormat, setTapeNonstandardFormat] = useState<boolean>(false);
+  const [tapeComplexPosition, setTapeComplexPosition] = useState<boolean>(false);
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
