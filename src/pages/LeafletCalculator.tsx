@@ -119,6 +119,16 @@ const EUROBOOKLET_FORMATS: PresetFormat[] = [
   { value: "custom", label: "Свой размер", type: "custom" },
 ];
 
+const LIFLET_FORMATS: PresetFormat[] = [
+  { value: "A6", label: "A6 (105×148)", type: "A6" },
+  { value: "A5", label: "A5 (148×210)", type: "A5" },
+  { value: "A4", label: "A4 (210×297)", type: "A4" },
+  { value: "A3", label: "A3 (297×420)", type: "A3" },
+  { value: "DL", label: "DL (99×210)", type: "custom", w: 99, h: 210 },
+  { value: "EURO", label: "Евроформат (100×210)", type: "custom", w: 100, h: 210 },
+  { value: "custom", label: "Свой размер", type: "custom" },
+];
+
 const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
   { value: "A6", label: "A6 (105×148)" },
   { value: "A5", label: "A5 (148×210)" },
@@ -128,7 +138,7 @@ const _LEGACY_FORMAT_OPTIONS: { value: FormatType; label: string }[] = [
 ];
 
 export interface LeafletLikeProps {
-  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon" | "form" | "booklet" | "eurobooklet";
+  mode?: "leaflet" | "flyer" | "euroflyer" | "businesscard" | "insert" | "coupon" | "form" | "booklet" | "eurobooklet" | "liflet";
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
@@ -140,6 +150,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   const isForm = mode === "form";
   const isBooklet = mode === "booklet";
   const isEurobooklet = mode === "eurobooklet";
+  const isLiflet = mode === "liflet";
   // Флаер/визитка/купон — без фальцовки/биговки/склейки. Еврофлаер/вкладыш/анкета — с фальцовкой.
   const hideFoldBlock = isFlyer || isCard || isCoupon;
   const FORMATS = isCard
@@ -154,8 +165,10 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       ? BOOKLET_FORMATS
       : isInsert
       ? INSERT_FORMATS
+      : isLiflet
+      ? LIFLET_FORMATS
       : isEuro ? EUROFLYER_FORMATS : isFlyer ? FLYER_FORMATS : LEAFLET_FORMATS;
-  const titleLabel = isCard ? "Визитка" : isEurobooklet ? "Евробуклет" : isCoupon ? "Купон" : isForm ? "Анкета" : isBooklet ? "Буклет" : isInsert ? "Вкладыш" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
+  const titleLabel = isCard ? "Визитка" : isEurobooklet ? "Евробуклет" : isCoupon ? "Купон" : isForm ? "Анкета" : isBooklet ? "Буклет" : isInsert ? "Вкладыш" : isLiflet ? "Лифлет" : isEuro ? "Еврофлаер" : isFlyer ? "Флаер" : "Листовка";
   const subtitle = isCard
     ? "Премиальная мелкоформатная продукция — акцент на постпечатные операции"
     : isEurobooklet
@@ -168,16 +181,18 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
       ? "Буклеты и евробуклеты — обязательная биговка + фальцовка, поддержка сложных схем сгиба"
       : isInsert
       ? "Вкладыши и инструкции — акцент на фальцовку, автобиговка при плотной бумаге"
+      : isLiflet
+      ? "Лифлет — одно-листовое изделие, обязательная фальцовка, поддержка многофальцевых схем"
       : isEuro
       ? "Рекламный евроформат — автоматическая биговка при плотной бумаге + фальцовка"
       : isFlyer
         ? "Рекламная листовая продукция — упрощённый маршрут с предустановленными форматами"
         : "Динамический маршрут — операции подключаются по выбранным опциям";
-  const dorNum = isCard ? 39 : isEurobooklet ? 46 : isBooklet ? 45 : isForm ? 43 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
+  const dorNum = isLiflet ? 47 : isCard ? 39 : isEurobooklet ? 46 : isBooklet ? 45 : isForm ? 43 : isCoupon ? 42 : isInsert ? 41 : isEuro ? 38 : isFlyer ? 37 : 36;
   // Основные параметры
   const [circulation, setCirculation] = useState(1000);
   const [presetKey, setPresetKey] = useState<string>(
-    isCard ? "90x50" : isEurobooklet ? "EUROBOOKLET" : isCoupon ? "70x150" : isForm ? "A4" : isBooklet ? "A4" : isInsert ? "A5" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
+    isCard ? "90x50" : isEurobooklet ? "EUROBOOKLET" : isCoupon ? "70x150" : isForm ? "A4" : isBooklet ? "A4" : isInsert ? "A5" : isLiflet ? "A4" : isEuro ? "EURO" : isFlyer ? "DL" : "A4"
   );
   const [customW, setCustomW] = useState(210);
   const [customH, setCustomH] = useState(297);
@@ -202,9 +217,9 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   const [optVarnish, setOptVarnish] = useState(false);
   const [varnishType, setVarnishType] = useState<"uv_full" | "uv_spot" | "vd">("uv_full");
   const [optBig, setOptBig] = useState(false);
-  const [bigCount, setBigCount] = useState(isEurobooklet ? 2 : 1);
+  const [bigCount, setBigCount] = useState(isEurobooklet ? 2 : isLiflet ? 2 : 1);
   const [optFold, setOptFold] = useState(false);
-  const [foldCount, setFoldCount] = useState(isEurobooklet ? 2 : 2);
+  const [foldCount, setFoldCount] = useState(isEurobooklet ? 2 : isLiflet ? 2 : 2);
   const [optPerf, setOptPerf] = useState(false);
   const [perfLineMm, setPerfLineMm] = useState(100);
   const [perfLines, setPerfLines] = useState(1);
@@ -248,23 +263,26 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
   // Еврофлаер/буклет/евробуклет: автоматически включаем биговку, если выбрана фальцовка и плотность бумаги выше порога.
   useEffect(() => {
     const density = Number(material?.density) || 0;
-    const threshold = isCard ? 300 : isEuro || isInsert || isBooklet || isEurobooklet ? 170 : Infinity;
-    // Для буклета/евробуклета: биговка автоматически и при ламинации
-    if (optFold && (density > threshold || ((isBooklet || isEurobooklet) && optLam)) && !optBig) setOptBig(true);
-  }, [isCard, isEuro, isInsert, isBooklet, isEurobooklet, optFold, optLam, material?.density, optBig]);
+    const threshold = isCard ? 300 : isEuro || isInsert || isBooklet || isEurobooklet || isLiflet ? 170 : Infinity;
+    // Для буклета/евробуклета/лифлета: биговка автоматически и при ламинации
+    if (optFold && (density > threshold || ((isBooklet || isEurobooklet || isLiflet) && optLam)) && !optBig) setOptBig(true);
+  }, [isCard, isEuro, isInsert, isBooklet, isEurobooklet, isLiflet, optFold, optLam, material?.density, optBig]);
 
-  // Буклет / Евробуклет: фальцовка и биговка — обязательные операции, включаем по умолчанию.
+  // Буклет / Евробуклет / Лифлет: фальцовка обязательна, биговка — для буклетов; для лифлета — авто по правилам.
   useEffect(() => {
     if (isBooklet || isEurobooklet) {
       if (!optFold) setOptFold(true);
       if (!optBig) setOptBig(true);
+    }
+    if (isLiflet) {
+      if (!optFold) setOptFold(true);
     }
     if (isEurobooklet) {
       if (foldCount !== 2) setFoldCount(2);
       if (bigCount !== 2) setBigCount(2);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBooklet, isEurobooklet]);
+  }, [isBooklet, isEurobooklet, isLiflet]);
 
   // Купон: перфорация — обязательная операция, включаем по умолчанию.
   useEffect(() => {
@@ -575,11 +593,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                       </SelectContent>
                     </Select>
                   </PostpressRow>
-                  {!hideFoldBlock && <PostpressRow label={isEurobooklet ? "Биговка (2 биговки, обязательно)" : isEuro ? "Биговка (авто при плотной бумаге + фальцовке)" : "Биговка"} checked={optBig} onChange={setOptBig}>
+                  {!hideFoldBlock && <PostpressRow label={isEurobooklet ? "Биговка (2 биговки, обязательно)" : isLiflet ? "Биговка (авто при >170 г/м² или ламинации)" : isEuro ? "Биговка (авто при плотной бумаге + фальцовке)" : "Биговка"} checked={optBig} onChange={setOptBig}>
                     <Input className="h-8 w-24" type="number" min={1} value={bigCount} onChange={(e) => setBigCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">биг.</span>
                   </PostpressRow>}
-                  {!hideFoldBlock && <PostpressRow label={isEurobooklet ? "Фальцовка (еврофальц, 2 фальца)" : "Фальцовка"} checked={optFold} onChange={setOptFold}>
+                  {!hideFoldBlock && <PostpressRow label={isEurobooklet ? "Фальцовка (еврофальц, 2 фальца)" : isLiflet ? "Фальцовка (обязательно для лифлета)" : "Фальцовка"} checked={optFold} onChange={setOptFold}>
                     <Input className="h-8 w-24" type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">фальц.</span>
                   </PostpressRow>}
@@ -613,7 +631,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </PostpressRow>
-                  {!hideFoldBlock && !isEuro && !isEurobooklet && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
+                  {!hideFoldBlock && !isEuro && !isEurobooklet && !isLiflet && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
                     <Input className="h-8 w-24" type="number" min={1} value={blockCount} onChange={(e) => setBlockCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">листов/блок</span>
                   </PostpressRow>}

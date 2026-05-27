@@ -30,6 +30,7 @@ const main = [
   { title: "Шаблон: Меню", url: "/calculator/menu", icon: FileText },
   { title: "Шаблон: Буклет", url: "/calculator/booklet", icon: FileText },
   { title: "Шаблон: Евробуклет", url: "/calculator/eurobooklet", icon: FileText },
+  { title: "Шаблон: Лифлет", url: "/calculator/liflet", icon: FileText },
   { title: "Групповой спуск", url: "/calculator/multi-sku", icon: Layers },
   { title: "ИИ-расчёт", url: "/ai-calc", icon: Sparkles },
   { title: "Аналитика", url: "/analytics", icon: BarChart3 },
