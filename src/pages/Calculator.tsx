@@ -1312,6 +1312,21 @@ const Calculator = () => {
   const [embossFoilPriceOverride, setEmbossFoilPriceOverride] = useState<string>("");
   const [embossCoefOverride, setEmbossCoefOverride] = useState<string>("");
   const [embossMinCostOverride, setEmbossMinCostOverride] = useState<string>("");
+  // Доработка 35: «Конгрев».
+  const [congrevRows, setCongrevRows] = useState<CongrevRule[]>([]);
+  const [congrevEnabled, setCongrevEnabled] = useState(false);
+  const [congrevManualId, setCongrevManualId] = useState<string>("");
+  const [congrevWidthCm, setCongrevWidthCm] = useState<string>("10");
+  const [congrevHeightCm, setCongrevHeightCm] = useState<string>("5");
+  const [congrevLeather, setCongrevLeather] = useState<boolean>(false);
+  const [congrevComplexPos, setCongrevComplexPos] = useState<boolean>(false);
+  const [congrevSmallElements, setCongrevSmallElements] = useState<boolean>(false);
+  const [congrevClicheCostOverride, setCongrevClicheCostOverride] = useState<string>("");
+  const [congrevClichePriceOverride, setCongrevClichePriceOverride] = useState<string>("");
+  const [congrevSetupOverride, setCongrevSetupOverride] = useState<string>("");
+  const [congrevPriceImpOverride, setCongrevPriceImpOverride] = useState<string>("");
+  const [congrevCoefOverride, setCongrevCoefOverride] = useState<string>("");
+  const [congrevMinCostOverride, setCongrevMinCostOverride] = useState<string>("");
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
