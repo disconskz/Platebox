@@ -1295,6 +1295,22 @@ const Calculator = () => {
   const [rigelHangerIncludedOverride, setRigelHangerIncludedOverride] = useState<"" | "yes" | "no">("");
   const [rigelNonstandardColor, setRigelNonstandardColor] = useState<boolean>(false);
   const [rigelComplexPosition, setRigelComplexPosition] = useState<boolean>(false);
+  // Доработка 34: «Тиснение».
+  const [embossRows, setEmbossRows] = useState<EmbossingRule[]>([]);
+  const [embossEnabled, setEmbossEnabled] = useState(false);
+  const [embossManualId, setEmbossManualId] = useState<string>("");
+  const [embossWidthCm, setEmbossWidthCm] = useState<string>("10");
+  const [embossHeightCm, setEmbossHeightCm] = useState<string>("5");
+  const [embossLeather, setEmbossLeather] = useState<boolean>(false);
+  const [embossComplexPos, setEmbossComplexPos] = useState<boolean>(false);
+  const [embossUsesFoilOverride, setEmbossUsesFoilOverride] = useState<"" | "yes" | "no">("");
+  const [embossClicheCostOverride, setEmbossClicheCostOverride] = useState<string>("");
+  const [embossClichePriceOverride, setEmbossClichePriceOverride] = useState<string>("");
+  const [embossSetupOverride, setEmbossSetupOverride] = useState<string>("");
+  const [embossPriceImpOverride, setEmbossPriceImpOverride] = useState<string>("");
+  const [embossFoilPriceOverride, setEmbossFoilPriceOverride] = useState<string>("");
+  const [embossCoefOverride, setEmbossCoefOverride] = useState<string>("");
+  const [embossMinCostOverride, setEmbossMinCostOverride] = useState<string>("");
   // Доработка: единый блок «Припресс плёнкой» с авто-ценой по площади печатного листа.
   const [filmId, setFilmId] = useState<string>("");
   // Ручные переопределения (по умолчанию пусто = берём из справочника)
