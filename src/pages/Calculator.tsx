@@ -909,6 +909,20 @@ const Calculator = () => {
   const [hbManualInstall, setHbManualInstall] = useState(false);
   const [hbNonstandardColor, setHbNonstandardColor] = useState(false);
 
+  // Доработка 19: прессовка блока.
+  const [pressingRows, setPressingRows] = useState<BlockPressingRow[]>([]);
+  const [prEnabled, setPrEnabled] = useState(false);
+  const [prManualId, setPrManualId] = useState<string | null>(null);
+  const [prPriceOverride, setPrPriceOverride] = useState<number | "">("");
+  const [prTimeOverride, setPrTimeOverride] = useState<number | "">("");
+  const [prHourPriceOverride, setPrHourPriceOverride] = useState<number | "">("");
+  const [prCoefOverride, setPrCoefOverride] = useState<number | "">("");
+  const [prSetupOverride, setPrSetupOverride] = useState<number | "">("");
+  const [prMinOverride, setPrMinOverride] = useState<number | "">("");
+  const [prCalcModeOverride, setPrCalcModeOverride] = useState<"" | "per_item" | "per_time">("");
+  const [prManual, setPrManual] = useState(false);
+  const [prDesignerPaper, setPrDesignerPaper] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
