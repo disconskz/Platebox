@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
+import TemplateActions from "@/components/calc/TemplateActions";
 
 /**
  * Доработка 57 — выделенный шаблон «Календарь-домик».
@@ -781,6 +782,16 @@ export default function DeskCalendarCalculator() {
                   <Row label="Цена за штуку" value={fmtMoney(totals.perItem)} />
                 </CardContent>
               </Card>
+
+              <TemplateActions
+                productType="calendar_desk"
+                defaultName={`Календарь-домик ${circulation} шт`}
+                circulation={circulation}
+                totals={totals}
+                margin={margin}
+                vatPercent={vatPercent}
+                spec={spec}
+              />
             </div>
           </div>
 
