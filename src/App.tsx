@@ -20,6 +20,7 @@ import PosterCalculator from "./pages/PosterCalculator.tsx";
 import InsertCalculator from "./pages/InsertCalculator.tsx";
 import CouponCalculator from "./pages/CouponCalculator.tsx";
 import FormCalculator from "./pages/FormCalculator.tsx";
+import MenuCalculator from "./pages/MenuCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/calculator/insert" element={<InsertCalculator />} />
               <Route path="/calculator/coupon" element={<CouponCalculator />} />
               <Route path="/calculator/form" element={<FormCalculator />} />
+              <Route path="/calculator/menu" element={<MenuCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
