@@ -651,6 +651,52 @@ const BOARD_TYPE_LABEL: Record<string, string> = {
   grey: "Серый каландр.",
   designer: "Дизайнерский",
 };
+// Доработка 22: справочник «Резка переплётного картона».
+type BoardCuttingRow = {
+  id: string;
+  name: string;
+  cutting_type: string;          // guillotine | manual | auto | package | figured
+  machine_type: string;          // manual_guillotine | electric_guillotine | auto_line | industrial
+  price_per_cut: number;
+  default_cuts: number;
+  setup_cost: number;
+  min_cost: number;
+  coef_thickness_thin: number;
+  coef_thickness_med: number;
+  coef_thickness_thick: number;
+  coef_thickness_extra: number;
+  thickness_thin_max: number;
+  thickness_med_max: number;
+  thickness_thick_max: number;
+  coef_figured: number;
+  coef_manual: number;
+  coef_thick_board: number;
+  coef_complex_layout: number;
+  coef_nonstandard_format: number;
+  coef_standard_format: number;
+  min_format_short: number;
+  max_format_long: number;
+  min_board_thickness: number;
+  max_board_thickness: number;
+  max_stack_height: number;
+  min_circulation: number;
+  max_circulation: number;
+  is_active: boolean;
+  sort_order: number;
+};
+const BOARD_CUT_MACHINE_LABEL: Record<string, string> = {
+  manual_guillotine: "Ручная гильотина",
+  electric_guillotine: "Электр. гильотина",
+  auto_line: "Автолиния",
+  industrial: "Промышленный резак",
+};
+const BOARD_CUT_TYPE_LABEL: Record<string, string> = {
+  guillotine: "Гильотинная",
+  manual: "Ручная",
+  auto: "Автоматическая",
+  package: "Пакетная",
+  figured: "Фигурная",
+};
 // Лучшая раскладка одной детали на лист с учётом отступов и зазоров.
 function bestFitOnSheet(
   partW: number, partH: number,
