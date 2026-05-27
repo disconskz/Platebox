@@ -1122,6 +1122,20 @@ const Calculator = () => {
   const [bdComplexLayout, setBdComplexLayout] = useState(false);
   const [bdDesignerBoard, setBdDesignerBoard] = useState(false);
 
+  // Доработка 22: резка переплётного картона.
+  const [bcRows, setBcRows] = useState<BoardCuttingRow[]>([]);
+  const [bcEnabled, setBcEnabled] = useState(false);
+  const [bcManualId, setBcManualId] = useState<string | null>(null);
+  const [bcCutsOverride, setBcCutsOverride] = useState<number | "">("");
+  const [bcSheetsOverride, setBcSheetsOverride] = useState<number | "">("");
+  const [bcPriceCutOverride, setBcPriceCutOverride] = useState<number | "">("");
+  const [bcCoefOverride, setBcCoefOverride] = useState<number | "">("");
+  const [bcSetupOverride, setBcSetupOverride] = useState<number | "">("");
+  const [bcMinOverride, setBcMinOverride] = useState<number | "">("");
+  const [bcManualCut, setBcManualCut] = useState(false);
+  const [bcFigured, setBcFigured] = useState(false);
+  const [bcComplexLayout, setBcComplexLayout] = useState(false);
+
   // Доработка 5: единый блок «Кол-во сгибов на изделии».
   // Цена за сгиб выбирается автоматически по плотности бумаги.
   const [foldsPerItem, setFoldsPerItem] = useState(0);
