@@ -304,11 +304,11 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
             </Button>
             <FileText className="h-5 w-5 text-accent" />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: Листовка</h1>
-              <p className="text-[11px] text-muted-foreground truncate">Динамический маршрут — операции подключаются по выбранным опциям</p>
+              <h1 className="text-base sm:text-lg font-semibold truncate">Шаблон: {titleLabel}</h1>
+              <p className="text-[11px] text-muted-foreground truncate">{subtitle}</p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка 36</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка {dorNum}</Badge>
         </PageHeaderRow>
       </PageHeader>
 
@@ -422,14 +422,14 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                       </SelectContent>
                     </Select>
                   </PostpressRow>
-                  <PostpressRow label="Биговка" checked={optBig} onChange={setOptBig}>
+                  {!isFlyer && <PostpressRow label="Биговка" checked={optBig} onChange={setOptBig}>
                     <Input className="h-8 w-24" type="number" min={1} value={bigCount} onChange={(e) => setBigCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">биг.</span>
-                  </PostpressRow>
-                  <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
+                  </PostpressRow>}
+                  {!isFlyer && <PostpressRow label="Фальцовка" checked={optFold} onChange={setOptFold}>
                     <Input className="h-8 w-24" type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">фальц.</span>
-                  </PostpressRow>
+                  </PostpressRow>}
                   <PostpressRow label="Перфорация" checked={optPerf} onChange={setOptPerf}>
                     <Input className="h-8 w-20" type="number" min={1} value={perfLines} onChange={(e) => setPerfLines(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">лин. ×</span>
@@ -460,10 +460,10 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
                     <Input className="h-8 w-20" type="number" min={1} max={4} value={roundCorners} onChange={(e) => setRoundCorners(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">угла</span>
                   </PostpressRow>
-                  <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
+                  {!isFlyer && <PostpressRow label="Склейка в блок (ПВА)" checked={optBlockGlue} onChange={setOptBlockGlue}>
                     <Input className="h-8 w-24" type="number" min={1} value={blockCount} onChange={(e) => setBlockCount(Number(e.target.value) || 1)} />
                     <span className="text-xs text-muted-foreground">листов/блок</span>
-                  </PostpressRow>
+                  </PostpressRow>}
                 </CardContent>
               </Card>
 
