@@ -89,6 +89,12 @@ const templateCategories: TplCategory[] = [
       { title: "Грамота / Диплом", url: "/calculator/diploma" },
     ],
   },
+  {
+    title: "Наклейки и этикетки",
+    items: [
+      { title: "Наклейка / Стикер", url: "/calculator/sticker" },
+    ],
+  },
 ];
 
 const allTemplates: Tpl[] = templateCategories.flatMap((c) => c.items);
