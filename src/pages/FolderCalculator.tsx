@@ -48,7 +48,7 @@ const MATERIALS: Material[] = [
 
 type FolderKind =
   | "plain" | "pocket1" | "pocket2" | "flap" | "bizcut" | "spine"
-  | "elastic" | "rings" | "premium" | "custom";
+  | "elastic" | "rings" | "magnet" | "kashed" | "lozhement" | "premium" | "custom";
 const KINDS: { value: FolderKind; label: string; complexity: number }[] = [
   { value: "plain", label: "Простая (без кармана)", complexity: 1.0 },
   { value: "pocket1", label: "С 1 карманом", complexity: 1.2 },
@@ -58,6 +58,9 @@ const KINDS: { value: FolderKind; label: string; complexity: number }[] = [
   { value: "spine", label: "С корешком", complexity: 1.3 },
   { value: "elastic", label: "На резинке", complexity: 1.5 },
   { value: "rings", label: "На кольцах", complexity: 1.6 },
+  { value: "magnet", label: "С магнитом", complexity: 1.5 },
+  { value: "kashed", label: "Кашированная (на переплётном картоне)", complexity: 1.7 },
+  { value: "lozhement", label: "С ложементом", complexity: 1.7 },
   { value: "premium", label: "Premium", complexity: 1.8 },
   { value: "custom", label: "Нестандартная конструкция", complexity: 1.5 },
 ];
@@ -152,6 +155,17 @@ export default function FolderCalculator() {
   const [optMagnet, setOptMagnet] = useState(false);
   const [magnetCount, setMagnetCount] = useState(1);
 
+  // Кашировка
+  const [optKashirovka, setOptKashirovka] = useState(false);
+  const [kashPricePerM2, setKashPricePerM2] = useState(420);
+  const [kashBoardKey, setKashBoardKey] = useState("bookbind1mm");
+
+  // Ложемент
+  const [optLozhement, setOptLozhement] = useState(false);
+  const [lozhementType, setLozhementType] = useState<"foam" | "eva" | "cardboard" | "velvet">("foam");
+  const [lozhementAreaCm2, setLozhementAreaCm2] = useState(450);
+  const [lozhementAssemblyPrice, setLozhementAssemblyPrice] = useState(35);
+
   // Упаковка
   const [packKind, setPackKind] = useState<PackKind>("none");
 
@@ -177,6 +191,12 @@ export default function FolderCalculator() {
       if (lamType === "none") setLamType("soft");
       setOptStamp(true);
     }
+    if (kind === "magnet") setOptMagnet(true);
+    if (kind === "kashed") {
+      setOptKashirovka(true);
+      if (!material.premium) setMaterialKey("bookbind1mm");
+    }
+    if (kind === "lozhement") setOptLozhement(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind]);
 
@@ -336,6 +356,28 @@ export default function FolderCalculator() {
       push("Фурнитура", "Установка магнита", circulation * magnetCount, "шт.", 6);
     }
 
+    // Кашировка
+    if (optKashirovka) {
+      const board = MATERIALS.find((m) => m.value === kashBoardKey) ?? material;
+      const boardSheets = Math.max(1, Math.ceil(circulation / Math.max(1, layout.up)));
+      push("Материалы", `Переплётный картон: ${board.label}`, boardSheets, "лист", board.pricePerSheet);
+      const kashM2 = +(layout.areaM2 * circulation).toFixed(3);
+      push("Постпечать", "Приладка кашировки", 1, "усл.", 2500);
+      push("Постпечать", "Кашировка", kashM2, "м²", kashPricePerM2);
+    }
+
+    // Ложемент
+    if (optLozhement) {
+      const lozhM2 = +((lozhementAreaCm2 / 10000) * circulation).toFixed(3);
+      const matPrice =
+        lozhementType === "foam" ? 280 :
+        lozhementType === "eva" ? 480 :
+        lozhementType === "velvet" ? 720 : 180;
+      push("Материалы", `Материал ложемента (${lozhementType})`, lozhM2, "м²", matPrice);
+      push("Постпечать", "Высечка ложемента", circulation, "изд.", 3.5);
+      push("Сборка", "Сборка ложемента", circulation, "изд.", lozhementAssemblyPrice);
+    }
+
     // Финальная сборка
     const assemblyPrice = +(8 * kindCfg.complexity * premiumCoef).toFixed(2);
     push("Сборка", `Финальная сборка (×${kindCfg.complexity})`, circulation, "изд.", assemblyPrice);
@@ -352,6 +394,8 @@ export default function FolderCalculator() {
       optEmboss, optDieCut, optDeflash, optBig, bigsCount, optRound, roundCorners,
       hasBizCut, bizCutCount, glueType, glue, glueSeamM, pocketCount, hasFlap, flapCount,
       hasHoles, holesCount, optEyelets, eyeletsCount, optElastic, optRings, optMagnet, magnetCount,
+      optKashirovka, kashBoardKey, kashPricePerM2,
+      optLozhement, lozhementType, lozhementAreaCm2, lozhementAssemblyPrice,
       kind, kindCfg, premiumCoef, circulation, hasDelivery, deliveryCost, packKind, pack]);
 
   const totals = useMemo(() => {
@@ -384,6 +428,8 @@ export default function FolderCalculator() {
     if (optRings) s.push("Установка кольцевого механизма");
     if (optMagnet) s.push("Установка магнитов");
     if (optRound) s.push("Скругление углов");
+    if (optKashirovka) s.push("Кашировка на переплётный картон");
+    if (optLozhement) s.push("Изготовление и установка ложемента");
     s.push("Финальная сборка", "Контроль качества");
     if (packKind !== "none") s.push(`Индивидуальная упаковка: ${pack.label}`);
     s.push("Упаковка тиража");
@@ -391,7 +437,8 @@ export default function FolderCalculator() {
     return s;
   }, [hasDesign, material, offset, lamType, lam, optVarnish, optSpotVarnish, optStamp, optEmboss,
       optDieCut, optDeflash, optBig, hasBizCut, glueType, glue, pocketCount, hasFlap, kind,
-      hasHoles, optEyelets, optElastic, optRings, optMagnet, optRound, packKind, pack, hasDelivery]);
+      hasHoles, optEyelets, optElastic, optRings, optMagnet, optRound,
+      optKashirovka, optLozhement, packKind, pack, hasDelivery]);
 
   return (
     <PageShell>
@@ -409,7 +456,7 @@ export default function FolderCalculator() {
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка 61</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка 81</Badge>
         </PageHeaderRow>
       </PageHeader>
 
@@ -642,9 +689,62 @@ export default function FolderCalculator() {
                       </AccordionContent>
                     </AccordionItem>
 
+                    {/* Кашировка и ложемент */}
+                    <AccordionItem value="kashlozh">
+                      <AccordionTrigger>
+                        <span className="flex items-center gap-2">7. Кашировка и ложемент
+                          {optKashirovka && <Badge variant="outline" className="text-[10px]">кашировка</Badge>}
+                          {optLozhement && <Badge variant="outline" className="text-[10px]">ложемент</Badge>}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid gap-3 sm:grid-cols-2 pt-2 text-sm">
+                          <div className="sm:col-span-2 space-y-2">
+                            <Row label="Кашировка на переплётный картон" checked={optKashirovka} onChange={setOptKashirovka} />
+                          </div>
+                          {optKashirovka && (<>
+                            <div className="sm:col-span-2">
+                              <Label>Переплётный картон</Label>
+                              <Select value={kashBoardKey} onValueChange={setKashBoardKey}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {MATERIALS.filter((m) => m.type === "bookbind" || m.thickMm >= 0.5).map((m) => (
+                                    <SelectItem key={m.value} value={m.value}>{m.label} · {fmtMoney(m.pricePerSheet)}/лист</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div><Label>Цена кашировки, ₸/м²</Label>
+                              <Input type="number" min={0} value={kashPricePerM2} onChange={(e) => setKashPricePerM2(+e.target.value || 0)} /></div>
+                          </>)}
+                          <div className="sm:col-span-2 space-y-2 pt-2">
+                            <Row label="Ложемент" checked={optLozhement} onChange={setOptLozhement} />
+                          </div>
+                          {optLozhement && (<>
+                            <div>
+                              <Label>Тип ложемента</Label>
+                              <Select value={lozhementType} onValueChange={(v) => setLozhementType(v as any)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="foam">Поролон</SelectItem>
+                                  <SelectItem value="eva">EVA</SelectItem>
+                                  <SelectItem value="cardboard">Картон</SelectItem>
+                                  <SelectItem value="velvet">Бархат / флок</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div><Label>Площадь ложемента, см²</Label>
+                              <Input type="number" min={1} value={lozhementAreaCm2} onChange={(e) => setLozhementAreaCm2(+e.target.value || 1)} /></div>
+                            <div><Label>Сборка ложемента, ₸/изд.</Label>
+                              <Input type="number" min={0} value={lozhementAssemblyPrice} onChange={(e) => setLozhementAssemblyPrice(+e.target.value || 0)} /></div>
+                          </>)}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
                     {/* Упаковка / доставка */}
                     <AccordionItem value="ship">
-                      <AccordionTrigger>7. Упаковка и доставка</AccordionTrigger>
+                      <AccordionTrigger>8. Упаковка и доставка</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
                           <div className="sm:col-span-2">
