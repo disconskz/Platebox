@@ -81,6 +81,12 @@ const templateCategories: TplCategory[] = [
       { title: "Календарь-домик", url: "/calculator/desk-calendar" },
     ],
   },
+  {
+    title: "Папки и презентация",
+    items: [
+      { title: "Папка", url: "/calculator/folder" },
+    ],
+  },
 ];
 
 const allTemplates: Tpl[] = templateCategories.flatMap((c) => c.items);
