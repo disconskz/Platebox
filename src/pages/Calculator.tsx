@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Save, FileText, Sparkles, AlertTriangle, Check as CheckIcon } from "lucide-react";
+import TemplatePicker from "@/components/calc/TemplatePicker";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1057,7 +1058,7 @@ const formatDimSchema = z.number().int().positive().max(2000);
 const Calculator = () => {
   const navigate = useNavigate();
   const { loading: authLoading, user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const { items: glossary } = useProductGlossary();
   const [glossarySlug, setGlossarySlug] = useState<string>("leaflet");
@@ -4896,6 +4897,10 @@ const Calculator = () => {
           </div>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <AiOrderAssistant onApply={applyAiOrder} />
+            <TemplatePicker
+              currentId={searchParams.get("from")}
+              onPick={(id) => setSearchParams({ from: id })}
+            />
             {result && !("error" in result) ? (
               <div className="hidden sm:flex items-center gap-3 text-right">
                 <div>
