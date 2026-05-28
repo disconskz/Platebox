@@ -51,6 +51,7 @@ import EnvelopeCalculator from "./pages/EnvelopeCalculator.tsx";
 import LetterheadCalculator from "./pages/LetterheadCalculator.tsx";
 import BadgeCalculator from "./pages/BadgeCalculator.tsx";
 import NcrCalculator from "./pages/NcrCalculator.tsx";
+import MagnetCalculator from "./pages/MagnetCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -131,6 +132,7 @@ const App = () => (
               <Route path="/calculator/letterhead" element={<LetterheadCalculator />} />
               <Route path="/calculator/badge" element={<BadgeCalculator />} />
               <Route path="/calculator/ncr" element={<NcrCalculator />} />
+              <Route path="/calculator/magnet" element={<MagnetCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
