@@ -97,6 +97,7 @@ const App = () => (
               <Route path="/calculator/quarter-calendar" element={<QuarterCalendarCalculator />} />
               <Route path="/calculator/desk-calendar" element={<DeskCalendarCalculator />} />
               <Route path="/calculator/card" element={<CardCalculator />} />
+             <Route path="/calculator/folder" element={<FolderCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
