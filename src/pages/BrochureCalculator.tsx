@@ -850,6 +850,27 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                 </Card>
               )}
 
+              {(isHardcover || isSoftcover) && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Тип книги</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <Label>Тип изделия</Label>
+                      <Select value={bookKind} onValueChange={(v) => setBookKind(v as BookKind)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {BOOK_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
+                      Коэф. финальной сборки: ×{bookAssemblyCoef.toFixed(2)}.
+                      Premium/коллекционные — авто soft-touch, тиснение, конгрев, ляссе, футляр, premium-упаковка.
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {isHardcover && (
                 <Card>
                   <CardHeader><CardTitle className="text-sm">5. Переплётная крышка и премиум</CardTitle></CardHeader>
