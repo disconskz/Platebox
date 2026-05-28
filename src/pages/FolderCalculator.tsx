@@ -356,6 +356,28 @@ export default function FolderCalculator() {
       push("Фурнитура", "Установка магнита", circulation * magnetCount, "шт.", 6);
     }
 
+    // Кашировка
+    if (optKashirovka) {
+      const board = MATERIALS.find((m) => m.value === kashBoardKey) ?? material;
+      const boardSheets = Math.max(1, Math.ceil(circulation / Math.max(1, layout.up)));
+      push("Материалы", `Переплётный картон: ${board.label}`, boardSheets, "лист", board.pricePerSheet);
+      const kashM2 = +(layout.areaM2 * circulation).toFixed(3);
+      push("Постпечать", "Приладка кашировки", 1, "усл.", 2500);
+      push("Постпечать", "Кашировка", kashM2, "м²", kashPricePerM2);
+    }
+
+    // Ложемент
+    if (optLozhement) {
+      const lozhM2 = +((lozhementAreaCm2 / 10000) * circulation).toFixed(3);
+      const matPrice =
+        lozhementType === "foam" ? 280 :
+        lozhementType === "eva" ? 480 :
+        lozhementType === "velvet" ? 720 : 180;
+      push("Материалы", `Материал ложемента (${lozhementType})`, lozhM2, "м²", matPrice);
+      push("Постпечать", "Высечка ложемента", circulation, "изд.", 3.5);
+      push("Сборка", "Сборка ложемента", circulation, "изд.", lozhementAssemblyPrice);
+    }
+
     // Финальная сборка
     const assemblyPrice = +(8 * kindCfg.complexity * premiumCoef).toFixed(2);
     push("Сборка", `Финальная сборка (×${kindCfg.complexity})`, circulation, "изд.", assemblyPrice);
@@ -372,6 +394,8 @@ export default function FolderCalculator() {
       optEmboss, optDieCut, optDeflash, optBig, bigsCount, optRound, roundCorners,
       hasBizCut, bizCutCount, glueType, glue, glueSeamM, pocketCount, hasFlap, flapCount,
       hasHoles, holesCount, optEyelets, eyeletsCount, optElastic, optRings, optMagnet, magnetCount,
+      optKashirovka, kashBoardKey, kashPricePerM2,
+      optLozhement, lozhementType, lozhementAreaCm2, lozhementAssemblyPrice,
       kind, kindCfg, premiumCoef, circulation, hasDelivery, deliveryCost, packKind, pack]);
 
   const totals = useMemo(() => {
