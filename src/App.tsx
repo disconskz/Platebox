@@ -46,6 +46,7 @@ import BoxCalculator from "./pages/BoxCalculator.tsx";
 import TubeCalculator from "./pages/TubeCalculator.tsx";
 import PosCalculator from "./pages/PosCalculator.tsx";
 import EnvelopeCalculator from "./pages/EnvelopeCalculator.tsx";
+import LetterheadCalculator from "./pages/LetterheadCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/calculator/tube" element={<TubeCalculator />} />
               <Route path="/calculator/pos" element={<PosCalculator />} />
               <Route path="/calculator/envelope" element={<EnvelopeCalculator />} />
+              <Route path="/calculator/letterhead" element={<LetterheadCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
