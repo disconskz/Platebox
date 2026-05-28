@@ -428,6 +428,8 @@ export default function FolderCalculator() {
     if (optRings) s.push("Установка кольцевого механизма");
     if (optMagnet) s.push("Установка магнитов");
     if (optRound) s.push("Скругление углов");
+    if (optKashirovka) s.push("Кашировка на переплётный картон");
+    if (optLozhement) s.push("Изготовление и установка ложемента");
     s.push("Финальная сборка", "Контроль качества");
     if (packKind !== "none") s.push(`Индивидуальная упаковка: ${pack.label}`);
     s.push("Упаковка тиража");
@@ -435,7 +437,8 @@ export default function FolderCalculator() {
     return s;
   }, [hasDesign, material, offset, lamType, lam, optVarnish, optSpotVarnish, optStamp, optEmboss,
       optDieCut, optDeflash, optBig, hasBizCut, glueType, glue, pocketCount, hasFlap, kind,
-      hasHoles, optEyelets, optElastic, optRings, optMagnet, optRound, packKind, pack, hasDelivery]);
+      hasHoles, optEyelets, optElastic, optRings, optMagnet, optRound,
+      optKashirovka, optLozhement, packKind, pack, hasDelivery]);
 
   return (
     <PageShell>
@@ -453,7 +456,7 @@ export default function FolderCalculator() {
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="ml-auto">Доработка 61</Badge>
+          <Badge variant="secondary" className="ml-auto">Доработка 81</Badge>
         </PageHeaderRow>
       </PageHeader>
 
