@@ -35,6 +35,7 @@ import MemocubeCalculator from "./pages/MemocubeCalculator.tsx";
 import QuarterCalendarCalculator from "./pages/QuarterCalendarCalculator.tsx";
 import DeskCalendarCalculator from "./pages/DeskCalendarCalculator.tsx";
 import CardCalculator from "./pages/CardCalculator.tsx";
+import FolderCalculator from "./pages/FolderCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
