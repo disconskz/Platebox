@@ -120,6 +120,12 @@ const templateCategories: TplCategory[] = [
       { title: "Бейдж / Пропуск / Карта", url: "/calculator/badge" },
     ],
   },
+  {
+    title: "Сувенирная продукция",
+    items: [
+      { title: "Магнит", url: "/calculator/magnet" },
+    ],
+  },
 ];
 
 const allTemplates: Tpl[] = templateCategories.flatMap((c) => c.items);
