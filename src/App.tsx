@@ -42,6 +42,7 @@ import StickerCalculator from "./pages/StickerCalculator.tsx";
 import LabelCalculator from "./pages/LabelCalculator.tsx";
 import HangtagCalculator from "./pages/HangtagCalculator.tsx";
 import BagCalculator from "./pages/BagCalculator.tsx";
+import BoxCalculator from "./pages/BoxCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -110,6 +111,7 @@ const App = () => (
              <Route path="/calculator/label" element={<LabelCalculator />} />
             <Route path="/calculator/hangtag" element={<HangtagCalculator />} />
               <Route path="/calculator/bag" element={<BagCalculator />} />
+              <Route path="/calculator/box" element={<BoxCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
