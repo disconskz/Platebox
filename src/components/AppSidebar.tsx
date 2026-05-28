@@ -79,6 +79,7 @@ const templateCategories: TplCategory[] = [
     items: [
       { title: "Календарь квартальный", url: "/calculator/quarter-calendar" },
       { title: "Календарь-домик", url: "/calculator/desk-calendar" },
+      { title: "Календарь карманный", url: "/calculator/pocket-calendar" },
     ],
   },
   {
