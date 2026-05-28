@@ -490,6 +490,15 @@ export default function NotepadCalculator() {
                     </Select>
                   </div>
                   <div><Label>Тираж</Label><Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(+e.target.value || 0)} /></div>
+                  <div className="sm:col-span-2">
+                    <Label>Тип блокнота</Label>
+                    <Select value={notepadKind} onValueChange={(v) => setNotepadKind(v as NotepadKind)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {NOTEPAD_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label} (×{k.coef})</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   {presetKey === "custom" && (<>
                     <div><Label>Ширина, мм</Label><Input type="number" value={customW} onChange={(e) => setCustomW(+e.target.value || 0)} /></div>
                     <div><Label>Высота, мм</Label><Input type="number" value={customH} onChange={(e) => setCustomH(+e.target.value || 0)} /></div>
@@ -722,6 +731,7 @@ export default function NotepadCalculator() {
 
                     {/* Упаковка и доставка */}
                     <AccordionItem value="ship">
+                      {/* Заглушка-якорь, расширенные секции добавлены ниже */}
                       <AccordionTrigger>Упаковка и доставка</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
@@ -730,6 +740,59 @@ export default function NotepadCalculator() {
                             <Label htmlFor="delivery" className="cursor-pointer">Включить доставку</Label>
                           </div>
                           {hasDelivery && (<div><Label>Стоимость доставки</Label><Input type="number" value={deliveryCost} onChange={(e) => setDeliveryCost(+e.target.value || 0)} /></div>)}
+                          <div className="flex items-end gap-2">
+                            <Checkbox id="shrink" checked={optShrink} onCheckedChange={(v) => setOptShrink(!!v)} />
+                            <Label htmlFor="shrink" className="cursor-pointer">Термоусадка комплектами</Label>
+                          </div>
+                          {optShrink && (
+                            <div><Label>Штук в упаковке</Label>
+                              <Input type="number" min={1} value={itemsPerPack} onChange={(e) => setItemsPerPack(+e.target.value || 1)} />
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Фурнитура */}
+                    <AccordionItem value="hardware">
+                      <AccordionTrigger>Фурнитура и переплётные элементы</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 text-sm pt-2">
+                          <Row label="Форзацы" checked={hasForzac} onChange={setHasForzac} />
+                          <Row label="Каптал" checked={hasKapital} onChange={setHasKapital} />
+                          <Row label="Марля корешка" checked={hasMarlya} onChange={setHasMarlya} />
+                          <Row label="Ляссе (закладка)" checked={hasLyasse} onChange={setHasLyasse}>
+                            <Input className="h-8 w-20" type="number" min={1} max={4} value={lyasseCount} onChange={(e) => setLyasseCount(+e.target.value || 1)} />
+                            <span className="text-xs text-muted-foreground">шт.</span>
+                          </Row>
+                          <Row label="Резинка" checked={hasElastic} onChange={setHasElastic} />
+                          <Row label="Карман" checked={hasPocket} onChange={setHasPocket} />
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Доп. финиш обложки */}
+                    <AccordionItem value="cover-finish">
+                      <AccordionTrigger>Финиш обложки (premium)</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 text-sm pt-2">
+                          <Row label="Soft-touch ламинация" checked={optSoftTouch} onChange={setOptSoftTouch} />
+                          <Row label="Фольгирование" checked={optFoil} onChange={setOptFoil}>
+                            <Input className="h-8 w-20" type="number" min={0} value={foilArea} onChange={(e) => setFoilArea(+e.target.value || 0)} />
+                            <span className="text-xs text-muted-foreground">см² клише</span>
+                          </Row>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Персонализация */}
+                    <AccordionItem value="personalize">
+                      <AccordionTrigger>Нумерация и персонализация</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 text-sm pt-2">
+                          <Row label="Нумерация (с контролем последовательности)" checked={optNumbering} onChange={setOptNumbering} />
+                          <Row label="QR-код" checked={optQR} onChange={setOptQR} />
+                          <Row label="Персонализация (имя/лого)" checked={optPersonalize} onChange={setOptPersonalize} />
                         </div>
                       </AccordionContent>
                     </AccordionItem>
