@@ -14,6 +14,7 @@ import Calculator from "./pages/Calculator.tsx";
 import MultiSkuCalculator from "./pages/MultiSkuCalculator.tsx";
 import LeafletCalculator from "./pages/LeafletCalculator.tsx";
 import FlyerCalculator from "./pages/FlyerCalculator.tsx";
+import LeafletFlyerCalculator from "./pages/LeafletFlyerCalculator.tsx";
 import EuroflyerCalculator from "./pages/EuroflyerCalculator.tsx";
 import BusinessCardCalculator from "./pages/BusinessCardCalculator.tsx";
 import PosterCalculator from "./pages/PosterCalculator.tsx";
@@ -86,8 +87,10 @@ const App = () => (
               <Route path="/app" element={<Index />} />
               <Route path="/calculator" element={<Calculator />} />
               <Route path="/calculator/multi-sku" element={<MultiSkuCalculator />} />
-              <Route path="/calculator/leaflet" element={<LeafletCalculator />} />
-              <Route path="/calculator/flyer" element={<FlyerCalculator />} />
+              <Route path="/calculator/leaflet" element={<LeafletFlyerCalculator />} />
+              <Route path="/calculator/flyer" element={<LeafletFlyerCalculator />} />
+              <Route path="/calculator/leaflet-legacy" element={<LeafletCalculator />} />
+              <Route path="/calculator/flyer-legacy" element={<FlyerCalculator />} />
               <Route path="/calculator/euroflyer" element={<EuroflyerCalculator />} />
               <Route path="/calculator/businesscard" element={<BusinessCardCalculator />} />
               <Route path="/calculator/poster" element={<PosterCalculator />} />
