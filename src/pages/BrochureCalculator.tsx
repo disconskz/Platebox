@@ -848,6 +848,51 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                 </Card>
               )}
 
+              {isCatalogLike && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Конструкция каталога/журнала</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <Label>Тип изделия</Label>
+                      <Select value={catalogKind} onValueChange={(v) => setCatalogKind(v as CatalogKind)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CATALOG_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2 space-y-2 text-sm">
+                      <Row label="Клапаны обложки" checked={optFlaps} onChange={setOptFlaps}>
+                        <Input className="h-8 w-20" type="number" min={20} value={flapWidthMm} onChange={(e) => setFlapWidthMm(+e.target.value || 0)} />
+                        <span className="text-xs text-muted-foreground">мм ширина</span>
+                      </Row>
+                      <Row label="Вкладки (tabs) с высечкой" checked={optTabs} onChange={setOptTabs}>
+                        <Input className="h-8 w-20" type="number" min={1} value={tabsCount} onChange={(e) => setTabsCount(+e.target.value || 1)} />
+                        <span className="text-xs text-muted-foreground">шт./изд.</span>
+                      </Row>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>Тип упаковки</Label>
+                      <Select value={packagingKind} onValueChange={(v) => setPackagingKind(v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bundle">Пачка</SelectItem>
+                          <SelectItem value="box">Коробка</SelectItem>
+                          <SelectItem value="shrink">Термоусадка</SelectItem>
+                          <SelectItem value="individual">Индивидуальная</SelectItem>
+                          <SelectItem value="premium">Premium-упаковка</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {(optTabs || optInserts) && (
+                      <div className="sm:col-span-2 text-xs text-muted-foreground">
+                        Контроль комплектности: ×1.4 (вкладки/вставки).
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
                 <CardHeader><CardTitle className="text-sm">{isPlanner ? "7" : isHardcover ? "6" : "5"}. Упаковка и доставка</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
