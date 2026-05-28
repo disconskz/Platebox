@@ -39,6 +39,7 @@ import FolderCalculator from "./pages/FolderCalculator.tsx";
 import DiplomaCalculator from "./pages/DiplomaCalculator.tsx";
 import PocketCalendarCalculator from "./pages/PocketCalendarCalculator.tsx";
 import StickerCalculator from "./pages/StickerCalculator.tsx";
+import LabelCalculator from "./pages/LabelCalculator.tsx";
 import References from "./pages/References.tsx";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
@@ -104,6 +105,7 @@ const App = () => (
              <Route path="/calculator/diploma" element={<DiplomaCalculator />} />
              <Route path="/calculator/pocket-calendar" element={<PocketCalendarCalculator />} />
              <Route path="/calculator/sticker" element={<StickerCalculator />} />
+             <Route path="/calculator/label" element={<LabelCalculator />} />
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />

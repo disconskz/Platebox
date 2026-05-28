@@ -93,6 +93,7 @@ const templateCategories: TplCategory[] = [
     title: "Наклейки и этикетки",
     items: [
       { title: "Наклейка / Стикер", url: "/calculator/sticker" },
+      { title: "Этикетка", url: "/calculator/label" },
     ],
   },
 ];
