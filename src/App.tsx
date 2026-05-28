@@ -25,6 +25,7 @@ import MenuCalculator from "./pages/MenuCalculator.tsx";
 import BookletCalculator from "./pages/BookletCalculator.tsx";
 import EurobookletCalculator from "./pages/EurobookletCalculator.tsx";
 import LifletCalculator from "./pages/LifletCalculator.tsx";
+import BookletLifletCalculator from "./pages/BookletLifletCalculator.tsx";
 import BrochureCalculator from "./pages/BrochureCalculator.tsx";
 import CatalogCalculator from "./pages/CatalogCalculator.tsx";
 import MagazineCalculator from "./pages/MagazineCalculator.tsx";
@@ -98,9 +99,12 @@ const App = () => (
               <Route path="/calculator/coupon" element={<CouponCalculator />} />
               <Route path="/calculator/form" element={<FormCalculator />} />
               <Route path="/calculator/menu" element={<MenuCalculator />} />
-              <Route path="/calculator/booklet" element={<BookletCalculator />} />
-              <Route path="/calculator/eurobooklet" element={<EurobookletCalculator />} />
-              <Route path="/calculator/liflet" element={<LifletCalculator />} />
+              <Route path="/calculator/booklet" element={<BookletLifletCalculator />} />
+              <Route path="/calculator/eurobooklet" element={<BookletLifletCalculator />} />
+              <Route path="/calculator/liflet" element={<BookletLifletCalculator mode="liflet" />} />
+              <Route path="/calculator/booklet-legacy" element={<BookletCalculator />} />
+              <Route path="/calculator/eurobooklet-legacy" element={<EurobookletCalculator />} />
+              <Route path="/calculator/liflet-legacy" element={<LifletCalculator />} />
               <Route path="/calculator/brochure" element={<BrochureCalculator />} />
               <Route path="/calculator/catalog" element={<CatalogCalculator />} />
               <Route path="/calculator/magazine" element={<MagazineCalculator />} />
