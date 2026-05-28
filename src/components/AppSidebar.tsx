@@ -85,6 +85,7 @@ const templateCategories: TplCategory[] = [
     title: "Папки и презентация",
     items: [
       { title: "Папка", url: "/calculator/folder" },
+      { title: "Грамота / Диплом", url: "/calculator/diploma" },
     ],
   },
 ];
