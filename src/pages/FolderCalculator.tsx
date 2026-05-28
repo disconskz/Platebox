@@ -689,9 +689,62 @@ export default function FolderCalculator() {
                       </AccordionContent>
                     </AccordionItem>
 
+                    {/* Кашировка и ложемент */}
+                    <AccordionItem value="kashlozh">
+                      <AccordionTrigger>
+                        <span className="flex items-center gap-2">7. Кашировка и ложемент
+                          {optKashirovka && <Badge variant="outline" className="text-[10px]">кашировка</Badge>}
+                          {optLozhement && <Badge variant="outline" className="text-[10px]">ложемент</Badge>}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid gap-3 sm:grid-cols-2 pt-2 text-sm">
+                          <div className="sm:col-span-2 space-y-2">
+                            <Row label="Кашировка на переплётный картон" checked={optKashirovka} onChange={setOptKashirovka} />
+                          </div>
+                          {optKashirovka && (<>
+                            <div className="sm:col-span-2">
+                              <Label>Переплётный картон</Label>
+                              <Select value={kashBoardKey} onValueChange={setKashBoardKey}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {MATERIALS.filter((m) => m.type === "bookbind" || m.thickMm >= 0.5).map((m) => (
+                                    <SelectItem key={m.value} value={m.value}>{m.label} · {fmtMoney(m.pricePerSheet)}/лист</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div><Label>Цена кашировки, ₸/м²</Label>
+                              <Input type="number" min={0} value={kashPricePerM2} onChange={(e) => setKashPricePerM2(+e.target.value || 0)} /></div>
+                          </>)}
+                          <div className="sm:col-span-2 space-y-2 pt-2">
+                            <Row label="Ложемент" checked={optLozhement} onChange={setOptLozhement} />
+                          </div>
+                          {optLozhement && (<>
+                            <div>
+                              <Label>Тип ложемента</Label>
+                              <Select value={lozhementType} onValueChange={(v) => setLozhementType(v as any)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="foam">Поролон</SelectItem>
+                                  <SelectItem value="eva">EVA</SelectItem>
+                                  <SelectItem value="cardboard">Картон</SelectItem>
+                                  <SelectItem value="velvet">Бархат / флок</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div><Label>Площадь ложемента, см²</Label>
+                              <Input type="number" min={1} value={lozhementAreaCm2} onChange={(e) => setLozhementAreaCm2(+e.target.value || 1)} /></div>
+                            <div><Label>Сборка ложемента, ₸/изд.</Label>
+                              <Input type="number" min={0} value={lozhementAssemblyPrice} onChange={(e) => setLozhementAssemblyPrice(+e.target.value || 0)} /></div>
+                          </>)}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
                     {/* Упаковка / доставка */}
                     <AccordionItem value="ship">
-                      <AccordionTrigger>7. Упаковка и доставка</AccordionTrigger>
+                      <AccordionTrigger>8. Упаковка и доставка</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
                           <div className="sm:col-span-2">
