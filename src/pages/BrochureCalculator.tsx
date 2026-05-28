@@ -177,6 +177,52 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [tabsCount, setTabsCount] = useState(4);
   const [packagingKind, setPackagingKind] = useState<"bundle" | "box" | "shrink" | "individual" | "premium">("bundle");
 
+  // Доработка 73 — Книга: тип книги, автоматика premium/суперобложка/коллекционная
+  type BookKind =
+    | "kbs_book"
+    | "hardcover_book"
+    | "sewn_book"
+    | "superjacket_book"
+    | "premium_book"
+    | "collectors_edition"
+    | "gift_book";
+  const BOOK_KINDS: { value: BookKind; label: string }[] = [
+    { value: "kbs_book", label: "Книга КБС" },
+    { value: "hardcover_book", label: "Книга в твёрдом переплёте" },
+    { value: "sewn_book", label: "Книга с ниткошвейкой" },
+    { value: "superjacket_book", label: "Книга с суперобложкой" },
+    { value: "premium_book", label: "Premium книга" },
+    { value: "collectors_edition", label: "Коллекционное издание" },
+    { value: "gift_book", label: "Подарочная книга" },
+  ];
+  const [bookKind, setBookKind] = useState<BookKind>(isHardcover ? "hardcover_book" : "kbs_book");
+
+  useEffect(() => {
+    if (!isHardcover && !isSoftcover) return;
+    if (bookKind === "kbs_book") setBindingKind("kbs");
+    else if (bookKind === "sewn_book" || bookKind === "collectors_edition") setBindingKind("sewn");
+    else if (bookKind === "hardcover_book" || bookKind === "premium_book" || bookKind === "gift_book") {
+      setBindingKind((b) => (b === "staple" || b === "eurostaple" ? "sewn" : b));
+    }
+    if (bookKind === "superjacket_book" || bookKind === "premium_book" || bookKind === "collectors_edition" || bookKind === "gift_book") {
+      setHcOptSuperjacket(true);
+    }
+    if (bookKind === "premium_book" || bookKind === "collectors_edition") {
+      setHcOptLasse(true);
+      setHcOptSlipcase(true);
+      setOptSoftTouch(true);
+      setOptStamp(true);
+      setOptEmboss(true);
+      setPackagingKind("premium");
+    }
+    if (bookKind === "gift_book") {
+      setHcOptLasse(true);
+      setOptStamp(true);
+      setPackagingKind("individual");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookKind, isHardcover, isSoftcover]);
+
   // Авто-логика по виду каталога/журнала
   useEffect(() => {
     if (!isCatalogLike) return;
