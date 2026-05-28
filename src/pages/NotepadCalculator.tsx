@@ -70,6 +70,30 @@ const SPRING_MATERIALS: { value: SpringMaterial; label: string; pricePerItem: nu
   { value: "plastic", label: "Пластик", pricePerItem: 38 },
 ];
 
+type NotepadKind =
+  | "simple"
+  | "spiral"
+  | "staple"
+  | "kbs"
+  | "pva"
+  | "planner"
+  | "premium"
+  | "elastic"
+  | "lyasse"
+  | "pocket";
+const NOTEPAD_KINDS: { value: NotepadKind; label: string; coef: number }[] = [
+  { value: "simple", label: "Простой блокнот", coef: 1 },
+  { value: "spiral", label: "Блокнот на пружине", coef: 1.2 },
+  { value: "staple", label: "Блокнот на скобе", coef: 1.1 },
+  { value: "kbs", label: "Блокнот КБС", coef: 1.4 },
+  { value: "pva", label: "Блокнот с проклейкой ПВА", coef: 1.3 },
+  { value: "planner", label: "Ежедневник", coef: 1.6 },
+  { value: "premium", label: "Premium блокнот", coef: 2.0 },
+  { value: "elastic", label: "Блокнот с резинкой", coef: 1.3 },
+  { value: "lyasse", label: "Блокнот с ляссе", coef: 1.3 },
+  { value: "pocket", label: "Блокнот с карманом", coef: 1.35 },
+];
+
 export default function NotepadCalculator() {
   // Основные параметры
   const [presetKey, setPresetKey] = useState("A5");
@@ -125,6 +149,53 @@ export default function NotepadCalculator() {
   const [optTearOff, setOptTearOff] = useState(false);
 
   const [printMode, setPrintMode] = useState<"auto" | "offset" | "digital">("auto");
+
+  // Тип блокнота (управляет коэф. сложности и автоподключением узлов)
+  const [notepadKind, setNotepadKind] = useState<NotepadKind>("spiral");
+
+  // Обложка: дополнительные финиш-операции
+  const [optSoftTouch, setOptSoftTouch] = useState(false);
+  const [optFoil, setOptFoil] = useState(false);
+  const [foilArea, setFoilArea] = useState(20); // см² клише фольгирования
+
+  // Фурнитура / переплётные элементы
+  const [hasForzac, setHasForzac] = useState(false);
+  const [hasKapital, setHasKapital] = useState(false);
+  const [hasMarlya, setHasMarlya] = useState(false);
+  const [hasLyasse, setHasLyasse] = useState(false);
+  const [lyasseCount, setLyasseCount] = useState(1);
+  const [hasElastic, setHasElastic] = useState(false);
+  const [hasPocket, setHasPocket] = useState(false);
+
+  // Персонализация
+  const [optNumbering, setOptNumbering] = useState(false);
+  const [optQR, setOptQR] = useState(false);
+  const [optPersonalize, setOptPersonalize] = useState(false);
+
+  // Упаковка
+  const [optShrink, setOptShrink] = useState(false);
+  const [itemsPerPack, setItemsPerPack] = useState(10);
+
+  const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
+  const premiumCoef = kind.coef;
+
+  // Авто-подстройка типа переплёта под выбранный тип блокнота
+  useEffect(() => {
+    if (notepadKind === "spiral") setBindingKind("spiral");
+    else if (notepadKind === "staple") setBindingKind("staple");
+    else if (notepadKind === "kbs") setBindingKind("kbs");
+    else if (notepadKind === "pva") setBindingKind("pva");
+    if (notepadKind === "premium") {
+      setOptSoftTouch(true); setHasLyasse(true); setHasElastic(true);
+    }
+    if (notepadKind === "lyasse") setHasLyasse(true);
+    if (notepadKind === "elastic") setHasElastic(true);
+    if (notepadKind === "pocket") setHasPocket(true);
+    if (notepadKind === "kbs" || notepadKind === "planner" || notepadKind === "premium") {
+      setHasForzac(true); setHasKapital(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notepadKind]);
 
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[2], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
@@ -236,7 +307,7 @@ export default function NotepadCalculator() {
     }
 
     // Подборка / фальцовка блока
-    push("Сборка", "Подборка блока", circulation, "шт.", 1.2);
+    push("Сборка", "Подборка блока", circulation, "шт.", +(1.2 * premiumCoef).toFixed(2));
 
     // Скрепление
     if (bindingKind === "spiral") {
@@ -271,16 +342,67 @@ export default function NotepadCalculator() {
     if (optRound) push("Постпечать", "Скругление углов", circulation * roundCorners, "угол", 0.6);
     if (optTearOff) push("Постпечать", "Подготовка отрывных листов", 1, "усл.", 1500);
 
+    // Доп. обложечный финиш
+    if (hasCover) {
+      if (optSoftTouch) {
+        const areaM2 = (coverLayout.spreadW * itemH) / 1_000_000;
+        push("Постпечать", "Soft-touch ламинация обложки", +(areaM2 * coverLayout.printSheets).toFixed(3), "м²", 380);
+      }
+      if (optFoil) {
+        push("Постпечать", "Подготовка клише фольгирования", 1, "усл.", 4500);
+        push("Постпечать", "Фольгирование обложки", circulation, "оттиск", Math.max(10, foilArea * 0.7));
+      }
+    }
+
+    // Фурнитура / переплётные элементы
+    if (hasForzac) push("Фурнитура", "Форзацы (комплект)", circulation, "компл.", 12);
+    if (hasKapital) push("Фурнитура", "Каптал", circulation, "шт.", 6);
+    if (hasMarlya) push("Фурнитура", "Марля корешка", circulation, "шт.", 4);
+    if (hasLyasse) {
+      const lyasseLenM = +((itemH + 30) / 1000).toFixed(3); // высота + запас
+      push("Фурнитура", "Ляссе (лента-закладка)", +(lyasseLenM * lyasseCount * circulation).toFixed(2), "м", 18);
+      push("Фурнитура", "Установка ляссе", circulation, "шт.", 1.5 * lyasseCount);
+    }
+    if (hasElastic) {
+      push("Фурнитура", "Резинка", circulation, "шт.", 8);
+      push("Фурнитура", "Установка резинки", circulation, "шт.", 4);
+    }
+    if (hasPocket) {
+      push("Фурнитура", "Карман", circulation, "шт.", 22);
+      push("Фурнитура", "Установка кармана", circulation, "шт.", 5);
+    }
+
+    // Персонализация / нумерация / QR
+    if (optNumbering) {
+      push("Персонализация", "Подготовка базы нумерации", 1, "усл.", 2000);
+      push("Персонализация", "Нумерация", circulation, "шт.", 1.5);
+      push("Персонализация", "Контроль последовательности", circulation, "шт.", 0.5);
+    }
+    if (optQR) {
+      push("Персонализация", "QR-нанесение", circulation, "шт.", 2.5);
+    }
+    if (optPersonalize) {
+      push("Персонализация", "Персонализация (имя/лого)", circulation, "шт.", 25);
+      push("Персонализация", "Проверка персонализации", circulation, "шт.", 1);
+    }
+
+    // Финальная сборка
+    push("Сборка", "Финальная сборка блокнота", circulation, "шт.", +(6 * premiumCoef).toFixed(2));
+
     // Обрезка
     push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.2);
 
     // Логистика
-    push("Логистика", "Контроль качества", 1, "усл.", 1500);
+    push("Логистика", "Контроль качества", circulation, "шт.", +(1.5 * premiumCoef).toFixed(2));
+    if (optShrink) {
+      const packs = Math.max(1, Math.ceil(circulation / Math.max(1, itemsPerPack)));
+      push("Логистика", `Термоусадка (по ${itemsPerPack} шт)`, packs, "уп.", 35);
+    }
     push("Логистика", "Упаковка", circulation, "шт.", 3);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW]);
+  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -311,12 +433,25 @@ export default function NotepadCalculator() {
     }
     s.push("Подборка блока");
     s.push(`Скрепление: ${BINDINGS.find((b) => b.value === bindingKind)?.label}`);
+    if (hasForzac) s.push("Форзацы");
+    if (hasKapital) s.push("Каптал");
+    if (hasMarlya) s.push("Марля корешка");
+    if (hasLyasse) s.push("Установка ляссе");
+    if (hasElastic) s.push("Установка резинки");
+    if (hasPocket) s.push("Установка кармана");
+    if (optNumbering) s.push("Нумерация");
+    if (optQR) s.push("QR-нанесение");
+    if (optPersonalize) s.push("Персонализация");
+    if (optSoftTouch) s.push("Soft-touch");
+    if (optFoil) s.push("Фольгирование");
+    s.push("Финальная сборка");
     if (optPerf) s.push("Перфорация");
     if (optRound) s.push("Скругление углов");
     s.push("Обрезка", "Контроль качества", "Упаковка");
+    if (optShrink) s.push("Термоусадка");
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, offset, hasCover, optCoverLam, optCoverBig, optSpotVarnish, optStamp, optEmboss, hasBacking, backing, backingPrint, bindingKind, optPerf, optRound, hasDelivery]);
+  }, [hasDesign, offset, hasCover, optCoverLam, optCoverBig, optSpotVarnish, optStamp, optEmboss, hasBacking, backing, backingPrint, bindingKind, optPerf, optRound, hasDelivery, hasForzac, hasKapital, hasMarlya, hasLyasse, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optSoftTouch, optFoil, optShrink]);
 
   return (
     <PageShell>
@@ -355,6 +490,15 @@ export default function NotepadCalculator() {
                     </Select>
                   </div>
                   <div><Label>Тираж</Label><Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(+e.target.value || 0)} /></div>
+                  <div className="sm:col-span-2">
+                    <Label>Тип блокнота</Label>
+                    <Select value={notepadKind} onValueChange={(v) => setNotepadKind(v as NotepadKind)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {NOTEPAD_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label} (×{k.coef})</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   {presetKey === "custom" && (<>
                     <div><Label>Ширина, мм</Label><Input type="number" value={customW} onChange={(e) => setCustomW(+e.target.value || 0)} /></div>
                     <div><Label>Высота, мм</Label><Input type="number" value={customH} onChange={(e) => setCustomH(+e.target.value || 0)} /></div>
@@ -587,6 +731,7 @@ export default function NotepadCalculator() {
 
                     {/* Упаковка и доставка */}
                     <AccordionItem value="ship">
+                      {/* Заглушка-якорь, расширенные секции добавлены ниже */}
                       <AccordionTrigger>Упаковка и доставка</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
@@ -595,6 +740,59 @@ export default function NotepadCalculator() {
                             <Label htmlFor="delivery" className="cursor-pointer">Включить доставку</Label>
                           </div>
                           {hasDelivery && (<div><Label>Стоимость доставки</Label><Input type="number" value={deliveryCost} onChange={(e) => setDeliveryCost(+e.target.value || 0)} /></div>)}
+                          <div className="flex items-end gap-2">
+                            <Checkbox id="shrink" checked={optShrink} onCheckedChange={(v) => setOptShrink(!!v)} />
+                            <Label htmlFor="shrink" className="cursor-pointer">Термоусадка комплектами</Label>
+                          </div>
+                          {optShrink && (
+                            <div><Label>Штук в упаковке</Label>
+                              <Input type="number" min={1} value={itemsPerPack} onChange={(e) => setItemsPerPack(+e.target.value || 1)} />
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Фурнитура */}
+                    <AccordionItem value="hardware">
+                      <AccordionTrigger>Фурнитура и переплётные элементы</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 text-sm pt-2">
+                          <Row label="Форзацы" checked={hasForzac} onChange={setHasForzac} />
+                          <Row label="Каптал" checked={hasKapital} onChange={setHasKapital} />
+                          <Row label="Марля корешка" checked={hasMarlya} onChange={setHasMarlya} />
+                          <Row label="Ляссе (закладка)" checked={hasLyasse} onChange={setHasLyasse}>
+                            <Input className="h-8 w-20" type="number" min={1} max={4} value={lyasseCount} onChange={(e) => setLyasseCount(+e.target.value || 1)} />
+                            <span className="text-xs text-muted-foreground">шт.</span>
+                          </Row>
+                          <Row label="Резинка" checked={hasElastic} onChange={setHasElastic} />
+                          <Row label="Карман" checked={hasPocket} onChange={setHasPocket} />
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Доп. финиш обложки */}
+                    <AccordionItem value="cover-finish">
+                      <AccordionTrigger>Финиш обложки (premium)</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 text-sm pt-2">
+                          <Row label="Soft-touch ламинация" checked={optSoftTouch} onChange={setOptSoftTouch} />
+                          <Row label="Фольгирование" checked={optFoil} onChange={setOptFoil}>
+                            <Input className="h-8 w-20" type="number" min={0} value={foilArea} onChange={(e) => setFoilArea(+e.target.value || 0)} />
+                            <span className="text-xs text-muted-foreground">см² клише</span>
+                          </Row>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Персонализация */}
+                    <AccordionItem value="personalize">
+                      <AccordionTrigger>Нумерация и персонализация</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 text-sm pt-2">
+                          <Row label="Нумерация (с контролем последовательности)" checked={optNumbering} onChange={setOptNumbering} />
+                          <Row label="QR-код" checked={optQR} onChange={setOptQR} />
+                          <Row label="Персонализация (имя/лого)" checked={optPersonalize} onChange={setOptPersonalize} />
                         </div>
                       </AccordionContent>
                     </AccordionItem>
