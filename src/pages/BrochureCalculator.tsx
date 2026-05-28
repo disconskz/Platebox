@@ -469,6 +469,8 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
       push("Переплётная крышка", "Сборка переплётной крышки", circulation, "шт.", 12 * premiumCoef);
       push("Переплётная крышка", "Вставка блока в крышку", circulation, "шт.", 8);
       push("Переплётная крышка", "Финальная прессовка", circulation, "шт.", 2);
+      // Доработка 73 — финальная ручная сборка книги с коэффициентом сложности
+      push("Сборка", "Финальная сборка книги", circulation, "шт.", 15 * bookAssemblyCoef);
 
       if (hcOptLasse) push("Премиум", "Ляссе (закладка)", circulation, "шт.", 2.5);
       if (hcOptEdgeColor) push("Премиум", "Окрашивание среза", circulation, "шт.", 6);
