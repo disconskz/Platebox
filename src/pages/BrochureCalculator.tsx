@@ -223,6 +223,14 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookKind, isHardcover, isSoftcover]);
 
+  const bookAssemblyCoef = useMemo(() => {
+    if (!isHardcover && !isSoftcover) return 1;
+    if (bookKind === "premium_book" || bookKind === "collectors_edition") return 2.0;
+    if (bookKind === "superjacket_book" || bookKind === "gift_book") return 1.6;
+    if (bookKind === "hardcover_book" || bookKind === "sewn_book") return 1.4;
+    return 1.0;
+  }, [bookKind, isHardcover, isSoftcover]);
+
   // Авто-логика по виду каталога/журнала
   useEffect(() => {
     if (!isCatalogLike) return;
