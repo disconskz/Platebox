@@ -390,7 +390,6 @@ export default function BagCalculator() {
       if (kind === "diecut") {
         push("Постпечать", "Вырубная ручка (входит в высечку)", circulation, "пакет", 1);
       } else if (handle.mode === "per_m") {
-        const totalM = +(circulation * handle.mode === "per_m" ? circulation * handleLengthM * handlesPerBag : 0);
         push("Постпечать", `${handle.label} (метраж)`,
           +(circulation * handleLengthM * handlesPerBag).toFixed(2), "пог.м", handle.price);
         push("Постпечать", "Установка ручек", circulation, "пакет", 8);
