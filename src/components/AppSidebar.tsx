@@ -43,6 +43,7 @@ const templateCategories: TplCategory[] = [
       { title: "Вкладыш", url: "/calculator/insert" },
       { title: "Купон", url: "/calculator/coupon" },
       { title: "Анкета", url: "/calculator/form" },
+      { title: "Фирменный бланк", url: "/calculator/letterhead" },
       { title: "Меню", url: "/calculator/menu" },
       { title: "Плакат / постер", url: "/calculator/poster" },
       { title: "Открытка", url: "/calculator/card" },
