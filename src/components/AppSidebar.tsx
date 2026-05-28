@@ -103,6 +103,7 @@ const templateCategories: TplCategory[] = [
       { title: "Пакет", url: "/calculator/bag" },
       { title: "Коробка", url: "/calculator/box" },
       { title: "Тубус", url: "/calculator/tube" },
+      { title: "Конверт", url: "/calculator/envelope" },
     ],
   },
   {
