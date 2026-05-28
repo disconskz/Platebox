@@ -146,6 +146,56 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [addressMode, setAddressMode] = useState<"sticker" | "print" | "personal">("print");
   const [optShrink, setOptShrink] = useState(false);
 
+  // Доработка 72 — Каталог / Журнал: тип изделия, клапаны, вкладки (tabs), premium-упаковка
+  type CatalogKind =
+    | "thin_magazine"
+    | "staple_magazine"
+    | "kbs_catalog"
+    | "sewn_magazine"
+    | "thick_catalog"
+    | "flap_magazine"
+    | "tabs_magazine"
+    | "inserts_magazine"
+    | "premium_catalog";
+  const CATALOG_KINDS: { value: CatalogKind; label: string }[] = [
+    { value: "thin_magazine", label: "Тонкий журнал" },
+    { value: "staple_magazine", label: "Журнал на скобе" },
+    { value: "kbs_catalog", label: "Каталог КБС" },
+    { value: "sewn_magazine", label: "Журнал с ниткошвейкой" },
+    { value: "thick_catalog", label: "Толстый каталог" },
+    { value: "flap_magazine", label: "Журнал с клапанами" },
+    { value: "tabs_magazine", label: "Журнал с вкладками" },
+    { value: "inserts_magazine", label: "Журнал со вставками" },
+    { value: "premium_catalog", label: "Premium каталог" },
+  ];
+  const [catalogKind, setCatalogKind] = useState<CatalogKind>(
+    isMagazine ? "staple_magazine" : isCatalog ? "kbs_catalog" : "thin_magazine"
+  );
+  const [optFlaps, setOptFlaps] = useState(false);
+  const [flapWidthMm, setFlapWidthMm] = useState(90);
+  const [optTabs, setOptTabs] = useState(false);
+  const [tabsCount, setTabsCount] = useState(4);
+  const [packagingKind, setPackagingKind] = useState<"bundle" | "box" | "shrink" | "individual" | "premium">("bundle");
+
+  // Авто-логика по виду каталога/журнала
+  useEffect(() => {
+    if (!isCatalogLike) return;
+    if (catalogKind === "staple_magazine") setBindingKind("staple");
+    else if (catalogKind === "kbs_catalog" || catalogKind === "thick_catalog") setBindingKind("kbs");
+    else if (catalogKind === "sewn_magazine") setBindingKind("sewn");
+    else if (catalogKind === "premium_catalog") {
+      setBindingKind((b) => (b === "staple" || b === "eurostaple" ? "kbs" : b));
+      setOptSoftTouch(true);
+      setOptSpotVarnish(true);
+      setOptStamp(true);
+      setPackagingKind("premium");
+    }
+    if (catalogKind === "flap_magazine") setOptFlaps(true);
+    if (catalogKind === "tabs_magazine") setOptTabs(true);
+    if (catalogKind === "inserts_magazine") setOptInserts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogKind, isCatalogLike]);
+
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[1], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
   const itemH = format.value === "custom" ? customH : format.h;
@@ -437,12 +487,27 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     }
     if (isMagazine && optShrink) push("Тиражные", "Термоусадка", circulation, "шт.", 2.5);
 
-    push("Логистика", "Контроль качества", 1, "усл.", 1500);
-    push("Логистика", "Упаковка", circulation, "шт.", 4);
+    // Доработка 72 — клапаны обложки, вкладки (tabs), контроль комплектности, premium-упаковка
+    if (isCatalogLike && optFlaps && flapWidthMm > 0) {
+      const flapAreaM2 = (flapWidthMm * itemH * 2) / 1_000_000;
+      push("Постпечать", "Клапаны обложки (доп. бумага)", +(flapAreaM2 * circulation).toFixed(3), "м²", coverPaper.pricePerSheet / ((coverPaper.sheetW * coverPaper.sheetH) / 1_000_000));
+      push("Постпечать", "Биговка клапанов", circulation * 2, "биг", 1.5);
+      push("Постпечать", "Фальцовка клапанов", circulation * 2, "клапан", 0.9);
+    }
+    if (isCatalogLike && optTabs && tabsCount > 0) {
+      push("Тиражные", "Вкладки (tabs) — материал", circulation * tabsCount, "шт.", 3.5);
+      push("Тиражные", "Высечка вкладок", circulation * tabsCount, "шт.", 1.2);
+      push("Тиражные", "Вклейка вкладок", circulation * tabsCount, "шт.", 2.0);
+    }
+    const completenessCoef = isCatalogLike && (optTabs || optInserts) ? 1.4 : 1.0;
+    push("Логистика", "Контроль качества", circulation, "шт.", 0.5 * completenessCoef);
+    const packPrice = packagingKind === "premium" ? 65 : packagingKind === "individual" ? 25 : packagingKind === "shrink" ? 3.5 : packagingKind === "box" ? 8 : 4;
+    const packLabel = packagingKind === "premium" ? "Premium-упаковка" : packagingKind === "individual" ? "Индивидуальная упаковка" : packagingKind === "shrink" ? "Термоусадка" : packagingKind === "box" ? "Коробка" : "Пачка";
+    push("Логистика", packLabel, circulation, "шт.", packPrice);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [isCatalog, isMagazine, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, hasDelivery, deliveryCost]);
+  }, [isCatalog, isMagazine, isCatalogLike, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, optFlaps, flapWidthMm, optTabs, tabsCount, packagingKind, hasDelivery, deliveryCost]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -498,10 +563,13 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     if (isMagazine && optInserts) s.push("Вкладка");
     if (isMagazine && optAddress) s.push("Адресация");
     if (isMagazine && optShrink) s.push("Термоусадка");
-    s.push("Контроль качества", "Упаковка");
+    if (isCatalogLike && optFlaps) s.push("Клапаны обложки");
+    if (isCatalogLike && optTabs) s.push("Вкладки (tabs)");
+    s.push("Контроль качества");
+    s.push(packagingKind === "premium" ? "Premium-упаковка" : packagingKind === "individual" ? "Индивидуальная упаковка" : packagingKind === "shrink" ? "Термоусадка" : packagingKind === "box" ? "Упаковка в коробку" : "Упаковка в пачки");
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isHardcover, isPlanner, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plOptNameplate, plOptPersonalize, plOptGiftBox, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, hasDelivery, BINDINGS]);
+  }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isCatalogLike, isHardcover, isPlanner, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plOptNameplate, plOptPersonalize, plOptGiftBox, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, optFlaps, optTabs, packagingKind, hasDelivery, BINDINGS]);
 
   return (
     <PageShell>
@@ -776,6 +844,51 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                     <Row label="Шильдик" checked={plOptNameplate} onChange={setPlOptNameplate} />
                     <Row label="Персонализация (имя/логотип)" checked={plOptPersonalize} onChange={setPlOptPersonalize} />
                     <Row label="Индивидуальная подарочная упаковка" checked={plOptGiftBox} onChange={setPlOptGiftBox} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {isCatalogLike && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Конструкция каталога/журнала</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <Label>Тип изделия</Label>
+                      <Select value={catalogKind} onValueChange={(v) => setCatalogKind(v as CatalogKind)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CATALOG_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2 space-y-2 text-sm">
+                      <Row label="Клапаны обложки" checked={optFlaps} onChange={setOptFlaps}>
+                        <Input className="h-8 w-20" type="number" min={20} value={flapWidthMm} onChange={(e) => setFlapWidthMm(+e.target.value || 0)} />
+                        <span className="text-xs text-muted-foreground">мм ширина</span>
+                      </Row>
+                      <Row label="Вкладки (tabs) с высечкой" checked={optTabs} onChange={setOptTabs}>
+                        <Input className="h-8 w-20" type="number" min={1} value={tabsCount} onChange={(e) => setTabsCount(+e.target.value || 1)} />
+                        <span className="text-xs text-muted-foreground">шт./изд.</span>
+                      </Row>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>Тип упаковки</Label>
+                      <Select value={packagingKind} onValueChange={(v) => setPackagingKind(v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bundle">Пачка</SelectItem>
+                          <SelectItem value="box">Коробка</SelectItem>
+                          <SelectItem value="shrink">Термоусадка</SelectItem>
+                          <SelectItem value="individual">Индивидуальная</SelectItem>
+                          <SelectItem value="premium">Premium-упаковка</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {(optTabs || optInserts) && (
+                      <div className="sm:col-span-2 text-xs text-muted-foreground">
+                        Контроль комплектности: ×1.4 (вкладки/вставки).
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
