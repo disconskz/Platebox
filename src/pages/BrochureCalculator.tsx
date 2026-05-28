@@ -177,6 +177,60 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
   const [tabsCount, setTabsCount] = useState(4);
   const [packagingKind, setPackagingKind] = useState<"bundle" | "box" | "shrink" | "individual" | "premium">("bundle");
 
+  // Доработка 73 — Книга: тип книги, автоматика premium/суперобложка/коллекционная
+  type BookKind =
+    | "kbs_book"
+    | "hardcover_book"
+    | "sewn_book"
+    | "superjacket_book"
+    | "premium_book"
+    | "collectors_edition"
+    | "gift_book";
+  const BOOK_KINDS: { value: BookKind; label: string }[] = [
+    { value: "kbs_book", label: "Книга КБС" },
+    { value: "hardcover_book", label: "Книга в твёрдом переплёте" },
+    { value: "sewn_book", label: "Книга с ниткошвейкой" },
+    { value: "superjacket_book", label: "Книга с суперобложкой" },
+    { value: "premium_book", label: "Premium книга" },
+    { value: "collectors_edition", label: "Коллекционное издание" },
+    { value: "gift_book", label: "Подарочная книга" },
+  ];
+  const [bookKind, setBookKind] = useState<BookKind>(isHardcover ? "hardcover_book" : "kbs_book");
+
+  useEffect(() => {
+    if (!isHardcover && !isSoftcover) return;
+    if (bookKind === "kbs_book") setBindingKind("kbs");
+    else if (bookKind === "sewn_book" || bookKind === "collectors_edition") setBindingKind("sewn");
+    else if (bookKind === "hardcover_book" || bookKind === "premium_book" || bookKind === "gift_book") {
+      setBindingKind((b) => (b === "staple" || b === "eurostaple" ? "sewn" : b));
+    }
+    if (bookKind === "superjacket_book" || bookKind === "premium_book" || bookKind === "collectors_edition" || bookKind === "gift_book") {
+      setHcOptSuperjacket(true);
+    }
+    if (bookKind === "premium_book" || bookKind === "collectors_edition") {
+      setHcOptLasse(true);
+      setHcOptSlipcase(true);
+      setOptSoftTouch(true);
+      setOptStamp(true);
+      setOptEmboss(true);
+      setPackagingKind("premium");
+    }
+    if (bookKind === "gift_book") {
+      setHcOptLasse(true);
+      setOptStamp(true);
+      setPackagingKind("individual");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookKind, isHardcover, isSoftcover]);
+
+  const bookAssemblyCoef = useMemo(() => {
+    if (!isHardcover && !isSoftcover) return 1;
+    if (bookKind === "premium_book" || bookKind === "collectors_edition") return 2.0;
+    if (bookKind === "superjacket_book" || bookKind === "gift_book") return 1.6;
+    if (bookKind === "hardcover_book" || bookKind === "sewn_book") return 1.4;
+    return 1.0;
+  }, [bookKind, isHardcover, isSoftcover]);
+
   // Авто-логика по виду каталога/журнала
   useEffect(() => {
     if (!isCatalogLike) return;
@@ -423,6 +477,8 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
       push("Переплётная крышка", "Сборка переплётной крышки", circulation, "шт.", 12 * premiumCoef);
       push("Переплётная крышка", "Вставка блока в крышку", circulation, "шт.", 8);
       push("Переплётная крышка", "Финальная прессовка", circulation, "шт.", 2);
+      // Доработка 73 — финальная ручная сборка книги с коэффициентом сложности
+      push("Сборка", "Финальная сборка книги", circulation, "шт.", 15 * bookAssemblyCoef);
 
       if (hcOptLasse) push("Премиум", "Ляссе (закладка)", circulation, "шт.", 2.5);
       if (hcOptEdgeColor) push("Премиум", "Окрашивание среза", circulation, "шт.", 6);
@@ -789,6 +845,27 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
                     </div>
                     <div className="sm:col-span-2 text-xs text-muted-foreground">
                       Шаблон выпуска №{issueNumber} ({periodicity}) — параметры сохраняются для повторных тиражей.
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {(isHardcover || isSoftcover) && (
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Тип книги</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <Label>Тип изделия</Label>
+                      <Select value={bookKind} onValueChange={(v) => setBookKind(v as BookKind)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {BOOK_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
+                      Коэф. финальной сборки: ×{bookAssemblyCoef.toFixed(2)}.
+                      Premium/коллекционные — авто soft-touch, тиснение, конгрев, ляссе, футляр, premium-упаковка.
                     </div>
                   </CardContent>
                 </Card>
