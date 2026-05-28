@@ -105,6 +105,12 @@ const templateCategories: TplCategory[] = [
       { title: "Тубус", url: "/calculator/tube" },
     ],
   },
+  {
+    title: "POS-материалы",
+    items: [
+      { title: "POS / Воблер / Шелфтокер", url: "/calculator/pos" },
+    ],
+  },
 ];
 
 const allTemplates: Tpl[] = templateCategories.flatMap((c) => c.items);
