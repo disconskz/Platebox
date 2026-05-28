@@ -97,6 +97,12 @@ const templateCategories: TplCategory[] = [
       { title: "Бирка / Ярлык", url: "/calculator/hangtag" },
     ],
   },
+  {
+    title: "Упаковка",
+    items: [
+      { title: "Пакет", url: "/calculator/bag" },
+    ],
+  },
 ];
 
 const allTemplates: Tpl[] = templateCategories.flatMap((c) => c.items);
