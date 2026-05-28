@@ -97,7 +97,7 @@ export default function NcrCalculator() {
   const [layers, setLayers] = useState(3);
   const [topKey, setTopKey] = useState("cb-white");
   const [midKey, setMidKey] = useState("cfb-yellow");
-  const [botKey, setBotKey] = useState("cf-pink" in {} ? "cf-pink" : "cf-yellow");
+  const [botKey, setBotKey] = useState("cf-white");
   const [autoCollate, setAutoCollate] = useState(true); // ручная / автоподборка
   const [collatePricePerSheet, setCollatePricePerSheet] = useState(0.6);
 
