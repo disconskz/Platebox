@@ -48,7 +48,7 @@ const MATERIALS: Material[] = [
 
 type FolderKind =
   | "plain" | "pocket1" | "pocket2" | "flap" | "bizcut" | "spine"
-  | "elastic" | "rings" | "premium" | "custom";
+  | "elastic" | "rings" | "magnet" | "kashed" | "lozhement" | "premium" | "custom";
 const KINDS: { value: FolderKind; label: string; complexity: number }[] = [
   { value: "plain", label: "Простая (без кармана)", complexity: 1.0 },
   { value: "pocket1", label: "С 1 карманом", complexity: 1.2 },
@@ -58,6 +58,9 @@ const KINDS: { value: FolderKind; label: string; complexity: number }[] = [
   { value: "spine", label: "С корешком", complexity: 1.3 },
   { value: "elastic", label: "На резинке", complexity: 1.5 },
   { value: "rings", label: "На кольцах", complexity: 1.6 },
+  { value: "magnet", label: "С магнитом", complexity: 1.5 },
+  { value: "kashed", label: "Кашированная (на переплётном картоне)", complexity: 1.7 },
+  { value: "lozhement", label: "С ложементом", complexity: 1.7 },
   { value: "premium", label: "Premium", complexity: 1.8 },
   { value: "custom", label: "Нестандартная конструкция", complexity: 1.5 },
 ];
@@ -152,6 +155,17 @@ export default function FolderCalculator() {
   const [optMagnet, setOptMagnet] = useState(false);
   const [magnetCount, setMagnetCount] = useState(1);
 
+  // Кашировка
+  const [optKashirovka, setOptKashirovka] = useState(false);
+  const [kashPricePerM2, setKashPricePerM2] = useState(420);
+  const [kashBoardKey, setKashBoardKey] = useState("bookbind1mm");
+
+  // Ложемент
+  const [optLozhement, setOptLozhement] = useState(false);
+  const [lozhementType, setLozhementType] = useState<"foam" | "eva" | "cardboard" | "velvet">("foam");
+  const [lozhementAreaCm2, setLozhementAreaCm2] = useState(450);
+  const [lozhementAssemblyPrice, setLozhementAssemblyPrice] = useState(35);
+
   // Упаковка
   const [packKind, setPackKind] = useState<PackKind>("none");
 
@@ -177,6 +191,12 @@ export default function FolderCalculator() {
       if (lamType === "none") setLamType("soft");
       setOptStamp(true);
     }
+    if (kind === "magnet") setOptMagnet(true);
+    if (kind === "kashed") {
+      setOptKashirovka(true);
+      if (!material.premium) setMaterialKey("bookbind1mm");
+    }
+    if (kind === "lozhement") setOptLozhement(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind]);
 
