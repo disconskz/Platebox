@@ -1057,7 +1057,7 @@ const formatDimSchema = z.number().int().positive().max(2000);
 const Calculator = () => {
   const navigate = useNavigate();
   const { loading: authLoading, user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const { items: glossary } = useProductGlossary();
   const [glossarySlug, setGlossarySlug] = useState<string>("leaflet");
@@ -4896,6 +4896,10 @@ const Calculator = () => {
           </div>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <AiOrderAssistant onApply={applyAiOrder} />
+            <TemplatePicker
+              currentId={searchParams.get("from")}
+              onPick={(id) => setSearchParams({ from: id })}
+            />
             {result && !("error" in result) ? (
               <div className="hidden sm:flex items-center gap-3 text-right">
                 <div>
