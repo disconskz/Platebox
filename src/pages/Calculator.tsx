@@ -27,6 +27,7 @@ import { calcRigel, type RigelRule, type RigelCalcMode } from "@/lib/calc/rigel"
 import { calcEmbossing, type EmbossingRule, type EmbossingType } from "@/lib/calc/embossing";
 import { calcCongrev, type CongrevRule, type CongrevType } from "@/lib/calc/congrev";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
+import { getCaps, type ProductCapabilities } from "@/lib/calc/capabilities";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
