@@ -456,6 +456,12 @@ export default function BoxProCalculator({ embedded = false, onResult }: BoxProC
     };
   }, [parts, circulation, margin, vatPercent, hasMagnet, hasRibbon, hasHandle, hasEyelet]);
 
+  // Прокидываем результат расчёта родителю (Calculator → боковая панель),
+  // чтобы цифры в сайдбаре были идентичны тому, что считает шаблон.
+  useEffect(() => {
+    onResult?.({ result: result as BoxPriceResult, margin, vatPercent });
+  }, [result, margin, vatPercent, onResult]);
+
   // ── UI: оболочка для embedded ─────────────────────────────────────
   const Shell: any = embedded ? Fragment : PageShell;
   const Main: any = embedded ? Fragment : PageMain;
