@@ -522,6 +522,36 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
       )}
       <Main>
         <PageContainer>
+          {/* Переключатель уровней (Доработка 84): простой для менеджера / полный для технолога */}
+          <div className="mb-3 inline-flex rounded-lg border bg-card p-1">
+            <button
+              type="button"
+              onClick={() => setMode("simple")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition",
+                mode === "simple" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Wand2 className="h-4 w-4" /> Менеджер
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("tech")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition",
+                mode === "tech" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Wrench className="h-4 w-4" /> Технолог
+            </button>
+          </div>
+          <div className="mb-3 text-xs text-muted-foreground">
+            {mode === "simple"
+              ? "Простой режим: программа сама строит развёртки, считает штампы, ножи и спуски, выбирает формат и маршрут."
+              : "Технологический режим: полный мастер с развёртками, сравнением форматов, групповыми спусками и маршрутом производства."}
+          </div>
+
+          {mode === "tech" && (
           <div className="mb-4 flex flex-wrap gap-2">
             {stepBtn(1, "1. Тип")}
             {stepBtn(2, "2. Размеры")}
@@ -530,10 +560,81 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
             {stepBtn(5, "5. Опции")}
             {stepBtn(6, "6. Итог")}
           </div>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
             <div className="space-y-4">
-              {step === 1 && (
+              {mode === "simple" && (
+                <Card>
+                  <CardHeader><CardTitle>Параметры коробки</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block text-xs text-muted-foreground">Тип коробки</Label>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {SUBTYPES.map((s) => (
+                          <button
+                            key={s.value}
+                            type="button"
+                            onClick={() => setSubType(s.value)}
+                            className={cn(
+                              "rounded-lg border p-2 text-left text-sm transition",
+                              subType === s.value ? "border-primary bg-primary/5" : "border-border hover:bg-accent",
+                            )}
+                          >
+                            <div className="font-medium">{s.label}</div>
+                            <div className="text-[11px] text-muted-foreground">{s.hint}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Ширина, мм</Label>
+                        <Input type="number" value={innerW} onChange={(e) => setInnerW(Number(e.target.value) || 0)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Длина, мм</Label>
+                        <Input type="number" value={innerL} onChange={(e) => setInnerL(Number(e.target.value) || 0)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Высота, мм</Label>
+                        <Input type="number" value={innerH} onChange={(e) => setInnerH(Number(e.target.value) || 0)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Тираж, шт</Label>
+                        <Input type="number" value={circulation} onChange={(e) => setCirculation(Math.max(1, Number(e.target.value) || 1))} />
+                      </div>
+                    </div>
+                    <Separator />
+                    <div>
+                      <Label className="mb-2 block text-xs text-muted-foreground">Доп. опции</Label>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox checked={hasMagnet} onCheckedChange={(v) => setHasMagnet(!!v)} /> Магниты
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox checked={hasRibbon} onCheckedChange={(v) => setHasRibbon(!!v)} /> Лента / резинка
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox checked={hasHandle} onCheckedChange={(v) => setHasHandle(!!v)} /> Ручки
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox checked={hasEyelet} onCheckedChange={(v) => setHasEyelet(!!v)} /> Люверсы
+                        </label>
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
+                      Программа автоматически: построит {parts.length} деталь(-ей) развёртки,
+                      подберёт печатный формат (A3+/A2+), сгруппирует одинаковые материалы в общий спуск,
+                      посчитает штампы (ножи и биги) и построит маршрут производства.
+                      Чтобы проверить технологию — переключитесь в «Технолог».
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {mode === "tech" && step === 1 && (
                 <Card>
                   <CardHeader><CardTitle>Тип коробки</CardTitle></CardHeader>
                   <CardContent className="grid gap-2 sm:grid-cols-2">
@@ -555,7 +656,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {step === 2 && (
+              {mode === "tech" && step === 2 && (
                 <Card>
                   <CardHeader><CardTitle>Размеры коробки (внутренние, мм)</CardTitle></CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
