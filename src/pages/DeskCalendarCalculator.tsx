@@ -105,6 +105,41 @@ export default function DeskCalendarCalculator({ embedded = false }: DeskCalenda
   const [optIndividualPack, setOptIndividualPack] = useState(false);
   const [packType, setPackType] = useState<"bag" | "shrink" | "box" | "premium">("bag");
 
+  // При встраивании в Calculator (Новый расчёт) подхватываем шаблон ?from=…
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (!embedded) return;
+    const tpl = searchParams.get("from");
+    if (!tpl) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("calculations")
+        .select("circulation,format_type,format_width,format_height,color_front,color_back,margin_percent")
+        .eq("id", tpl)
+        .single();
+      if (cancelled || error || !data) return;
+      if (data.circulation) setCirculation(Number(data.circulation));
+      if (data.format_type) {
+        const known = BASE_FORMATS.find((f) => f.value === data.format_type);
+        setBasePreset(known ? known.value : "custom");
+      }
+      if (data.format_width) setBaseW(Number(data.format_width));
+      if (data.format_height) setBaseH(Number(data.format_height));
+      if (data.color_front != null) {
+        setColorBaseFront(Number(data.color_front));
+        setColorLeafFront(Number(data.color_front));
+      }
+      if (data.color_back != null) {
+        setColorBaseBack(Number(data.color_back));
+        setColorLeafBack(Number(data.color_back));
+      }
+      if (data.margin_percent) setMargin(Number(data.margin_percent));
+      toast.info("Шаблон применён");
+    })();
+    return () => { cancelled = true; };
+  }, [embedded, searchParams]);
+
   useEffect(() => {
     (async () => {
       try {
