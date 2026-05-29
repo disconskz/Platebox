@@ -847,6 +847,45 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         })}
                       </div>
                     </div>
+
+                    {/* Этап 4: авто-расчёт штампа из развёртки */}
+                    <div className="mt-6 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Авто-расчёт штампа из развёртки (ножи и биговки)
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Деталь</TableHead>
+                            <TableHead className="text-right">Нож, м</TableHead>
+                            <TableHead className="text-right">Биг, м</TableHead>
+                            <TableHead className="text-right">Нож, ₸</TableHead>
+                            <TableHead className="text-right">Биг, ₸</TableHead>
+                            <TableHead className="text-right">Приладка</TableHead>
+                            <TableHead className="text-right">Прогон</TableHead>
+                            <TableHead className="text-right">Штамп итого</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {result.lines.map((l) => (
+                            <TableRow key={l.part.id + "-die"}>
+                              <TableCell className="text-xs">{l.part.name}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? (l.diecut.knifeOnDieMm / 1000).toFixed(2) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? (l.diecut.bigOnDieMm / 1000).toFixed(2) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.knifeCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.bigCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.setupCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.runCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs font-medium">{l.diecut ? fmtMoney(l.diecut.total) : "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="text-[11px] text-muted-foreground">
+                        Длина ножей считается из периметра развёртки (× деталей на листе),
+                        биговки — по типу детали. Менеджеру не нужно знать технологию штампа.
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
