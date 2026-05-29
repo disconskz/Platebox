@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus, AlertCircle } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Trash2, Plus, AlertCircle, ChevronsUpDown } from "lucide-react";
 import { evalFormula, extractVariables, parseDefault } from "@/lib/operations/formula";
 import type { SpecItem } from "@/lib/calc/types";
 
@@ -52,6 +53,7 @@ export function CatalogOperationsPicker({ circulation, onChange }: Props) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SelectedOp[]>([]);
   const [query, setQuery] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -147,37 +149,43 @@ export function CatalogOperationsPicker({ circulation, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Select onValueChange={(v) => addOp(Number(v))}>
-          <SelectTrigger className="flex-1">
-            <SelectValue placeholder="Добавить операцию из справочника…" />
-          </SelectTrigger>
-          <SelectContent>
-            <div className="sticky top-0 z-10 bg-popover p-2 border-b">
-              <Input
-                autoFocus
-                placeholder="Поиск операции…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.stopPropagation()}
-                className="h-8"
-              />
-            </div>
-            {(() => {
-              const q = query.trim().toLowerCase();
-              const list = q
-                ? calculableCatalog.filter((op) => op.name.toLowerCase().includes(q))
-                : calculableCatalog;
-              if (!list.length) {
-                return <div className="px-3 py-4 text-xs text-muted-foreground">Ничего не найдено</div>;
-              }
-              return list.map((op) => (
-                <SelectItem key={op.code} value={String(op.code)}>
-                  {op.name}
-                </SelectItem>
-              ));
-            })()}
-          </SelectContent>
-        </Select>
+        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" role="combobox" className="flex-1 justify-between font-normal">
+              <span className="text-muted-foreground truncate">Добавить операцию из справочника…</span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <Command shouldFilter={false}>
+              <CommandInput placeholder="Поиск операции…" value={query} onValueChange={setQuery} />
+              <CommandList className="max-h-[360px]">
+                <CommandEmpty>Ничего не найдено</CommandEmpty>
+                <CommandGroup>
+                  {(() => {
+                    const q = query.trim().toLowerCase();
+                    const list = q
+                      ? calculableCatalog.filter((op) => op.name.toLowerCase().includes(q))
+                      : calculableCatalog;
+                    return list.map((op) => (
+                      <CommandItem
+                        key={op.code}
+                        value={`${op.code}-${op.name}`}
+                        onSelect={() => {
+                          addOp(op.code);
+                          setPickerOpen(false);
+                          setQuery("");
+                        }}
+                      >
+                        {op.name}
+                      </CommandItem>
+                    ));
+                  })()}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
         <Plus className="h-4 w-4 text-muted-foreground" />
       </div>
       {!calculableCatalog.length && (

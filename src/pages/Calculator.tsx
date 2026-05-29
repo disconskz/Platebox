@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GlossaryCombobox } from "@/components/calc/GlossaryCombobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -5052,48 +5053,13 @@ const Calculator = () => {
                         Определяет автопресет постпечати и геометрию плитки в превью раскладки. Выберите ближайший по типу.
                       </HelpHint>
                     </Label>
-                    <Select value={glossarySlug} onValueChange={setGlossarySlug}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent className="max-h-[400px]">
-                        <div className="sticky top-0 z-10 bg-popover p-2 border-b">
-                          <Input
-                            autoFocus
-                            placeholder="Поиск вида продукции…"
-                            value={glossaryQuery}
-                            onChange={(e) => setGlossaryQuery(e.target.value)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            className="h-8"
-                          />
-                        </div>
-                        {(Object.keys(CATEGORY_LABELS) as GlossaryCategory[]).map((cat) => {
-                          const q = glossaryQuery.trim().toLowerCase();
-                          const its = glossary.filter((g) =>
-                            g.category === cat && (!q || g.name.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q))
-                          );
-                          if (!its.length) return null;
-                          return (
-                            <Fragment key={cat}>
-                              <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                                {CATEGORY_LABELS[cat]}
-                              </div>
-                              {its.map((g) => (
-                                <SelectItem key={g.slug} value={g.slug}>
-                                  <span>{g.name}</span>
-                                  {!g.is_calculable && <span className="ml-2 text-[10px] text-muted-foreground">(по запросу)</span>}
-                                </SelectItem>
-                              ))}
-                            </Fragment>
-                          );
-                        })}
-                        {(() => {
-                          const q = glossaryQuery.trim().toLowerCase();
-                          if (!q) return null;
-                          const any = glossary.some((g) => g.name.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q));
-                          if (any) return null;
-                          return <div className="px-3 py-4 text-xs text-muted-foreground">Ничего не найдено</div>;
-                        })()}
-                      </SelectContent>
-                    </Select>
+                    <GlossaryCombobox
+                      value={glossarySlug}
+                      onChange={setGlossarySlug}
+                      query={glossaryQuery}
+                      onQueryChange={setGlossaryQuery}
+                      glossary={glossary}
+                    />
                     {(() => {
                       const it = glossary.find((g) => g.slug === glossarySlug);
                       if (!it) return null;
