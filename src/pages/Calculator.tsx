@@ -5328,8 +5328,95 @@ const Calculator = () => {
             </section>
 
             <section id="section-2" className="scroll-mt-24">
+              {caps.cover && (
+                <Card className="mb-4 border-primary/30">
+                  <CardHeader>
+                    <CardTitle>Обложка</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Отдельные параметры печати для обложки. Блок ниже («Бумага», «Красочность») задаёт <b>внутренний блок (тетрадь)</b>.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Бумага обложки</Label>
+                      <Select value={coverPaperId} onValueChange={setCoverPaperId}>
+                        <SelectTrigger><SelectValue placeholder="Выберите бумагу для обложки…" /></SelectTrigger>
+                        <SelectContent>
+                          {materials.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} · {m.density} г/м² · {fmtMoney(m.cost_per_sheet)}/лист
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Формат и раскрой обложки берутся равными формату изделия ({dims.w}×{dims.h} мм). Тираж — {circulation} шт.
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Красочность обложки</Label>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {[
+                          { f: 4, b: 4, label: "4+4" },
+                          { f: 4, b: 0, label: "4+0" },
+                          { f: 4, b: 1, label: "4+1" },
+                          { f: 1, b: 1, label: "1+1" },
+                          { f: 1, b: 0, label: "1+0" },
+                        ].map((p) => {
+                          const active = coverColorFront === p.f && coverColorBack === p.b;
+                          return (
+                            <button
+                              key={p.label}
+                              type="button"
+                              onClick={() => { setCoverColorFront(p.f); setCoverColorBack(p.b); }}
+                              className={cn(
+                                "px-3 py-1 rounded-full text-xs border transition-colors",
+                                active
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                              )}
+                            >
+                              {p.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Лицо</Label>
+                          <Input type="number" min={0} max={10} value={coverColorFront} onChange={(e) => setCoverColorFront(Number(e.target.value) || 0)} />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Оборот (0 = без)</Label>
+                          <Input type="number" min={0} max={10} value={coverColorBack} onChange={(e) => setCoverColorBack(Number(e.target.value) || 0)} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverLamPrepress} onCheckedChange={(v) => setCoverLamPrepress(!!v)} />
+                        <span>Припресс плёнкой</span>
+                      </label>
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverPouchLam} onCheckedChange={(v) => setCoverPouchLam(!!v)} />
+                        <span>Пакетная ламинация</span>
+                      </label>
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverStamping} onCheckedChange={(v) => setCoverStamping(!!v)} />
+                        <span>Тиснение фольгой</span>
+                      </label>
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverCongrev} onCheckedChange={(v) => setCoverCongrev(!!v)} />
+                        <span>Конгрев</span>
+                      </label>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
-                <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle>2. Бумага {caps.cover && <span className="text-sm font-normal text-muted-foreground">— внутренний блок (тетрадь)</span>}</CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
                     <div>
