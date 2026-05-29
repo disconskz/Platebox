@@ -15,6 +15,7 @@ import { fmtMoney } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { pickBestFormat, type ImposeResult } from "@/lib/calc/box-pro/impose";
 
 /**
  * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
@@ -206,8 +207,7 @@ function autoPartsFor(sub: BoxSubType, w: number, l: number, h: number, lidH: nu
   }
 }
 
-// ─── Цены доп. операций (упрощённые, до полноценного движка) ─────────
-const PRINT_PRICE_PER_SHEET = 25;     // тг/лист 4+0 (упрощ.)
+// ─── Цены доп. операций (печать/материал считает движок imposition) ──
 const LAM_PRICE_PER_SHEET = 18;       // тг/лист с одной стороны
 const FOIL_PRICE_PER_PART = 8;        // тг/деталь
 const EMBOSS_PRICE_PER_PART = 6;      // тг/деталь
@@ -216,17 +216,24 @@ const DIECUT_SETUP = 5000;            // тг приладка штампа (п�
 const ASSEMBLY_PER_BOX = 25;          // тг/коробка ручная сборка
 
 function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefined) {
-  if (!mat) return { sheets: 0, materialCost: 0, printCost: 0, lamCost: 0, postCost: 0, partTotal: 0 };
-  // Сколько деталей на лист по площади (упрощённо, без полноценного спуска)
-  const cols = Math.max(1, Math.floor(mat.sheetW / Math.max(10, part.developW)));
-  const rows = Math.max(1, Math.floor(mat.sheetH / Math.max(10, part.developH)));
-  const perSheet = Math.max(1, cols * rows);
+  if (!mat) {
+    return { sheets: 0, perSheet: 0, materialCost: 0, printCost: 0, lamCost: 0, foilCost: 0, embossCost: 0, dieCost: 0, postCost: 0, partTotal: 0, impose: null as ImposeResult | null };
+  }
   const totalParts = circulation * part.qtyPerBox;
-  const sheets = Math.ceil(totalParts / perSheet) * (1 + mat.wastePct / 100);
-  const sheetsInt = Math.ceil(sheets);
-  const materialCost = sheetsInt * mat.pricePerSheet;
-  const hasPrint = part.colorFront + part.colorBack > 0;
-  const printCost = hasPrint ? sheetsInt * PRINT_PRICE_PER_SHEET * ((part.colorFront + part.colorBack) / 4) : 0;
+  const impose = pickBestFormat({
+    developW: part.developW,
+    developH: part.developH,
+    totalParts,
+    sheetW: mat.sheetW,
+    sheetH: mat.sheetH,
+    colorSum: part.colorFront + part.colorBack,
+    pricePerPurchaseSheet: mat.pricePerSheet,
+    wastePct: mat.wastePct,
+  });
+  const sheetsInt = impose.best?.sheets ?? 0;
+  const perSheet = impose.best?.itemsPerSheet ?? 0;
+  const materialCost = impose.best?.materialCost ?? 0;
+  const printCost = impose.best?.printCost ?? 0;
   const lamCost = part.hasLam ? sheetsInt * LAM_PRICE_PER_SHEET * part.lamSides : 0;
   const foilCost = part.hasFoil ? totalParts * FOIL_PRICE_PER_PART : 0;
   const embossCost = part.hasEmboss ? totalParts * EMBOSS_PRICE_PER_PART : 0;
@@ -243,6 +250,7 @@ function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefin
     dieCost,
     postCost,
     partTotal: materialCost + printCost + postCost,
+    impose,
   };
 }
 
@@ -627,6 +635,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         <TableRow>
                           <TableHead>Деталь</TableHead>
                           <TableHead>Материал</TableHead>
+                          <TableHead>Формат</TableHead>
                           <TableHead className="text-right">На листе</TableHead>
                           <TableHead className="text-right">Листов</TableHead>
                           <TableHead className="text-right">Материал</TableHead>
@@ -640,6 +649,16 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                           <TableRow key={l.part.id}>
                             <TableCell>{l.part.name}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{l.mat?.label ?? "—"}</TableCell>
+                            <TableCell className="text-xs">
+                              {l.impose?.best ? (
+                                <div className="space-y-0.5">
+                                  <Badge variant={l.impose.splitFromA1 ? "destructive" : "secondary"}>
+                                    {l.impose.best.format.id}
+                                  </Badge>
+                                  <div className="text-[10px] text-muted-foreground">{l.impose.hint}</div>
+                                </div>
+                              ) : "—"}
+                            </TableCell>
                             <TableCell className="text-right">{l.perSheet ?? 0}</TableCell>
                             <TableCell className="text-right">{l.sheets}</TableCell>
                             <TableCell className="text-right">{fmtMoney(l.materialCost)}</TableCell>
@@ -650,6 +669,47 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         ))}
                       </TableBody>
                     </Table>
+                    {/* Сравнение вариантов: показываем сколько стоил бы каждый формат */}
+                    <div className="mt-4 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Сравнение форматов по деталям</div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Деталь</TableHead>
+                              <TableHead>Вариант</TableHead>
+                              <TableHead className="text-right">Листов</TableHead>
+                              <TableHead className="text-right">Материал</TableHead>
+                              <TableHead className="text-right">Печать</TableHead>
+                              <TableHead className="text-right">Сумма</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {result.lines.flatMap((l) =>
+                              (l.impose?.variants ?? []).map((v, i) => {
+                                const isBest = l.impose?.best?.format.id === v.format.id;
+                                return (
+                                  <TableRow key={l.part.id + "-" + v.format.id} className={isBest ? "bg-primary/5" : ""}>
+                                    <TableCell className="text-xs">{i === 0 ? l.part.name : ""}</TableCell>
+                                    <TableCell className="text-xs">
+                                      {v.format.label} {isBest && <Badge variant="outline" className="ml-1">выбран</Badge>}
+                                    </TableCell>
+                                    <TableCell className="text-right text-xs">{v.sheets}</TableCell>
+                                    <TableCell className="text-right text-xs">{fmtMoney(v.materialCost)}</TableCell>
+                                    <TableCell className="text-right text-xs">{fmtMoney(v.printCost)}</TableCell>
+                                    <TableCell className="text-right text-xs font-medium">{fmtMoney(v.total)}</TableCell>
+                                  </TableRow>
+                                );
+                              }),
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Формат A1 в производстве не используется — система перебирает только A3+ и A2+
+                        и выбирает самый выгодный по сумме материал+печать.
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
