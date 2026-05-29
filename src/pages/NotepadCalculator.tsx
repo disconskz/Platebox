@@ -96,8 +96,11 @@ const NOTEPAD_KINDS: { value: NotepadKind; label: string; coef: number }[] = [
   { value: "pocket", label: "Блокнот с карманом", coef: 1.35 },
 ];
 
-export interface NotepadCalculatorProps { embedded?: boolean }
-export default function NotepadCalculator({ embedded = false }: NotepadCalculatorProps = {}) {
+export interface NotepadCalculatorProps {
+  embedded?: boolean;
+  onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
+}
+export default function NotepadCalculator({ embedded = false, onResult }: NotepadCalculatorProps = {}) {
   // Основные параметры
   const [presetKey, setPresetKey] = useState("A5");
   const [customW, setCustomW] = useState(148);
