@@ -1189,6 +1189,15 @@ const Calculator = () => {
   const [colorFront, setColorFront] = useState(4);
   const [colorBack, setColorBack] = useState(4);
 
+  // ── Обложка (для брошюры/журнала). Используется когда caps.cover === true. ──
+  const [coverPaperId, setCoverPaperId] = useState<string>("");
+  const [coverColorFront, setCoverColorFront] = useState(4);
+  const [coverColorBack, setCoverColorBack] = useState(4);
+  const [coverLamPrepress, setCoverLamPrepress] = useState(false);
+  const [coverPouchLam, setCoverPouchLam] = useState(false);
+  const [coverStamping, setCoverStamping] = useState(false);
+  const [coverCongrev, setCoverCongrev] = useState(false);
+
   // Step 2
   // Авто-режим: менеджер выбирает только тип материала + плотность,
   // система автоподбирает закупочный формат и печатную машину.
