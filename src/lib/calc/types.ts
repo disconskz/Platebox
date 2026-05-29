@@ -20,6 +20,10 @@ export type ProductType =
   | "calendar_wall"
   | "calendar_desk"
   | "calendar_quarter"
+  | "calendar_pocket"
+  | "catalog"
+  | "book_hardcover"
+  | "planner"
   | "wobbler"
   | "shelftalker"
   | "kubus";
