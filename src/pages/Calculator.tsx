@@ -5670,8 +5670,9 @@ const Calculator = () => {
                       </div>
                     );
                   })()}
-                  {/* Доработка 5: единый блок «Кол-во сгибов на изделии». */}
-                  <div className="rounded-md border bg-card p-3 space-y-2">
+                   {/* Доработка 5: единый блок «Кол-во сгибов на изделии». */}
+                   {caps.fold && (
+                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Label className="flex-1">Кол-во сгибов на изделии</Label>
                       <Select value={String(foldsPerItem)} onValueChange={(v) => setFoldsPerItem(Number(v))}>
@@ -5686,9 +5687,11 @@ const Calculator = () => {
                     <p className="text-[11px] text-muted-foreground">
                       До 150 г/м² — фальцовка (1 ₸/сгиб). Выше 150 г/м² — биговка (2 ₸/сгиб). Цена выбирается автоматически по плотности бумаги.
                     </p>
-                  </div>
-                  {/* Доработка 7: единый блок «Высечка» с авто-ценой по типу материала. */}
-                  <div className="rounded-md border bg-card p-3 space-y-2">
+                   </div>
+                   )}
+                   {/* Доработка 7: единый блок «Высечка» с авто-ценой по типу материала. */}
+                   {caps.diecut && (
+                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={dieCutEnabled} onCheckedChange={(v) => setDieCutEnabled(!!v)} id="diecut" />
                       <Label htmlFor="diecut" className="flex-1">Высечка</Label>
