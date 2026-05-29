@@ -201,6 +201,41 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   ];
   const [bookKind, setBookKind] = useState<BookKind>(isHardcover ? "hardcover_book" : "kbs_book");
 
+  // При встраивании в Calculator (Новый расчёт) подхватываем шаблон ?from=…
+  // и переносим общие поля, чтобы спецификация/раскладка сразу пересчитались.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (!embedded) return;
+    const tpl = searchParams.get("from");
+    if (!tpl) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("calculations")
+        .select("circulation,format_type,format_width,format_height,color_front,color_back,margin_percent")
+        .eq("id", tpl)
+        .single();
+      if (cancelled || error || !data) return;
+      if (data.circulation) setCirculation(Number(data.circulation));
+      if (data.format_type) {
+        const known = FORMATS.find((f) => f.value === data.format_type);
+        setPresetKey(known ? known.value : "custom");
+      }
+      if (data.format_width) setCustomW(Number(data.format_width));
+      if (data.format_height) setCustomH(Number(data.format_height));
+      if (data.color_front != null) {
+        setColorBlockFront(Number(data.color_front));
+        setColorCoverFront(Number(data.color_front));
+      }
+      if (data.color_back != null) {
+        setColorBlockBack(Number(data.color_back));
+      }
+      if (data.margin_percent) setMargin(Number(data.margin_percent));
+      toast.info("Шаблон применён");
+    })();
+    return () => { cancelled = true; };
+  }, [embedded, searchParams]);
+
   useEffect(() => {
     if (!isHardcover && !isSoftcover) return;
     if (bookKind === "kbs_book") setBindingKind("kbs");
