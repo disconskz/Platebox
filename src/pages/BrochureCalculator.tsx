@@ -60,9 +60,11 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 
 export interface BrochureLikeProps {
   mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner" | "notepad" | "memocube" | "quartercal";
+  /** Если true — рендерим только содержимое (без PageShell/PageHeader), для встраивания в Calculator.tsx */
+  embedded?: boolean;
 }
 
-export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
+export default function BrochureCalculator({ mode = "brochure", embedded = false }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
   const isPlanner = mode === "planner";
   const isHardcover = mode === "hardcover" || isPlanner;
