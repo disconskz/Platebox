@@ -182,6 +182,35 @@ export default function NotepadCalculator({ embedded = false }: NotepadCalculato
   const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
   const premiumCoef = kind.coef;
 
+  // При встраивании в Calculator (Новый расчёт) подхватываем шаблон ?from=…
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (!embedded) return;
+    const tpl = searchParams.get("from");
+    if (!tpl) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("calculations")
+        .select("circulation,format_type,format_width,format_height,color_front,color_back,margin_percent")
+        .eq("id", tpl)
+        .single();
+      if (cancelled || error || !data) return;
+      if (data.circulation) setCirculation(Number(data.circulation));
+      if (data.format_type) {
+        const known = FORMATS.find((f) => f.value === data.format_type);
+        setPresetKey(known ? known.value : "custom");
+      }
+      if (data.format_width) setCustomW(Number(data.format_width));
+      if (data.format_height) setCustomH(Number(data.format_height));
+      if (data.color_front != null) setColorBlockFront(Number(data.color_front));
+      if (data.color_back != null) setColorBlockBack(Number(data.color_back));
+      if (data.margin_percent) setMargin(Number(data.margin_percent));
+      toast.info("Шаблон применён");
+    })();
+    return () => { cancelled = true; };
+  }, [embedded, searchParams]);
+
   // Авто-подстройка типа переплёта под выбранный тип блокнота
   useEffect(() => {
     if (notepadKind === "spiral") setBindingKind("spiral");
