@@ -288,16 +288,11 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
     (async () => {
       const { data, error } = await supabase
         .from("calculations")
-        .select("circulation, parameters")
+        .select("circulation")
         .eq("id", tpl)
         .maybeSingle();
       if (error || !data) return;
       if (data.circulation) setCirculation(Number(data.circulation));
-      const p = (data.parameters || {}) as any;
-      if (p.box_pro?.subType) setSubType(p.box_pro.subType);
-      if (p.box_pro?.innerW) setInnerW(p.box_pro.innerW);
-      if (p.box_pro?.innerL) setInnerL(p.box_pro.innerL);
-      if (p.box_pro?.innerH) setInnerH(p.box_pro.innerH);
     })();
   }, [embedded, searchParams]);
 
@@ -695,14 +690,24 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
 
               <TemplateActions
                 productType="box"
+                defaultName={`Коробка ${SUBTYPES.find((s) => s.value === subType)?.label ?? ""} ${innerW}×${innerL}×${innerH}, ${circulation} шт`}
                 circulation={circulation}
-                parameters={{
+                margin={margin}
+                vatPercent={vatPercent}
+                totals={{
+                  cost: result.totalCost,
+                  sale: result.salePrice,
+                  withVat: result.totalWithVat,
+                  perItem: result.perUnit,
+                }}
+                spec={result.lines.flatMap((l) => [
+                  { stage: "material", name: `${l.part.name} — ${l.mat?.label ?? "материал"}`, quantity: l.sheets, unit: "лист", unitPrice: l.mat?.pricePerSheet ?? 0, total: l.materialCost },
+                  ...(l.printCost > 0 ? [{ stage: "print", name: `${l.part.name} — печать`, quantity: l.sheets, unit: "лист", unitPrice: l.sheets > 0 ? l.printCost / l.sheets : 0, total: l.printCost }] : []),
+                  ...(l.postCost > 0 ? [{ stage: "postpress", name: `${l.part.name} — постпечать/штамп`, quantity: 1, unit: "услуга", unitPrice: l.postCost, total: l.postCost }] : []),
+                ])}
+                extra={{
                   box_pro: { subType, innerW, innerL, innerH, lidH, hasMagnet, hasRibbon, hasHandle, hasEyelet, parts },
                 }}
-                totalCost={result.totalCost}
-                salePrice={result.salePrice}
-                margin={margin}
-                onSaved={() => toast.success("Сохранено")}
               />
             </div>
           </div>
