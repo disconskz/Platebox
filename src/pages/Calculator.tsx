@@ -5013,11 +5013,15 @@ const Calculator = () => {
               <div className="hidden sm:flex items-center gap-3 text-right">
                 <div>
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">С/с</div>
-                  <div className="text-sm font-semibold tabular-nums">{fmtMoney(totalCost)}</div>
+                  <div className="text-sm font-semibold tabular-nums">
+                    {fmtMoney(isTemplateDriven(productType) && boxResult ? boxResult.result.totalCost : totalCost)}
+                  </div>
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Цена</div>
-                  <div className="text-sm font-bold text-primary tabular-nums">{fmtMoney(salePrice)}</div>
+                  <div className="text-sm font-bold text-primary tabular-nums">
+                    {fmtMoney(isTemplateDriven(productType) && boxResult ? boxResult.result.totalWithVat : salePrice)}
+                  </div>
                 </div>
               </div>
             ) : (
