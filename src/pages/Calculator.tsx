@@ -6428,7 +6428,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 35: блок «Конгрев». */}
+                  {caps.congrev && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={congrevEnabled} onCheckedChange={(v) => setCongrevEnabled(!!v)} id="congrev" />
