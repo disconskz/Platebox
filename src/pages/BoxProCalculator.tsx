@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Box as BoxIcon, Plus, Trash2, Check } from "lucide-react";
+import { ArrowLeft, Box as BoxIcon, Plus, Trash2, Check, Wand2, Wrench } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -282,6 +282,17 @@ export interface BoxProCalculatorProps { embedded?: boolean }
 export default function BoxProCalculator({ embedded = false }: BoxProCalculatorProps = {}) {
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
+  // ─── Доработка 84 — два уровня UI ────────────────────────────────
+  // "simple" — для менеджеров: только тип, размеры, тираж, базовые опции и цена.
+  // "tech"   — для технологов: полный пошаговый мастер с развёртками, штампом,
+  //            спусками, сравнением форматов и маршрутом производства.
+  const [mode, setMode] = useState<"simple" | "tech">(() => {
+    if (typeof window === "undefined") return "simple";
+    return (localStorage.getItem("boxPro.mode") as "simple" | "tech") || "simple";
+  });
+  useEffect(() => {
+    try { localStorage.setItem("boxPro.mode", mode); } catch { /* ignore */ }
+  }, [mode]);
 
   // Базовые поля
   const [subType, setSubType] = useState<BoxSubType>("lid_bottom");
