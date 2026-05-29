@@ -84,8 +84,11 @@ const PACKS: { value: PackKind; label: string; price: number }[] = [
   { value: "box", label: "Коробка", price: 25 },
 ];
 
-export interface PocketCalendarCalculatorProps { embedded?: boolean }
-export default function PocketCalendarCalculator({ embedded = false }: PocketCalendarCalculatorProps = {}) {
+export interface PocketCalendarCalculatorProps {
+  embedded?: boolean;
+  onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
+}
+export default function PocketCalendarCalculator({ embedded = false, onResult }: PocketCalendarCalculatorProps = {}) {
   const [presetKey, setPresetKey] = useState("70x100");
   const [customW, setCustomW] = useState(70);
   const [customH, setCustomH] = useState(100);
