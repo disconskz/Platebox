@@ -6595,6 +6595,7 @@ const Calculator = () => {
                   </div>
                   )}
                   {/* Доработка 9: Пакетная ламинация */}
+                  {caps.pouchLam && (
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={pouchEnabled} onCheckedChange={(v) => setPouchEnabled(!!v)} id="pouch" />
@@ -6662,7 +6663,9 @@ const Calculator = () => {
                       );
                     })()}
                   </div>
+                  )}
                   {/* Доработка 10: Переменная печать */}
+                  {caps.variablePrint && (
                   <details className="rounded-md border p-3 group">
                     <summary className="font-medium text-sm cursor-pointer list-none flex items-center justify-between gap-2 select-none">
                       <span>
@@ -6764,6 +6767,7 @@ const Calculator = () => {
                     })}
                     </div>
                   </details>
+                  )}
                   {/* Доработка 11: Металлическая пружина (Wire-O) */}
                   {SPRING_PRODUCT_TYPES.has(productType) && (
                     <div className="space-y-2 rounded-md border p-3">
