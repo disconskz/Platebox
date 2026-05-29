@@ -584,8 +584,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
           </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-            <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-4 min-w-0">
               {mode === "simple" && (
                 <Card>
                   <CardHeader><CardTitle>Параметры коробки</CardTitle></CardHeader>
