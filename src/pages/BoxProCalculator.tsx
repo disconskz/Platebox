@@ -23,6 +23,7 @@ import {
   type GroupImposeResult,
 } from "@/lib/calc/box-pro/impose";
 import { calcDiecut, type DiecutResult } from "@/lib/calc/box-pro/diecut";
+import { buildUnfoldSvg, buildUnfoldDxf, buildProductionRoute } from "@/lib/calc/box-pro/svg";
 
 /**
  * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
