@@ -629,15 +629,11 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     return s;
   }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isCatalogLike, isHardcover, isPlanner, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plOptNameplate, plOptPersonalize, plOptGiftBox, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, optFlaps, optTabs, packagingKind, hasDelivery, BINDINGS]);
 
-  const _body = (
-    <PageContainer>
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* MARKER: BrochureCalculator body wrapper moved to const _body */}
-      </div>
-    </PageContainer>
-  );
-
-  const _header = (
+  const Shell: any = embedded ? Fragment : PageShell;
+  const Header: any = embedded ? () => null : PageHeader;
+  const Main: any = embedded ? Fragment : PageMain;
+  return (
+    <Shell>
       <PageHeader>
         <PageHeaderRow>
           <div className="flex items-center gap-2 min-w-0">
