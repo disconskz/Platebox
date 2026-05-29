@@ -6046,7 +6046,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 32: блок «Удаление облоя». */}
+                  {caps.flashRemoval && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={flashEnabled} onCheckedChange={(v) => setFlashEnabled(!!v)} id="flash" />
