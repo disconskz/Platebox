@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -60,9 +60,11 @@ const BINDINGS_CATALOG_EXTRA: { value: BindingKind; label: string }[] = [
 
 export interface BrochureLikeProps {
   mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner" | "notepad" | "memocube" | "quartercal";
+  /** Если true — рендерим только содержимое (без PageShell/PageHeader), для встраивания в Calculator.tsx */
+  embedded?: boolean;
 }
 
-export default function BrochureCalculator({ mode = "brochure" }: BrochureLikeProps = {}) {
+export default function BrochureCalculator({ mode = "brochure", embedded = false }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
   const isPlanner = mode === "planner";
   const isHardcover = mode === "hardcover" || isPlanner;
@@ -627,8 +629,11 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
     return s;
   }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isCatalogLike, isHardcover, isPlanner, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plOptNameplate, plOptPersonalize, plOptGiftBox, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, optFlaps, optTabs, packagingKind, hasDelivery, BINDINGS]);
 
+  const Shell: any = embedded ? Fragment : PageShell;
+  const Main: any = embedded ? Fragment : PageMain;
   return (
-    <PageShell>
+    <Shell>
+      {!embedded && (
       <PageHeader>
         <PageHeaderRow>
           <div className="flex items-center gap-2 min-w-0">
@@ -662,8 +667,9 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
           <Badge variant="secondary" className="ml-auto">Доработка {isQuarterCal ? 56 : isMemocube ? 55 : isNotepad ? 54 : isPlanner ? 53 : isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
+      )}
 
-      <PageMain>
+      <Main>
         <PageContainer>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
@@ -1054,8 +1060,8 @@ export default function BrochureCalculator({ mode = "brochure" }: BrochureLikePr
             </CardContent>
           </Card>
         </PageContainer>
-      </PageMain>
-    </PageShell>
+      </Main>
+    </Shell>
   );
 }
 

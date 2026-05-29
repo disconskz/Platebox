@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -94,7 +94,8 @@ const NOTEPAD_KINDS: { value: NotepadKind; label: string; coef: number }[] = [
   { value: "pocket", label: "Блокнот с карманом", coef: 1.35 },
 ];
 
-export default function NotepadCalculator() {
+export interface NotepadCalculatorProps { embedded?: boolean }
+export default function NotepadCalculator({ embedded = false }: NotepadCalculatorProps = {}) {
   // Основные параметры
   const [presetKey, setPresetKey] = useState("A5");
   const [customW, setCustomW] = useState(148);
@@ -453,8 +454,11 @@ export default function NotepadCalculator() {
     return s;
   }, [hasDesign, offset, hasCover, optCoverLam, optCoverBig, optSpotVarnish, optStamp, optEmboss, hasBacking, backing, backingPrint, bindingKind, optPerf, optRound, hasDelivery, hasForzac, hasKapital, hasMarlya, hasLyasse, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optSoftTouch, optFoil, optShrink]);
 
+  const Shell: any = embedded ? Fragment : PageShell;
+  const Main: any = embedded ? Fragment : PageMain;
   return (
-    <PageShell>
+    <Shell>
+      {!embedded && (
       <PageHeader>
         <PageHeaderRow>
           <div className="flex items-center gap-2 min-w-0">
@@ -472,8 +476,9 @@ export default function NotepadCalculator() {
           <Badge variant="secondary" className="ml-auto">Доработка 59</Badge>
         </PageHeaderRow>
       </PageHeader>
+      )}
 
-      <PageMain>
+      <Main>
         <PageContainer>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
@@ -864,8 +869,8 @@ export default function NotepadCalculator() {
             </CardContent>
           </Card>
         </PageContainer>
-      </PageMain>
-    </PageShell>
+      </Main>
+    </Shell>
   );
 }
 

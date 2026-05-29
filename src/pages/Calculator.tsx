@@ -45,6 +45,7 @@ import type { SpecItem } from "@/lib/calc/types";
 import { PriceBreakdownTree } from "@/components/calc/PriceBreakdownTree";
 import { FormulaWizard } from "@/components/calc/FormulaWizard";
 import { CutInfoCard } from "@/components/calc/CutInfoCard";
+import MultipageTemplateHost, { isTemplateDriven } from "@/components/calc/MultipageTemplateHost";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -5327,6 +5328,12 @@ const Calculator = () => {
               </Card>
             </section>
 
+            {isTemplateDriven(productType) && (
+              <section id="section-template" className="scroll-mt-24">
+                <MultipageTemplateHost productType={productType} />
+              </section>
+            )}
+            {!isTemplateDriven(productType) && (<>
             <section id="section-2" className="scroll-mt-24">
               {caps.cover && (
                 <Card className="mb-4 border-primary/30">
@@ -10163,6 +10170,7 @@ const Calculator = () => {
               )}
             </section>
 
+            </>)}
             <section id="section-6" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>6. Сохранение</CardTitle></CardHeader>
@@ -10196,8 +10204,8 @@ const Calculator = () => {
           </div>
 
           {/* Desktop sidebar with totals */}
-          <div className="hidden lg:block lg:col-span-2 space-y-4 lg:order-2">
-            {result && !("error" in result) && (
+          <div className={`hidden lg:col-span-2 space-y-4 lg:order-2 ${isTemplateDriven(productType) ? "" : "lg:block"}`}>
+            {result && !("error" in result) && !isTemplateDriven(productType) && (
               <div className="lg:sticky lg:top-20 space-y-4">
               <PriceBreakdownTree
                 spec={result.spec as any}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -47,7 +47,8 @@ const BASE_FORMATS: { value: string; label: string; w: number; h: number }[] = [
   { value: "custom", label: "Свой размер", w: 170, h: 200 },
 ];
 
-export default function DeskCalendarCalculator() {
+export interface DeskCalendarCalculatorProps { embedded?: boolean }
+export default function DeskCalendarCalculator({ embedded = false }: DeskCalendarCalculatorProps = {}) {
   // Основные параметры
   const [circulation, setCirculation] = useState(100);
   const [basePreset, setBasePreset] = useState("medium");
@@ -465,8 +466,11 @@ export default function DeskCalendarCalculator() {
     return steps;
   }, [hasDesign, offset, hasFlipSheets, optBaseLam, optLeafLam, optSoftTouch, optVarnish, optDieCut, optDeflash, optSpring, optStamp, optEmboss, optRound, optMagnets, optIndividualPack, hasDelivery]);
 
+  const Shell: any = embedded ? Fragment : PageShell;
+  const Main: any = embedded ? Fragment : PageMain;
   return (
-    <PageShell>
+    <Shell>
+      {!embedded && (
       <PageHeader>
         <PageHeaderRow>
           <div className="flex items-center gap-2 min-w-0">
@@ -482,8 +486,9 @@ export default function DeskCalendarCalculator() {
           <Badge variant="secondary" className="ml-auto">Доработка 57</Badge>
         </PageHeaderRow>
       </PageHeader>
+      )}
 
-      <PageMain>
+      <Main>
         <PageContainer>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
@@ -828,8 +833,8 @@ export default function DeskCalendarCalculator() {
             </Card>
           )}
         </PageContainer>
-      </PageMain>
-    </PageShell>
+      </Main>
+    </Shell>
   );
 }
 
