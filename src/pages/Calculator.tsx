@@ -10170,6 +10170,7 @@ const Calculator = () => {
               )}
             </section>
 
+            </>)}
             <section id="section-6" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>6. Сохранение</CardTitle></CardHeader>
