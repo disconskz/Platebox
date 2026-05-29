@@ -630,10 +630,10 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isCatalogLike, isHardcover, isPlanner, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plOptNameplate, plOptPersonalize, plOptGiftBox, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, optFlaps, optTabs, packagingKind, hasDelivery, BINDINGS]);
 
   const Shell: any = embedded ? Fragment : PageShell;
-  const Header: any = embedded ? () => null : PageHeader;
   const Main: any = embedded ? Fragment : PageMain;
   return (
     <Shell>
+      {!embedded && (
       <PageHeader>
         <PageHeaderRow>
           <div className="flex items-center gap-2 min-w-0">
@@ -667,8 +667,9 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
           <Badge variant="secondary" className="ml-auto">Доработка {isQuarterCal ? 56 : isMemocube ? 55 : isNotepad ? 54 : isPlanner ? 53 : isHardcover ? 52 : isSoftcover ? 51 : isMagazine ? 50 : isCatalog ? 49 : 48}</Badge>
         </PageHeaderRow>
       </PageHeader>
+      )}
 
-      <PageMain>
+      <Main>
         <PageContainer>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
@@ -1059,8 +1060,8 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
             </CardContent>
           </Card>
         </PageContainer>
-      </PageMain>
-    </PageShell>
+      </Main>
+    </Shell>
   );
 }
 
