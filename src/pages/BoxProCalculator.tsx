@@ -1004,7 +1004,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                       </div>
                     </div>
 
-                    {/* Этап 4: авто-расчёт штампа из развёртки */}
+                    {/* Этап 4: авто-расчёт штампа из развёртки — доступно с расширенного режима */}
                     <div className="mt-6 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">
                         Авто-расчёт штампа из развёртки (ножи и биговки)
@@ -1043,7 +1043,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                       </div>
                     </div>
 
-                    {/* Этап 5: развёртки SVG/DXF */}
+                    {/* Этап 5: развёртки SVG/DXF — только для технолога */}
+                    {isTech && (
                     <div className="mt-6 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">
                         Развёртки деталей (нож красный, биг синий пунктир)
@@ -1076,8 +1077,10 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         })}
                       </div>
                     </div>
+                    )}
 
-                    {/* Этап 5: маршрут производства */}
+                    {/* Этап 5: маршрут производства — только для технолога */}
+                    {isTech && (
                     <div className="mt-6 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">
                         Маршрут производства (auto)
@@ -1106,6 +1109,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         ))}
                       </div>
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
