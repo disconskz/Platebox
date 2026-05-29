@@ -530,7 +530,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
       )}
       <Main>
         <PageContainer>
-          {/* Переключатель уровней (Доработка 84): простой для менеджера / полный для технолога */}
+          {/* Доработка 84+: три уровня UI — простой / расширенный / технологический.
+              Переключение не сбрасывает введённые данные — все поля и расчёт сохраняются. */}
           <div className="mb-3 inline-flex rounded-lg border bg-card p-1">
             <button
               type="button"
@@ -540,7 +541,17 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 mode === "simple" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Wand2 className="h-4 w-4" /> Менеджер
+              <Wand2 className="h-4 w-4" /> Простой
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("extended")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition",
+                mode === "extended" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Wand2 className="h-4 w-4" /> Расширенный
             </button>
             <button
               type="button"
@@ -554,12 +565,15 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
             </button>
           </div>
           <div className="mb-3 text-xs text-muted-foreground">
-            {mode === "simple"
-              ? "Простой режим: программа сама строит развёртки, считает штампы, ножи и спуски, выбирает формат и маршрут."
-              : "Технологический режим: полный мастер с развёртками, сравнением форматов, групповыми спусками и маршрутом производства."}
+            {mode === "simple" &&
+              "Простой режим: только тип, размеры, тираж, материал, печать, основные опции и итог. Развёртки, штампы, спуски и маршрут считаются автоматически."}
+            {mode === "extended" &&
+              "Расширенный режим: + спуски, выбранный формат, группировка деталей, штампы, биговки, сравнение вариантов и себестоимость по этапам."}
+            {mode === "tech" &&
+              "Технологический режим: + полный маршрут, DXF/SVG развёртки, нормы по штампу, оборудование и ручная корректировка."}
           </div>
 
-          {mode === "tech" && (
+          {isAdvanced && (
           <div className="mb-4 flex flex-wrap gap-2">
             {stepBtn(1, "1. Тип")}
             {stepBtn(2, "2. Размеры")}
