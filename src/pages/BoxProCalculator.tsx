@@ -1155,6 +1155,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </CardContent>
               </Card>
 
+              {!embedded && (
               <TemplateActions
                 productType="box"
                 defaultName={`Коробка ${SUBTYPES.find((s) => s.value === subType)?.label ?? ""} ${innerW}×${innerL}×${innerH}, ${circulation} шт`}
@@ -1176,6 +1177,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                   box_pro: { subType, innerW, innerL, innerH, lidH, hasMagnet, hasRibbon, hasHandle, hasEyelet, parts },
                 }}
               />
+              )}
             </div>
           </div>
         </PageContainer>
