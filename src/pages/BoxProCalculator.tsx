@@ -635,6 +635,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         <TableRow>
                           <TableHead>Деталь</TableHead>
                           <TableHead>Материал</TableHead>
+                          <TableHead>Формат</TableHead>
                           <TableHead className="text-right">На листе</TableHead>
                           <TableHead className="text-right">Листов</TableHead>
                           <TableHead className="text-right">Материал</TableHead>
@@ -648,6 +649,16 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                           <TableRow key={l.part.id}>
                             <TableCell>{l.part.name}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{l.mat?.label ?? "—"}</TableCell>
+                            <TableCell className="text-xs">
+                              {l.impose?.best ? (
+                                <div className="space-y-0.5">
+                                  <Badge variant={l.impose.splitFromA1 ? "destructive" : "secondary"}>
+                                    {l.impose.best.format.id}
+                                  </Badge>
+                                  <div className="text-[10px] text-muted-foreground">{l.impose.hint}</div>
+                                </div>
+                              ) : "—"}
+                            </TableCell>
                             <TableCell className="text-right">{l.perSheet ?? 0}</TableCell>
                             <TableCell className="text-right">{l.sheets}</TableCell>
                             <TableCell className="text-right">{fmtMoney(l.materialCost)}</TableCell>
@@ -658,6 +669,47 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         ))}
                       </TableBody>
                     </Table>
+                    {/* Сравнение вариантов: показываем сколько стоил бы каждый формат */}
+                    <div className="mt-4 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">Сравнение форматов по деталям</div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Деталь</TableHead>
+                              <TableHead>Вариант</TableHead>
+                              <TableHead className="text-right">Листов</TableHead>
+                              <TableHead className="text-right">Материал</TableHead>
+                              <TableHead className="text-right">Печать</TableHead>
+                              <TableHead className="text-right">Сумма</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {result.lines.flatMap((l) =>
+                              (l.impose?.variants ?? []).map((v, i) => {
+                                const isBest = l.impose?.best?.format.id === v.format.id;
+                                return (
+                                  <TableRow key={l.part.id + "-" + v.format.id} className={isBest ? "bg-primary/5" : ""}>
+                                    <TableCell className="text-xs">{i === 0 ? l.part.name : ""}</TableCell>
+                                    <TableCell className="text-xs">
+                                      {v.format.label} {isBest && <Badge variant="outline" className="ml-1">выбран</Badge>}
+                                    </TableCell>
+                                    <TableCell className="text-right text-xs">{v.sheets}</TableCell>
+                                    <TableCell className="text-right text-xs">{fmtMoney(v.materialCost)}</TableCell>
+                                    <TableCell className="text-right text-xs">{fmtMoney(v.printCost)}</TableCell>
+                                    <TableCell className="text-right text-xs font-medium">{fmtMoney(v.total)}</TableCell>
+                                  </TableRow>
+                                );
+                              }),
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Формат A1 в производстве не используется — система перебирает только A3+ и A2+
+                        и выбирает самый выгодный по сумме материал+печать.
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
