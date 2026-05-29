@@ -4535,6 +4535,58 @@ const Calculator = () => {
       return items;
     })();
     const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems, ...embossItems, ...congrevItems];
+    // ── Доработка 83 (обложка): для брошюры/журнала добавляем строки печати
+    //    обложки как отдельные SpecItem (бумага, формы, печать + опц. отделка). ──
+    const coverExtras: any[] = [];
+    if (caps.cover && coverPaperId) {
+      const coverMat = materials.find((m) => m.id === coverPaperId);
+      if (coverMat) {
+        try {
+          const coverInput: CalcInput = {
+            productType: "leaflet",
+            circulation,
+            formatType,
+            formatWidth: dims.w,
+            formatHeight: dims.h,
+            colorFront: coverColorFront,
+            colorBack: coverColorBack,
+            material: coverMat,
+            designQty: 2,
+            photoOutputUnitCost: 0,
+            hasLamPrepress: coverLamPrepress,
+            lamPrepressSides: 1,
+            hasStamping: coverStamping,
+            vatPercent,
+          };
+          const cr = runCalculation(coverInput);
+          if (cr && !("error" in cr)) {
+            const tag = " (обложка)";
+            if (cr.paperCost > 0) coverExtras.push({ stage: "material", name: `Бумага${tag} — ${coverMat.name}`, quantity: cr.purchaseSheets, unit: "лист", unitPrice: Math.round((cr.paperCost / Math.max(1, cr.purchaseSheets)) * 100) / 100, total: cr.paperCost });
+            if (cr.paperCutCost > 0) coverExtras.push({ stage: "prepress", name: `Резка бумаги${tag}`, quantity: 1, unit: "шт", unitPrice: cr.paperCutCost, total: cr.paperCutCost });
+            if (cr.formsCost + cr.formsPrepCost > 0) coverExtras.push({ stage: "prepress", name: `Формы${tag} (${coverColorFront}+${coverColorBack})`, quantity: cr.forms, unit: "форма", unitPrice: Math.round(((cr.formsCost + cr.formsPrepCost) / Math.max(1, cr.forms)) * 100) / 100, total: cr.formsCost + cr.formsPrepCost });
+            if (cr.printCost > 0) coverExtras.push({ stage: "print", name: `Печать${tag} (${coverColorFront}+${coverColorBack})`, quantity: cr.printSheets, unit: "лист", unitPrice: Math.round((cr.printCost / Math.max(1, cr.printSheets)) * 100) / 100, total: cr.printCost });
+            if (cr.inkCost > 0) coverExtras.push({ stage: "prepress", name: `Краска${tag}`, quantity: 1, unit: "шт", unitPrice: cr.inkCost, total: cr.inkCost });
+            // Припресс / тиснение — берём из postpress движка обложки
+            (cr.postpress || []).forEach((p: any) => {
+              coverExtras.push({ ...p, name: `${p.name}${tag}` });
+            });
+            if (coverPouchLam) {
+              // Простая надбавка: пакетная ламинация ≈ цена движка лицевой ламинации × 1.5
+              const lamRow = cr.postpress?.find((p: any) => /ламин/i.test(p.name));
+              if (lamRow) coverExtras.push({ stage: "postpress", name: `Пакетная ламинация${tag}`, quantity: circulation, unit: "шт", unitPrice: Math.round((lamRow.total / Math.max(1, circulation)) * 1.5 * 100) / 100, total: Math.round(lamRow.total * 1.5) });
+            }
+            if (coverCongrev) {
+              // Конгрев на обложку — приближённо: 1.5 ₸/шт (тонкая настройка через справочник)
+              const congrevTotal = Math.max(2000, Math.round(circulation * 1.5));
+              coverExtras.push({ stage: "postpress", name: `Конгрев${tag}`, quantity: 1, unit: "шт", unitPrice: congrevTotal, total: congrevTotal });
+            }
+          }
+        } catch (e) {
+          // не валим расчёт, просто пропускаем строки обложки
+        }
+      }
+    }
+    if (coverExtras.length) allExtras.push(...coverExtras);
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
