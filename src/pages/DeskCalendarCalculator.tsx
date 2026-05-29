@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { toTemplatePriceResult } from "@/lib/calc/template-result";
 
 /**
  * Доработка 57 — выделенный шаблон «Календарь-домик».
