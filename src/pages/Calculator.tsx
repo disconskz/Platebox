@@ -10154,6 +10154,7 @@ const Calculator = () => {
               </Card>
             </section>
 
+            </>)}
             <section id="section-5" className="scroll-mt-24">
               {result && !("error" in result) ? (
                 <Card>
