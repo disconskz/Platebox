@@ -33,34 +33,40 @@ export function isTemplateDriven(pt: ProductType): boolean {
 
 export interface MultipageTemplateHostProps {
   productType: ProductType;
-  onBoxResult?: (payload: BoxProResultPayload) => void;
+  /**
+   * Получает унифицированный payload расчёта от любого шаблона
+   * (коробка, брошюра, блокнот, календарь и т.д.). Используется в
+   * Calculator.tsx, чтобы синхронизировать боковую панель/шапку с шаблоном.
+   */
+  onTemplateResult?: (payload: BoxProResultPayload) => void;
 }
 
-export default function MultipageTemplateHost({ productType, onBoxResult }: MultipageTemplateHostProps) {
+export default function MultipageTemplateHost({ productType, onTemplateResult }: MultipageTemplateHostProps) {
+  const onResult = onTemplateResult;
   switch (productType) {
     case "brochure":
-      return <BrochureCalculator embedded mode="brochure" />;
+      return <BrochureCalculator embedded mode="brochure" onResult={onResult} />;
     case "magazine":
-      return <BrochureCalculator embedded mode="magazine" />;
+      return <BrochureCalculator embedded mode="magazine" onResult={onResult} />;
     case "catalog":
-      return <BrochureCalculator embedded mode="catalog" />;
+      return <BrochureCalculator embedded mode="catalog" onResult={onResult} />;
     case "book":
-      return <BrochureCalculator embedded mode="softcover" />;
+      return <BrochureCalculator embedded mode="softcover" onResult={onResult} />;
     case "book_hardcover":
-      return <BrochureCalculator embedded mode="hardcover" />;
+      return <BrochureCalculator embedded mode="hardcover" onResult={onResult} />;
     case "planner":
-      return <BrochureCalculator embedded mode="planner" />;
+      return <BrochureCalculator embedded mode="planner" onResult={onResult} />;
     case "calendar_quarter":
-      return <BrochureCalculator embedded mode="quartercal" />;
+      return <BrochureCalculator embedded mode="quartercal" onResult={onResult} />;
     case "notepad":
-      return <NotepadCalculator embedded />;
+      return <NotepadCalculator embedded onResult={onResult} />;
     case "calendar_desk":
     case "calendar_wall":
-      return <DeskCalendarCalculator embedded />;
+      return <DeskCalendarCalculator embedded onResult={onResult} />;
     case "calendar_pocket":
-      return <PocketCalendarCalculator embedded />;
+      return <PocketCalendarCalculator embedded onResult={onResult} />;
     case "box":
-      return <BoxProCalculator embedded onResult={onBoxResult} />;
+      return <BoxProCalculator embedded onResult={onResult} />;
     default:
       return null;
   }

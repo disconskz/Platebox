@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -64,9 +65,11 @@ export interface BrochureLikeProps {
   mode?: "brochure" | "catalog" | "magazine" | "softcover" | "hardcover" | "planner" | "notepad" | "memocube" | "quartercal";
   /** Если true — рендерим только содержимое (без PageShell/PageHeader), для встраивания в Calculator.tsx */
   embedded?: boolean;
+  /** Колбэк синхронизации с боковой панелью Calculator.tsx (как формируется цена). */
+  onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
 }
 
-export default function BrochureCalculator({ mode = "brochure", embedded = false }: BrochureLikeProps = {}) {
+export default function BrochureCalculator({ mode = "brochure", embedded = false, onResult }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
   const isPlanner = mode === "planner";
   const isHardcover = mode === "hardcover" || isPlanner;
@@ -611,6 +614,12 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     const perItem = circulation > 0 ? withVat / circulation : 0;
     return { cost, sale, withVat, perItem };
   }, [lines, margin, vatPercent, circulation]);
+
+  useEffect(() => {
+    if (!onResult) return;
+    const result = toTemplatePriceResult(lines, { margin, vatPercent, circulation });
+    onResult({ result, margin, vatPercent });
+  }, [lines, margin, vatPercent, circulation, onResult]);
 
   const route = useMemo(() => {
     const s: string[] = [];

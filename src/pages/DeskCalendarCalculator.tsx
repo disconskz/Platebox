@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { toTemplatePriceResult } from "@/lib/calc/template-result";
 
 /**
  * Доработка 57 — выделенный шаблон «Календарь-домик».
@@ -47,8 +48,11 @@ const BASE_FORMATS: { value: string; label: string; w: number; h: number }[] = [
   { value: "custom", label: "Свой размер", w: 170, h: 200 },
 ];
 
-export interface DeskCalendarCalculatorProps { embedded?: boolean }
-export default function DeskCalendarCalculator({ embedded = false }: DeskCalendarCalculatorProps = {}) {
+export interface DeskCalendarCalculatorProps {
+  embedded?: boolean;
+  onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
+}
+export default function DeskCalendarCalculator({ embedded = false, onResult }: DeskCalendarCalculatorProps = {}) {
   // Основные параметры
   const [circulation, setCirculation] = useState(100);
   const [basePreset, setBasePreset] = useState("medium");
@@ -461,6 +465,12 @@ export default function DeskCalendarCalculator({ embedded = false }: DeskCalenda
     const perItem = circulation > 0 ? withVat / circulation : 0;
     return { cost, sale, withVat, perItem };
   }, [spec, margin, vatPercent, circulation]);
+
+  useEffect(() => {
+    if (!onResult) return;
+    const result = toTemplatePriceResult(spec, { margin, vatPercent, circulation });
+    onResult({ result, margin, vatPercent });
+  }, [spec, margin, vatPercent, circulation, onResult]);
 
   // Технологический маршрут
   const route = useMemo(() => {

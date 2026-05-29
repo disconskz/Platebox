@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -96,8 +97,11 @@ const NOTEPAD_KINDS: { value: NotepadKind; label: string; coef: number }[] = [
   { value: "pocket", label: "Блокнот с карманом", coef: 1.35 },
 ];
 
-export interface NotepadCalculatorProps { embedded?: boolean }
-export default function NotepadCalculator({ embedded = false }: NotepadCalculatorProps = {}) {
+export interface NotepadCalculatorProps {
+  embedded?: boolean;
+  onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
+}
+export default function NotepadCalculator({ embedded = false, onResult }: NotepadCalculatorProps = {}) {
   // Основные параметры
   const [presetKey, setPresetKey] = useState("A5");
   const [customW, setCustomW] = useState(148);
@@ -443,6 +447,12 @@ export default function NotepadCalculator({ embedded = false }: NotepadCalculato
     const perItem = circulation > 0 ? withVat / circulation : 0;
     return { cost, sale, withVat, perItem };
   }, [lines, margin, vatPercent, circulation]);
+
+  useEffect(() => {
+    if (!onResult) return;
+    const result = toTemplatePriceResult(lines, { margin, vatPercent, circulation });
+    onResult({ result, margin, vatPercent });
+  }, [lines, margin, vatPercent, circulation, onResult]);
 
   const route = useMemo(() => {
     const s: string[] = [];
