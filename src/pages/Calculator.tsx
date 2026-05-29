@@ -6186,7 +6186,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 33: блок «Установка ригеля». */}
+                  {caps.rigel && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={rigelEnabled} onCheckedChange={(v) => setRigelEnabled(!!v)} id="rigel" />
