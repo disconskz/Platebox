@@ -875,7 +875,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
               {isAdvanced && step === 6 && (
                 <Card>
                   <CardHeader><CardTitle>Спецификация</CardTitle></CardHeader>
-                  <CardContent>
+                  <CardContent className="overflow-hidden">
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -915,6 +916,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                     {/* Сравнение вариантов: показываем сколько стоил бы каждый формат */}
                     <div className="mt-4 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">Сравнение форматов по деталям</div>
