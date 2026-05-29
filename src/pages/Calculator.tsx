@@ -10195,6 +10195,21 @@ const Calculator = () => {
                     margin={boxResult.margin}
                     vatPercent={boxResult.vatPercent}
                   />
+                  {result && !("error" in result) && result.layout && (
+                    <Card className="shadow-elevated">
+                      <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
+                      <CardContent>
+                        <LayoutPreview
+                          layout={result.layout}
+                          productW={dims.w}
+                          productH={dims.h}
+                          productType={productType}
+                          alternatives={result.alternatives}
+                          mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )
             ) : (
@@ -10309,6 +10324,21 @@ const Calculator = () => {
                     margin={boxResult.margin}
                     vatPercent={boxResult.vatPercent}
                   />
+                  {result && !("error" in result) && result.layout && (
+                    <details className="rounded-md border bg-card p-3" open>
+                      <summary className="cursor-pointer text-sm font-medium">Раскладка</summary>
+                      <div className="mt-3">
+                        <LayoutPreview
+                          layout={result.layout}
+                          productW={dims.w}
+                          productH={dims.h}
+                          productType={productType}
+                          alternatives={result.alternatives}
+                          mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }}
+                        />
+                      </div>
+                    </details>
+                  )}
                 </div>
               </SheetContent>
             </Sheet>
