@@ -584,8 +584,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
           </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-            <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-4 min-w-0">
               {mode === "simple" && (
                 <Card>
                   <CardHeader><CardTitle>Параметры коробки</CardTitle></CardHeader>
@@ -875,7 +875,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
               {isAdvanced && step === 6 && (
                 <Card>
                   <CardHeader><CardTitle>Спецификация</CardTitle></CardHeader>
-                  <CardContent>
+                  <CardContent className="overflow-hidden">
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -915,6 +916,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                     {/* Сравнение вариантов: показываем сколько стоил бы каждый формат */}
                     <div className="mt-4 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">Сравнение форматов по деталям</div>
@@ -1009,6 +1011,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                       <div className="text-xs font-medium text-muted-foreground">
                         Авто-расчёт штампа из развёртки (ножи и биговки)
                       </div>
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -1037,6 +1040,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                       <div className="text-[11px] text-muted-foreground">
                         Длина ножей считается из периметра развёртки (× деталей на листе),
                         биговки — по типу детали. Менеджеру не нужно знать технологию штампа.
