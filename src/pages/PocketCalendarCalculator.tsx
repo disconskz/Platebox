@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -82,7 +82,8 @@ const PACKS: { value: PackKind; label: string; price: number }[] = [
   { value: "box", label: "Коробка", price: 25 },
 ];
 
-export default function PocketCalendarCalculator() {
+export interface PocketCalendarCalculatorProps { embedded?: boolean }
+export default function PocketCalendarCalculator({ embedded = false }: PocketCalendarCalculatorProps = {}) {
   const [presetKey, setPresetKey] = useState("70x100");
   const [customW, setCustomW] = useState(70);
   const [customH, setCustomH] = useState(100);
@@ -311,8 +312,11 @@ export default function PocketCalendarCalculator() {
       optVarnish, optSpotVarnish, optStamp, optEmboss, optDieCut, optDeflash,
       optRound, optQR, optBarcode, optPersonal, packKind, pack, hasDelivery]);
 
+  const Shell: any = embedded ? Fragment : PageShell;
+  const Main: any = embedded ? Fragment : PageMain;
   return (
-    <PageShell>
+    <Shell>
+      {!embedded && (
       <PageHeader>
         <PageHeaderRow>
           <div className="flex items-center gap-2 min-w-0">
@@ -330,8 +334,9 @@ export default function PocketCalendarCalculator() {
           <Badge variant="secondary" className="ml-auto">Доработка 63</Badge>
         </PageHeaderRow>
       </PageHeader>
+      )}
 
-      <PageMain>
+      <Main>
         <PageContainer>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
@@ -609,8 +614,8 @@ export default function PocketCalendarCalculator() {
             </CardContent>
           </Card>
         </PageContainer>
-      </PageMain>
-    </PageShell>
+      </Main>
+    </Shell>
   );
 }
 
