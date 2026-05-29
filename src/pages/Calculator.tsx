@@ -1637,6 +1637,9 @@ const Calculator = () => {
 
   // Step 6
   const [margin, setMargin] = useState(30);
+  // Результат шаблонного калькулятора коробок — нужен, чтобы сайдбар и шапка
+  // показывали те же цифры, что встроенный шаблон.
+  const [boxResult, setBoxResult] = useState<BoxProResultPayload | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
