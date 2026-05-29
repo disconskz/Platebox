@@ -23,6 +23,7 @@ import {
   type GroupImposeResult,
 } from "@/lib/calc/box-pro/impose";
 import { calcDiecut, type DiecutResult } from "@/lib/calc/box-pro/diecut";
+import { buildUnfoldSvg, buildUnfoldDxf, buildProductionRoute } from "@/lib/calc/box-pro/svg";
 
 /**
  * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
@@ -454,6 +455,27 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
       },
     ]);
 
+  // ─── Этап 5: скачать развёртку (SVG / DXF) ──────────────────────
+  const downloadFile = (filename: string, content: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const unfoldInputFor = (part: Part) => ({
+    kind: part.kind,
+    developW: part.developW,
+    developH: part.developH,
+    flapH: innerH,
+    windowW: part.kind === "window" ? Math.max(0, part.developW - 20) : 0,
+    windowH: part.kind === "window" ? Math.max(0, part.developH - 20) : 0,
+  });
+
   const stepBtn = (n: number, label: string) => (
     <button
       type="button"
@@ -884,6 +906,70 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                       <div className="text-[11px] text-muted-foreground">
                         Длина ножей считается из периметра развёртки (× деталей на листе),
                         биговки — по типу детали. Менеджеру не нужно знать технологию штампа.
+                      </div>
+                    </div>
+
+                    {/* Этап 5: развёртки SVG/DXF */}
+                    <div className="mt-6 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Развёртки деталей (нож красный, биг синий пунктир)
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {parts.map((part) => {
+                          const svg = buildUnfoldSvg(unfoldInputFor(part));
+                          return (
+                            <div key={part.id + "-svg"} className="rounded-md border bg-card p-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-medium">{part.name}</span>
+                                <span className="text-muted-foreground">{part.developW}×{part.developH} мм</span>
+                              </div>
+                              <div
+                                className="my-2 flex max-h-48 items-center justify-center overflow-hidden rounded bg-background p-2"
+                                dangerouslySetInnerHTML={{ __html: svg }}
+                              />
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="h-7 text-xs"
+                                  onClick={() => downloadFile(`${part.name}.svg`, svg, "image/svg+xml")}>
+                                  SVG
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs"
+                                  onClick={() => downloadFile(`${part.name}.dxf`, buildUnfoldDxf(unfoldInputFor(part)), "application/dxf")}>
+                                  DXF
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Этап 5: маршрут производства */}
+                    <div className="mt-6 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Маршрут производства (auto)
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {buildProductionRoute({
+                          subType,
+                          hasPrint: parts.some((p) => p.colorFront + p.colorBack > 0),
+                          hasLam: parts.some((p) => p.hasLam),
+                          hasFoil: parts.some((p) => p.hasFoil),
+                          hasEmboss: parts.some((p) => p.hasEmboss),
+                          hasWindow: parts.some((p) => p.kind === "window"),
+                          hasMagnet,
+                          hasRibbon,
+                          hasHandle,
+                          isKashir: subType === "kashir" || subType === "magnet" || subType === "gift" || subType === "premium",
+                        }).map((s, i, arr) => (
+                          <Fragment key={s.code}>
+                            <div className="rounded-md border border-border bg-card px-2 py-1 text-xs">
+                              <span className="font-mono text-[10px] text-muted-foreground">{s.code}</span>{" "}
+                              <span className="font-medium">{s.label}</span>
+                              {s.note && <div className="text-[10px] text-muted-foreground">{s.note}</div>}
+                            </div>
+                            {i < arr.length - 1 && <span className="self-center text-muted-foreground">→</span>}
+                          </Fragment>
+                        ))}
                       </div>
                     </div>
                   </CardContent>
