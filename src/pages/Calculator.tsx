@@ -46,6 +46,8 @@ import { PriceBreakdownTree } from "@/components/calc/PriceBreakdownTree";
 import { FormulaWizard } from "@/components/calc/FormulaWizard";
 import { CutInfoCard } from "@/components/calc/CutInfoCard";
 import MultipageTemplateHost, { isTemplateDriven } from "@/components/calc/MultipageTemplateHost";
+import { BoxPriceBreakdown } from "@/components/calc/BoxPriceBreakdown";
+import type { BoxProResultPayload } from "@/pages/BoxProCalculator";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
@@ -1635,6 +1637,9 @@ const Calculator = () => {
 
   // Step 6
   const [margin, setMargin] = useState(30);
+  // Результат шаблонного калькулятора коробок — нужен, чтобы сайдбар и шапка
+  // показывали те же цифры, что встроенный шаблон.
+  const [boxResult, setBoxResult] = useState<BoxProResultPayload | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -5008,11 +5013,15 @@ const Calculator = () => {
               <div className="hidden sm:flex items-center gap-3 text-right">
                 <div>
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">С/с</div>
-                  <div className="text-sm font-semibold tabular-nums">{fmtMoney(totalCost)}</div>
+                  <div className="text-sm font-semibold tabular-nums">
+                    {fmtMoney(isTemplateDriven(productType) && boxResult ? boxResult.result.totalCost : totalCost)}
+                  </div>
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Цена</div>
-                  <div className="text-sm font-bold text-primary tabular-nums">{fmtMoney(salePrice)}</div>
+                  <div className="text-sm font-bold text-primary tabular-nums">
+                    {fmtMoney(isTemplateDriven(productType) && boxResult ? boxResult.result.totalWithVat : salePrice)}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -5334,7 +5343,10 @@ const Calculator = () => {
 
             {isTemplateDriven(productType) && (
               <section id="section-template" className="scroll-mt-24">
-                <MultipageTemplateHost productType={productType} />
+                <MultipageTemplateHost
+                  productType={productType}
+                  onBoxResult={setBoxResult}
+                />
               </section>
             )}
             {!isTemplateDriven(productType) && (<>
@@ -10209,7 +10221,18 @@ const Calculator = () => {
 
           {/* Desktop sidebar with totals */}
           <div className="hidden lg:block lg:col-span-2 space-y-4 lg:order-2">
-            {result && !("error" in result) && (
+            {isTemplateDriven(productType) ? (
+              boxResult && (
+                <div className="lg:sticky lg:top-20 space-y-4">
+                  <BoxPriceBreakdown
+                    result={boxResult.result}
+                    margin={boxResult.margin}
+                    vatPercent={boxResult.vatPercent}
+                  />
+                </div>
+              )
+            ) : (
+            result && !("error" in result) && (
               <div className="lg:sticky lg:top-20 space-y-4">
               <PriceBreakdownTree
                 spec={result.spec as any}
@@ -10289,6 +10312,7 @@ const Calculator = () => {
                 </div>
               </Card>
               </div>
+            )
             )}
           </div>
         </div>
@@ -10296,7 +10320,35 @@ const Calculator = () => {
 
       {/* Mobile sticky bottom: totals + nav */}
       <div className="lg:hidden fixed left-0 right-0 z-40 bottom-[64px] safe-x">
-        {result && !("error" in result) && (
+        {isTemplateDriven(productType) ? (
+          boxResult && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <button className="w-full bg-card/95 backdrop-blur border-t border-border px-4 py-2.5 flex items-center justify-between text-left">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Цена продажи · {boxResult.margin}%</div>
+                    <div className="text-base font-bold tabular-nums">{fmtMoney(boxResult.result.totalWithVat)}</div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>с/с {fmtMoney(boxResult.result.totalCost)}</span>
+                    <ChevronUp className="h-4 w-4" />
+                  </div>
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="rounded-t-2xl">
+                <SheetHeader><SheetTitle>Итоги</SheetTitle></SheetHeader>
+                <div className="mt-4 space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                  <BoxPriceBreakdown
+                    result={boxResult.result}
+                    margin={boxResult.margin}
+                    vatPercent={boxResult.vatPercent}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          )
+        ) : (
+        result && !("error" in result) && (
           <Sheet>
             <SheetTrigger asChild>
               <button className="w-full bg-card/95 backdrop-blur border-t border-border px-4 py-2.5 flex items-center justify-between text-left">
@@ -10354,6 +10406,7 @@ const Calculator = () => {
               </div>
             </SheetContent>
           </Sheet>
+        )
         )}
         <div className="bg-background border-t border-border grid grid-cols-2 gap-2 px-4 py-2">
           <Button variant="outline" onClick={prev} disabled={step === 1} className="h-11"><ArrowLeft className="mr-1 h-4 w-4" /> Назад</Button>

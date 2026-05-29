@@ -4,6 +4,7 @@ import DeskCalendarCalculator from "@/pages/DeskCalendarCalculator";
 import PocketCalendarCalculator from "@/pages/PocketCalendarCalculator";
 import BoxProCalculator from "@/pages/BoxProCalculator";
 import type { ProductType } from "@/lib/calc/types";
+import type { BoxProResultPayload } from "@/pages/BoxProCalculator";
 
 /**
  * Список типов продукции, для которых вместо стандартных секций «Нового расчёта»
@@ -32,9 +33,10 @@ export function isTemplateDriven(pt: ProductType): boolean {
 
 export interface MultipageTemplateHostProps {
   productType: ProductType;
+  onBoxResult?: (payload: BoxProResultPayload) => void;
 }
 
-export default function MultipageTemplateHost({ productType }: MultipageTemplateHostProps) {
+export default function MultipageTemplateHost({ productType, onBoxResult }: MultipageTemplateHostProps) {
   switch (productType) {
     case "brochure":
       return <BrochureCalculator embedded mode="brochure" />;
@@ -58,7 +60,7 @@ export default function MultipageTemplateHost({ productType }: MultipageTemplate
     case "calendar_pocket":
       return <PocketCalendarCalculator embedded />;
     case "box":
-      return <BoxProCalculator embedded />;
+      return <BoxProCalculator embedded onResult={onBoxResult} />;
     default:
       return null;
   }
