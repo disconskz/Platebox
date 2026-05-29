@@ -656,7 +656,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && step === 1 && (
+              {isAdvanced && step === 1 && (
                 <Card>
                   <CardHeader><CardTitle>Тип коробки</CardTitle></CardHeader>
                   <CardContent className="grid gap-2 sm:grid-cols-2">
@@ -678,7 +678,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && step === 2 && (
+              {isAdvanced && step === 2 && (
                 <Card>
                   <CardHeader><CardTitle>Размеры коробки (внутренние, мм)</CardTitle></CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -714,7 +714,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && (step === 3 || step === 4 || step === 5) && (
+              {isAdvanced && (step === 3 || step === 4 || step === 5) && (
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>
@@ -872,7 +872,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && step === 6 && (
+              {isAdvanced && step === 6 && (
                 <Card>
                   <CardHeader><CardTitle>Спецификация</CardTitle></CardHeader>
                   <CardContent>
@@ -1110,7 +1110,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && (
+              {isAdvanced && (
               <div className="flex justify-between">
                 <Button variant="outline" disabled={step === 1} onClick={() => setStep((s) => Math.max(1, s - 1))}>
                   Назад
