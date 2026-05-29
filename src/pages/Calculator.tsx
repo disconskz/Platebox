@@ -1189,6 +1189,15 @@ const Calculator = () => {
   const [colorFront, setColorFront] = useState(4);
   const [colorBack, setColorBack] = useState(4);
 
+  // ── Обложка (для брошюры/журнала). Используется когда caps.cover === true. ──
+  const [coverPaperId, setCoverPaperId] = useState<string>("");
+  const [coverColorFront, setCoverColorFront] = useState(4);
+  const [coverColorBack, setCoverColorBack] = useState(4);
+  const [coverLamPrepress, setCoverLamPrepress] = useState(false);
+  const [coverPouchLam, setCoverPouchLam] = useState(false);
+  const [coverStamping, setCoverStamping] = useState(false);
+  const [coverCongrev, setCoverCongrev] = useState(false);
+
   // Step 2
   // Авто-режим: менеджер выбирает только тип материала + плотность,
   // система автоподбирает закупочный формат и печатную машину.
@@ -2284,6 +2293,13 @@ const Calculator = () => {
         (Object.keys(next) as (keyof typeof next)[]).forEach((k) => { next[k] = { ...next[k], enabled: false }; });
         return next;
       });
+    }
+    if (!caps.cover) {
+      setCoverPaperId("");
+      setCoverLamPrepress(false);
+      setCoverPouchLam(false);
+      setCoverStamping(false);
+      setCoverCongrev(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productType]);
@@ -4526,6 +4542,58 @@ const Calculator = () => {
       return items;
     })();
     const allExtras = [...extraSpecItems, ...catalogOpsItems, ...formSetupItems, ...foldItems, ...dieCutItems, ...pouchItems, ...varPrintItems, ...wireItems, ...thermalItems, ...signatureItems, ...collationItems, ...sewingItems, ...endpaperItems, ...gauzeItems, ...headbandItems, ...pressingItems, ...trimItems, ...boardItems, ...boardCutItems, ...casingItems, ...coverAsmItems, ...blockInsertionItems, ...finalPressingItems, ...staplingItems, ...perforationItems, ...tapeItems, ...windowItems, ...flashItems, ...rigelItems, ...embossItems, ...congrevItems];
+    // ── Доработка 83 (обложка): для брошюры/журнала добавляем строки печати
+    //    обложки как отдельные SpecItem (бумага, формы, печать + опц. отделка). ──
+    const coverExtras: any[] = [];
+    if (caps.cover && coverPaperId) {
+      const coverMat = materials.find((m) => m.id === coverPaperId);
+      if (coverMat) {
+        try {
+          const coverInput: CalcInput = {
+            productType: "leaflet",
+            circulation,
+            formatType,
+            formatWidth: dims.w,
+            formatHeight: dims.h,
+            colorFront: coverColorFront,
+            colorBack: coverColorBack,
+            material: coverMat,
+            designQty: 2,
+            photoOutputUnitCost: 0,
+            hasLamPrepress: coverLamPrepress,
+            lamPrepressSides: 1,
+            hasStamping: coverStamping,
+            vatPercent,
+          };
+          const cr = runCalculation(coverInput);
+          if (cr && !("error" in cr)) {
+            const tag = " (обложка)";
+            if (cr.paperCost > 0) coverExtras.push({ stage: "material", name: `Бумага${tag} — ${coverMat.name}`, quantity: cr.purchaseSheets, unit: "лист", unitPrice: Math.round((cr.paperCost / Math.max(1, cr.purchaseSheets)) * 100) / 100, total: cr.paperCost });
+            if (cr.paperCutCost > 0) coverExtras.push({ stage: "prepress", name: `Резка бумаги${tag}`, quantity: 1, unit: "шт", unitPrice: cr.paperCutCost, total: cr.paperCutCost });
+            if (cr.formsCost + cr.formsPrepCost > 0) coverExtras.push({ stage: "prepress", name: `Формы${tag} (${coverColorFront}+${coverColorBack})`, quantity: cr.forms, unit: "форма", unitPrice: Math.round(((cr.formsCost + cr.formsPrepCost) / Math.max(1, cr.forms)) * 100) / 100, total: cr.formsCost + cr.formsPrepCost });
+            if (cr.printCost > 0) coverExtras.push({ stage: "print", name: `Печать${tag} (${coverColorFront}+${coverColorBack})`, quantity: cr.printSheets, unit: "лист", unitPrice: Math.round((cr.printCost / Math.max(1, cr.printSheets)) * 100) / 100, total: cr.printCost });
+            if (cr.inkCost > 0) coverExtras.push({ stage: "prepress", name: `Краска${tag}`, quantity: 1, unit: "шт", unitPrice: cr.inkCost, total: cr.inkCost });
+            // Припресс / тиснение — берём из postpress движка обложки
+            (cr.postpress || []).forEach((p: any) => {
+              coverExtras.push({ ...p, name: `${p.name}${tag}` });
+            });
+            if (coverPouchLam) {
+              // Простая надбавка: пакетная ламинация ≈ цена движка лицевой ламинации × 1.5
+              const lamRow = cr.postpress?.find((p: any) => /ламин/i.test(p.name));
+              if (lamRow) coverExtras.push({ stage: "postpress", name: `Пакетная ламинация${tag}`, quantity: circulation, unit: "шт", unitPrice: Math.round((lamRow.total / Math.max(1, circulation)) * 1.5 * 100) / 100, total: Math.round(lamRow.total * 1.5) });
+            }
+            if (coverCongrev) {
+              // Конгрев на обложку — приближённо: 1.5 ₸/шт (тонкая настройка через справочник)
+              const congrevTotal = Math.max(2000, Math.round(circulation * 1.5));
+              coverExtras.push({ stage: "postpress", name: `Конгрев${tag}`, quantity: 1, unit: "шт", unitPrice: congrevTotal, total: congrevTotal });
+            }
+          }
+        } catch (e) {
+          // не валим расчёт, просто пропускаем строки обложки
+        }
+      }
+    }
+    if (coverExtras.length) allExtras.push(...coverExtras);
     let spec = allExtras.length ? [...baseResult.spec, ...allExtras] : baseResult.spec;
     const extrasTotal = allExtras.reduce((s: number, i: any) => s + i.total, 0);
     let totalCost = baseResult.totalCost + extrasTotal;
@@ -4718,7 +4786,7 @@ const Calculator = () => {
       variantApplied,
       variantWarning,
     };
-  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems, rigelItems, embossItems, congrevItems]);
+  }, [baseResult, extraSpecItems, catalogOpsItems, formSetupCostPerForm, foldsPerItem, circulation, effectiveMaterial, dieCutEnabled, dieCutStampMode, dieCutStampCost, wastePickPerItem, pouchEnabled, pouchManualId, pouchPriceOverride, pouchMinOverride, pouches, variablePrintRows, varPrintSel, dims, useVariantOverride, activeVariant, activeVariantFull, variantConstants, variantMaterials, autoVars, variableOverrides, colorBack, springEnabled, springs, paperThickness, springBlockSheets, springSide, springManualId, springLoopsOverride, springPitchOverride, springDiameterOverride, springPricePerLoopOverride, springWorkOverride, springSetupOverride, springPaperThicknessOverride, thermals, thermalEnabled, thermalBlockSheets, thermalCoverSheets, thermalExtraThickness, thermalManualId, thermalBlockThicknessOverride, thermalPaperThicknessOverride, thermalPricePerMmOverride, thermalWorkOverride, thermalSetupOverride, signatureRows, sigEnabled, sigPages, sigPagesPerSignature, sigManualId, sigFoldsOverride, sigSignaturesOverride, sigCoefOverride, sigPricePerFoldOverride, sigPricePerSignatureOverride, sigSetupOverride, collationRows, colEnabled, colManualId, colTypeOverride, colSignaturesOverride, colPriceOverride, colCoefOverride, colSetupOverride, colMinOverride, colComplexSequence, colHasInserts, sewRows, sewEnabled, sewManualId, sewSigOverride, sewBlockThicknessOverride, sewPaperThicknessOverride, sewPriceOverride, sewThreadPriceOverride, sewCoefOverride, sewSetupOverride, sewMinOverride, sewUseGauze, sewUseHeadband, sewUseEndpaper, endpaperRows, epEnabled, epManualId, epCountOverride, epWidthOverride, epHeightOverride, epPaperPriceOverride, epPrintPriceOverride, epFoldCreasePriceOverride, epGluePriceOverride, epCoefOverride, epSetupOverride, epMinOverride, epNeedsPrintOverride, epManualGlue, gauzeRows, gzEnabled, gzManualId, gzWidthOverride, gzHeightOverride, gzSpineWidthOverride, gzPriceOverride, gzGluePriceOverride, gzCoefOverride, gzSetupOverride, gzMinOverride, gzManualGlue, headbandRows, hbEnabled, hbManualId, hbCountOverride, hbLengthOverride, hbAllowanceOverride, hbPricePerMeterOverride, hbInstallPriceOverride, hbCoefOverride, hbSetupOverride, hbMinOverride, hbManualInstall, hbNonstandardColor, pressingRows, prEnabled, prManualId, prPriceOverride, prTimeOverride, prHourPriceOverride, prCoefOverride, prSetupOverride, prMinOverride, prCalcModeOverride, prManual, prDesignerPaper, trimRows, trEnabled, trManualId, trTypeOverride, trCutsOverride, trCalcModeOverride, trPriceCutOverride, trPriceItemOverride, trTimeOverride, trHourPriceOverride, trCoefOverride, trSetupOverride, trMinOverride, trManualTrim, trDesignerPaper, boardRows, bdEnabled, bdManualId, bdCalcModeOverride, bdSideWidthOverride, bdSideHeightOverride, bdSpineWidthOverride, bdPriceM2Override, bdPriceSheetOverride, bdPriceCoverOverride, bdCutsOverride, bdPriceCutOverride, bdCoefOverride, bdSetupOverride, bdMinOverride, bdManualCut, bdComplexLayout, bdDesignerBoard, bcRows, bcEnabled, bcManualId, bcCutsOverride, bcSheetsOverride, bcPriceCutOverride, bcCoefOverride, bcSetupOverride, bcMinOverride, bcManualCut, bcFigured, bcComplexLayout, casingRows, csEnabled, csManualId, csCoverWidthOverride, csCoverHeightOverride, csMaterialCostOverride, csGlueCostOverride, csWorkCostOverride, csCoefOverride, csSetupOverride, csMinOverride, csManualMethod, csFabric, csDesignerMaterial, csPrintedCover, coverAsmRows, caEnabled, caManualId, caSideWOverride, caSideHOverride, caSpineWOverride, caGapLeftOverride, caGapRightOverride, caCoverWOverride, caCoverHOverride, caWorkCostOverride, caCoefOverride, caSetupOverride, caMinOverride, caManualMethod, caFabric, caComplexMaterial, biRows, biEnabled, biManualId, biPriceOverride, biGlueModeOverride, biGluePriceItemOverride, biGluePriceM2Override, biEndpaperAreaOverride, biBlockThicknessOverride, biBlockWeightOverride, biCoefOverride, biSetupOverride, biMinOverride, biManualMethod, biFabric, biComplexAlign, fpRows, fpEnabled, fpManualId, fpCalcModeOverride, fpPriceOverride, fpHourPriceOverride, fpBooksPerLoadOverride, fpLoadTimeOverride, fpBookThicknessOverride, fpBookWeightOverride, fpCoefOverride, fpSetupOverride, fpMinOverride, fpManual, fpFabric, stRows, stEnabled, stManualId, stStaplesCountOverride, stStapleTypeOverride, stMachineOverride, stPricePerStapleOverride, stPriceItemOverride, stBlockThicknessOverride, stCoefOverride, stSetupOverride, stMinOverride, stManual, stHeavyPaper, perforationItems, tapeItems, windowItems, flashItems, rigelItems, embossItems, congrevItems, caps, materials, coverPaperId, coverColorFront, coverColorBack, coverLamPrepress, coverPouchLam, coverStamping, coverCongrev, formatType, vatPercent]);
 
   // Подсказка в расширенном режиме: если автоподбор материала дешевле выбранного
   const suggestionHint = useMemo(() => {
@@ -5260,8 +5328,95 @@ const Calculator = () => {
             </section>
 
             <section id="section-2" className="scroll-mt-24">
+              {caps.cover && (
+                <Card className="mb-4 border-primary/30">
+                  <CardHeader>
+                    <CardTitle>Обложка</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Отдельные параметры печати для обложки. Блок ниже («Бумага», «Красочность») задаёт <b>внутренний блок (тетрадь)</b>.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Бумага обложки</Label>
+                      <Select value={coverPaperId} onValueChange={setCoverPaperId}>
+                        <SelectTrigger><SelectValue placeholder="Выберите бумагу для обложки…" /></SelectTrigger>
+                        <SelectContent>
+                          {materials.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} · {m.density} г/м² · {fmtMoney(m.cost_per_sheet)}/лист
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Формат и раскрой обложки берутся равными формату изделия ({dims.w}×{dims.h} мм). Тираж — {circulation} шт.
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Красочность обложки</Label>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {[
+                          { f: 4, b: 4, label: "4+4" },
+                          { f: 4, b: 0, label: "4+0" },
+                          { f: 4, b: 1, label: "4+1" },
+                          { f: 1, b: 1, label: "1+1" },
+                          { f: 1, b: 0, label: "1+0" },
+                        ].map((p) => {
+                          const active = coverColorFront === p.f && coverColorBack === p.b;
+                          return (
+                            <button
+                              key={p.label}
+                              type="button"
+                              onClick={() => { setCoverColorFront(p.f); setCoverColorBack(p.b); }}
+                              className={cn(
+                                "px-3 py-1 rounded-full text-xs border transition-colors",
+                                active
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-muted/40 text-muted-foreground hover:bg-muted border-border"
+                              )}
+                            >
+                              {p.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Лицо</Label>
+                          <Input type="number" min={0} max={10} value={coverColorFront} onChange={(e) => setCoverColorFront(Number(e.target.value) || 0)} />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Оборот (0 = без)</Label>
+                          <Input type="number" min={0} max={10} value={coverColorBack} onChange={(e) => setCoverColorBack(Number(e.target.value) || 0)} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverLamPrepress} onCheckedChange={(v) => setCoverLamPrepress(!!v)} />
+                        <span>Припресс плёнкой</span>
+                      </label>
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverPouchLam} onCheckedChange={(v) => setCoverPouchLam(!!v)} />
+                        <span>Пакетная ламинация</span>
+                      </label>
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverStamping} onCheckedChange={(v) => setCoverStamping(!!v)} />
+                        <span>Тиснение фольгой</span>
+                      </label>
+                      <label className="flex items-center gap-2 rounded border bg-card p-2 text-sm cursor-pointer">
+                        <Checkbox checked={coverCongrev} onCheckedChange={(v) => setCoverCongrev(!!v)} />
+                        <span>Конгрев</span>
+                      </label>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
-                <CardHeader><CardTitle>2. Бумага</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle>2. Бумага {caps.cover && <span className="text-sm font-normal text-muted-foreground">— внутренний блок (тетрадь)</span>}</CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
                     <div>

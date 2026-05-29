@@ -44,6 +44,8 @@ export interface ProductCapabilities {
   endpaper: boolean;
   /** Скрепление на скобу */
   stapling: boolean;
+  /** Отдельный блок «Обложка» (для брошюры/журнала) */
+  cover: boolean;
 }
 
 export const ALL_CAPS_OFF: ProductCapabilities = {
@@ -66,6 +68,7 @@ export const ALL_CAPS_OFF: ProductCapabilities = {
   thermal: false,
   endpaper: false,
   stapling: false,
+  cover: false,
 };
 
 function caps(p: Partial<ProductCapabilities>): ProductCapabilities {
@@ -127,10 +130,12 @@ export const PRODUCT_CAPABILITIES: Record<ProductType, ProductCapabilities> = {
   magazine: caps({
     fold: true, lamPrepress: true, lamination: true,
     signature: true, stapling: true, thermal: true,
+    cover: true,
   }),
   brochure: caps({
     fold: true, lamPrepress: true, lamination: true,
     signature: true, stapling: true, thermal: true,
+    cover: true,
   }),
 
   // ── Календари ─────────────────────────────────────────────────────
