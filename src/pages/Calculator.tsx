@@ -2260,7 +2260,33 @@ const Calculator = () => {
       vatPercent,
       cutsPerSheetOverride: cutsOverride ?? undefined,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, filmId, films, filmPriceOverride, filmSetupOverride, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
+  }, [effectiveMaterial, productType, caps, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, filmId, films, filmPriceOverride, filmSetupOverride, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
+
+  // При смене вида продукции сбрасываем флаги операций, недоступных для нового типа,
+  // чтобы значения из шаблона/AI-импорта не попадали в расчёт.
+  useEffect(() => {
+    if (!caps.fold) { setHasFold(false); setFoldsPerItem(0); }
+    if (!caps.diecut) { setHasDieCut(false); setDieCutEnabled(false); }
+    if (!caps.lamination) setHasLamination(false);
+    if (!caps.lamPrepress) setHasLamPrepress(false);
+    if (!caps.pouchLam) setPouchEnabled(false);
+    if (!caps.numbering) setHasNumbering(false);
+    if (!caps.stamping) { setHasStamping(false); setHasEmbossing(false); setEmbossEnabled(false); }
+    if (!caps.congrev) setCongrevEnabled(false);
+    if (!caps.perforation) setPerfEnabled(false);
+    if (!caps.tape) setTapeEnabled(false);
+    if (!caps.windowCut) setWindowEnabled(false);
+    if (!caps.flashRemoval) setFlashEnabled(false);
+    if (!caps.rigel) setRigelEnabled(false);
+    if (!caps.variablePrint) {
+      setVarPrintSel((prev) => {
+        const next = { ...prev } as typeof prev;
+        (Object.keys(next) as (keyof typeof next)[]).forEach((k) => { next[k] = { ...next[k], enabled: false }; });
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productType]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
