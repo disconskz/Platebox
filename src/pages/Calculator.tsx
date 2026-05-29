@@ -6317,7 +6317,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 34: блок «Тиснение». */}
+                  {caps.stamping && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={embossEnabled} onCheckedChange={(v) => setEmbossEnabled(!!v)} id="emboss" />
