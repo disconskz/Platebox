@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Шаблон «Календарь карманный» — листовая логика с ламинацией,
@@ -152,6 +154,35 @@ export default function PocketCalendarCalculator({ embedded = false }: PocketCal
   }, [kind]);
 
   useEffect(() => { if (optDieCut && !optDeflash) setOptDeflash(true); }, [optDieCut, optDeflash]);
+
+  // При встраивании в Calculator (Новый расчёт) подхватываем шаблон ?from=…
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (!embedded) return;
+    const tpl = searchParams.get("from");
+    if (!tpl) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("calculations")
+        .select("circulation,format_type,format_width,format_height,color_front,color_back,margin_percent")
+        .eq("id", tpl)
+        .single();
+      if (cancelled || error || !data) return;
+      if (data.circulation) setCirculation(Number(data.circulation));
+      if (data.format_type) {
+        const known = FORMATS.find((f) => f.value === data.format_type);
+        setPresetKey(known ? known.value : "custom");
+      }
+      if (data.format_width) setCustomW(Number(data.format_width));
+      if (data.format_height) setCustomH(Number(data.format_height));
+      if (data.color_front != null) setColorFront(Number(data.color_front));
+      if (data.color_back != null) setColorBack(Number(data.color_back));
+      if (data.margin_percent) setMargin(Number(data.margin_percent));
+      toast.info("Шаблон применён");
+    })();
+    return () => { cancelled = true; };
+  }, [embedded, searchParams]);
 
   const variable = optQR || optBarcode || optPersonal;
   const offset = printMode === "offset" || (printMode === "auto" && circulation >= 500 && !variable);
