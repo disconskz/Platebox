@@ -454,8 +454,11 @@ export default function NotepadCalculator({ embedded = false }: NotepadCalculato
     return s;
   }, [hasDesign, offset, hasCover, optCoverLam, optCoverBig, optSpotVarnish, optStamp, optEmboss, hasBacking, backing, backingPrint, bindingKind, optPerf, optRound, hasDelivery, hasForzac, hasKapital, hasMarlya, hasLyasse, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optSoftTouch, optFoil, optShrink]);
 
+  const Shell: any = embedded ? Fragment : PageShell;
+  const Main: any = embedded ? Fragment : PageMain;
   return (
-    <PageShell>
+    <Shell>
+      {!embedded && (
       <PageHeader>
         <PageHeaderRow>
           <div className="flex items-center gap-2 min-w-0">
@@ -473,8 +476,9 @@ export default function NotepadCalculator({ embedded = false }: NotepadCalculato
           <Badge variant="secondary" className="ml-auto">Доработка 59</Badge>
         </PageHeaderRow>
       </PageHeader>
+      )}
 
-      <PageMain>
+      <Main>
         <PageContainer>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
@@ -865,8 +869,8 @@ export default function NotepadCalculator({ embedded = false }: NotepadCalculato
             </CardContent>
           </Card>
         </PageContainer>
-      </PageMain>
-    </PageShell>
+      </Main>
+    </Shell>
   );
 }
 
