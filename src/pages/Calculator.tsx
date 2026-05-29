@@ -5922,7 +5922,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 31: блок «Наклейка окна на коробку». */}
+                  {caps.windowCut && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={windowEnabled} onCheckedChange={(v) => setWindowEnabled(!!v)} id="window" />
