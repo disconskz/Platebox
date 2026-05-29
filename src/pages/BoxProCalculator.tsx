@@ -14,7 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { fmtMoney } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 /**
