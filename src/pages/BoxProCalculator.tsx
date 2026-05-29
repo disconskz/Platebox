@@ -1,0 +1,726 @@
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Box as BoxIcon, Plus, Trash2, Check } from "lucide-react";
+import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { fmtMoney } from "@/lib/format";
+import TemplateActions from "@/components/calc/TemplateActions";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+
+/**
+ * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
+ *
+ * Менеджер шагает по 6 шагам:
+ *   1. Тип коробки  →  2. Размеры  →  3. Материал  →  4. Печать  →  5. Опции  →  6. Итог
+ *
+ * Программа сама создаёт нужные детали (крышка/дно/ложемент/окно/шубер/перегородки)
+ * под выбранный подтип. Этапы 2-4 ТЗ (авто-спуски, авто-штамп из развёртки, DXF/SVG)
+ * подключаются следующими итерациями поверх этого каркаса.
+ */
+
+// ─── Подтипы коробок ─────────────────────────────────────────────────
+type BoxSubType =
+  | "self_assembly"
+  | "lid_bottom"
+  | "magnet"
+  | "window"
+  | "sleeve"
+  | "kashir"
+  | "tray"
+  | "microcorrugated"
+  | "gift"
+  | "premium";
+
+const SUBTYPES: { value: BoxSubType; label: string; hint: string }[] = [
+  { value: "self_assembly", label: "Самосборная", hint: "Одно полотно, склейка дна-замка." },
+  { value: "lid_bottom", label: "Крышка-дно", hint: "Две раздельные детали: крышка и дно." },
+  { value: "magnet", label: "С магнитом", hint: "Каширка + крышка на магнитах." },
+  { value: "window", label: "С окном", hint: "Вырезанное окно + ПЭТ-плёнка." },
+  { value: "sleeve", label: "Пенал / шубер", hint: "Внутренний лоток + наружный шубер." },
+  { value: "kashir", label: "Кашированная", hint: "Переплётный картон + кашировочный лайнер." },
+  { value: "tray", label: "С ложементом", hint: "Коробка + EVA/поролон-ложемент." },
+  { value: "microcorrugated", label: "Микрогофрокоробка", hint: "Микрогофра T/E, без каширования." },
+  { value: "gift", label: "Подарочная", hint: "Кашированная + лента/магниты." },
+  { value: "premium", label: "Premium", hint: "Кашированная + ложемент + фурнитура." },
+];
+
+// ─── Детали ──────────────────────────────────────────────────────────
+type PartKind =
+  | "lid" | "bottom" | "body" | "sleeve" | "tray"
+  | "divider" | "insert" | "window" | "liner" | "reinforcement";
+
+const PART_LABELS: Record<PartKind, string> = {
+  lid: "Крышка",
+  bottom: "Дно",
+  body: "Корпус",
+  sleeve: "Шубер",
+  tray: "Ложемент",
+  divider: "Перегородка",
+  insert: "Вкладыш",
+  window: "Окно (ПЭТ)",
+  liner: "Лайнер",
+  reinforcement: "Усиление",
+};
+
+type MaterialKind = "coated" | "chromers" | "microcorr" | "bookbind" | "designer" | "eva" | "plastic" | "pvc" | "pet";
+const MATERIAL_LABELS: Record<MaterialKind, string> = {
+  coated: "Мелованный картон",
+  chromers: "Хром-эрзац",
+  microcorr: "Микрогофра",
+  bookbind: "Переплётный картон",
+  designer: "Дизайнерский картон",
+  eva: "EVA",
+  plastic: "Пластик",
+  pvc: "ПВХ",
+  pet: "ПЭТ-плёнка",
+};
+
+type MaterialPreset = {
+  id: string;
+  kind: MaterialKind;
+  label: string;
+  density: number;        // г/м² или эквивалент
+  thickness: number;      // мм
+  sheetW: number;         // мм
+  sheetH: number;         // мм
+  pricePerSheet: number;  // тг
+  wastePct: number;       // отходы, %
+};
+
+const MATERIAL_PRESETS: MaterialPreset[] = [
+  { id: "coated250", kind: "coated", label: "Мелованный 250 г/м²", density: 250, thickness: 0.30, sheetW: 620, sheetH: 940, pricePerSheet: 75, wastePct: 5 },
+  { id: "coated300", kind: "coated", label: "Мелованный картон 300 г/м²", density: 300, thickness: 0.36, sheetW: 620, sheetH: 940, pricePerSheet: 95, wastePct: 5 },
+  { id: "coated350", kind: "coated", label: "Мелованный картон 350 г/м²", density: 350, thickness: 0.42, sheetW: 620, sheetH: 940, pricePerSheet: 120, wastePct: 5 },
+  { id: "chromers300", kind: "chromers", label: "Хром-эрзац 300 г/м²", density: 300, thickness: 0.40, sheetW: 700, sheetH: 1000, pricePerSheet: 110, wastePct: 5 },
+  { id: "micro_t", kind: "microcorr", label: "Микрогофра T (1.2 мм)", density: 480, thickness: 1.2, sheetW: 700, sheetH: 1000, pricePerSheet: 220, wastePct: 7 },
+  { id: "micro_e", kind: "microcorr", label: "Микрогофра E (1.6 мм)", density: 520, thickness: 1.6, sheetW: 700, sheetH: 1000, pricePerSheet: 260, wastePct: 7 },
+  { id: "bookbind15", kind: "bookbind", label: "Переплётный картон 1.5 мм", density: 900, thickness: 1.5, sheetW: 700, sheetH: 1000, pricePerSheet: 380, wastePct: 8 },
+  { id: "bookbind20", kind: "bookbind", label: "Переплётный картон 2.0 мм", density: 1200, thickness: 2.0, sheetW: 700, sheetH: 1000, pricePerSheet: 480, wastePct: 8 },
+  { id: "designer300", kind: "designer", label: "Дизайнерский картон 300 г/м²", density: 300, thickness: 0.40, sheetW: 720, sheetH: 1020, pricePerSheet: 260, wastePct: 6 },
+  { id: "eva5", kind: "eva", label: "EVA 5 мм", density: 100, thickness: 5, sheetW: 1000, sheetH: 2000, pricePerSheet: 1800, wastePct: 15 },
+  { id: "eva10", kind: "eva", label: "EVA 10 мм", density: 120, thickness: 10, sheetW: 1000, sheetH: 2000, pricePerSheet: 3000, wastePct: 15 },
+  { id: "pet300", kind: "pet", label: "ПЭТ-плёнка 0.3 мм", density: 380, thickness: 0.3, sheetW: 700, sheetH: 1000, pricePerSheet: 280, wastePct: 10 },
+];
+
+type Part = {
+  id: string;
+  kind: PartKind;
+  name: string;
+  qtyPerBox: number;
+  materialId: string;
+  /** Габариты ОДНОЙ детали в развёртке, мм */
+  developW: number;
+  developH: number;
+  colorFront: number;
+  colorBack: number;
+  hasLam: boolean;
+  lamSides: 1 | 2;
+  hasFoil: boolean;
+  hasEmboss: boolean;
+  removable: boolean; // false для базовых деталей подтипа
+};
+
+// ─── Авто-набор деталей по подтипу ────────────────────────────────────
+function autoPartsFor(sub: BoxSubType, w: number, l: number, h: number, lidH: number): Part[] {
+  const baseDevelop = (W: number, L: number, H: number) => ({
+    w: W + 2 * H + 30,
+    h: L + 2 * H + 30,
+  });
+  const dev = baseDevelop(w, l, h);
+  const lidDev = baseDevelop(w + 4, l + 4, lidH);
+
+  const p = (kind: PartKind, dW: number, dH: number, materialId: string, qty = 1): Part => ({
+    id: crypto.randomUUID(),
+    kind,
+    name: PART_LABELS[kind],
+    qtyPerBox: qty,
+    materialId,
+    developW: Math.round(dW),
+    developH: Math.round(dH),
+    colorFront: 4,
+    colorBack: 0,
+    hasLam: false,
+    lamSides: 1,
+    hasFoil: false,
+    hasEmboss: false,
+    removable: false,
+  });
+
+  switch (sub) {
+    case "self_assembly":
+      return [p("body", dev.w, dev.h, "chromers300")];
+    case "lid_bottom":
+      return [p("lid", lidDev.w, lidDev.h, "coated350"), p("bottom", dev.w, dev.h, "coated350")];
+    case "magnet":
+      return [
+        p("lid", w + 30, l + 30, "bookbind20"),
+        p("bottom", w + 30, l + 30, "bookbind20"),
+        p("liner", lidDev.w, lidDev.h, "coated250"),
+      ];
+    case "window":
+      return [
+        p("lid", lidDev.w, lidDev.h, "coated350"),
+        p("bottom", dev.w, dev.h, "coated350"),
+        p("window", Math.max(50, w - 20), Math.max(50, l - 20), "pet300"),
+      ];
+    case "sleeve":
+      return [
+        p("body", dev.w, dev.h, "coated350"),
+        p("sleeve", w + 2 * h + 20, l + 30, "coated300"),
+      ];
+    case "kashir":
+      return [
+        p("bottom", w + 30, l + 30, "bookbind20"),
+        p("liner", dev.w, dev.h, "coated250"),
+      ];
+    case "tray":
+      return [
+        p("lid", lidDev.w, lidDev.h, "coated350"),
+        p("bottom", dev.w, dev.h, "coated350"),
+        p("tray", w - 5, l - 5, "eva10"),
+      ];
+    case "microcorrugated":
+      return [p("body", dev.w, dev.h, "micro_e")];
+    case "gift":
+      return [
+        p("lid", w + 30, l + 30, "bookbind15"),
+        p("bottom", w + 30, l + 30, "bookbind15"),
+        p("liner", lidDev.w, lidDev.h, "designer300"),
+      ];
+    case "premium":
+      return [
+        p("lid", w + 30, l + 30, "bookbind20"),
+        p("bottom", w + 30, l + 30, "bookbind20"),
+        p("liner", lidDev.w, lidDev.h, "designer300"),
+        p("tray", w - 5, l - 5, "eva10"),
+      ];
+  }
+}
+
+// ─── Цены доп. операций (упрощённые, до полноценного движка) ─────────
+const PRINT_PRICE_PER_SHEET = 25;     // тг/лист 4+0 (упрощ.)
+const LAM_PRICE_PER_SHEET = 18;       // тг/лист с одной стороны
+const FOIL_PRICE_PER_PART = 8;        // тг/деталь
+const EMBOSS_PRICE_PER_PART = 6;      // тг/деталь
+const DIECUT_PRICE_PER_SHEET = 12;    // тг/лист
+const DIECUT_SETUP = 5000;            // тг приладка штампа (плейсхолдер для Этапа 3)
+const ASSEMBLY_PER_BOX = 25;          // тг/коробка ручная сборка
+
+function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefined) {
+  if (!mat) return { sheets: 0, materialCost: 0, printCost: 0, lamCost: 0, postCost: 0, partTotal: 0 };
+  // Сколько деталей на лист по площади (упрощённо, без полноценного спуска)
+  const cols = Math.max(1, Math.floor(mat.sheetW / Math.max(10, part.developW)));
+  const rows = Math.max(1, Math.floor(mat.sheetH / Math.max(10, part.developH)));
+  const perSheet = Math.max(1, cols * rows);
+  const totalParts = circulation * part.qtyPerBox;
+  const sheets = Math.ceil(totalParts / perSheet) * (1 + mat.wastePct / 100);
+  const sheetsInt = Math.ceil(sheets);
+  const materialCost = sheetsInt * mat.pricePerSheet;
+  const hasPrint = part.colorFront + part.colorBack > 0;
+  const printCost = hasPrint ? sheetsInt * PRINT_PRICE_PER_SHEET * ((part.colorFront + part.colorBack) / 4) : 0;
+  const lamCost = part.hasLam ? sheetsInt * LAM_PRICE_PER_SHEET * part.lamSides : 0;
+  const foilCost = part.hasFoil ? totalParts * FOIL_PRICE_PER_PART : 0;
+  const embossCost = part.hasEmboss ? totalParts * EMBOSS_PRICE_PER_PART : 0;
+  const dieCost = sheetsInt * DIECUT_PRICE_PER_SHEET + DIECUT_SETUP;
+  const postCost = lamCost + foilCost + embossCost + dieCost;
+  return {
+    sheets: sheetsInt,
+    perSheet,
+    materialCost,
+    printCost,
+    lamCost,
+    foilCost,
+    embossCost,
+    dieCost,
+    postCost,
+    partTotal: materialCost + printCost + postCost,
+  };
+}
+
+// ─── Компонент ────────────────────────────────────────────────────────
+export interface BoxProCalculatorProps { embedded?: boolean }
+export default function BoxProCalculator({ embedded = false }: BoxProCalculatorProps = {}) {
+  const [searchParams] = useSearchParams();
+  const [step, setStep] = useState(1);
+
+  // Базовые поля
+  const [subType, setSubType] = useState<BoxSubType>("lid_bottom");
+  const [innerW, setInnerW] = useState(150);
+  const [innerL, setInnerL] = useState(200);
+  const [innerH, setInnerH] = useState(80);
+  const [lidH, setLidH] = useState(35);
+  const [circulation, setCirculation] = useState(500);
+  const [margin, setMargin] = useState(40);
+  const vatPercent = 16;
+
+  // Фурнитура / опции на уровне коробки
+  const [hasMagnet, setHasMagnet] = useState(false);
+  const [hasRibbon, setHasRibbon] = useState(false);
+  const [hasHandle, setHasHandle] = useState(false);
+  const [hasEyelet, setHasEyelet] = useState(false);
+
+  // Детали
+  const [parts, setParts] = useState<Part[]>(() => autoPartsFor("lid_bottom", 150, 200, 80, 35));
+
+  // Авто-пересборка деталей при смене подтипа
+  useEffect(() => {
+    setParts(autoPartsFor(subType, innerW, innerL, innerH, lidH));
+    if (subType === "magnet") setHasMagnet(true);
+    if (subType === "gift" || subType === "premium") setHasRibbon(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subType]);
+
+  // Подкачка значений из шаблона (when embedded и есть ?from=)
+  useEffect(() => {
+    if (!embedded) return;
+    const tpl = searchParams.get("from");
+    if (!tpl) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("calculations")
+        .select("circulation")
+        .eq("id", tpl)
+        .maybeSingle();
+      if (error || !data) return;
+      if (data.circulation) setCirculation(Number(data.circulation));
+    })();
+  }, [embedded, searchParams]);
+
+  // ── Расчёт ────────────────────────────────────────────────────────
+  const result = useMemo(() => {
+    const lines = parts.map((part) => {
+      const mat = MATERIAL_PRESETS.find((m) => m.id === part.materialId);
+      const r = calcPart(part, circulation, mat);
+      return { part, mat, ...r };
+    });
+    const materials = lines.reduce((s, l) => s + l.materialCost, 0);
+    const printCost = lines.reduce((s, l) => s + l.printCost, 0);
+    const postCost = lines.reduce((s, l) => s + l.postCost, 0);
+    const fittings =
+      (hasMagnet ? 4 * circulation * 35 : 0) +
+      (hasRibbon ? circulation * 25 : 0) +
+      (hasHandle ? 2 * circulation * 40 : 0) +
+      (hasEyelet ? 4 * circulation * 8 : 0);
+    const assembly = circulation * ASSEMBLY_PER_BOX;
+    const totalCost = materials + printCost + postCost + fittings + assembly;
+    const salePrice = totalCost * (1 + margin / 100);
+    const totalWithVat = salePrice * (1 + vatPercent / 100);
+    return {
+      lines,
+      materials,
+      printCost,
+      postCost,
+      fittings,
+      assembly,
+      totalCost,
+      salePrice,
+      totalWithVat,
+      perUnit: circulation > 0 ? totalWithVat / circulation : 0,
+    };
+  }, [parts, circulation, margin, vatPercent, hasMagnet, hasRibbon, hasHandle, hasEyelet]);
+
+  // ── UI: оболочка для embedded ─────────────────────────────────────
+  const Shell: any = embedded ? Fragment : PageShell;
+  const Main: any = embedded ? Fragment : PageMain;
+
+  const updatePart = (id: string, patch: Partial<Part>) =>
+    setParts((cur) => cur.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const removePart = (id: string) => setParts((cur) => cur.filter((p) => p.id !== id));
+  const addCustomPart = (kind: PartKind) =>
+    setParts((cur) => [
+      ...cur,
+      {
+        id: crypto.randomUUID(),
+        kind,
+        name: PART_LABELS[kind],
+        qtyPerBox: 1,
+        materialId: "coated300",
+        developW: 200,
+        developH: 200,
+        colorFront: 4,
+        colorBack: 0,
+        hasLam: false,
+        lamSides: 1,
+        hasFoil: false,
+        hasEmboss: false,
+        removable: true,
+      },
+    ]);
+
+  const stepBtn = (n: number, label: string) => (
+    <button
+      type="button"
+      onClick={() => setStep(n)}
+      className={cn(
+        "flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition",
+        step === n ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-accent",
+      )}
+    >
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background/30 text-xs">
+        {step > n ? <Check className="h-3 w-3" /> : n}
+      </span>
+      {label}
+    </button>
+  );
+
+  return (
+    <Shell>
+      {!embedded && (
+        <PageHeader>
+          <PageHeaderRow>
+            <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              Назад
+            </Link>
+            <div className="flex items-center gap-2">
+              <BoxIcon className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-semibold">Калькулятор коробок (PRO)</h1>
+              <Badge variant="secondary">Доработка 84 · этап 1</Badge>
+            </div>
+          </PageHeaderRow>
+        </PageHeader>
+      )}
+      <Main>
+        <PageContainer>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {stepBtn(1, "1. Тип")}
+            {stepBtn(2, "2. Размеры")}
+            {stepBtn(3, "3. Материал")}
+            {stepBtn(4, "4. Печать")}
+            {stepBtn(5, "5. Опции")}
+            {stepBtn(6, "6. Итог")}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+            <div className="space-y-4">
+              {step === 1 && (
+                <Card>
+                  <CardHeader><CardTitle>Тип коробки</CardTitle></CardHeader>
+                  <CardContent className="grid gap-2 sm:grid-cols-2">
+                    {SUBTYPES.map((s) => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => setSubType(s.value)}
+                        className={cn(
+                          "rounded-lg border p-3 text-left transition",
+                          subType === s.value ? "border-primary bg-primary/5" : "border-border hover:bg-accent",
+                        )}
+                      >
+                        <div className="font-medium">{s.label}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{s.hint}</div>
+                      </button>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {step === 2 && (
+                <Card>
+                  <CardHeader><CardTitle>Размеры коробки (внутренние, мм)</CardTitle></CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label>Ширина</Label>
+                      <Input type="number" value={innerW} onChange={(e) => setInnerW(Number(e.target.value) || 0)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Длина</Label>
+                      <Input type="number" value={innerL} onChange={(e) => setInnerL(Number(e.target.value) || 0)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Высота</Label>
+                      <Input type="number" value={innerH} onChange={(e) => setInnerH(Number(e.target.value) || 0)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Высота крышки</Label>
+                      <Input type="number" value={lidH} onChange={(e) => setLidH(Number(e.target.value) || 0)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Тираж, шт</Label>
+                      <Input type="number" value={circulation} onChange={(e) => setCirculation(Math.max(1, Number(e.target.value) || 1))} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setParts(autoPartsFor(subType, innerW, innerL, innerH, lidH))}
+                      >
+                        Пересобрать развёртки по этим размерам
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {(step === 3 || step === 4 || step === 5) && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>
+                      {step === 3 && "Материалы по деталям"}
+                      {step === 4 && "Печать по деталям"}
+                      {step === 5 && "Доп. опции"}
+                    </CardTitle>
+                    {step === 5 && (
+                      <Select onValueChange={(v) => addCustomPart(v as PartKind)}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="+ добавить деталь" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(PART_LABELS) as PartKind[]).map((k) => (
+                            <SelectItem key={k} value={k}>{PART_LABELS[k]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {parts.map((part) => {
+                      const mat = MATERIAL_PRESETS.find((m) => m.id === part.materialId);
+                      return (
+                        <div key={part.id} className="rounded-lg border bg-card p-3">
+                          <div className="mb-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{PART_LABELS[part.kind]}</Badge>
+                              <Input
+                                className="h-7 w-44 text-xs"
+                                value={part.name}
+                                onChange={(e) => updatePart(part.id, { name: e.target.value })}
+                              />
+                              <span className="text-xs text-muted-foreground">×{part.qtyPerBox} на коробку</span>
+                            </div>
+                            {part.removable && (
+                              <Button variant="ghost" size="icon" onClick={() => removePart(part.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          {step === 3 && (
+                            <div className="grid gap-3 sm:grid-cols-[1fr_100px_100px_80px]">
+                              <div>
+                                <Label className="text-xs">Материал</Label>
+                                <Select value={part.materialId} onValueChange={(v) => updatePart(part.id, { materialId: v })}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {MATERIAL_PRESETS.map((m) => (
+                                      <SelectItem key={m.id} value={m.id}>
+                                        {MATERIAL_LABELS[m.kind]}: {m.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Развёртка W, мм</Label>
+                                <Input type="number" value={part.developW}
+                                  onChange={(e) => updatePart(part.id, { developW: Number(e.target.value) || 0 })} />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Развёртка H, мм</Label>
+                                <Input type="number" value={part.developH}
+                                  onChange={(e) => updatePart(part.id, { developH: Number(e.target.value) || 0 })} />
+                              </div>
+                              <div>
+                                <Label className="text-xs">×шт</Label>
+                                <Input type="number" min={1} value={part.qtyPerBox}
+                                  onChange={(e) => updatePart(part.id, { qtyPerBox: Math.max(1, Number(e.target.value) || 1) })} />
+                              </div>
+                              {mat && (
+                                <div className="sm:col-span-4 text-xs text-muted-foreground">
+                                  Лист {mat.sheetW}×{mat.sheetH} мм · {mat.pricePerSheet} ₸/л · толщ. {mat.thickness} мм
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {step === 4 && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div>
+                                <Label className="text-xs">Цветность лицо</Label>
+                                <Select value={String(part.colorFront)}
+                                  onValueChange={(v) => updatePart(part.id, { colorFront: Number(v) })}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {[0, 1, 2, 4, 5, 6].map((n) => <SelectItem key={n} value={String(n)}>{n}+</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Цветность оборот</Label>
+                                <Select value={String(part.colorBack)}
+                                  onValueChange={(v) => updatePart(part.id, { colorBack: Number(v) })}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {[0, 1, 2, 4, 5, 6].map((n) => <SelectItem key={n} value={String(n)}>+{n}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
+
+                          {step === 5 && (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox checked={part.hasLam} onCheckedChange={(v) => updatePart(part.id, { hasLam: !!v })} />
+                                Ламинация
+                              </label>
+                              {part.hasLam && (
+                                <Select value={String(part.lamSides)} onValueChange={(v) => updatePart(part.id, { lamSides: Number(v) as 1 | 2 })}>
+                                  <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 сторона</SelectItem>
+                                    <SelectItem value="2">2 стороны</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox checked={part.hasFoil} onCheckedChange={(v) => updatePart(part.id, { hasFoil: !!v })} />
+                                Тиснение фольгой
+                              </label>
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox checked={part.hasEmboss} onCheckedChange={(v) => updatePart(part.id, { hasEmboss: !!v })} />
+                                Конгрев
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {step === 5 && (
+                      <>
+                        <Separator />
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={hasMagnet} onCheckedChange={(v) => setHasMagnet(!!v)} /> Магниты (×4)
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={hasRibbon} onCheckedChange={(v) => setHasRibbon(!!v)} /> Лента / резинка
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={hasHandle} onCheckedChange={(v) => setHasHandle(!!v)} /> Ручки (×2)
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={hasEyelet} onCheckedChange={(v) => setHasEyelet(!!v)} /> Люверсы (×4)
+                          </label>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {step === 6 && (
+                <Card>
+                  <CardHeader><CardTitle>Спецификация</CardTitle></CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Деталь</TableHead>
+                          <TableHead>Материал</TableHead>
+                          <TableHead className="text-right">На листе</TableHead>
+                          <TableHead className="text-right">Листов</TableHead>
+                          <TableHead className="text-right">Материал</TableHead>
+                          <TableHead className="text-right">Печать</TableHead>
+                          <TableHead className="text-right">Постпечать</TableHead>
+                          <TableHead className="text-right">Итого</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {result.lines.map((l) => (
+                          <TableRow key={l.part.id}>
+                            <TableCell>{l.part.name}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{l.mat?.label ?? "—"}</TableCell>
+                            <TableCell className="text-right">{l.perSheet ?? 0}</TableCell>
+                            <TableCell className="text-right">{l.sheets}</TableCell>
+                            <TableCell className="text-right">{fmtMoney(l.materialCost)}</TableCell>
+                            <TableCell className="text-right">{fmtMoney(l.printCost)}</TableCell>
+                            <TableCell className="text-right">{fmtMoney(l.postCost)}</TableCell>
+                            <TableCell className="text-right font-medium">{fmtMoney(l.partTotal)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex justify-between">
+                <Button variant="outline" disabled={step === 1} onClick={() => setStep((s) => Math.max(1, s - 1))}>
+                  Назад
+                </Button>
+                <Button disabled={step === 6} onClick={() => setStep((s) => Math.min(6, s + 1))}>
+                  Далее
+                </Button>
+              </div>
+            </div>
+
+            {/* Сайдбар с итогами */}
+            <div className="space-y-3">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Итого</CardTitle></CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <Row label="Материалы" value={result.materials} />
+                  <Row label="Печать" value={result.printCost} />
+                  <Row label="Постпечать / штамп" value={result.postCost} />
+                  <Row label="Фурнитура" value={result.fittings} />
+                  <Row label="Сборка" value={result.assembly} />
+                  <Separator />
+                  <Row label="Себестоимость" value={result.totalCost} bold />
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">Наценка, %</Label>
+                    <Input className="h-7 w-20" type="number" value={margin}
+                      onChange={(e) => setMargin(Math.max(0, Number(e.target.value) || 0))} />
+                  </div>
+                  <Row label="Цена продажи" value={result.salePrice} />
+                  <Row label={`С НДС ${vatPercent}%`} value={result.totalWithVat} bold />
+                  <Row label="За 1 коробку" value={result.perUnit} bold />
+                </CardContent>
+              </Card>
+
+              <TemplateActions
+                productType="box"
+                defaultName={`Коробка ${SUBTYPES.find((s) => s.value === subType)?.label ?? ""} ${innerW}×${innerL}×${innerH}, ${circulation} шт`}
+                circulation={circulation}
+                margin={margin}
+                vatPercent={vatPercent}
+                totals={{
+                  cost: result.totalCost,
+                  sale: result.salePrice,
+                  withVat: result.totalWithVat,
+                  perItem: result.perUnit,
+                }}
+                spec={result.lines.flatMap((l) => [
+                  { stage: "material", name: `${l.part.name} — ${l.mat?.label ?? "материал"}`, quantity: l.sheets, unit: "лист", unitPrice: l.mat?.pricePerSheet ?? 0, total: l.materialCost },
+                  ...(l.printCost > 0 ? [{ stage: "print", name: `${l.part.name} — печать`, quantity: l.sheets, unit: "лист", unitPrice: l.sheets > 0 ? l.printCost / l.sheets : 0, total: l.printCost }] : []),
+                  ...(l.postCost > 0 ? [{ stage: "postpress", name: `${l.part.name} — постпечать/штамп`, quantity: 1, unit: "услуга", unitPrice: l.postCost, total: l.postCost }] : []),
+                ])}
+                extra={{
+                  box_pro: { subType, innerW, innerL, innerH, lidH, hasMagnet, hasRibbon, hasHandle, hasEyelet, parts },
+                }}
+              />
+            </div>
+          </div>
+        </PageContainer>
+      </Main>
+    </Shell>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
+  return (
+    <div className={cn("flex justify-between", bold && "font-semibold")}>
+      <span className="text-muted-foreground">{label}</span>
+      <span>{fmtMoney(value)}</span>
+    </div>
+  );
+}

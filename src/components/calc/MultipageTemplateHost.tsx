@@ -2,6 +2,7 @@ import BrochureCalculator from "@/pages/BrochureCalculator";
 import NotepadCalculator from "@/pages/NotepadCalculator";
 import DeskCalendarCalculator from "@/pages/DeskCalendarCalculator";
 import PocketCalendarCalculator from "@/pages/PocketCalendarCalculator";
+import BoxProCalculator from "@/pages/BoxProCalculator";
 import type { ProductType } from "@/lib/calc/types";
 
 /**
@@ -22,6 +23,7 @@ export const TEMPLATE_DRIVEN_PRODUCT_TYPES: ProductType[] = [
   "calendar_desk",
   "calendar_quarter",
   "calendar_pocket",
+  "box",
 ];
 
 export function isTemplateDriven(pt: ProductType): boolean {
@@ -55,6 +57,8 @@ export default function MultipageTemplateHost({ productType }: MultipageTemplate
       return <DeskCalendarCalculator embedded />;
     case "calendar_pocket":
       return <PocketCalendarCalculator embedded />;
+    case "box":
+      return <BoxProCalculator embedded />;
     default:
       return null;
   }

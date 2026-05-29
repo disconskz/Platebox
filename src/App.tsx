@@ -45,6 +45,7 @@ import LabelCalculator from "./pages/LabelCalculator.tsx";
 import HangtagCalculator from "./pages/HangtagCalculator.tsx";
 import BagCalculator from "./pages/BagCalculator.tsx";
 import BoxCalculator from "./pages/BoxCalculator.tsx";
+import BoxProCalculator from "./pages/BoxProCalculator.tsx";
 import TubeCalculator from "./pages/TubeCalculator.tsx";
 import PosCalculator from "./pages/PosCalculator.tsx";
 import EnvelopeCalculator from "./pages/EnvelopeCalculator.tsx";
@@ -126,6 +127,7 @@ const App = () => (
             <Route path="/calculator/hangtag" element={<HangtagCalculator />} />
               <Route path="/calculator/bag" element={<BagCalculator />} />
               <Route path="/calculator/box" element={<BoxCalculator />} />
+              <Route path="/calculator/box-pro" element={<BoxProCalculator />} />
               <Route path="/calculator/tube" element={<TubeCalculator />} />
               <Route path="/calculator/pos" element={<PosCalculator />} />
               <Route path="/calculator/envelope" element={<EnvelopeCalculator />} />
