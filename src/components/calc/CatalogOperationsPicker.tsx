@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Trash2, Plus, AlertCircle, ChevronsUpDown } from "lucide-react";
-import { useState as useReactState } from "react";
 import { evalFormula, extractVariables, parseDefault } from "@/lib/operations/formula";
 import type { SpecItem } from "@/lib/calc/types";
 
