@@ -13,11 +13,15 @@ import type { ProductType } from "@/lib/calc/types";
 export const TEMPLATE_DRIVEN_PRODUCT_TYPES: ProductType[] = [
   "brochure",
   "magazine",
+  "catalog",
   "book",
+  "book_hardcover",
   "notepad",
+  "planner",
   "calendar_wall",
   "calendar_desk",
   "calendar_quarter",
+  "calendar_pocket",
 ];
 
 export function isTemplateDriven(pt: ProductType): boolean {
@@ -34,8 +38,14 @@ export default function MultipageTemplateHost({ productType }: MultipageTemplate
       return <BrochureCalculator embedded mode="brochure" />;
     case "magazine":
       return <BrochureCalculator embedded mode="magazine" />;
+    case "catalog":
+      return <BrochureCalculator embedded mode="catalog" />;
     case "book":
       return <BrochureCalculator embedded mode="softcover" />;
+    case "book_hardcover":
+      return <BrochureCalculator embedded mode="hardcover" />;
+    case "planner":
+      return <BrochureCalculator embedded mode="planner" />;
     case "calendar_quarter":
       return <BrochureCalculator embedded mode="quartercal" />;
     case "notepad":
@@ -43,6 +53,8 @@ export default function MultipageTemplateHost({ productType }: MultipageTemplate
     case "calendar_desk":
     case "calendar_wall":
       return <DeskCalendarCalculator embedded />;
+    case "calendar_pocket":
+      return <PocketCalendarCalculator embedded />;
     default:
       return null;
   }
