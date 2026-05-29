@@ -10320,7 +10320,35 @@ const Calculator = () => {
 
       {/* Mobile sticky bottom: totals + nav */}
       <div className="lg:hidden fixed left-0 right-0 z-40 bottom-[64px] safe-x">
-        {result && !("error" in result) && (
+        {isTemplateDriven(productType) ? (
+          boxResult && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <button className="w-full bg-card/95 backdrop-blur border-t border-border px-4 py-2.5 flex items-center justify-between text-left">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Цена продажи · {boxResult.margin}%</div>
+                    <div className="text-base font-bold tabular-nums">{fmtMoney(boxResult.result.totalWithVat)}</div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>с/с {fmtMoney(boxResult.result.totalCost)}</span>
+                    <ChevronUp className="h-4 w-4" />
+                  </div>
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="rounded-t-2xl">
+                <SheetHeader><SheetTitle>Итоги</SheetTitle></SheetHeader>
+                <div className="mt-4 space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                  <BoxPriceBreakdown
+                    result={boxResult.result}
+                    margin={boxResult.margin}
+                    vatPercent={boxResult.vatPercent}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          )
+        ) : (
+        result && !("error" in result) && (
           <Sheet>
             <SheetTrigger asChild>
               <button className="w-full bg-card/95 backdrop-blur border-t border-border px-4 py-2.5 flex items-center justify-between text-left">
@@ -10378,6 +10406,7 @@ const Calculator = () => {
               </div>
             </SheetContent>
           </Sheet>
+        )
         )}
         <div className="bg-background border-t border-border grid grid-cols-2 gap-2 px-4 py-2">
           <Button variant="outline" onClick={prev} disabled={step === 1} className="h-11"><ArrowLeft className="mr-1 h-4 w-4" /> Назад</Button>
