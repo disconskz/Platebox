@@ -45,6 +45,7 @@ import type { SpecItem } from "@/lib/calc/types";
 import { PriceBreakdownTree } from "@/components/calc/PriceBreakdownTree";
 import { FormulaWizard } from "@/components/calc/FormulaWizard";
 import { CutInfoCard } from "@/components/calc/CutInfoCard";
+import MultipageTemplateHost, { isTemplateDriven } from "@/components/calc/MultipageTemplateHost";
 
 type Material = { id: string; name: string; type: string; density: number; format_width: number; format_height: number; cost_per_sheet: number };
 type LamRow = { film_type: string; size_range: string; cost_per_side: number };
