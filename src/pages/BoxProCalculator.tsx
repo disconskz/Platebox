@@ -692,7 +692,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {(step === 3 || step === 4 || step === 5) && (
+              {mode === "tech" && (step === 3 || step === 4 || step === 5) && (
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>
@@ -850,7 +850,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {step === 6 && (
+              {mode === "tech" && step === 6 && (
                 <Card>
                   <CardHeader><CardTitle>Спецификация</CardTitle></CardHeader>
                   <CardContent>
@@ -1088,6 +1088,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
+              {mode === "tech" && (
               <div className="flex justify-between">
                 <Button variant="outline" disabled={step === 1} onClick={() => setStep((s) => Math.max(1, s - 1))}>
                   Назад
@@ -1096,6 +1097,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                   Далее
                 </Button>
               </div>
+              )}
             </div>
 
             {/* Сайдбар с итогами */}
