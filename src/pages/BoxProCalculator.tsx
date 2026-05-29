@@ -455,6 +455,27 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
       },
     ]);
 
+  // ─── Этап 5: скачать развёртку (SVG / DXF) ──────────────────────
+  const downloadFile = (filename: string, content: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const unfoldInputFor = (part: Part) => ({
+    kind: part.kind,
+    developW: part.developW,
+    developH: part.developH,
+    flapH: innerH,
+    windowW: part.kind === "window" ? Math.max(0, part.developW - 20) : 0,
+    windowH: part.kind === "window" ? Math.max(0, part.developH - 20) : 0,
+  });
+
   const stepBtn = (n: number, label: string) => (
     <button
       type="button"
