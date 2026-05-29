@@ -278,8 +278,19 @@ function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefin
 }
 
 // ─── Компонент ────────────────────────────────────────────────────────
-export interface BoxProCalculatorProps { embedded?: boolean }
-export default function BoxProCalculator({ embedded = false }: BoxProCalculatorProps = {}) {
+import { BoxPriceBreakdown, type BoxPriceResult } from "@/components/calc/BoxPriceBreakdown";
+
+export interface BoxProResultPayload {
+  result: BoxPriceResult;
+  margin: number;
+  vatPercent: number;
+}
+
+export interface BoxProCalculatorProps {
+  embedded?: boolean;
+  onResult?: (payload: BoxProResultPayload) => void;
+}
+export default function BoxProCalculator({ embedded = false, onResult }: BoxProCalculatorProps = {}) {
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   // ─── Доработка 84 — два уровня UI ────────────────────────────────
