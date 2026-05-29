@@ -6527,6 +6527,8 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
+                  {caps.lamPrepress && (
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
