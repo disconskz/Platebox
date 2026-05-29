@@ -614,6 +614,12 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     return { cost, sale, withVat, perItem };
   }, [lines, margin, vatPercent, circulation]);
 
+  useEffect(() => {
+    if (!onResult) return;
+    const result = toTemplatePriceResult(lines, { margin, vatPercent, circulation });
+    onResult({ result, margin, vatPercent });
+  }, [lines, margin, vatPercent, circulation, onResult]);
+
   const route = useMemo(() => {
     const s: string[] = [];
     if (hasDesign) s.push("Дизайн");
