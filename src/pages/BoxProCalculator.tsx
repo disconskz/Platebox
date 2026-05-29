@@ -286,10 +286,18 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
   // "simple" — для менеджеров: только тип, размеры, тираж, базовые опции и цена.
   // "tech"   — для технологов: полный пошаговый мастер с развёртками, штампом,
   //            спусками, сравнением форматов и маршрутом производства.
-  const [mode, setMode] = useState<"simple" | "tech">(() => {
+  // Доработка 84+: три уровня UI.
+  //   "simple"   — менеджер/новичок: только базовые поля и итог.
+  //   "extended" — старший менеджер: + спуски, группировка, сравнение форматов, штампы.
+  //   "tech"     — технолог/производство: + DXF/SVG, полный маршрут, ручные настройки.
+  type UiMode = "simple" | "extended" | "tech";
+  const [mode, setMode] = useState<UiMode>(() => {
     if (typeof window === "undefined") return "simple";
-    return (localStorage.getItem("boxPro.mode") as "simple" | "tech") || "simple";
+    const v = localStorage.getItem("boxPro.mode") as UiMode | null;
+    return v === "simple" || v === "extended" || v === "tech" ? v : "simple";
   });
+  const isAdvanced = mode !== "simple"; // extended + tech
+  const isTech = mode === "tech";
   useEffect(() => {
     try { localStorage.setItem("boxPro.mode", mode); } catch { /* ignore */ }
   }, [mode]);
