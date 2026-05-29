@@ -10204,8 +10204,8 @@ const Calculator = () => {
           </div>
 
           {/* Desktop sidebar with totals */}
-          <div className={`hidden lg:col-span-2 space-y-4 lg:order-2 ${isTemplateDriven(productType) ? "" : "lg:block"}`}>
-            {result && !("error" in result) && !isTemplateDriven(productType) && (
+          <div className="hidden lg:block lg:col-span-2 space-y-4 lg:order-2">
+            {result && !("error" in result) && (
               <div className="lg:sticky lg:top-20 space-y-4">
               <PriceBreakdownTree
                 spec={result.spec as any}
