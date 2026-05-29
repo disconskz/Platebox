@@ -286,10 +286,18 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
   // "simple" — для менеджеров: только тип, размеры, тираж, базовые опции и цена.
   // "tech"   — для технологов: полный пошаговый мастер с развёртками, штампом,
   //            спусками, сравнением форматов и маршрутом производства.
-  const [mode, setMode] = useState<"simple" | "tech">(() => {
+  // Доработка 84+: три уровня UI.
+  //   "simple"   — менеджер/новичок: только базовые поля и итог.
+  //   "extended" — старший менеджер: + спуски, группировка, сравнение форматов, штампы.
+  //   "tech"     — технолог/производство: + DXF/SVG, полный маршрут, ручные настройки.
+  type UiMode = "simple" | "extended" | "tech";
+  const [mode, setMode] = useState<UiMode>(() => {
     if (typeof window === "undefined") return "simple";
-    return (localStorage.getItem("boxPro.mode") as "simple" | "tech") || "simple";
+    const v = localStorage.getItem("boxPro.mode") as UiMode | null;
+    return v === "simple" || v === "extended" || v === "tech" ? v : "simple";
   });
+  const isAdvanced = mode !== "simple"; // extended + tech
+  const isTech = mode === "tech";
   useEffect(() => {
     try { localStorage.setItem("boxPro.mode", mode); } catch { /* ignore */ }
   }, [mode]);
@@ -522,7 +530,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
       )}
       <Main>
         <PageContainer>
-          {/* Переключатель уровней (Доработка 84): простой для менеджера / полный для технолога */}
+          {/* Доработка 84+: три уровня UI — простой / расширенный / технологический.
+              Переключение не сбрасывает введённые данные — все поля и расчёт сохраняются. */}
           <div className="mb-3 inline-flex rounded-lg border bg-card p-1">
             <button
               type="button"
@@ -532,7 +541,17 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 mode === "simple" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Wand2 className="h-4 w-4" /> Менеджер
+              <Wand2 className="h-4 w-4" /> Простой
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("extended")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition",
+                mode === "extended" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Wand2 className="h-4 w-4" /> Расширенный
             </button>
             <button
               type="button"
@@ -546,12 +565,15 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
             </button>
           </div>
           <div className="mb-3 text-xs text-muted-foreground">
-            {mode === "simple"
-              ? "Простой режим: программа сама строит развёртки, считает штампы, ножи и спуски, выбирает формат и маршрут."
-              : "Технологический режим: полный мастер с развёртками, сравнением форматов, групповыми спусками и маршрутом производства."}
+            {mode === "simple" &&
+              "Простой режим: только тип, размеры, тираж, материал, печать, основные опции и итог. Развёртки, штампы, спуски и маршрут считаются автоматически."}
+            {mode === "extended" &&
+              "Расширенный режим: + спуски, выбранный формат, группировка деталей, штампы, биговки, сравнение вариантов и себестоимость по этапам."}
+            {mode === "tech" &&
+              "Технологический режим: + полный маршрут, DXF/SVG развёртки, нормы по штампу, оборудование и ручная корректировка."}
           </div>
 
-          {mode === "tech" && (
+          {isAdvanced && (
           <div className="mb-4 flex flex-wrap gap-2">
             {stepBtn(1, "1. Тип")}
             {stepBtn(2, "2. Размеры")}
@@ -634,7 +656,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && step === 1 && (
+              {isAdvanced && step === 1 && (
                 <Card>
                   <CardHeader><CardTitle>Тип коробки</CardTitle></CardHeader>
                   <CardContent className="grid gap-2 sm:grid-cols-2">
@@ -656,7 +678,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && step === 2 && (
+              {isAdvanced && step === 2 && (
                 <Card>
                   <CardHeader><CardTitle>Размеры коробки (внутренние, мм)</CardTitle></CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -692,7 +714,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && (step === 3 || step === 4 || step === 5) && (
+              {isAdvanced && (step === 3 || step === 4 || step === 5) && (
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>
@@ -850,7 +872,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                 </Card>
               )}
 
-              {mode === "tech" && step === 6 && (
+              {isAdvanced && step === 6 && (
                 <Card>
                   <CardHeader><CardTitle>Спецификация</CardTitle></CardHeader>
                   <CardContent>
@@ -982,7 +1004,7 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                       </div>
                     </div>
 
-                    {/* Этап 4: авто-расчёт штампа из развёртки */}
+                    {/* Этап 4: авто-расчёт штампа из развёртки — доступно с расширенного режима */}
                     <div className="mt-6 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">
                         Авто-расчёт штампа из развёртки (ножи и биговки)
@@ -1021,7 +1043,8 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                       </div>
                     </div>
 
-                    {/* Этап 5: развёртки SVG/DXF */}
+                    {/* Этап 5: развёртки SVG/DXF — только для технолога */}
+                    {isTech && (
                     <div className="mt-6 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">
                         Развёртки деталей (нож красный, биг синий пунктир)
@@ -1054,8 +1077,10 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         })}
                       </div>
                     </div>
+                    )}
 
-                    {/* Этап 5: маршрут производства */}
+                    {/* Этап 5: маршрут производства — только для технолога */}
+                    {isTech && (
                     <div className="mt-6 space-y-2">
                       <div className="text-xs font-medium text-muted-foreground">
                         Маршрут производства (auto)
@@ -1084,11 +1109,12 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         ))}
                       </div>
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
 
-              {mode === "tech" && (
+              {isAdvanced && (
               <div className="flex justify-between">
                 <Button variant="outline" disabled={step === 1} onClick={() => setStep((s) => Math.max(1, s - 1))}>
                   Назад
