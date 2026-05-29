@@ -1045,9 +1045,13 @@ const PRODUCT_OPTIONS: { value: ProductType; label: string; category: "sheet" | 
   { value: "book", label: "Книга", category: "book_journal" },
   { value: "magazine", label: "Журнал", category: "book_journal" },
   { value: "brochure", label: "Брошюра", category: "book_journal" },
+  { value: "catalog", label: "Каталог", category: "book_journal" },
+  { value: "book_hardcover", label: "Книга в твёрдом переплёте", category: "book_journal" },
+  { value: "planner", label: "Ежедневник", category: "book_journal" },
   { value: "calendar_wall", label: "Календарь настенный перекидной", category: "book_journal" },
   { value: "calendar_desk", label: "Календарь настольный перекидной", category: "book_journal" },
   { value: "calendar_quarter", label: "Календарь квартальный", category: "book_journal" },
+  { value: "calendar_pocket", label: "Календарь карманный", category: "book_journal" },
 ];
 
 const FORMAT_OPTIONS: FormatType[] = ["A6", "A5", "A4", "A4+", "A3", "A3+", "A2", "A1", "custom"];
