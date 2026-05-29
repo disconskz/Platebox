@@ -5328,6 +5328,12 @@ const Calculator = () => {
               </Card>
             </section>
 
+            {isTemplateDriven(productType) && (
+              <section id="section-template" className="scroll-mt-24">
+                <MultipageTemplateHost productType={productType} />
+              </section>
+            )}
+            {!isTemplateDriven(productType) && (<>
             <section id="section-2" className="scroll-mt-24">
               {caps.cover && (
                 <Card className="mb-4 border-primary/30">
