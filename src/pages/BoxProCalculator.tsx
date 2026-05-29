@@ -784,6 +784,53 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         и выбирает самый выгодный по сумме материал+печать.
                       </div>
                     </div>
+
+                    {/* Этап 3: групповая раскладка */}
+                    <div className="mt-6 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Авто-группировка деталей в общий спуск
+                      </div>
+                      <div className="space-y-2">
+                        {result.groups.map((g) => {
+                          const groupParts = g.partIds
+                            .map((id) => parts.find((p) => p.id === id)?.name ?? "")
+                            .filter(Boolean)
+                            .join(", ");
+                          const applied = (g.result?.savings ?? 0) > 0;
+                          return (
+                            <div
+                              key={g.key}
+                              className={cn(
+                                "rounded-md border p-2 text-xs",
+                                applied ? "border-primary/40 bg-primary/5" : "border-border bg-card",
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="font-medium">
+                                  {g.partIds.length > 1 ? `Группа (${g.partIds.length})` : "Одна деталь"}: {groupParts}
+                                </div>
+                                {g.result?.best && (
+                                  <Badge variant={applied ? "default" : "outline"}>
+                                    {g.result.best.format.id}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">{g.result?.hint ?? "—"}</div>
+                              {g.result?.best && g.partIds.length > 1 && (
+                                <div className="mt-1 text-[11px]">
+                                  Раздельно: <span className="font-medium">{fmtMoney(g.result.independentTotal)}</span>
+                                  {" → "}
+                                  Группой: <span className="font-medium">{fmtMoney(g.result.best.total)}</span>
+                                  {applied && (
+                                    <span className="ml-1 text-primary">(экономия {fmtMoney(g.result.savings)})</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -808,6 +855,12 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                   <Row label="Постпечать / штамп" value={result.postCost} />
                   <Row label="Фурнитура" value={result.fittings} />
                   <Row label="Сборка" value={result.assembly} />
+                  {result.totalGroupSavings > 0 && (
+                    <div className="flex justify-between text-primary">
+                      <span>Экономия от группировки</span>
+                      <span>−{fmtMoney(result.totalGroupSavings)}</span>
+                    </div>
+                  )}
                   <Separator />
                   <Row label="Себестоимость" value={result.totalCost} bold />
                   <div className="flex items-center gap-2">
