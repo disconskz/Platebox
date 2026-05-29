@@ -169,16 +169,16 @@ export function TemplateActions(props: TemplateActionsProps) {
             onChange={(e) => setName(e.target.value)}
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <Button onClick={() => handleSave(false)} disabled={saving || !spec.length} size="sm">
+        <div className="grid grid-cols-1 gap-2">
+          <Button onClick={() => handleSave(false)} disabled={saving || !spec.length} size="sm" className="w-full justify-center">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Сохранить расчёт
           </Button>
-          <Button onClick={() => handleSave(true)} disabled={saving || !spec.length} size="sm" variant="outline">
+          <Button onClick={() => handleSave(true)} disabled={saving || !spec.length} size="sm" variant="outline" className="w-full justify-center">
             <BookmarkPlus className="mr-2 h-4 w-4" />
             Сохранить как шаблон
           </Button>
-          <Button onClick={exportPdf} disabled={exporting || !spec.length} size="sm" variant="outline" className="sm:col-span-2">
+          <Button onClick={exportPdf} disabled={exporting || !spec.length} size="sm" variant="outline" className="w-full justify-center">
             {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
             Скачать КП / PDF
           </Button>
