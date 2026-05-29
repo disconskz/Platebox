@@ -15,6 +15,7 @@ import { fmtMoney } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { BoxPriceBreakdown, type BoxPriceResult } from "@/components/calc/BoxPriceBreakdown";
 import {
   pickBestFormat,
   pickBestForGroup,
@@ -278,8 +279,6 @@ function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefin
 }
 
 // ─── Компонент ────────────────────────────────────────────────────────
-import { BoxPriceBreakdown, type BoxPriceResult } from "@/components/calc/BoxPriceBreakdown";
-
 export interface BoxProResultPayload {
   result: BoxPriceResult;
   margin: number;
