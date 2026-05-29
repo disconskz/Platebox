@@ -22,6 +22,7 @@ import {
   type ImposeResult,
   type GroupImposeResult,
 } from "@/lib/calc/box-pro/impose";
+import { calcDiecut, type DiecutResult } from "@/lib/calc/box-pro/diecut";
 
 /**
  * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
