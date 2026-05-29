@@ -2294,6 +2294,13 @@ const Calculator = () => {
         return next;
       });
     }
+    if (!caps.cover) {
+      setCoverPaperId("");
+      setCoverLamPrepress(false);
+      setCoverPouchLam(false);
+      setCoverStamping(false);
+      setCoverCongrev(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productType]);
 
