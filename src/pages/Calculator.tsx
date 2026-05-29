@@ -27,6 +27,7 @@ import { calcRigel, type RigelRule, type RigelCalcMode } from "@/lib/calc/rigel"
 import { calcEmbossing, type EmbossingRule, type EmbossingType } from "@/lib/calc/embossing";
 import { calcCongrev, type CongrevRule, type CongrevType } from "@/lib/calc/congrev";
 import { PRODUCT_PRESETS } from "@/lib/calc/presets";
+import { getCaps, type ProductCapabilities } from "@/lib/calc/capabilities";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import MobileTabBar from "@/components/MobileTabBar";
@@ -1108,6 +1109,9 @@ const Calculator = () => {
 
   // Step 1
   const [productType, setProductType] = useState<ProductType>("leaflet");
+
+  // Доработка: доступные операции зависят от вида продукции — лишние блоки скрываются.
+  const caps: ProductCapabilities = useMemo(() => getCaps(productType), [productType]);
 
   // Glossary slug → base productType mapping for engine
   useEffect(() => {
@@ -2227,22 +2231,22 @@ const Calculator = () => {
       priorityPrintFormats: useManual ? undefined : priority,
       designQty: 2,
       photoOutputUnitCost: 0,
-      hasFold: productType === "booklet" ? hasFold : false,
+      hasFold: caps.fold && (productType === "booklet" ? hasFold : false),
       foldCount,
-      hasDieCut,
-      hasLamination,
+      hasDieCut: caps.diecut && hasDieCut,
+      hasLamination: caps.lamination && hasLamination,
       laminationFilm,
       laminationSides,
       laminationPriceMap: lamMap,
-      hasNumbering,
+      hasNumbering: caps.numbering && hasNumbering,
       numbersPerSheet,
-      hasStamping,
+      hasStamping: caps.stamping && hasStamping,
       stampingCliches: stampCliches,
       stampingClicheW: stampCliches[0]?.w,
       stampingClicheH: stampCliches[0]?.h,
-      hasEmbossing,
+      hasEmbossing: caps.stamping && hasEmbossing,
       embossingCliches: embossCliches,
-      hasLamPrepress,
+      hasLamPrepress: caps.lamPrepress && hasLamPrepress,
       lamPrepressSides,
       lamPrepressPerM2: hasLamPrepress
         ? (filmPriceOverride !== "" ? Number(filmPriceOverride) : films.find((f) => f.id === filmId)?.price_per_m2)
@@ -2256,7 +2260,33 @@ const Calculator = () => {
       vatPercent,
       cutsPerSheetOverride: cutsOverride ?? undefined,
     };
-  }, [effectiveMaterial, productType, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, filmId, films, filmPriceOverride, filmSetupOverride, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
+  }, [effectiveMaterial, productType, caps, circulation, formatType, dims, colorFront, colorBack, hasFold, foldCount, hasDieCut, hasLamination, laminationFilm, laminationSides, lamMap, hasNumbering, numbersPerSheet, hasStamping, stampCliches, hasEmbossing, embossCliches, hasLamPrepress, lamPrepressSides, filmId, films, filmPriceOverride, filmSetupOverride, vatPercent, printFormatList, formatPairs, manualPair, cutsOverride]);
+
+  // При смене вида продукции сбрасываем флаги операций, недоступных для нового типа,
+  // чтобы значения из шаблона/AI-импорта не попадали в расчёт.
+  useEffect(() => {
+    if (!caps.fold) { setHasFold(false); setFoldsPerItem(0); }
+    if (!caps.diecut) { setHasDieCut(false); setDieCutEnabled(false); }
+    if (!caps.lamination) setHasLamination(false);
+    if (!caps.lamPrepress) setHasLamPrepress(false);
+    if (!caps.pouchLam) setPouchEnabled(false);
+    if (!caps.numbering) setHasNumbering(false);
+    if (!caps.stamping) { setHasStamping(false); setHasEmbossing(false); setEmbossEnabled(false); }
+    if (!caps.congrev) setCongrevEnabled(false);
+    if (!caps.perforation) setPerfEnabled(false);
+    if (!caps.tape) setTapeEnabled(false);
+    if (!caps.windowCut) setWindowEnabled(false);
+    if (!caps.flashRemoval) setFlashEnabled(false);
+    if (!caps.rigel) setRigelEnabled(false);
+    if (!caps.variablePrint) {
+      setVarPrintSel((prev) => {
+        const next = { ...prev } as typeof prev;
+        (Object.keys(next) as (keyof typeof next)[]).forEach((k) => { next[k] = { ...next[k], enabled: false }; });
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productType]);
 
   // Промежуточный расчёт (без авто-цены машины)
   const preResult = useMemo(() => {
@@ -5640,8 +5670,9 @@ const Calculator = () => {
                       </div>
                     );
                   })()}
-                  {/* Доработка 5: единый блок «Кол-во сгибов на изделии». */}
-                  <div className="rounded-md border bg-card p-3 space-y-2">
+                   {/* Доработка 5: единый блок «Кол-во сгибов на изделии». */}
+                   {caps.fold && (
+                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Label className="flex-1">Кол-во сгибов на изделии</Label>
                       <Select value={String(foldsPerItem)} onValueChange={(v) => setFoldsPerItem(Number(v))}>
@@ -5656,9 +5687,11 @@ const Calculator = () => {
                     <p className="text-[11px] text-muted-foreground">
                       До 150 г/м² — фальцовка (1 ₸/сгиб). Выше 150 г/м² — биговка (2 ₸/сгиб). Цена выбирается автоматически по плотности бумаги.
                     </p>
-                  </div>
-                  {/* Доработка 7: единый блок «Высечка» с авто-ценой по типу материала. */}
-                  <div className="rounded-md border bg-card p-3 space-y-2">
+                   </div>
+                   )}
+                   {/* Доработка 7: единый блок «Высечка» с авто-ценой по типу материала. */}
+                   {caps.diecut && (
+                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={dieCutEnabled} onCheckedChange={(v) => setDieCutEnabled(!!v)} id="diecut" />
                       <Label htmlFor="diecut" className="flex-1">Высечка</Label>
@@ -5694,7 +5727,9 @@ const Calculator = () => {
                       </p>
                     )}
                   </div>
+                  )}
                   {/* Доработка 29: блок «Перфорация». */}
+                  {caps.perforation && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={perfEnabled} onCheckedChange={(v) => setPerfEnabled(!!v)} id="perf" />
@@ -5779,7 +5814,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 30: блок «Наклейка скотча». */}
+                  {caps.tape && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={tapeEnabled} onCheckedChange={(v) => setTapeEnabled(!!v)} id="tape" />
@@ -5885,7 +5922,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 31: блок «Наклейка окна на коробку». */}
+                  {caps.windowCut && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={windowEnabled} onCheckedChange={(v) => setWindowEnabled(!!v)} id="window" />
@@ -6007,7 +6046,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 32: блок «Удаление облоя». */}
+                  {caps.flashRemoval && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={flashEnabled} onCheckedChange={(v) => setFlashEnabled(!!v)} id="flash" />
@@ -6145,7 +6186,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 33: блок «Установка ригеля». */}
+                  {caps.rigel && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={rigelEnabled} onCheckedChange={(v) => setRigelEnabled(!!v)} id="rigel" />
@@ -6274,7 +6317,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 34: блок «Тиснение». */}
+                  {caps.stamping && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={embossEnabled} onCheckedChange={(v) => setEmbossEnabled(!!v)} id="emboss" />
@@ -6383,7 +6428,9 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
                   {/* Доработка 35: блок «Конгрев». */}
+                  {caps.congrev && (
                   <div className="rounded-md border bg-card p-3 space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={congrevEnabled} onCheckedChange={(v) => setCongrevEnabled(!!v)} id="congrev" />
@@ -6480,6 +6527,8 @@ const Calculator = () => {
                       </>
                     )}
                   </div>
+                  )}
+                  {caps.lamPrepress && (
                   <div className="space-y-2 rounded-md border p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Checkbox checked={hasLamPrepress} onCheckedChange={(v) => setHasLamPrepress(!!v)} id="lp" />
