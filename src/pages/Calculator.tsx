@@ -10312,6 +10312,7 @@ const Calculator = () => {
                 </div>
               </Card>
               </div>
+            )
             )}
           </div>
         </div>
