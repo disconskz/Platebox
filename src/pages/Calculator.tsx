@@ -1110,6 +1110,9 @@ const Calculator = () => {
   // Step 1
   const [productType, setProductType] = useState<ProductType>("leaflet");
 
+  // Доработка: доступные операции зависят от вида продукции — лишние блоки скрываются.
+  const caps: ProductCapabilities = useMemo(() => getCaps(productType), [productType]);
+
   // Glossary slug → base productType mapping for engine
   useEffect(() => {
     const item = glossary.find((g) => g.slug === glossarySlug);
