@@ -142,6 +142,24 @@ export const PRODUCT_CAPABILITIES: Record<ProductType, ProductCapabilities> = {
   calendar_wall: caps({ fold: true, lamPrepress: true, lamination: true, spring: true, rigel: true, signature: true }),
   calendar_desk: caps({ spring: true, signature: true }),
   calendar_quarter: caps({ spring: true, rigel: true, signature: true }),
+  calendar_pocket: caps({ lamPrepress: true, lamination: true }),
+
+  // ── Алиасы многостраничных ────────────────────────────────────────
+  catalog: caps({
+    fold: true, lamPrepress: true, lamination: true,
+    signature: true, stapling: true, thermal: true,
+    cover: true,
+  }),
+  book_hardcover: caps({
+    fold: true, lamPrepress: true, lamination: true,
+    stamping: true, congrev: true,
+    signature: true, thermal: true, endpaper: true,
+  }),
+  planner: caps({
+    fold: true, lamPrepress: true, lamination: true,
+    stamping: true, congrev: true,
+    signature: true, thermal: true, endpaper: true,
+  }),
 };
 
 /** Безопасно достать caps по типу продукции. */
