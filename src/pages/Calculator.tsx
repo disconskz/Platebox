@@ -5345,7 +5345,7 @@ const Calculator = () => {
               <section id="section-template" className="scroll-mt-24">
                 <MultipageTemplateHost
                   productType={productType}
-                  onBoxResult={setBoxResult}
+                  onTemplateResult={setBoxResult}
                 />
               </section>
             )}
