@@ -15,7 +15,13 @@ import { fmtMoney } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { pickBestFormat, type ImposeResult } from "@/lib/calc/box-pro/impose";
+import {
+  pickBestFormat,
+  pickBestForGroup,
+  groupSignature,
+  type ImposeResult,
+  type GroupImposeResult,
+} from "@/lib/calc/box-pro/impose";
 
 /**
  * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
@@ -305,13 +311,78 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
 
   // ── Расчёт ────────────────────────────────────────────────────────
   const result = useMemo(() => {
+    // Сначала индивидуальные расчёты — для базовой стоимости и подсказок.
     const lines = parts.map((part) => {
       const mat = MATERIAL_PRESETS.find((m) => m.id === part.materialId);
       const r = calcPart(part, circulation, mat);
       return { part, mat, ...r };
     });
-    const materials = lines.reduce((s, l) => s + l.materialCost, 0);
-    const printCost = lines.reduce((s, l) => s + l.printCost, 0);
+
+    // ── Этап 3: групповая раскладка ─────────────────────────────────
+    // Группируем по материалу + печати + ламинации и считаем общий спуск.
+    type GroupMeta = {
+      key: string;
+      partIds: string[];
+      result: GroupImposeResult | null;
+    };
+    const groupsMap = new Map<string, { partIds: string[]; sample: typeof parts[number]; mat?: MaterialPreset }>();
+    for (const part of parts) {
+      const mat = MATERIAL_PRESETS.find((m) => m.id === part.materialId);
+      const sig = groupSignature(part);
+      const cur = groupsMap.get(sig);
+      if (cur) cur.partIds.push(part.id);
+      else groupsMap.set(sig, { partIds: [part.id], sample: part, mat });
+    }
+    const groups: GroupMeta[] = [];
+    // Атрибутированные стоимости от группового спуска (id детали → {mat, print})
+    const groupAttribution = new Map<string, { mat: number; print: number }>();
+    for (const [key, g] of groupsMap.entries()) {
+      if (!g.mat || g.partIds.length === 0) {
+        groups.push({ key, partIds: g.partIds, result: null });
+        continue;
+      }
+      const r = pickBestForGroup({
+        sheetW: g.mat.sheetW,
+        sheetH: g.mat.sheetH,
+        pricePerPurchaseSheet: g.mat.pricePerSheet,
+        wastePct: g.mat.wastePct,
+        colorSum: g.sample.colorFront + g.sample.colorBack,
+        parts: g.partIds.map((pid) => {
+          const p = parts.find((x) => x.id === pid)!;
+          return {
+            id: pid,
+            developW: p.developW,
+            developH: p.developH,
+            totalParts: circulation * p.qtyPerBox,
+          };
+        }),
+      });
+      groups.push({ key, partIds: g.partIds, result: r });
+      if (r.best && r.savings > 0) {
+        // Применяем экономию только если групповой расчёт реально дешевле
+        for (const pid of g.partIds) {
+          const ap = r.best.perPart[pid];
+          if (ap) groupAttribution.set(pid, { mat: ap.attributedMaterial, print: ap.attributedPrint });
+        }
+      }
+    }
+
+    // Применяем результат группировки к строкам (там, где есть экономия)
+    const finalLines = lines.map((l) => {
+      const attr = groupAttribution.get(l.part.id);
+      if (!attr) return l;
+      const newMat = attr.mat;
+      const newPrint = attr.print;
+      return {
+        ...l,
+        materialCost: newMat,
+        printCost: newPrint,
+        partTotal: newMat + newPrint + l.postCost,
+      };
+    });
+
+    const materials = finalLines.reduce((s, l) => s + l.materialCost, 0);
+    const printCost = finalLines.reduce((s, l) => s + l.printCost, 0);
     const postCost = lines.reduce((s, l) => s + l.postCost, 0);
     const fittings =
       (hasMagnet ? 4 * circulation * 35 : 0) +
@@ -322,8 +393,11 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
     const totalCost = materials + printCost + postCost + fittings + assembly;
     const salePrice = totalCost * (1 + margin / 100);
     const totalWithVat = salePrice * (1 + vatPercent / 100);
+    const totalGroupSavings = groups.reduce((s, g) => s + (g.result?.savings ?? 0), 0);
     return {
-      lines,
+      lines: finalLines,
+      groups,
+      totalGroupSavings,
       materials,
       printCost,
       postCost,
@@ -710,6 +784,53 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                         и выбирает самый выгодный по сумме материал+печать.
                       </div>
                     </div>
+
+                    {/* Этап 3: групповая раскладка */}
+                    <div className="mt-6 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Авто-группировка деталей в общий спуск
+                      </div>
+                      <div className="space-y-2">
+                        {result.groups.map((g) => {
+                          const groupParts = g.partIds
+                            .map((id) => parts.find((p) => p.id === id)?.name ?? "")
+                            .filter(Boolean)
+                            .join(", ");
+                          const applied = (g.result?.savings ?? 0) > 0;
+                          return (
+                            <div
+                              key={g.key}
+                              className={cn(
+                                "rounded-md border p-2 text-xs",
+                                applied ? "border-primary/40 bg-primary/5" : "border-border bg-card",
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="font-medium">
+                                  {g.partIds.length > 1 ? `Группа (${g.partIds.length})` : "Одна деталь"}: {groupParts}
+                                </div>
+                                {g.result?.best && (
+                                  <Badge variant={applied ? "default" : "outline"}>
+                                    {g.result.best.format.id}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">{g.result?.hint ?? "—"}</div>
+                              {g.result?.best && g.partIds.length > 1 && (
+                                <div className="mt-1 text-[11px]">
+                                  Раздельно: <span className="font-medium">{fmtMoney(g.result.independentTotal)}</span>
+                                  {" → "}
+                                  Группой: <span className="font-medium">{fmtMoney(g.result.best.total)}</span>
+                                  {applied && (
+                                    <span className="ml-1 text-primary">(экономия {fmtMoney(g.result.savings)})</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -734,6 +855,12 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                   <Row label="Постпечать / штамп" value={result.postCost} />
                   <Row label="Фурнитура" value={result.fittings} />
                   <Row label="Сборка" value={result.assembly} />
+                  {result.totalGroupSavings > 0 && (
+                    <div className="flex justify-between text-primary">
+                      <span>Экономия от группировки</span>
+                      <span>−{fmtMoney(result.totalGroupSavings)}</span>
+                    </div>
+                  )}
                   <Separator />
                   <Row label="Себестоимость" value={result.totalCost} bold />
                   <div className="flex items-center gap-2">

@@ -151,3 +151,144 @@ export function pickBestFormat(input: ImposeInput): ImposeResult {
 
   return { best, variants, hint, splitFromA1 };
 }
+
+// ─── Этап 3: групповая раскладка ─────────────────────────────────────
+
+/** Входная деталь группы (материал в группе общий, см. groupSignature). */
+export interface GroupPart {
+  id: string;
+  developW: number;
+  developH: number;
+  totalParts: number;
+}
+
+/** Сигнатура группировки: совпадают материал, печать, ламинация. */
+export function groupSignature(p: {
+  materialId: string;
+  colorFront: number;
+  colorBack: number;
+  hasLam: boolean;
+  lamSides: number;
+}): string {
+  return [p.materialId, p.colorFront, p.colorBack, p.hasLam ? "L" + p.lamSides : "n"].join("|");
+}
+
+export interface GroupImposeInput {
+  parts: GroupPart[];
+  sheetW: number;
+  sheetH: number;
+  pricePerPurchaseSheet: number;
+  wastePct: number;
+  colorSum: number;
+}
+
+export interface GroupImposeVariant {
+  format: PrintFormat;
+  /** Один общий тираж листов на всю группу. */
+  sheets: number;
+  materialCost: number;
+  printCost: number;
+  total: number;
+  /** Какая деталь стала «ведущей» — определила тираж листов. */
+  leadingPartId: string;
+  /** Раскладка по деталям: id → итог по этой детали в составе группы. */
+  perPart: Record<string, { itemsPerSheet: number; attributedMaterial: number; attributedPrint: number; sheets: number }>;
+}
+
+export interface GroupImposeResult {
+  best: GroupImposeVariant | null;
+  variants: GroupImposeVariant[];
+  /** Сколько стоила бы группа без совмещения (сумма независимых раскладок). */
+  independentTotal: number;
+  /** Экономия от совмещения, тг (>=0). */
+  savings: number;
+  hint: string;
+}
+
+function calcGroupVariant(input: GroupImposeInput, fmt: PrintFormat): GroupImposeVariant | null {
+  const effW = Math.min(fmt.w, input.sheetW);
+  const effH = Math.min(fmt.h, input.sheetH);
+  const perParts = input.parts.map((p) => {
+    const per = itemsPerSheet(p.developW, p.developH, effW, effH);
+    const sheetsInd = per > 0 ? Math.ceil(p.totalParts / per) : Infinity;
+    return { part: p, per, sheetsInd };
+  });
+  // Все детали должны хотя бы помещаться на печатный формат
+  if (perParts.some((x) => x.per <= 0)) return null;
+  // Ведущая деталь = самая «тяжёлая» (максимум листов независимо)
+  const lead = perParts.reduce((m, x) => (x.sheetsInd > m.sheetsInd ? x : m), perParts[0]);
+  const printSheetsRaw = lead.sheetsInd;
+  const sheetsWithWaste = Math.ceil(printSheetsRaw * (1 + input.wastePct / 100));
+  const printsPerPurchase =
+    Math.max(1, Math.floor(input.sheetW / fmt.w) * Math.floor(input.sheetH / fmt.h)) || 1;
+  const purchaseSheets = Math.ceil(sheetsWithWaste / printsPerPurchase);
+  const materialCost = purchaseSheets * input.pricePerPurchaseSheet;
+  const colorFactor = input.colorSum > 0 ? input.colorSum / 4 : 0;
+  const printCost =
+    colorFactor > 0 ? sheetsWithWaste * fmt.pricePerSheet * colorFactor + fmt.setupPerForm : 0;
+  // Атрибуция стоимости: пропорционально требуемым в группе тиражам деталей
+  const totalReq = perParts.reduce((s, x) => s + x.sheetsInd, 0) || 1;
+  const perPart: GroupImposeVariant["perPart"] = {};
+  for (const x of perParts) {
+    const w = x.sheetsInd / totalReq;
+    perPart[x.part.id] = {
+      itemsPerSheet: x.per,
+      sheets: x.sheetsInd,
+      attributedMaterial: materialCost * w,
+      attributedPrint: printCost * w,
+    };
+  }
+  return {
+    format: fmt,
+    sheets: sheetsWithWaste,
+    materialCost,
+    printCost,
+    total: materialCost + printCost,
+    leadingPartId: lead.part.id,
+    perPart,
+  };
+}
+
+/**
+ * Подобрать лучший формат для группы деталей с совмещённым спуском.
+ * Возвращает также независимую базовую стоимость и экономию.
+ */
+export function pickBestForGroup(input: GroupImposeInput): GroupImposeResult {
+  const variants: GroupImposeVariant[] = [];
+  for (const fmt of PRINT_FORMATS) {
+    const v = calcGroupVariant(input, fmt);
+    if (v) variants.push(v);
+  }
+  variants.sort((a, b) => a.total - b.total);
+  const best = variants[0] ?? null;
+
+  // Базовая «независимая» стоимость — сумма pickBestFormat по каждой детали
+  let independentTotal = 0;
+  for (const p of input.parts) {
+    const r = pickBestFormat({
+      developW: p.developW,
+      developH: p.developH,
+      totalParts: p.totalParts,
+      sheetW: input.sheetW,
+      sheetH: input.sheetH,
+      colorSum: input.colorSum,
+      pricePerPurchaseSheet: input.pricePerPurchaseSheet,
+      wastePct: input.wastePct,
+    });
+    independentTotal += r.best?.total ?? 0;
+  }
+  const savings = best ? Math.max(0, independentTotal - best.total) : 0;
+
+  let hint = "";
+  if (!best) {
+    hint = "Группа не помещается на доступных форматах.";
+  } else if (input.parts.length === 1) {
+    hint = `${best.format.id}: одиночная деталь, совмещение не нужно.`;
+  } else if (savings > 0) {
+    hint = `${best.format.id}: совмещение ${input.parts.length} деталей экономит ${Math.round(savings)} ₸ (одна форма вместо ${input.parts.length}).`;
+  } else {
+    hint = `${best.format.id}: совмещение не даёт экономии — печатаем раздельно.`;
+  }
+
+  return { best, variants, independentTotal, savings, hint };
+}
