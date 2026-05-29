@@ -22,6 +22,7 @@ import {
   type ImposeResult,
   type GroupImposeResult,
 } from "@/lib/calc/box-pro/impose";
+import { calcDiecut, type DiecutResult } from "@/lib/calc/box-pro/diecut";
 
 /**
  * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
@@ -217,13 +218,17 @@ function autoPartsFor(sub: BoxSubType, w: number, l: number, h: number, lidH: nu
 const LAM_PRICE_PER_SHEET = 18;       // тг/лист с одной стороны
 const FOIL_PRICE_PER_PART = 8;        // тг/деталь
 const EMBOSS_PRICE_PER_PART = 6;      // тг/деталь
-const DIECUT_PRICE_PER_SHEET = 12;    // тг/лист
-const DIECUT_SETUP = 5000;            // тг приладка штампа (плейсхолдер для Этапа 3)
 const ASSEMBLY_PER_BOX = 25;          // тг/коробка ручная сборка
 
 function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefined) {
   if (!mat) {
-    return { sheets: 0, perSheet: 0, materialCost: 0, printCost: 0, lamCost: 0, foilCost: 0, embossCost: 0, dieCost: 0, postCost: 0, partTotal: 0, impose: null as ImposeResult | null };
+    return {
+      sheets: 0, perSheet: 0, materialCost: 0, printCost: 0,
+      lamCost: 0, foilCost: 0, embossCost: 0, dieCost: 0, postCost: 0,
+      partTotal: 0,
+      impose: null as ImposeResult | null,
+      diecut: null as DiecutResult | null,
+    };
   }
   const totalParts = circulation * part.qtyPerBox;
   const impose = pickBestFormat({
@@ -243,7 +248,17 @@ function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefin
   const lamCost = part.hasLam ? sheetsInt * LAM_PRICE_PER_SHEET * part.lamSides : 0;
   const foilCost = part.hasFoil ? totalParts * FOIL_PRICE_PER_PART : 0;
   const embossCost = part.hasEmboss ? totalParts * EMBOSS_PRICE_PER_PART : 0;
-  const dieCost = sheetsInt * DIECUT_PRICE_PER_SHEET + DIECUT_SETUP;
+  // ─── Этап 4: авто-расчёт штампа по развёртке ──────────────────────
+  const diecut = calcDiecut({
+    kind: part.kind,
+    developW: part.developW,
+    developH: part.developH,
+    perSheet,
+    sheets: sheetsInt,
+    windowW: part.kind === "window" ? Math.max(0, part.developW - 20) : 0,
+    windowH: part.kind === "window" ? Math.max(0, part.developH - 20) : 0,
+  });
+  const dieCost = diecut.total;
   const postCost = lamCost + foilCost + embossCost + dieCost;
   return {
     sheets: sheetsInt,
@@ -257,6 +272,7 @@ function calcPart(part: Part, circulation: number, mat: MaterialPreset | undefin
     postCost,
     partTotal: materialCost + printCost + postCost,
     impose,
+    diecut,
   };
 }
 
@@ -829,6 +845,45 @@ export default function BoxProCalculator({ embedded = false }: BoxProCalculatorP
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+
+                    {/* Этап 4: авто-расчёт штампа из развёртки */}
+                    <div className="mt-6 space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Авто-расчёт штампа из развёртки (ножи и биговки)
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Деталь</TableHead>
+                            <TableHead className="text-right">Нож, м</TableHead>
+                            <TableHead className="text-right">Биг, м</TableHead>
+                            <TableHead className="text-right">Нож, ₸</TableHead>
+                            <TableHead className="text-right">Биг, ₸</TableHead>
+                            <TableHead className="text-right">Приладка</TableHead>
+                            <TableHead className="text-right">Прогон</TableHead>
+                            <TableHead className="text-right">Штамп итого</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {result.lines.map((l) => (
+                            <TableRow key={l.part.id + "-die"}>
+                              <TableCell className="text-xs">{l.part.name}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? (l.diecut.knifeOnDieMm / 1000).toFixed(2) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? (l.diecut.bigOnDieMm / 1000).toFixed(2) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.knifeCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.bigCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.setupCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs">{l.diecut ? fmtMoney(l.diecut.runCost) : "—"}</TableCell>
+                              <TableCell className="text-right text-xs font-medium">{l.diecut ? fmtMoney(l.diecut.total) : "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="text-[11px] text-muted-foreground">
+                        Длина ножей считается из периметра развёртки (× деталей на листе),
+                        биговки — по типу детали. Менеджеру не нужно знать технологию штампа.
                       </div>
                     </div>
                   </CardContent>
