@@ -465,6 +465,12 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     return { cost, sale, withVat, perItem };
   }, [spec, margin, vatPercent, circulation]);
 
+  useEffect(() => {
+    if (!onResult) return;
+    const result = toTemplatePriceResult(spec, { margin, vatPercent, circulation });
+    onResult({ result, margin, vatPercent });
+  }, [spec, margin, vatPercent, circulation, onResult]);
+
   // Технологический маршрут
   const route = useMemo(() => {
     const steps: string[] = [];
