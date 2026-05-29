@@ -5339,7 +5339,10 @@ const Calculator = () => {
 
             {isTemplateDriven(productType) && (
               <section id="section-template" className="scroll-mt-24">
-                <MultipageTemplateHost productType={productType} />
+                <MultipageTemplateHost
+                  productType={productType}
+                  onBoxResult={setBoxResult}
+                />
               </section>
             )}
             {!isTemplateDriven(productType) && (<>
