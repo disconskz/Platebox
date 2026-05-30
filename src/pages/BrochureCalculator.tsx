@@ -1077,6 +1077,14 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                   <div><Label>Наценка, %</Label><Input type="number" value={margin} onChange={(e) => setMargin(+e.target.value || 0)} /></div>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <QualityControlSection value={qc} onChange={setQc} />
+              </AdvancedOnly>
+
+              <AdvancedOnly>
+                <PackagingSection value={packaging} onChange={setPackaging} />
+              </AdvancedOnly>
             </div>
 
             <div className="space-y-4">
