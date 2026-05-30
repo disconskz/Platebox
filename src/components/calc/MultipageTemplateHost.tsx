@@ -5,6 +5,8 @@ import PocketCalendarCalculator from "@/pages/PocketCalendarCalculator";
 import BoxProCalculator from "@/pages/BoxProCalculator";
 import type { ProductType } from "@/lib/calc/types";
 import type { BoxProResultPayload } from "@/pages/BoxProCalculator";
+import { MultipageCalcProvider } from "@/lib/calc/multipage/context";
+import ModeSwitcher from "@/components/calc/multipage/ModeSwitcher";
 
 /**
  * Список типов продукции, для которых вместо стандартных секций «Нового расчёта»
@@ -43,7 +45,8 @@ export interface MultipageTemplateHostProps {
 
 export default function MultipageTemplateHost({ productType, onTemplateResult }: MultipageTemplateHostProps) {
   const onResult = onTemplateResult;
-  switch (productType) {
+  const inner = (() => {
+    switch (productType) {
     case "brochure":
       return <BrochureCalculator embedded mode="brochure" onResult={onResult} />;
     case "magazine":
@@ -69,5 +72,20 @@ export default function MultipageTemplateHost({ productType, onTemplateResult }:
       return <BoxProCalculator embedded onResult={onResult} />;
     default:
       return null;
-  }
+    }
+  })();
+
+  if (!inner) return null;
+
+  return (
+    <MultipageCalcProvider>
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+        <div className="text-xs text-muted-foreground">
+          Режим интерфейса определяет, какие блоки видны: от простого расчёта до полного тех. отчёта.
+        </div>
+        <ModeSwitcher />
+      </div>
+      {inner}
+    </MultipageCalcProvider>
+  );
 }
