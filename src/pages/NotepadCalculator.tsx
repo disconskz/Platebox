@@ -874,6 +874,16 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                   </Accordion>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <PrepressSection value={prepress} onChange={setPrepress} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <QualityControlSection value={qc} onChange={setQc} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PackagingSection value={packaging} onChange={setPackaging} />
+              </AdvancedOnly>
             </div>
 
             <div className="space-y-4">
@@ -885,6 +895,19 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                   </ol>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <TechWarnings warnings={[]} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <RouteTimeline operations={route.map((label, idx) => ({ id: String(idx), label, stage: "process" as const }))} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <CompositionTable rows={[]} />
+              </AdvancedOnly>
+              <TechOnly>
+                <TechReport data={{ material: [], imposition: [], print: [], postpress: [], route: route.map((label, idx) => ({ id: String(idx), label, stage: "process" as const })) }} />
+              </TechOnly>
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">Итого</CardTitle></CardHeader>
