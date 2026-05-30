@@ -22,6 +22,18 @@ import {
   makeDefaultBlock,
   type InternalBlock,
 } from "@/lib/calc/multipage/blocks";
+import PrepressSection, {
+  DEFAULT_PREPRESS,
+  type PrepressState,
+} from "@/components/calc/multipage/sections/PrepressSection";
+import QualityControlSection, {
+  DEFAULT_QC,
+  type QcState,
+} from "@/components/calc/multipage/sections/QualityControlSection";
+import PackagingSection, {
+  DEFAULT_PACKAGING,
+  type PackagingState,
+} from "@/components/calc/multipage/sections/PackagingSection";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
@@ -222,6 +234,11 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
       colorBack: colorBlockBack,
     }),
   ]);
+
+  // Этап 3: новые ERP-секции (допечатка / контроль качества / упаковка).
+  const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [qc, setQc] = useState<QcState>(DEFAULT_QC);
+  const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
 
   // При встраивании в Calculator (Новый расчёт) подхватываем шаблон ?from=…
   // и переносим общие поля, чтобы спецификация/раскладка сразу пересчитались.
@@ -816,6 +833,10 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} />
               </AdvancedOnly>
 
+              <AdvancedOnly>
+                <PrepressSection value={prepress} onChange={setPrepress} />
+              </AdvancedOnly>
+
               <Card>
                 <CardHeader><CardTitle className="text-sm">3. Обложка</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1056,6 +1077,14 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                   <div><Label>Наценка, %</Label><Input type="number" value={margin} onChange={(e) => setMargin(+e.target.value || 0)} /></div>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <QualityControlSection value={qc} onChange={setQc} />
+              </AdvancedOnly>
+
+              <AdvancedOnly>
+                <PackagingSection value={packaging} onChange={setPackaging} />
+              </AdvancedOnly>
             </div>
 
             <div className="space-y-4">
