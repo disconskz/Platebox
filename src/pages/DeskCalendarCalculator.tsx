@@ -16,6 +16,15 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import { toast } from "sonner";
 import TemplateActions from "@/components/calc/TemplateActions";
 import { toTemplatePriceResult } from "@/lib/calc/template-result";
+import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
+import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
+import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
+import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
+import TechWarnings from "@/components/calc/multipage/TechWarnings";
+import CompositionTable from "@/components/calc/multipage/CompositionTable";
+import TechReport from "@/components/calc/multipage/TechReport";
 
 /**
  * Доработка 57 — выделенный шаблон «Календарь-домик».
@@ -109,6 +118,11 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
   const [optIndividualPack, setOptIndividualPack] = useState(false);
   const [packType, setPackType] = useState<"bag" | "shrink" | "box" | "premium">("bag");
 
+  // Доработка 85 — ERP-обвязка
+  const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [qc, setQc] = useState<QcState>(DEFAULT_QC);
+  const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
+
   // При встраивании в Calculator (Новый расчёт) подхватываем шаблон ?from=…
   const [searchParams] = useSearchParams();
   useEffect(() => {
@@ -173,6 +187,21 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     if (preset.value === "custom") return { w: baseW, h: baseH };
     return { w: preset.w, h: preset.h };
   }, [preset, baseW, baseH]);
+
+  // Доработка 85 — синхронизация глобальных параметров
+  const calcCtx = useMultipageCalcOptional();
+  useEffect(() => {
+    if (!calcCtx) return;
+    calcCtx.setGlobal({
+      format: preset.value === "custom" ? `${baseSize.w}×${baseSize.h}` : preset.value,
+      formatWidth: baseSize.w,
+      formatHeight: baseSize.h,
+      circulation,
+      printType: printMode,
+      bindingType: optSpring ? "spring" : "none",
+      marginPercent: margin,
+    });
+  }, [calcCtx, preset.value, baseSize.w, baseSize.h, circulation, printMode, optSpring, margin]);
 
   // Автоматическая логика
   useEffect(() => {
@@ -819,6 +848,28 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
                   </ol>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <PrepressSection value={prepress} onChange={setPrepress} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <QualityControlSection value={qc} onChange={setQc} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PackagingSection value={packaging} onChange={setPackaging} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <TechWarnings warnings={[]} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <RouteTimeline operations={route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const }))} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <CompositionTable rows={[]} />
+              </AdvancedOnly>
+              <TechOnly>
+                <TechReport data={{ material: { name: preset.value }, imposition: {}, print: { type: printMode }, postpress: [], route: route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const })) }} />
+              </TechOnly>
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">Итоговая стоимость</CardTitle></CardHeader>
