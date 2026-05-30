@@ -17,6 +17,15 @@ import TemplateActions from "@/components/calc/TemplateActions";
 import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
+import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
+import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
+import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
+import TechWarnings from "@/components/calc/multipage/TechWarnings";
+import CompositionTable from "@/components/calc/multipage/CompositionTable";
+import TechReport from "@/components/calc/multipage/TechReport";
 
 /**
  * Шаблон «Блокнот» — детальная форма с раскрывающимися блоками
