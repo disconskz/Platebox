@@ -1212,6 +1212,14 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 <RouteTimeline operations={dynamicRoute} />
               </AdvancedOnly>
 
+              <AdvancedOnly>
+                <CompositionTable rows={composition} />
+              </AdvancedOnly>
+
+              <TechOnly>
+                <TechReport data={techReport} />
+              </TechOnly>
+
               {/* Простой режим: компактный список операций как раньше. */}
               <SimpleOnly>
                 <Card>
