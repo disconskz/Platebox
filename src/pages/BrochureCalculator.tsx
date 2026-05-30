@@ -34,6 +34,11 @@ import PackagingSection, {
   DEFAULT_PACKAGING,
   type PackagingState,
 } from "@/components/calc/multipage/sections/PackagingSection";
+import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
+import TechWarnings from "@/components/calc/multipage/TechWarnings";
+import { buildRoute, type RouteInput } from "@/lib/calc/multipage/route";
+import { validateTech } from "@/lib/calc/multipage/validate";
+import { estimateBlockThickness, pickSpring } from "@/lib/calc/multipage/spring";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
