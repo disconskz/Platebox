@@ -1112,6 +1112,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               )}
 
               {(isHardcover || isSoftcover) && (
+                <AdvancedOnly>
                 <Card>
                   <CardHeader><CardTitle className="text-sm">Тип книги</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1130,9 +1131,11 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                     </div>
                   </CardContent>
                 </Card>
+                </AdvancedOnly>
               )}
 
               {isHardcover && (
+                <AdvancedOnly>
                 <Card>
                   <CardHeader><CardTitle className="text-sm">5. Переплётная крышка и премиум</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1164,6 +1167,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                     </div>
                   </CardContent>
                 </Card>
+                </AdvancedOnly>
               )}
 
               {isPlanner && (
