@@ -17,7 +17,7 @@ import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
-import { AdvancedOnly } from "@/components/calc/multipage/ModeVisibility";
+import { AdvancedOnly, SimpleOnly } from "@/components/calc/multipage/ModeVisibility";
 import {
   makeDefaultBlock,
   type InternalBlock,
