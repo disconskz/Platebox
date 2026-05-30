@@ -16,6 +16,12 @@ import TemplateActions from "@/components/calc/TemplateActions";
 import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
+import { AdvancedOnly } from "@/components/calc/multipage/ModeVisibility";
+import {
+  makeDefaultBlock,
+  type InternalBlock,
+} from "@/lib/calc/multipage/blocks";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
@@ -203,6 +209,19 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     { value: "gift_book", label: "Подарочная книга" },
   ];
   const [bookKind, setBookKind] = useState<BookKind>(isHardcover ? "hardcover_book" : "kbs_book");
+
+  // Этап 2: набор внутренних блоков (мульти-блочная архитектура).
+  // Инициализируем одним «основным» блоком, отражающим текущие поля.
+  const [internalBlocks, setInternalBlocks] = useState<InternalBlock[]>(() => [
+    makeDefaultBlock({
+      kind: "main",
+      paper: blockPaperKey,
+      density: BLOCK_PAPERS.find((p) => p.value === blockPaperKey)?.density ?? 80,
+      pages,
+      colorFront: colorBlockFront,
+      colorBack: colorBlockBack,
+    }),
+  ]);
 
   // При встраивании в Calculator (Новый расчёт) подхватываем шаблон ?from=…
   // и переносим общие поля, чтобы спецификация/раскладка сразу пересчитались.
