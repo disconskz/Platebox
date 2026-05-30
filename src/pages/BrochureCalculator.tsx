@@ -1019,6 +1019,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 </CardContent>
               </Card>
 
+              <AdvancedOnly>
               <Card>
                 <CardHeader><CardTitle className="text-sm">4. Постпечатные операции (обложка)</CardTitle></CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -1063,8 +1064,10 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                   )}
                 </CardContent>
               </Card>
+              </AdvancedOnly>
 
               {isMagazine && (
+                <AdvancedOnly>
                 <Card>
                   <CardHeader><CardTitle className="text-sm">5. Выпуск, вложения и адресация</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1105,9 +1108,11 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                     </div>
                   </CardContent>
                 </Card>
+                </AdvancedOnly>
               )}
 
               {(isHardcover || isSoftcover) && (
+                <AdvancedOnly>
                 <Card>
                   <CardHeader><CardTitle className="text-sm">Тип книги</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1126,9 +1131,11 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                     </div>
                   </CardContent>
                 </Card>
+                </AdvancedOnly>
               )}
 
               {isHardcover && (
+                <AdvancedOnly>
                 <Card>
                   <CardHeader><CardTitle className="text-sm">5. Переплётная крышка и премиум</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1160,9 +1167,11 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                     </div>
                   </CardContent>
                 </Card>
+                </AdvancedOnly>
               )}
 
               {isPlanner && (
+                <AdvancedOnly>
                 <Card>
                   <CardHeader><CardTitle className="text-sm">6. Фурнитура и персонализация</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
@@ -1180,9 +1189,11 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                     <Row label="Индивидуальная подарочная упаковка" checked={plOptGiftBox} onChange={setPlOptGiftBox} />
                   </CardContent>
                 </Card>
+                </AdvancedOnly>
               )}
 
               {isCatalogLike && (
+                <AdvancedOnly>
                 <Card>
                   <CardHeader><CardTitle className="text-sm">Конструкция каталога/журнала</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -1225,6 +1236,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                     )}
                   </CardContent>
                 </Card>
+                </AdvancedOnly>
               )}
 
               <Card>
