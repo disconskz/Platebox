@@ -17,7 +17,7 @@ import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
-import { AdvancedOnly } from "@/components/calc/multipage/ModeVisibility";
+import { AdvancedOnly, SimpleOnly } from "@/components/calc/multipage/ModeVisibility";
 import {
   makeDefaultBlock,
   type InternalBlock,
@@ -34,6 +34,11 @@ import PackagingSection, {
   DEFAULT_PACKAGING,
   type PackagingState,
 } from "@/components/calc/multipage/sections/PackagingSection";
+import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
+import TechWarnings from "@/components/calc/multipage/TechWarnings";
+import { buildRoute, type RouteInput } from "@/lib/calc/multipage/route";
+import { validateTech } from "@/lib/calc/multipage/validate";
+import { estimateBlockThickness, pickSpring } from "@/lib/calc/multipage/spring";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
@@ -711,6 +716,58 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     return s;
   }, [hasDesign, offset, optCoverLam, optSoftTouch, optCoverBig, optVarnish, optSpotVarnish, optStamp, optEmboss, optPerf, optNum, optDieCut, optDeflash, optRound, pages, signatures, bindingKind, isMagazine, isCatalogLike, isHardcover, isPlanner, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plOptNameplate, plOptPersonalize, plOptGiftBox, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, optInserts, optAddress, optShrink, optFlaps, optTabs, packagingKind, hasDelivery, BINDINGS]);
 
+  // Этап 4: динамический ERP-маршрут, технологические предупреждения,
+  // автоподбор пружины. Используются в правой колонке (Расширенный+).
+  const blockThicknessMm = useMemo(
+    () => estimateBlockThickness(pages, blockPaper.density),
+    [pages, blockPaper.density],
+  );
+  const recommendedSpring = useMemo(
+    () => (bindingKind === "spiral" ? pickSpring(blockThicknessMm) : null),
+    [bindingKind, blockThicknessMm],
+  );
+  const dynamicRoute = useMemo(() => {
+    const printType: RouteInput["printType"] =
+      printMode === "auto" ? (offset ? "offset" : "digital") : (printMode as RouteInput["printType"]);
+    return buildRoute({
+      printType,
+      hasCover: true,
+      hasUnderlay: false,
+      hasLamination: optCoverLam,
+      hasCreasing: optCoverBig,
+      hasFolding: pages > 4 || offset,
+      hasDieCut: optDieCut,
+      hasStamping: optStamp,
+      hasEmbossing: optEmboss,
+      hasDrilling: bindingKind === "spiral",
+      hasPerforation: optPerf,
+      hasNumbering: optNum,
+      hasVariableData: isMagazine && optAddress && addressMode === "personal",
+      binding: bindingKind as RouteInput["binding"],
+      blocks: internalBlocks.map((b) => ({ kind: b.kind, pages: b.pages })),
+      packaging: {
+        bundles: packaging.bundles,
+        boxes: packaging.boxes,
+        shrink: packaging.shrink || optShrink,
+        pallets: packaging.pallets,
+      },
+    });
+  }, [printMode, offset, optCoverLam, optCoverBig, pages, optDieCut, optStamp, optEmboss, bindingKind, optPerf, optNum, isMagazine, optAddress, addressMode, internalBlocks, packaging, optShrink]);
+
+  const techWarnings = useMemo(
+    () =>
+      validateTech({
+        hasLamination: optCoverLam,
+        hasCreasing: optCoverBig,
+        hasFolding: pages > 4 || offset,
+        binding: bindingKind,
+        blockThicknessMm,
+        springDiameterMm: recommendedSpring?.diameterMm,
+        pages,
+      }),
+    [optCoverLam, optCoverBig, pages, offset, bindingKind, blockThicknessMm, recommendedSpring],
+  );
+
   const Shell: any = embedded ? Fragment : PageShell;
   const Main: any = embedded ? Fragment : PageMain;
   return (
@@ -1088,14 +1145,25 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
             </div>
 
             <div className="space-y-4">
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Маршрут</CardTitle></CardHeader>
-                <CardContent>
-                  <ol className="text-xs space-y-1 list-decimal pl-4">
-                    {route.map((s, i) => <li key={i}>{s}</li>)}
-                  </ol>
-                </CardContent>
-              </Card>
+              <AdvancedOnly>
+                <TechWarnings warnings={techWarnings} />
+              </AdvancedOnly>
+
+              <AdvancedOnly>
+                <RouteTimeline operations={dynamicRoute} />
+              </AdvancedOnly>
+
+              {/* Простой режим: компактный список операций как раньше. */}
+              <SimpleOnly>
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Маршрут</CardTitle></CardHeader>
+                  <CardContent>
+                    <ol className="text-xs space-y-1 list-decimal pl-4">
+                      {route.map((s, i) => <li key={i}>{s}</li>)}
+                    </ol>
+                  </CardContent>
+                </Card>
+              </SimpleOnly>
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">Итого</CardTitle></CardHeader>
