@@ -17,7 +17,7 @@ import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
-import { AdvancedOnly, SimpleOnly } from "@/components/calc/multipage/ModeVisibility";
+import { AdvancedOnly, SimpleOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
 import {
   makeDefaultBlock,
   type InternalBlock,
@@ -39,6 +39,9 @@ import TechWarnings from "@/components/calc/multipage/TechWarnings";
 import { buildRoute, type RouteInput } from "@/lib/calc/multipage/route";
 import { validateTech } from "@/lib/calc/multipage/validate";
 import { estimateBlockThickness, pickSpring } from "@/lib/calc/multipage/spring";
+import CompositionTable from "@/components/calc/multipage/CompositionTable";
+import TechReport from "@/components/calc/multipage/TechReport";
+import { buildComposition } from "@/lib/calc/multipage/composition";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
@@ -768,6 +771,62 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     [optCoverLam, optCoverBig, pages, offset, bindingKind, blockThicknessMm, recommendedSpring],
   );
 
+  // Состав изделия (раздел 27 ТЗ)
+  const composition = useMemo(() => {
+    const coverOps: string[] = [];
+    if (optCoverLam) coverOps.push(`Ламинация (${coverLamSides} стор.)`);
+    if (optSoftTouch) coverOps.push("Soft-touch");
+    if (optCoverBig) coverOps.push("Биговка");
+    if (optStamp) coverOps.push("Тиснение");
+    if (optEmboss) coverOps.push("Конгрев");
+    if (optDieCut) coverOps.push("Высечка");
+    const bindingLabel = BINDINGS.find((b) => b.value === bindingKind)?.label ?? bindingKind;
+    const bindingQty =
+      bindingKind === "spiral" ? 1 :
+      bindingKind === "staple" || bindingKind === "eurostaple" ? Math.max(2, Math.ceil(pages / 64)) :
+      1;
+    return buildComposition({
+      blocks: internalBlocks,
+      cover: { material: `${coverPaper.label}, ${coverPaper.density} г/м²`, operations: coverOps },
+      binding: {
+        label: bindingLabel,
+        qty: bindingQty,
+        operations: bindingKind === "spiral" && recommendedSpring ? [`Ø${recommendedSpring.diameterMm} мм`] : [],
+      },
+      circulation,
+    });
+  }, [internalBlocks, coverPaper, optCoverLam, coverLamSides, optSoftTouch, optCoverBig, optStamp, optEmboss, optDieCut, bindingKind, BINDINGS, pages, recommendedSpring, circulation]);
+
+  // Технологический отчёт (разделы 28–30 ТЗ)
+  const techReport = useMemo(() => {
+    const postpress: string[] = [];
+    if (optCoverLam) postpress.push(`Ламинация обложки (${coverLamSides} стор.)`);
+    if (optCoverBig) postpress.push("Биговка обложки");
+    if (optStamp) postpress.push(`Тиснение, ${stampArea} см²`);
+    if (optEmboss) postpress.push("Конгрев");
+    if (optDieCut) postpress.push("Высечка");
+    if (optPerf) postpress.push(`Перфорация ×${perfLines}`);
+    if (optNum) postpress.push(`Нумерация ×${numCount}`);
+    return {
+      material: {
+        name: `Блок: ${blockPaper.label}; обложка: ${coverPaper.label}`,
+        purchaseFormat: `${blockPaper.sheetW}×${blockPaper.sheetH} мм`,
+        purchaseSheets: blockLayout.printSheets,
+      },
+      imposition: {
+        printFormat: `${format.w}×${format.h} мм`,
+        signatures,
+        printSheets: blockLayout.printSheets,
+      },
+      print: {
+        type: offset ? "Офсет" : "Цифровая",
+        colors: `${colorBlockFront}+${colorBlockBack}`,
+      },
+      postpress,
+      route: dynamicRoute,
+    };
+  }, [optCoverLam, coverLamSides, optCoverBig, optStamp, stampArea, optEmboss, optDieCut, optPerf, perfLines, optNum, numCount, blockPaper, coverPaper, blockLayout, format, signatures, offset, colorBlockFront, colorBlockBack, dynamicRoute]);
+
   const Shell: any = embedded ? Fragment : PageShell;
   const Main: any = embedded ? Fragment : PageMain;
   return (
@@ -1152,6 +1211,14 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               <AdvancedOnly>
                 <RouteTimeline operations={dynamicRoute} />
               </AdvancedOnly>
+
+              <AdvancedOnly>
+                <CompositionTable rows={composition} />
+              </AdvancedOnly>
+
+              <TechOnly>
+                <TechReport data={techReport} />
+              </TechOnly>
 
               {/* Простой режим: компактный список операций как раньше. */}
               <SimpleOnly>
