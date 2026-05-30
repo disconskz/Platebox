@@ -1057,13 +1057,13 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
 
               {/* 4. Допечатка */}
               <AdvancedOnly>
-                <PrepressSection value={prepress} onChange={setPrepress} />
+                <PrepressSection value={prepress} onChange={setPrepress} title="5. Допечатка" />
               </AdvancedOnly>
 
               {/* 5. Печать (сводка) */}
               <AdvancedOnly>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">5. Печать</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm">6. Печать</CardTitle></CardHeader>
                   <CardContent className="text-xs text-muted-foreground space-y-1">
                     <div>Тип печати: <span className="font-medium text-foreground">{printMode === "auto" ? "Авто (выбор движком)" : printMode === "offset" ? "Офсет" : "Цифра"}</span></div>
                     <div>Печатных листов блока: <span className="font-medium text-foreground">{blockLayout.printSheets}</span> · обложки: <span className="font-medium text-foreground">{coverLayout.printSheets}</span></div>
@@ -1075,7 +1075,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               {/* 6. Постпечатка (обложка) */}
               <AdvancedOnly>
               <Card>
-                <CardHeader><CardTitle className="text-sm">6. Постпечатные операции (обложка)</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">7. Постпечатка (обложка)</CardTitle></CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <Row label="Ламинация обложки" checked={optCoverLam} onChange={setOptCoverLam}>
                     <Select value={String(coverLamSides)} onValueChange={(v) => setCoverLamSides(+v as 1 | 2)}>
@@ -1124,7 +1124,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               {isMagazine && (
                 <AdvancedOnly>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">7. Выпуск, вложения и адресация</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm">Выпуск, вложения и адресация</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
                     <div><Label>Номер выпуска</Label><Input value={issueNumber} onChange={(e) => setIssueNumber(e.target.value)} /></div>
                     <div>
@@ -1169,7 +1169,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               {(isHardcover || isSoftcover) && (
                 <AdvancedOnly>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">7. Тип книги</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm">Тип книги</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <Label>Тип изделия</Label>
@@ -1192,7 +1192,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               {isHardcover && (
                 <AdvancedOnly>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">7. Переплётная крышка и премиум</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm">Переплётная крышка и премиум</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <Label>Покровный материал</Label>
@@ -1228,7 +1228,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               {isPlanner && (
                 <AdvancedOnly>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">7. Фурнитура и персонализация</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm">Фурнитура и персонализация</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <Row label="Датированный (календарная сетка)" checked={plDated} onChange={setPlDated} />
                     <Row label="Резинка (+ пробивка, авто)" checked={plOptElastic} onChange={setPlOptElastic} />
@@ -1250,7 +1250,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               {isCatalogLike && (
                 <AdvancedOnly>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">7. Конструкция каталога/журнала</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm">Конструкция каталога/журнала</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <Label>Тип изделия</Label>
@@ -1297,25 +1297,25 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               {/* 8. Контроль качества */}
               {/* 7. Сборка (после постпечатки) */}
               <AdvancedOnly>
-                <AssemblySection value={assembly} onChange={setAssembly} title="7. Сборка" />
+                <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
               </AdvancedOnly>
 
-              {/* 8. Спецоперации (после сборки) */}
+              {/* 9. Спецоперации (после сборки) */}
               <AdvancedOnly>
-                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="8. Спецоперации" />
+                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="9. Спецоперации" />
               </AdvancedOnly>
 
               <AdvancedOnly>
-                <QualityControlSection value={qc} onChange={setQc} />
+                <QualityControlSection value={qc} onChange={setQc} title="10. Контроль качества" />
               </AdvancedOnly>
 
-              {/* 9. Упаковка */}
+              {/* 11. Упаковка */}
               <AdvancedOnly>
-                <PackagingSection value={packaging} onChange={setPackaging} />
+                <PackagingSection value={packaging} onChange={setPackaging} title="11. Упаковка" />
               </AdvancedOnly>
 
               <Card>
-                <CardHeader><CardTitle className="text-sm">9. Упаковка и доставка</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">12. Доставка и оплата</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="flex items-end gap-2">
                     <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />
