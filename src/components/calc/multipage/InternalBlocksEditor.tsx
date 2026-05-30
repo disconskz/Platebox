@@ -28,6 +28,17 @@ export interface InternalBlocksEditorProps {
 export default function InternalBlocksEditor({ blocks, onChange }: InternalBlocksEditorProps) {
   const ctx = useMultipageCalcOptional();
   const globalPrint = ctx?.global.printType;
+  const g = ctx?.global;
+  const inheritedSummary = g
+    ? [
+        g.format ? `Формат: ${g.format}` : null,
+        g.circulation ? `Тираж: ${g.circulation.toLocaleString("ru-RU")}` : null,
+        g.printType ? `Печать: ${g.printType}` : null,
+        g.bindingType ? `Сборка: ${g.bindingType}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   const patch = (id: string, p: Partial<InternalBlock>) =>
     onChange(blocks.map((b) => (b.id === id ? { ...b, ...p } : b)));
@@ -67,6 +78,12 @@ export default function InternalBlocksEditor({ blocks, onChange }: InternalBlock
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
+        {inheritedSummary && (
+          <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Наследуется из основных параметров:</span>{" "}
+            {inheritedSummary}
+          </div>
+        )}
         {blocks.length === 0 && (
           <div className="rounded-md border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
             Нет блоков. Нажмите «Добавить блок», чтобы создать первый.
