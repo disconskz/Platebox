@@ -192,6 +192,11 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [optShrink, setOptShrink] = useState(false);
   const [itemsPerPack, setItemsPerPack] = useState(10);
 
+  // ERP-обвязка (Доработка 85): новые секции, видимы в Расширенном/Тех. режиме
+  const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [qc, setQc] = useState<QcState>(DEFAULT_QC);
+  const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
+
   const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
   const premiumCoef = kind.coef;
 
