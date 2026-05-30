@@ -22,6 +22,10 @@ import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
+import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
+import UnderlaySection, { DEFAULT_UNDERLAY, type UnderlayState } from "@/components/calc/multipage/sections/UnderlaySection";
+import AssemblySection, { DEFAULT_ASSEMBLY, type AssemblyState } from "@/components/calc/multipage/sections/AssemblySection";
+import SpecialOpsSection, { DEFAULT_SPECIAL_OPS, type SpecialOpsState } from "@/components/calc/multipage/sections/SpecialOpsSection";
 import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
 import TechWarnings from "@/components/calc/multipage/TechWarnings";
 import CompositionTable from "@/components/calc/multipage/CompositionTable";
@@ -150,6 +154,10 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
   const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
   const [qc, setQc] = useState<QcState>(DEFAULT_QC);
   const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
+  const [cover, setCover] = useState<CoverState>(DEFAULT_COVER);
+  const [underlay, setUnderlay] = useState<UnderlayState>(DEFAULT_UNDERLAY);
+  const [assembly, setAssembly] = useState<AssemblyState>(DEFAULT_ASSEMBLY);
+  const [specialOps, setSpecialOps] = useState<SpecialOpsState>(DEFAULT_SPECIAL_OPS);
 
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
@@ -632,7 +640,19 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
               </Card>
 
               <AdvancedOnly>
+                <CoverSection value={cover} onChange={setCover} title="2. Обложка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
                 <PrepressSection value={prepress} onChange={setPrepress} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <AssemblySection value={assembly} onChange={setAssembly} title="7. Сборка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="8. Спецоперации" />
               </AdvancedOnly>
               <AdvancedOnly>
                 <QualityControlSection value={qc} onChange={setQc} />
