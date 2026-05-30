@@ -1050,17 +1050,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 </CardContent>
               </Card>
 
-              {/* 2. Обложка (раньше внутренних блоков — определяет внешний вид и маршрут) */}
-              <AdvancedOnly>
-                <CoverSection value={cover} onChange={setCover} title="2. Обложка" />
-              </AdvancedOnly>
-
-              {/* 3. Подложка (опционально) */}
-              <AdvancedOnly>
-                <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
-              </AdvancedOnly>
-
-              {/* 4. Внутренние блоки */}
+              {/* 4. Внутренние блоки (ERP — мульти-блочная архитектура) */}
               <AdvancedOnly>
                 <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} />
               </AdvancedOnly>
