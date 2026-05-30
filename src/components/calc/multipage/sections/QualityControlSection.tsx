@@ -36,15 +36,16 @@ const ITEMS: { key: keyof QcState; label: string }[] = [
 export interface QualityControlSectionProps {
   value: QcState;
   onChange: (next: QcState) => void;
+  title?: string;
 }
 
-export default function QualityControlSection({ value, onChange }: QualityControlSectionProps) {
+export default function QualityControlSection({ value, onChange, title = "Контроль качества" }: QualityControlSectionProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <ShieldCheck className="h-4 w-4" />
-          Контроль качества
+          {title}
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">

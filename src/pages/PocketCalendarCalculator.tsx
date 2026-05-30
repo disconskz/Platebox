@@ -640,12 +640,6 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
               </Card>
 
               <AdvancedOnly>
-                <CoverSection value={cover} onChange={setCover} title="2. Обложка" />
-              </AdvancedOnly>
-              <AdvancedOnly>
-                <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
-              </AdvancedOnly>
-              <AdvancedOnly>
                 <PrepressSection value={prepress} onChange={setPrepress} />
               </AdvancedOnly>
               <AdvancedOnly>

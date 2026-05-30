@@ -41,16 +41,17 @@ const OPTIONS: { key: keyof PackagingState; label: string }[] = [
 export interface PackagingSectionProps {
   value: PackagingState;
   onChange: (next: PackagingState) => void;
+  title?: string;
 }
 
-export default function PackagingSection({ value, onChange }: PackagingSectionProps) {
+export default function PackagingSection({ value, onChange, title = "Упаковка" }: PackagingSectionProps) {
   const patch = (p: Partial<PackagingState>) => onChange({ ...value, ...p });
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <Package className="h-4 w-4" />
-          Упаковка
+          {title}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
