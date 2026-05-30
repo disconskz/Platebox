@@ -858,7 +858,19 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
               </Card>
 
               <AdvancedOnly>
+                <CoverSection value={cover} onChange={setCover} title="2. Обложка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
                 <PrepressSection value={prepress} onChange={setPrepress} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <AssemblySection value={assembly} onChange={setAssembly} title="7. Сборка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="8. Спецоперации" />
               </AdvancedOnly>
               <AdvancedOnly>
                 <QualityControlSection value={qc} onChange={setQc} />
