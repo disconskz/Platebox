@@ -828,6 +828,50 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     };
   }, [optCoverLam, coverLamSides, optCoverBig, optStamp, stampArea, optEmboss, optDieCut, optPerf, perfLines, optNum, numCount, blockPaper, coverPaper, blockLayout, format, signatures, offset, colorBlockFront, colorBlockBack, dynamicRoute]);
 
+  // Этап 6: расширенный итог (цена/шт, срок, листы, форматы, отходы, формы)
+  const expandedTotals = useMemo<ExpandedTotalsData>(() => {
+    const formsCount = offset
+      ? (colorBlockFront + colorBlockBack) * signatures + (colorCoverFront + colorCoverBack)
+      : 0;
+    const netTotal = blockLayout.netSheets + coverLayout.netSheets;
+    const printTotal = blockLayout.printSheets + coverLayout.printSheets;
+    const wastePercent = netTotal > 0 ? ((printTotal - netTotal) / netTotal) * 100 : 0;
+
+    // Срок ETA: база 2 дня + 1 день на 1000 шт + по 0.5 дня за тяжёлые операции
+    let eta = 2 + Math.ceil(circulation / 1000);
+    if (optCoverLam) eta += 1;
+    if (optStamp || optEmboss) eta += 1;
+    if (optDieCut) eta += 1;
+    if (isHardcover) eta += 3;
+    if (bindingKind === "sewn" || bindingKind === "sewn_kbs") eta += 2;
+
+    return {
+      totals,
+      vatPercent,
+      margin,
+      circulation,
+      pages,
+      signatures,
+      signaturePages,
+      formatLabel: format.label,
+      itemW,
+      itemH,
+      blockPrintSheets: blockLayout.printSheets,
+      blockNetSheets: blockLayout.netSheets,
+      blockSetup: blockLayout.setup,
+      blockUpPerSide: blockLayout.upPerSide,
+      coverPrintSheets: coverLayout.printSheets,
+      coverNetSheets: coverLayout.netSheets,
+      coverSetup: coverLayout.setup,
+      coverUpPerSheet: coverLayout.upPerSheet,
+      spineMm: coverLayout.spineMm,
+      offset,
+      formsCount,
+      etaDays: eta,
+      wastePercent,
+    };
+  }, [totals, vatPercent, margin, circulation, pages, signatures, signaturePages, format, itemW, itemH, blockLayout, coverLayout, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, optCoverLam, optStamp, optEmboss, optDieCut, isHardcover, bindingKind]);
+
   const Shell: any = embedded ? Fragment : PageShell;
   const Main: any = embedded ? Fragment : PageMain;
   return (
