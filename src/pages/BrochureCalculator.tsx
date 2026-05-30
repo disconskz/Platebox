@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
 import { AdvancedOnly, SimpleOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import {
   makeDefaultBlock,
   type InternalBlock,
@@ -342,6 +343,24 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   const itemH = format.value === "custom" ? customH : format.h;
   const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
   const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
+
+  // ── Этап 1 (доработка 85): публикация главных параметров изделия
+  // в глобальный контекст ERP, чтобы все внутренние блоки/секции
+  // автоматически наследовали формат, тираж, печать, переплёт, наценку и срок.
+  const calcCtx = useMultipageCalcOptional();
+  useEffect(() => {
+    if (!calcCtx) return;
+    calcCtx.setGlobal({
+      format: `${itemW}×${itemH} мм`,
+      formatWidth: itemW,
+      formatHeight: itemH,
+      orientation: itemW > itemH ? "landscape" : "portrait",
+      circulation,
+      printType: printMode === "auto" ? undefined : printMode,
+      bindingType: bindingKind,
+      marginPercent: margin,
+    });
+  }, [calcCtx, itemW, itemH, circulation, printMode, bindingKind, margin]);
 
   // Авто-логика
   useEffect(() => {
