@@ -17,7 +17,7 @@ import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
-import { AdvancedOnly, SimpleOnly } from "@/components/calc/multipage/ModeVisibility";
+import { AdvancedOnly, SimpleOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
 import {
   makeDefaultBlock,
   type InternalBlock,
@@ -39,6 +39,9 @@ import TechWarnings from "@/components/calc/multipage/TechWarnings";
 import { buildRoute, type RouteInput } from "@/lib/calc/multipage/route";
 import { validateTech } from "@/lib/calc/multipage/validate";
 import { estimateBlockThickness, pickSpring } from "@/lib/calc/multipage/spring";
+import CompositionTable from "@/components/calc/multipage/CompositionTable";
+import TechReport from "@/components/calc/multipage/TechReport";
+import { buildComposition } from "@/lib/calc/multipage/composition";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
