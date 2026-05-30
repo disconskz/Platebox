@@ -250,6 +250,21 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[2], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
   const itemH = format.value === "custom" ? customH : format.h;
+
+  // Доработка 85 — синхронизация глобальных параметров с ERP-контекстом
+  const calcCtx = useMultipageCalcOptional();
+  useEffect(() => {
+    if (!calcCtx) return;
+    calcCtx.setGlobal({
+      format: format.label,
+      formatWidth: itemW,
+      formatHeight: itemH,
+      circulation,
+      printType: printMode,
+      bindingType: bindingKind,
+      marginPercent: margin,
+    });
+  }, [calcCtx, format.label, itemW, itemH, circulation, printMode, bindingKind, margin]);
   const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
   const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
   const backing = useMemo(() => BACKINGS.find((b) => b.value === backingMaterial)!, [backingMaterial]);
