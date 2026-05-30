@@ -1277,16 +1277,21 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 </Card>
               </SimpleOnly>
 
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Итого</CardTitle></CardHeader>
-                <CardContent className="text-sm space-y-1">
-                  <div className="flex justify-between"><span>Себестоимость</span><span>{fmtMoney(totals.cost)}</span></div>
-                  <div className="flex justify-between"><span>Цена продажи</span><span>{fmtMoney(totals.sale)}</span></div>
-                  <Separator />
-                  <div className="flex justify-between font-medium"><span>С НДС {vatPercent}%</span><span>{fmtMoney(totals.withVat)}</span></div>
-                  <div className="flex justify-between text-accent font-semibold"><span>За штуку</span><span>{fmtMoney(totals.perItem)}</span></div>
-                </CardContent>
-              </Card>
+              <SimpleOnly>
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Итого</CardTitle></CardHeader>
+                  <CardContent className="text-sm space-y-1">
+                    <div className="flex justify-between"><span>Себестоимость</span><span>{fmtMoney(totals.cost)}</span></div>
+                    <div className="flex justify-between"><span>Цена продажи</span><span>{fmtMoney(totals.sale)}</span></div>
+                    <Separator />
+                    <div className="flex justify-between font-medium"><span>С НДС {vatPercent}%</span><span>{fmtMoney(totals.withVat)}</span></div>
+                    <div className="flex justify-between text-accent font-semibold"><span>За штуку</span><span>{fmtMoney(totals.perItem)}</span></div>
+                  </CardContent>
+                </Card>
+              </SimpleOnly>
+              <AdvancedOnly>
+                <ExpandedTotals data={expandedTotals} />
+              </AdvancedOnly>
 
               <TemplateActions
                 productType={
