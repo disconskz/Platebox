@@ -900,13 +900,13 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                 <TechWarnings warnings={[]} />
               </AdvancedOnly>
               <AdvancedOnly>
-                <RouteTimeline operations={route.map((label, idx) => ({ id: String(idx), label, stage: "process" as const }))} />
+                <RouteTimeline operations={route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const }))} />
               </AdvancedOnly>
               <AdvancedOnly>
                 <CompositionTable rows={[]} />
               </AdvancedOnly>
               <TechOnly>
-                <TechReport data={{ material: [], imposition: [], print: [], postpress: [], route: route.map((label, idx) => ({ id: String(idx), label, stage: "process" as const })) }} />
+                <TechReport data={{ material: { name: format.label }, imposition: {}, print: { type: printMode }, postpress: [], route: route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const })) }} />
               </TechOnly>
 
               <Card>
