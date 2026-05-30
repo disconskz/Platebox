@@ -1145,14 +1145,25 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
             </div>
 
             <div className="space-y-4">
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Маршрут</CardTitle></CardHeader>
-                <CardContent>
-                  <ol className="text-xs space-y-1 list-decimal pl-4">
-                    {route.map((s, i) => <li key={i}>{s}</li>)}
-                  </ol>
-                </CardContent>
-              </Card>
+              <AdvancedOnly>
+                <TechWarnings warnings={techWarnings} />
+              </AdvancedOnly>
+
+              <AdvancedOnly>
+                <RouteTimeline operations={dynamicRoute} />
+              </AdvancedOnly>
+
+              {/* Простой режим: компактный список операций как раньше. */}
+              <SimpleOnly>
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Маршрут</CardTitle></CardHeader>
+                  <CardContent>
+                    <ol className="text-xs space-y-1 list-decimal pl-4">
+                      {route.map((s, i) => <li key={i}>{s}</li>)}
+                    </ol>
+                  </CardContent>
+                </Card>
+              </SimpleOnly>
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">Итого</CardTitle></CardHeader>
