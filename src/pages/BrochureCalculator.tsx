@@ -42,6 +42,7 @@ import { estimateBlockThickness, pickSpring } from "@/lib/calc/multipage/spring"
 import CompositionTable from "@/components/calc/multipage/CompositionTable";
 import TechReport from "@/components/calc/multipage/TechReport";
 import { buildComposition } from "@/lib/calc/multipage/composition";
+import ExpandedTotals, { type ExpandedTotalsData } from "@/components/calc/multipage/ExpandedTotals";
 
 /**
  * Доработка 48 — выделенный шаблон «Брошюра».
