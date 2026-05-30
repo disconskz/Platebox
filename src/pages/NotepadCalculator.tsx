@@ -17,6 +17,15 @@ import TemplateActions from "@/components/calc/TemplateActions";
 import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
+import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
+import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
+import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
+import TechWarnings from "@/components/calc/multipage/TechWarnings";
+import CompositionTable from "@/components/calc/multipage/CompositionTable";
+import TechReport from "@/components/calc/multipage/TechReport";
 
 /**
  * Шаблон «Блокнот» — детальная форма с раскрывающимися блоками
@@ -183,6 +192,11 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [optShrink, setOptShrink] = useState(false);
   const [itemsPerPack, setItemsPerPack] = useState(10);
 
+  // ERP-обвязка (Доработка 85): новые секции, видимы в Расширенном/Тех. режиме
+  const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [qc, setQc] = useState<QcState>(DEFAULT_QC);
+  const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
+
   const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
   const premiumCoef = kind.coef;
 
@@ -236,6 +250,21 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[2], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
   const itemH = format.value === "custom" ? customH : format.h;
+
+  // Доработка 85 — синхронизация глобальных параметров с ERP-контекстом
+  const calcCtx = useMultipageCalcOptional();
+  useEffect(() => {
+    if (!calcCtx) return;
+    calcCtx.setGlobal({
+      format: format.label,
+      formatWidth: itemW,
+      formatHeight: itemH,
+      circulation,
+      printType: printMode,
+      bindingType: bindingKind,
+      marginPercent: margin,
+    });
+  }, [calcCtx, format.label, itemW, itemH, circulation, printMode, bindingKind, margin]);
   const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
   const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
   const backing = useMemo(() => BACKINGS.find((b) => b.value === backingMaterial)!, [backingMaterial]);
@@ -845,6 +874,16 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                   </Accordion>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <PrepressSection value={prepress} onChange={setPrepress} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <QualityControlSection value={qc} onChange={setQc} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PackagingSection value={packaging} onChange={setPackaging} />
+              </AdvancedOnly>
             </div>
 
             <div className="space-y-4">
@@ -856,6 +895,19 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                   </ol>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <TechWarnings warnings={[]} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <RouteTimeline operations={route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const }))} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <CompositionTable rows={[]} />
+              </AdvancedOnly>
+              <TechOnly>
+                <TechReport data={{ material: { name: format.label }, imposition: {}, print: { type: printMode }, postpress: [], route: route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const })) }} />
+              </TechOnly>
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">Итого</CardTitle></CardHeader>

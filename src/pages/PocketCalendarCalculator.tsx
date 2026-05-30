@@ -17,6 +17,15 @@ import TemplateActions from "@/components/calc/TemplateActions";
 import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
+import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
+import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
+import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
+import TechWarnings from "@/components/calc/multipage/TechWarnings";
+import CompositionTable from "@/components/calc/multipage/CompositionTable";
+import TechReport from "@/components/calc/multipage/TechReport";
 
 /**
  * Шаблон «Календарь карманный» — листовая логика с ламинацией,
@@ -137,9 +146,29 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
   // Упаковка
   const [packKind, setPackKind] = useState<PackKind>("stack");
 
+  // Доработка 85 — ERP-обвязка
+  const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [qc, setQc] = useState<QcState>(DEFAULT_QC);
+  const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
+
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[0], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
   const itemH = format.value === "custom" ? customH : format.h;
+
+  // Доработка 85 — глобальные параметры в ERP-контекст
+  const calcCtx = useMultipageCalcOptional();
+  useEffect(() => {
+    if (!calcCtx) return;
+    calcCtx.setGlobal({
+      format: format.value === "custom" ? `${itemW}×${itemH}` : format.value,
+      formatWidth: itemW,
+      formatHeight: itemH,
+      circulation,
+      printType: printMode,
+      bindingType: "none",
+      marginPercent: margin,
+    });
+  }, [calcCtx, format.value, itemW, itemH, circulation, printMode, margin]);
   const material = useMemo(() => MATERIALS.find((m) => m.value === materialKey)!, [materialKey]);
   const lam = useMemo(() => LAMS.find((l) => l.value === lamType)!, [lamType]);
   const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
@@ -601,6 +630,28 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
                   </ol>
                 </CardContent>
               </Card>
+
+              <AdvancedOnly>
+                <PrepressSection value={prepress} onChange={setPrepress} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <QualityControlSection value={qc} onChange={setQc} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PackagingSection value={packaging} onChange={setPackaging} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <TechWarnings warnings={[]} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <RouteTimeline operations={route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const }))} />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <CompositionTable rows={[]} />
+              </AdvancedOnly>
+              <TechOnly>
+                <TechReport data={{ material: { name: format.value }, imposition: {}, print: { type: printMode }, postpress: [], route: route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const })) }} />
+              </TechOnly>
 
               <Card>
                 <CardHeader><CardTitle className="text-sm">7. Итоговая стоимость</CardTitle></CardHeader>
