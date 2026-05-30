@@ -82,14 +82,14 @@ export default function ExpandedTotals({ data }: { data: ExpandedTotalsData }) {
       <CardContent className="space-y-3">
         <div className="space-y-1">
           <Line label="Себестоимость" value={fmtMoney(totals.cost)}
-            hint="Сумма всех строк спецификации (материалы + работы + логистика)." />
+            hint={`Сумма всех строк спецификации: материалы + допечать + печать + постпечать + логистика = ${fmtMoney(totals.cost)}.`} />
           <Line label={`Наценка ${margin}%`} value={fmtMoney(totals.sale - totals.cost)}
-            hint={`Прибыль: себестоимость × ${margin}%.`} />
+            hint={`Прибыль = ${fmtMoney(totals.cost)} × ${margin}% = ${fmtMoney(totals.sale - totals.cost)}.`} />
           <Line label="Цена продажи" value={fmtMoney(totals.sale)}
-            hint="Себестоимость × (1 + наценка)." />
+            hint={`${fmtMoney(totals.cost)} × (1 + ${margin}/100) = ${fmtMoney(totals.sale)}.`} />
           <Separator />
           <Line label={`С НДС ${vatPercent}%`} value={<span className="font-semibold">{fmtMoney(totals.withVat)}</span>}
-            hint={`Цена продажи × (1 + ${vatPercent}%).`} />
+            hint={`${fmtMoney(totals.sale)} × (1 + ${vatPercent}/100) = ${fmtMoney(totals.withVat)}. На 1 шт: ${fmtMoney(totals.perItem)}.`} />
           <Line label="Срок производства" value={`~ ${etaDays} дн.`}
             hint="Оценка по тиражу и количеству постпечатных операций." />
         </div>
@@ -98,8 +98,10 @@ export default function ExpandedTotals({ data }: { data: ExpandedTotalsData }) {
 
         <div className="space-y-1">
           <div className="text-xs font-medium text-muted-foreground">Тираж и формат</div>
-          <Line label="Тираж" value={`${fmtNum(circulation)} шт`} />
-          <Line label="Формат" value={`${formatLabel} (${itemW}×${itemH} мм)`} />
+          <Line label="Тираж" value={`${fmtNum(circulation)} шт`}
+            hint="Из секции «1. Основные параметры». Используется во всех расчётах ниже." />
+          <Line label="Формат" value={`${formatLabel} (${itemW}×${itemH} мм)`}
+            hint="Из секции «1. Основные параметры». Определяет раскладку и закупочный лист." />
           <Line label="Страниц / тетрадей" value={`${pages} / ${signatures}`}
             hint={`Тетрадь = ${signaturePages} стр. Тетрадей = ⌈${pages}/${signaturePages}⌉ = ${signatures}.`} />
           <Line label="Корешок" value={`${spineMm.toFixed(1)} мм`}
