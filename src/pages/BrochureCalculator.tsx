@@ -812,6 +812,10 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 </CardContent>
               </Card>
 
+              <AdvancedOnly>
+                <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} />
+              </AdvancedOnly>
+
               <Card>
                 <CardHeader><CardTitle className="text-sm">3. Обложка</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
