@@ -693,6 +693,16 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
             </div>
           </div>
 
+          <div className="mt-4">
+            <CostByStageBlock
+              spec={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total }))}
+              metrics={{
+                printSheets: layout.printSheets,
+                purchaseSheets: layout.net,
+                wasteSheets: Math.max(0, layout.printSheets - layout.net) || undefined,
+              }}
+            />
+          </div>
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>
