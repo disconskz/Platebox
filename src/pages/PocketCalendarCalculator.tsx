@@ -631,7 +631,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
 
             <div className="space-y-4">
               <Card>
-                <CardHeader><CardTitle className="text-sm">Маршрут</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">12. Маршрут</CardTitle></CardHeader>
                 <CardContent>
                   <ol className="text-xs space-y-1 list-decimal pl-4">
                     {route.map((s, i) => <li key={i}>{s}</li>)}

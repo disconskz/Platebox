@@ -849,7 +849,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
             {/* Правая колонка */}
             <div className="space-y-4">
               <Card>
-                <CardHeader><CardTitle className="text-sm">Технологический маршрут</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">12. Технологический маршрут</CardTitle></CardHeader>
                 <CardContent>
                   <ol className="text-xs space-y-1 list-decimal pl-5">
                     {route.map((s, i) => <li key={i}>{s}</li>)}
