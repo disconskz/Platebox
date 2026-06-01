@@ -704,6 +704,9 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
 
           {/* Спецификация */}
           {fullSpec.length > 0 && (
+            <LegacyCostByStageBlock lines={fullSpec as any} storageKey="legacy-leaflet" />
+          )}
+          {fullSpec.length > 0 && (
             <Card className="mt-4">
               <CardHeader><CardTitle className="text-sm">Спецификация работ и материалов</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
