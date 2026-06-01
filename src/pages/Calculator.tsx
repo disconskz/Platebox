@@ -10190,10 +10190,10 @@ const Calculator = () => {
           </div>
 
           {/* Desktop sidebar with totals */}
-          <div className="hidden lg:block lg:col-span-2 space-y-4 lg:order-2">
+          <div className="hidden lg:block w-full space-y-4 order-2">
             {isTemplateDriven(productType) ? (
               boxResult && (
-                <div className="lg:sticky lg:top-20 space-y-4">
+                <div className="space-y-4">
                   <BoxPriceBreakdown
                     result={boxResult.result}
                     margin={boxResult.margin}
@@ -10218,7 +10218,7 @@ const Calculator = () => {
               )
             ) : (
             result && !("error" in result) && (
-              <div className="lg:sticky lg:top-20 space-y-4">
+              <div className="space-y-4">
               <PriceBreakdownTree
                 spec={result.spec as any}
                 totalCost={totalCost}
