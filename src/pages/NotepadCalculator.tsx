@@ -951,6 +951,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
 
           <div className="mt-4">
             <CostByStageBlock
+              storageKey="notepad"
               spec={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total }))}
               metrics={{
                 printSheets: blockLayout.printSheets,

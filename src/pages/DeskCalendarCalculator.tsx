@@ -919,6 +919,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
           {spec.length > 0 && (
             <div className="mt-4">
               <CostByStageBlock
+                storageKey="desk-calendar"
                 spec={spec.map((l) => ({ stage: l.stage, name: l.name, qty: l.quantity, unit: l.unit, price: l.unitPrice, total: l.total }))}
                 metrics={{
                   printSheets: basePrintSheets + leafPrintSheets,

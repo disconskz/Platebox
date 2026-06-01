@@ -695,6 +695,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
 
           <div className="mt-4">
             <CostByStageBlock
+              storageKey="pocket-calendar"
               spec={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total }))}
               metrics={{
                 printSheets: layout.printSheets,
