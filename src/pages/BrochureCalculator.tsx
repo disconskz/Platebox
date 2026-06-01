@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
 import { AdvancedOnly, SimpleOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import CostByStageBlock from "@/components/calc/multipage/CostByStageBlock";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import {
   makeDefaultBlock,
@@ -1396,6 +1397,21 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
             </div>
           </div>
 
+          <div className="mt-4">
+            <CostByStageBlock
+              spec={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total }))}
+              metrics={{
+                printSheets: blockLayout.printSheets + coverLayout.printSheets,
+                purchaseSheets: (blockLayout as any).netSheets ?? undefined,
+                wasteSheets: Math.max(0, (blockLayout.printSheets + coverLayout.printSheets) - (((blockLayout as any).netSheets ?? 0) + ((coverLayout as any).netSheets ?? 0))) || undefined,
+                impositions: signatures,
+                forms: offset
+                  ? ((colorBlockFront + colorBlockBack) * signatures) + (colorCoverFront + colorCoverBack)
+                  : 0,
+                makereadyCount: offset ? signatures + 1 : 0,
+              }}
+            />
+          </div>
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>

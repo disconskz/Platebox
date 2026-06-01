@@ -18,6 +18,7 @@ import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import CostByStageBlock from "@/components/calc/multipage/CostByStageBlock";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
@@ -948,6 +949,16 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
             </div>
           </div>
 
+          <div className="mt-4">
+            <CostByStageBlock
+              spec={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total }))}
+              metrics={{
+                printSheets: blockLayout.printSheets,
+                purchaseSheets: blockLayout.netSheets,
+                wasteSheets: Math.max(0, blockLayout.printSheets - blockLayout.netSheets) || undefined,
+              }}
+            />
+          </div>
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>

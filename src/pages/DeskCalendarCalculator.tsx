@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import TemplateActions from "@/components/calc/TemplateActions";
 import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import CostByStageBlock from "@/components/calc/multipage/CostByStageBlock";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
@@ -915,6 +916,16 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
           </div>
 
           {/* Спецификация */}
+          {spec.length > 0 && (
+            <div className="mt-4">
+              <CostByStageBlock
+                spec={spec.map((l) => ({ stage: l.stage, name: l.name, qty: l.quantity, unit: l.unit, price: l.unitPrice, total: l.total }))}
+                metrics={{
+                  printSheets: basePrintSheets + leafPrintSheets,
+                }}
+              />
+            </div>
+          )}
           {spec.length > 0 && (
             <Card className="mt-4">
               <CardHeader><CardTitle className="text-sm">Спецификация работ и материалов</CardTitle></CardHeader>
