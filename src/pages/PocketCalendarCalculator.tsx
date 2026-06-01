@@ -18,6 +18,7 @@ import { toTemplatePriceResult } from "@/lib/calc/template-result";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
+import CostByStageBlock from "@/components/calc/multipage/CostByStageBlock";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
