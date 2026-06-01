@@ -629,9 +629,11 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                           <div><Label>Толщина листа, мм</Label><Input value={blockPaper.thicknessMm} readOnly /></div>
                           <div><Label>Цветность (лицо)</Label><Input type="number" min={0} max={6} value={colorBlockFront} onChange={(e) => setColorBlockFront(+e.target.value || 0)} /></div>
                           <div><Label>Цветность (оборот)</Label><Input type="number" min={0} max={6} value={colorBlockBack} onChange={(e) => setColorBlockBack(+e.target.value || 0)} /></div>
-                          <div className="sm:col-span-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                            Листов в блоке: <b>{sheetsInBlock}</b> · Толщина блока: <b>{blockThicknessMm} мм</b> · Печатных листов: <b>{blockLayout.printSheets}</b>
-                          </div>
+                          <AdvancedOnly>
+                            <div className="sm:col-span-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                              Листов в блоке: <b>{sheetsInBlock}</b> · Толщина блока: <b>{blockThicknessMm} мм</b> · Печатных листов: <b>{blockLayout.printSheets}</b>
+                            </div>
+                          </AdvancedOnly>
                         </div>
                       </AccordionContent>
                     </AccordionItem>
