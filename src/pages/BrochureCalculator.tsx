@@ -1399,6 +1399,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
 
           <div className="mt-4">
             <CostByStageBlock
+              storageKey="brochure"
               spec={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total }))}
               metrics={{
                 printSheets: blockLayout.printSheets + coverLayout.printSheets,
