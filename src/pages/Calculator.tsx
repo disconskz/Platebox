@@ -5111,6 +5111,8 @@ const Calculator = () => {
                       )}
                     </div>
                   </div>
+                  {!isTemplateDriven(productType) && (
+                  <>
                   <div>
                     <Label>
                       Тираж, шт
@@ -5303,6 +5305,8 @@ const Calculator = () => {
                       </div>
                     </div>
                   </div>
+                  </>
+                  )}
                 </CardContent>
               </Card>
             </section>
