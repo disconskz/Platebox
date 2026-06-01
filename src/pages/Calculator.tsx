@@ -5041,7 +5041,7 @@ const Calculator = () => {
             <section id="section-1" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>1. Продукция и параметры</CardTitle></CardHeader>
-                <CardContent className={cn("grid gap-4", isTemplateDriven(productType) ? "md:grid-cols-2" : "md:grid-cols-2")}>
+                <CardContent className="grid gap-4 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <Label>Название расчёта</Label>
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Авто, если оставить пустым" />
