@@ -917,6 +917,16 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
           {/* Спецификация */}
           {spec.length > 0 && (
+            <div className="mt-4">
+              <CostByStageBlock
+                spec={spec.map((l) => ({ stage: l.stage, name: l.name, qty: l.quantity, unit: l.unit, price: l.unitPrice, total: l.total }))}
+                metrics={{
+                  printSheets: basePrintSheets + leafPrintSheets,
+                }}
+              />
+            </div>
+          )}
+          {spec.length > 0 && (
             <Card className="mt-4">
               <CardHeader><CardTitle className="text-sm">Спецификация работ и материалов</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
