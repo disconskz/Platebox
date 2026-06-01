@@ -15,6 +15,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 /**
  * Шаблон «Коробка» — упаковочная/конструктивная продукция: развёртка, высечка,
  * биговка, кашировка, микрогофра, ложементы, магниты, ленты, окна, склейка,
@@ -832,6 +833,8 @@ export default function BoxCalculator() {
             </div>
           </div>
 
+          <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-box-legacy" />
+          
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>

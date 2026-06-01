@@ -15,6 +15,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 /**
  * Шаблон «Грамота / Диплом» — листовая логика с расширенной поддержкой
  * персонализации, нумерации, тиснения/фольгирования, рамок и папок. Доработка 62.
@@ -703,6 +704,8 @@ export default function DiplomaCalculator() {
             </div>
           </div>
 
+          <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-diploma" />
+          
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>

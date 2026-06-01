@@ -15,6 +15,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 /**
  * Шаблон «Фирменный бланк / Бланк» — листовая логика с поддержкой
  * тонкой бумаги, NCR-самокопирки, нумерации, перфорации, склейки
@@ -592,6 +593,8 @@ export default function LetterheadCalculator() {
             </div>
           </div>
 
+          <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-letterhead" />
+          
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>

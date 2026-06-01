@@ -15,6 +15,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 /**
  * Шаблон «Тубус» — цилиндрическая упаковка: навивка, кашировка, крышки, дно,
  * втулка, ложементы, магниты, ленты, окно, premium-конструкции. Доработка 69.
@@ -801,6 +802,8 @@ export default function TubeCalculator() {
             </div>
           </div>
 
+          <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-tube" />
+          
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>

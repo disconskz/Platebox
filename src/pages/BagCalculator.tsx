@@ -15,6 +15,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 /**
  * Шаблон «Пакет» — упаковочная продукция: развёртка, конструкция, высечка,
  * биговка, склейка, ручки, люверсы, окно, усиление, сборка, premium.
@@ -779,6 +780,8 @@ export default function BagCalculator() {
             </div>
           </div>
 
+          <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-bag" />
+          
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>

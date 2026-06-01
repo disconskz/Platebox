@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { runCalculation, FORMAT_PRESETS } from "@/lib/calc/engine";
 import type { CalcInput, FormatType, SpecItem } from "@/lib/calc/types";
 import { fmtMoney, fmtNum } from "@/lib/format";
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 import { toast } from "sonner";
 import TemplateActions from "@/components/calc/TemplateActions";
 
@@ -702,6 +703,9 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
           </div>
 
           {/* Спецификация */}
+          {fullSpec.length > 0 && (
+            <LegacyCostByStageBlock lines={fullSpec as any} storageKey="legacy-leaflet" />
+          )}
           {fullSpec.length > 0 && (
             <Card className="mt-4">
               <CardHeader><CardTitle className="text-sm">Спецификация работ и материалов</CardTitle></CardHeader>
