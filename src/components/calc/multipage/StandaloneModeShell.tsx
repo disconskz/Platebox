@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Outlet } from "react-router-dom";
 import { MultipageCalcProvider } from "@/lib/calc/multipage/context";
 import ModeSwitcher from "./ModeSwitcher";
 import GlobalParamsBar from "./GlobalParamsBar";
@@ -12,7 +13,7 @@ import GlobalParamsBar from "./GlobalParamsBar";
  * SimpleOnly / AdvancedOnly / TechOnly корректно работали и вне
  * универсального экрана Calculator.tsx.
  */
-export default function StandaloneModeShell({ children }: { children: React.ReactNode }) {
+export default function StandaloneModeShell({ children }: { children?: React.ReactNode }) {
   return (
     <MultipageCalcProvider>
       <div className="sticky top-0 z-30 mb-2 border-b bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -24,7 +25,7 @@ export default function StandaloneModeShell({ children }: { children: React.Reac
         </div>
         <GlobalParamsBar className="mt-1.5" />
       </div>
-      {children}
+      {children ?? <Outlet />}
     </MultipageCalcProvider>
   );
 }

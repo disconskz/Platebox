@@ -90,52 +90,56 @@ const App = () => (
             {/* Protected app shell with sidebar */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/app" element={<Index />} />
-              <Route path="/calculator" element={<Calculator />} />
-              <Route path="/calculator/multi-sku" element={<MultiSkuCalculator />} />
-              <Route path="/calculator/leaflet" element={<LeafletFlyerCalculator />} />
-              <Route path="/calculator/flyer" element={<LeafletFlyerCalculator />} />
-              <Route path="/calculator/leaflet-legacy" element={<LeafletCalculator />} />
-              <Route path="/calculator/flyer-legacy" element={<FlyerCalculator />} />
-              <Route path="/calculator/euroflyer" element={<EuroflyerCalculator />} />
-              <Route path="/calculator/businesscard" element={<BusinessCardCalculator />} />
-              <Route path="/calculator/poster" element={<PosterCalculator />} />
-              <Route path="/calculator/insert" element={<InsertCalculator />} />
-              <Route path="/calculator/coupon" element={<CouponCalculator />} />
-              <Route path="/calculator/form" element={<FormCalculator />} />
-              <Route path="/calculator/menu" element={<MenuCalculator />} />
-              <Route path="/calculator/booklet" element={<BookletLifletCalculator />} />
-              <Route path="/calculator/eurobooklet" element={<BookletLifletCalculator />} />
-              <Route path="/calculator/liflet" element={<BookletLifletCalculator mode="liflet" />} />
-              <Route path="/calculator/booklet-legacy" element={<BookletCalculator />} />
-              <Route path="/calculator/eurobooklet-legacy" element={<EurobookletCalculator />} />
-              <Route path="/calculator/liflet-legacy" element={<LifletCalculator />} />
-              <Route path="/calculator/brochure" element={<StandaloneModeShell><BrochureCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/catalog" element={<StandaloneModeShell><CatalogCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/magazine" element={<StandaloneModeShell><MagazineCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/softcover-book" element={<StandaloneModeShell><SoftcoverBookCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/hardcover-book" element={<StandaloneModeShell><HardcoverBookCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/planner" element={<StandaloneModeShell><PlannerCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/notepad" element={<StandaloneModeShell><NotepadCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/memocube" element={<StandaloneModeShell><MemocubeCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/quarter-calendar" element={<StandaloneModeShell><QuarterCalendarCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/desk-calendar" element={<StandaloneModeShell><DeskCalendarCalculator /></StandaloneModeShell>} />
-              <Route path="/calculator/card" element={<CardCalculator />} />
-             <Route path="/calculator/folder" element={<FolderCalculator />} />
-             <Route path="/calculator/diploma" element={<DiplomaCalculator />} />
-             <Route path="/calculator/pocket-calendar" element={<StandaloneModeShell><PocketCalendarCalculator /></StandaloneModeShell>} />
-             <Route path="/calculator/sticker" element={<StickerCalculator />} />
-             <Route path="/calculator/label" element={<LabelCalculator />} />
-            <Route path="/calculator/hangtag" element={<HangtagCalculator />} />
-              <Route path="/calculator/bag" element={<BagCalculator />} />
-              <Route path="/calculator/box" element={<BoxCalculator />} />
-              <Route path="/calculator/box-pro" element={<BoxProCalculator />} />
-              <Route path="/calculator/tube" element={<TubeCalculator />} />
-              <Route path="/calculator/pos" element={<PosCalculator />} />
-              <Route path="/calculator/envelope" element={<EnvelopeCalculator />} />
-              <Route path="/calculator/letterhead" element={<LetterheadCalculator />} />
-              <Route path="/calculator/badge" element={<BadgeCalculator />} />
-              <Route path="/calculator/ncr" element={<NcrCalculator />} />
-              <Route path="/calculator/magnet" element={<MagnetCalculator />} />
+              {/* All calculator pages are wrapped in StandaloneModeShell so the
+                  Simple/Advanced/Tech switcher and global params bar work everywhere. */}
+              <Route element={<StandaloneModeShell />}>
+                <Route path="/calculator" element={<Calculator />} />
+                <Route path="/calculator/multi-sku" element={<MultiSkuCalculator />} />
+                <Route path="/calculator/leaflet" element={<LeafletFlyerCalculator />} />
+                <Route path="/calculator/flyer" element={<LeafletFlyerCalculator />} />
+                <Route path="/calculator/leaflet-legacy" element={<LeafletCalculator />} />
+                <Route path="/calculator/flyer-legacy" element={<FlyerCalculator />} />
+                <Route path="/calculator/euroflyer" element={<EuroflyerCalculator />} />
+                <Route path="/calculator/businesscard" element={<BusinessCardCalculator />} />
+                <Route path="/calculator/poster" element={<PosterCalculator />} />
+                <Route path="/calculator/insert" element={<InsertCalculator />} />
+                <Route path="/calculator/coupon" element={<CouponCalculator />} />
+                <Route path="/calculator/form" element={<FormCalculator />} />
+                <Route path="/calculator/menu" element={<MenuCalculator />} />
+                <Route path="/calculator/booklet" element={<BookletLifletCalculator />} />
+                <Route path="/calculator/eurobooklet" element={<BookletLifletCalculator />} />
+                <Route path="/calculator/liflet" element={<BookletLifletCalculator mode="liflet" />} />
+                <Route path="/calculator/booklet-legacy" element={<BookletCalculator />} />
+                <Route path="/calculator/eurobooklet-legacy" element={<EurobookletCalculator />} />
+                <Route path="/calculator/liflet-legacy" element={<LifletCalculator />} />
+                <Route path="/calculator/brochure" element={<BrochureCalculator />} />
+                <Route path="/calculator/catalog" element={<CatalogCalculator />} />
+                <Route path="/calculator/magazine" element={<MagazineCalculator />} />
+                <Route path="/calculator/softcover-book" element={<SoftcoverBookCalculator />} />
+                <Route path="/calculator/hardcover-book" element={<HardcoverBookCalculator />} />
+                <Route path="/calculator/planner" element={<PlannerCalculator />} />
+                <Route path="/calculator/notepad" element={<NotepadCalculator />} />
+                <Route path="/calculator/memocube" element={<MemocubeCalculator />} />
+                <Route path="/calculator/quarter-calendar" element={<QuarterCalendarCalculator />} />
+                <Route path="/calculator/desk-calendar" element={<DeskCalendarCalculator />} />
+                <Route path="/calculator/card" element={<CardCalculator />} />
+                <Route path="/calculator/folder" element={<FolderCalculator />} />
+                <Route path="/calculator/diploma" element={<DiplomaCalculator />} />
+                <Route path="/calculator/pocket-calendar" element={<PocketCalendarCalculator />} />
+                <Route path="/calculator/sticker" element={<StickerCalculator />} />
+                <Route path="/calculator/label" element={<LabelCalculator />} />
+                <Route path="/calculator/hangtag" element={<HangtagCalculator />} />
+                <Route path="/calculator/bag" element={<BagCalculator />} />
+                <Route path="/calculator/box" element={<BoxCalculator />} />
+                <Route path="/calculator/box-pro" element={<BoxProCalculator />} />
+                <Route path="/calculator/tube" element={<TubeCalculator />} />
+                <Route path="/calculator/pos" element={<PosCalculator />} />
+                <Route path="/calculator/envelope" element={<EnvelopeCalculator />} />
+                <Route path="/calculator/letterhead" element={<LetterheadCalculator />} />
+                <Route path="/calculator/badge" element={<BadgeCalculator />} />
+                <Route path="/calculator/ncr" element={<NcrCalculator />} />
+                <Route path="/calculator/magnet" element={<MagnetCalculator />} />
+              </Route>
               <Route path="/references" element={<References />} />
               <Route path="/references/variants" element={<CalcVariants />} />
               <Route path="/references/variants/:id" element={<CalcVariantEditor />} />
