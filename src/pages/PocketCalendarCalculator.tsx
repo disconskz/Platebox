@@ -500,10 +500,12 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
                           <div><Label>Цветность (лицо)</Label><Input type="number" min={0} max={6} value={colorFront} onChange={(e) => setColorFront(+e.target.value || 0)} /></div>
                           <div><Label>Цветность (оборот)</Label><Input type="number" min={0} max={6} value={colorBack} onChange={(e) => setColorBack(+e.target.value || 0)} disabled={!twoSides} /></div>
                           <div><Label>Pantone-красок</Label><Input type="number" min={0} value={pantoneCount} onChange={(e) => setPantoneCount(+e.target.value || 0)} /></div>
-                          <div className="sm:col-span-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                            На лист: <b>{layout.up}</b> шт. · Полезных листов: <b>{layout.net}</b> · С приладкой: <b>{layout.printSheets}</b>.
-                            Коэф. сложности: <b>×{premiumCoef.toFixed(2)}</b>.
-                          </div>
+                          <AdvancedOnly>
+                            <div className="sm:col-span-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                              На лист: <b>{layout.up}</b> шт. · Полезных листов: <b>{layout.net}</b> · С приладкой: <b>{layout.printSheets}</b>.
+                              Коэф. сложности: <b>×{premiumCoef.toFixed(2)}</b>.
+                            </div>
+                          </AdvancedOnly>
                         </div>
                       </AccordionContent>
                     </AccordionItem>

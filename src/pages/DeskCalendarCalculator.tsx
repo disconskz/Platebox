@@ -661,11 +661,13 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
                     </Select>
                   </div>
                   {baseLayout && (
-                    <div className="sm:col-span-2 text-xs text-muted-foreground space-y-0.5">
-                      <div>Раскладка: {baseLayout.cols}×{baseLayout.rows} = {baseLayout.itemsPerSheet} изд./лист</div>
-                      <div>Печатный формат: {baseLayout.printW}×{baseLayout.printH} мм</div>
-                      <div>Печатных листов: {basePrintSheets}</div>
-                    </div>
+                    <AdvancedOnly>
+                      <div className="sm:col-span-2 text-xs text-muted-foreground space-y-0.5">
+                        <div>Раскладка: {baseLayout.cols}×{baseLayout.rows} = {baseLayout.itemsPerSheet} изд./лист</div>
+                        <div>Печатный формат: {baseLayout.printW}×{baseLayout.printH} мм</div>
+                        <div>Печатных листов: {basePrintSheets}</div>
+                      </div>
+                    </AdvancedOnly>
                   )}
                 </CardContent>
               </Card>
@@ -706,11 +708,13 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
                         </Select>
                       </div>
                       {leafLayout && (
-                        <div className="sm:col-span-2 text-xs text-muted-foreground space-y-0.5">
-                          <div>Раскладка: {leafLayout.cols}×{leafLayout.rows} = {leafLayout.itemsPerSheet} изд./лист</div>
-                          <div>Печатный формат: {leafLayout.printW}×{leafLayout.printH} мм</div>
-                          <div>Печатных листов: {leafPrintSheets}</div>
-                        </div>
+                        <AdvancedOnly>
+                          <div className="sm:col-span-2 text-xs text-muted-foreground space-y-0.5">
+                            <div>Раскладка: {leafLayout.cols}×{leafLayout.rows} = {leafLayout.itemsPerSheet} изд./лист</div>
+                            <div>Печатный формат: {leafLayout.printW}×{leafLayout.printH} мм</div>
+                            <div>Печатных листов: {leafPrintSheets}</div>
+                          </div>
+                        </AdvancedOnly>
                       )}
                     </div>
                   )}
