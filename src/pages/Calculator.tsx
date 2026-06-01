@@ -5111,6 +5111,8 @@ const Calculator = () => {
                       )}
                     </div>
                   </div>
+                  {!isTemplateDriven(productType) && (
+                  <>
                   <div>
                     <Label>
                       Тираж, шт
