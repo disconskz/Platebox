@@ -54,6 +54,7 @@ import BadgeCalculator from "./pages/BadgeCalculator.tsx";
 import NcrCalculator from "./pages/NcrCalculator.tsx";
 import MagnetCalculator from "./pages/MagnetCalculator.tsx";
 import References from "./pages/References.tsx";
+import StandaloneModeShell from "@/components/calc/multipage/StandaloneModeShell";
 import CalcVariants from "./pages/CalcVariants.tsx";
 import CalcVariantEditor from "./pages/CalcVariantEditor.tsx";
 import CalculationView from "./pages/CalculationView.tsx";
@@ -108,20 +109,20 @@ const App = () => (
               <Route path="/calculator/booklet-legacy" element={<BookletCalculator />} />
               <Route path="/calculator/eurobooklet-legacy" element={<EurobookletCalculator />} />
               <Route path="/calculator/liflet-legacy" element={<LifletCalculator />} />
-              <Route path="/calculator/brochure" element={<BrochureCalculator />} />
-              <Route path="/calculator/catalog" element={<CatalogCalculator />} />
-              <Route path="/calculator/magazine" element={<MagazineCalculator />} />
-              <Route path="/calculator/softcover-book" element={<SoftcoverBookCalculator />} />
-              <Route path="/calculator/hardcover-book" element={<HardcoverBookCalculator />} />
-              <Route path="/calculator/planner" element={<PlannerCalculator />} />
-              <Route path="/calculator/notepad" element={<NotepadCalculator />} />
-              <Route path="/calculator/memocube" element={<MemocubeCalculator />} />
-              <Route path="/calculator/quarter-calendar" element={<QuarterCalendarCalculator />} />
-              <Route path="/calculator/desk-calendar" element={<DeskCalendarCalculator />} />
+              <Route path="/calculator/brochure" element={<StandaloneModeShell><BrochureCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/catalog" element={<StandaloneModeShell><CatalogCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/magazine" element={<StandaloneModeShell><MagazineCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/softcover-book" element={<StandaloneModeShell><SoftcoverBookCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/hardcover-book" element={<StandaloneModeShell><HardcoverBookCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/planner" element={<StandaloneModeShell><PlannerCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/notepad" element={<StandaloneModeShell><NotepadCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/memocube" element={<StandaloneModeShell><MemocubeCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/quarter-calendar" element={<StandaloneModeShell><QuarterCalendarCalculator /></StandaloneModeShell>} />
+              <Route path="/calculator/desk-calendar" element={<StandaloneModeShell><DeskCalendarCalculator /></StandaloneModeShell>} />
               <Route path="/calculator/card" element={<CardCalculator />} />
              <Route path="/calculator/folder" element={<FolderCalculator />} />
              <Route path="/calculator/diploma" element={<DiplomaCalculator />} />
-             <Route path="/calculator/pocket-calendar" element={<PocketCalendarCalculator />} />
+             <Route path="/calculator/pocket-calendar" element={<StandaloneModeShell><PocketCalendarCalculator /></StandaloneModeShell>} />
              <Route path="/calculator/sticker" element={<StickerCalculator />} />
              <Route path="/calculator/label" element={<LabelCalculator />} />
             <Route path="/calculator/hangtag" element={<HangtagCalculator />} />
