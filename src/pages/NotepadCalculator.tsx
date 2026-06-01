@@ -949,6 +949,16 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
             </div>
           </div>
 
+          <div className="mt-4">
+            <CostByStageBlock
+              spec={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total }))}
+              metrics={{
+                printSheets: blockLayout.printSheets,
+                purchaseSheets: blockLayout.netSheets,
+                wasteSheets: Math.max(0, blockLayout.printSheets - blockLayout.netSheets) || undefined,
+              }}
+            />
+          </div>
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>
