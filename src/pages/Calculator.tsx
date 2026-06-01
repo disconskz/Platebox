@@ -5305,6 +5305,8 @@ const Calculator = () => {
                       </div>
                     </div>
                   </div>
+                  </>
+                  )}
                 </CardContent>
               </Card>
             </section>
