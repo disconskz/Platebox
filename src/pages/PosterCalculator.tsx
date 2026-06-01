@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 /**
  * Доработка 40 — выделенный шаблон «Афиша».
  * Доработка 58 — расширение «Плакат / постер»: UV / сольвент / экосольвент / latex,
@@ -599,6 +600,8 @@ export default function PosterCalculator() {
               </CardContent>
             </Card>
 
+            <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-poster" />
+            
             <Card className="lg:col-span-3">
               <CardHeader><CardTitle className="text-base">Спецификация</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
