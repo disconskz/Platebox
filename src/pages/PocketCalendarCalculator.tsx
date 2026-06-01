@@ -631,7 +631,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
 
             <div className="space-y-4">
               <Card>
-                <CardHeader><CardTitle className="text-sm">Маршрут</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">12. Маршрут</CardTitle></CardHeader>
                 <CardContent>
                   <ol className="text-xs space-y-1 list-decimal pl-4">
                     {route.map((s, i) => <li key={i}>{s}</li>)}
@@ -640,19 +640,19 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
               </Card>
 
               <AdvancedOnly>
-                <PrepressSection value={prepress} onChange={setPrepress} />
+                <PrepressSection value={prepress} onChange={setPrepress} title="5. Допечатка" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <AssemblySection value={assembly} onChange={setAssembly} title="7. Сборка" />
+                <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="8. Спецоперации" />
+                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="9. Спецоперации" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <QualityControlSection value={qc} onChange={setQc} />
+                <QualityControlSection value={qc} onChange={setQc} title="10. Контроль качества" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <PackagingSection value={packaging} onChange={setPackaging} />
+                <PackagingSection value={packaging} onChange={setPackaging} title="11. Упаковка" />
               </AdvancedOnly>
               <AdvancedOnly>
                 <TechWarnings warnings={[]} />
@@ -668,7 +668,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
               </TechOnly>
 
               <Card>
-                <CardHeader><CardTitle className="text-sm">7. Итоговая стоимость</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">13. Итоговая стоимость</CardTitle></CardHeader>
                 <CardContent className="text-sm space-y-1">
                   <div className="flex justify-between"><span>Себестоимость</span><span>{fmtMoney(totals.cost)}</span></div>
                   <div className="flex justify-between"><span>Цена продажи</span><span>{fmtMoney(totals.sale)}</span></div>
