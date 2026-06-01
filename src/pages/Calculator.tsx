@@ -5036,8 +5036,8 @@ const Calculator = () => {
       </header>
 
       <main id="step-anchor" className="container mx-auto py-3 sm:py-6 px-4 scroll-mt-20">
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3 space-y-4 lg:order-1 order-1">
+        <div className="flex flex-col gap-4 sm:gap-6">
+          <div className="w-full space-y-4 order-1">
             <section id="section-1" className="scroll-mt-24">
               <Card>
                 <CardHeader><CardTitle>1. Продукция и параметры</CardTitle></CardHeader>
