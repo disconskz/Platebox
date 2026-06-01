@@ -30,6 +30,8 @@ export interface GlobalProductParams {
   leadTimeDays?: number;
   /** Наценка, %. */
   marginPercent?: number;
+  /** Тип изделия (брошюра, блокнот, календарь и т.д.). */
+  productType?: string;
 }
 
 export interface MultipageCalcContextValue {

@@ -1,34 +1,122 @@
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 
 /**
- * Полоска с глобальными параметрами изделия, которые наследуются
- * во все блоки/секции (Этап 1 ERP-переработки). Рендерится только если
- * провайдер активен и есть хотя бы одно значение.
+ * Редактируемая панель глобальных параметров изделия — единый источник
+ * правды для всех блоков (обложка, подложка, внутренние страницы и т.д.).
+ *
+ * Любое изменение здесь сразу попадает в `MultipageCalcContext.global`
+ * и автоматически каскадно наследуется блоками без `override`.
  */
 export default function GlobalParamsBar({ className }: { className?: string }) {
   const ctx = useMultipageCalcOptional();
   if (!ctx) return null;
   const g = ctx.global;
-  const chips: { label: string; value: string }[] = [];
-  if (g.format) chips.push({ label: "Формат", value: g.format });
-  if (g.circulation) chips.push({ label: "Тираж", value: g.circulation.toLocaleString("ru-RU") });
-  if (g.orientation) chips.push({ label: "Ориентация", value: g.orientation === "landscape" ? "альбом" : "книж." });
-  if (g.printType) chips.push({ label: "Печать", value: String(g.printType) });
-  if (g.bindingType) chips.push({ label: "Сборка", value: String(g.bindingType) });
-  if (typeof g.marginPercent === "number") chips.push({ label: "Наценка", value: `${g.marginPercent}%` });
-  if (typeof g.leadTimeDays === "number") chips.push({ label: "Срок", value: `${g.leadTimeDays} дн.` });
-  if (chips.length === 0) return null;
+  const set = ctx.setGlobal;
+
   return (
-    <div className={"flex flex-wrap items-center gap-1.5 text-[11px] " + (className ?? "") }>
-      <span className="text-muted-foreground">Наследуется блоками:</span>
-      {chips.map((c) => (
-        <Badge key={c.label} variant="secondary" className="font-normal">
-          <span className="text-muted-foreground mr-1">{c.label}:</span>
-          <span className="text-foreground">{c.value}</span>
-        </Badge>
-      ))}
+    <div className={"rounded-md border bg-muted/30 px-2 py-2 " + (className ?? "")}>
+      <div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+        Общие параметры — наследуются всеми блоками
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="space-y-1">
+          <Label className="text-[11px]">Формат</Label>
+          <Input
+            value={g.format ?? ""}
+            onChange={(e) => set({ format: e.target.value || undefined })}
+            placeholder="A5"
+            className="h-7 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Тираж</Label>
+          <Input
+            type="number"
+            min={1}
+            value={g.circulation ?? ""}
+            onChange={(e) =>
+              set({ circulation: e.target.value ? Number(e.target.value) : undefined })
+            }
+            className="h-7 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Ориентация</Label>
+          <Select
+            value={g.orientation ?? ""}
+            onValueChange={(v) =>
+              set({ orientation: (v || undefined) as "portrait" | "landscape" | undefined })
+            }
+          >
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="portrait">Книжная</SelectItem>
+              <SelectItem value="landscape">Альбомная</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Печать</Label>
+          <Select
+            value={g.printType ?? ""}
+            onValueChange={(v) => set({ printType: v || undefined })}
+          >
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="offset">Офсет</SelectItem>
+              <SelectItem value="digital">Цифровая</SelectItem>
+              <SelectItem value="uv">UV</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Сборка</Label>
+          <Input
+            value={g.bindingType ?? ""}
+            onChange={(e) => set({ bindingType: e.target.value || undefined })}
+            placeholder="kbs / saddle / spiral"
+            className="h-7 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Срок, дн.</Label>
+          <Input
+            type="number"
+            min={1}
+            value={g.leadTimeDays ?? ""}
+            onChange={(e) =>
+              set({ leadTimeDays: e.target.value ? Number(e.target.value) : undefined })
+            }
+            className="h-7 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Наценка, %</Label>
+          <Input
+            type="number"
+            min={0}
+            value={g.marginPercent ?? ""}
+            onChange={(e) =>
+              set({ marginPercent: e.target.value ? Number(e.target.value) : undefined })
+            }
+            className="h-7 text-xs"
+          />
+        </div>
+      </div>
     </div>
   );
 }
