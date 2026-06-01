@@ -7,6 +7,7 @@ import type { ProductType } from "@/lib/calc/types";
 import type { BoxProResultPayload } from "@/pages/BoxProCalculator";
 import { MultipageCalcProvider } from "@/lib/calc/multipage/context";
 import ModeSwitcher from "@/components/calc/multipage/ModeSwitcher";
+import GlobalParamsBar from "@/components/calc/multipage/GlobalParamsBar";
 
 /**
  * Список типов продукции, для которых вместо стандартных секций «Нового расчёта»
@@ -79,11 +80,14 @@ export default function MultipageTemplateHost({ productType, onTemplateResult }:
 
   return (
     <MultipageCalcProvider>
-      <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2">
-        <div className="text-xs text-muted-foreground">
-          Режим интерфейса определяет, какие блоки видны: от простого расчёта до полного тех. отчёта.
+      <div className="mb-3 rounded-lg border bg-muted/30 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            Режим интерфейса определяет, какие блоки видны: от простого расчёта до полного тех. отчёта.
+          </div>
+          <ModeSwitcher />
         </div>
-        <ModeSwitcher />
+        <GlobalParamsBar className="mt-1.5" />
       </div>
       {inner}
     </MultipageCalcProvider>
