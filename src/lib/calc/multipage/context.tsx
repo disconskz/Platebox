@@ -123,3 +123,35 @@ export function useInheritedParam<K extends keyof GlobalProductParams>(
   if (override) return localValue;
   return ctx.global[key] ?? localValue;
 }
+
+/**
+ * Хук синхронизации локальных «основных параметров» калькулятора с
+ * глобальным контекстом ERP-расчёта. Дёшево: запускается на каждое
+ * изменение, но `setGlobal` стабилен по ссылке.
+ *
+ * Передавайте только те поля, которые реально владеете на странице —
+ * остальные не будут перезаписаны.
+ */
+export function useSyncMultipageGlobal(patch: Partial<GlobalProductParams>): void {
+  const ctx = useMultipageCalcOptional();
+  const setGlobal = ctx?.setGlobal;
+  // сериализуем patch в стабильный ключ, чтобы избежать лишних апдейтов
+  const key = React.useMemo(() => JSON.stringify(patch), [patch]);
+  React.useEffect(() => {
+    if (!setGlobal) return;
+    setGlobal((prev) => {
+      let changed = false;
+      const next: GlobalProductParams = { ...prev };
+      for (const k of Object.keys(patch) as (keyof GlobalProductParams)[]) {
+        const v = patch[k];
+        if (v === undefined) continue;
+        if ((prev as any)[k] !== v) {
+          (next as any)[k] = v;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, setGlobal]);
+}
