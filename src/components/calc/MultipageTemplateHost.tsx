@@ -80,15 +80,10 @@ export default function MultipageTemplateHost({ productType, onTemplateResult }:
 
   return (
     <MultipageCalcProvider>
-      <div className="mb-3 rounded-lg border bg-muted/30 px-3 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs text-muted-foreground">
-            Режим интерфейса определяет, какие блоки видны: от простого расчёта до полного тех. отчёта.
-          </div>
-          <ModeSwitcher />
-        </div>
-        <GlobalParamsBar className="mt-1.5" />
+      <div className="mb-2 flex justify-end">
+        <ModeSwitcher />
       </div>
+      <GlobalParamsBar className="mb-3" />
       {inner}
     </MultipageCalcProvider>
   );

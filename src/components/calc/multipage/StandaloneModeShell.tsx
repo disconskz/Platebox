@@ -16,14 +16,11 @@ import GlobalParamsBar from "./GlobalParamsBar";
 export default function StandaloneModeShell({ children }: { children?: React.ReactNode }) {
   return (
     <MultipageCalcProvider>
-      <div className="sticky top-0 z-30 mb-2 border-b bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs text-muted-foreground">
-            Режим: Простой — менеджер · Расширенный — старший · Технолог — полный маршрут.
-          </div>
+      <div className="px-3 pt-3 sm:px-4">
+        <div className="mb-2 flex justify-end">
           <ModeSwitcher />
         </div>
-        <GlobalParamsBar className="mt-1.5" />
+        <GlobalParamsBar className="mb-3" />
       </div>
       {children ?? <Outlet />}
     </MultipageCalcProvider>
