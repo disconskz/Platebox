@@ -1021,10 +1021,12 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                   </div>
                   <div><Label>Цветность обл. (лицо)</Label><Input type="number" min={0} max={6} value={colorCoverFront} onChange={(e) => setColorCoverFront(+e.target.value || 0)} /></div>
                   <div><Label>Цветность обл. (оборот)</Label><Input type="number" min={0} max={6} value={colorCoverBack} onChange={(e) => setColorCoverBack(+e.target.value || 0)} /></div>
-                  <div className="sm:col-span-2 text-xs text-muted-foreground">
-                    Корешок: ~{coverLayout.spineMm.toFixed(1)} мм. Разворот обложки: {Math.round(coverLayout.spreadW)}×{itemH} мм.{" "}
-                    Печатных листов: <span className="font-medium">{coverLayout.printSheets}</span>.
-                  </div>
+                  <AdvancedOnly>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
+                      Корешок: ~{coverLayout.spineMm.toFixed(1)} мм. Разворот обложки: {Math.round(coverLayout.spreadW)}×{itemH} мм.{" "}
+                      Печатных листов: <span className="font-medium">{coverLayout.printSheets}</span>.
+                    </div>
+                  </AdvancedOnly>
                 </CardContent>
               </Card>
 
@@ -1042,11 +1044,13 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                   </div>
                   <div><Label>Цветность блока (лицо)</Label><Input type="number" min={0} max={6} value={colorBlockFront} onChange={(e) => setColorBlockFront(+e.target.value || 0)} /></div>
                   <div><Label>Цветность блока (оборот)</Label><Input type="number" min={0} max={6} value={colorBlockBack} onChange={(e) => setColorBlockBack(+e.target.value || 0)} /></div>
-                  <div className="sm:col-span-2 text-xs text-muted-foreground">
-                    Тетрадей: <span className="font-medium">{signatures}</span> × {signaturePages} стр.{" "}
-                    Печатных листов блока: <span className="font-medium">{blockLayout.printSheets}</span>{" "}
-                    (приладка {blockLayout.setup}/тетр.).
-                  </div>
+                  <AdvancedOnly>
+                    <div className="sm:col-span-2 text-xs text-muted-foreground">
+                      Тетрадей: <span className="font-medium">{signatures}</span> × {signaturePages} стр.{" "}
+                      Печатных листов блока: <span className="font-medium">{blockLayout.printSheets}</span>{" "}
+                      (приладка {blockLayout.setup}/тетр.).
+                    </div>
+                  </AdvancedOnly>
                 </CardContent>
               </Card>
 
