@@ -734,7 +734,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
               {/* 5. Пружина */}
               <Card>
-                <CardHeader><CardTitle className="text-sm">5. Пружина</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">Пружина</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Checkbox id="spring" checked={optSpring} onCheckedChange={(v) => setOptSpring(!!v)} disabled={!hasFlipSheets} />
@@ -809,7 +809,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
               {/* 7. Упаковка и доставка */}
               <Card>
-                <CardHeader><CardTitle className="text-sm">7. Упаковка и доставка</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">Доставка и оплата</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <PostpressRow label="Индивидуальная упаковка" checked={optIndividualPack} onChange={setOptIndividualPack}>
                     <Select value={packType} onValueChange={(v) => setPackType(v as any)}>
@@ -858,19 +858,19 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
               </Card>
 
               <AdvancedOnly>
-                <PrepressSection value={prepress} onChange={setPrepress} />
+                <PrepressSection value={prepress} onChange={setPrepress} title="5. Допечатка" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <AssemblySection value={assembly} onChange={setAssembly} title="7. Сборка" />
+                <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="8. Спецоперации" />
+                <SpecialOpsSection value={specialOps} onChange={setSpecialOps} title="9. Спецоперации" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <QualityControlSection value={qc} onChange={setQc} />
+                <QualityControlSection value={qc} onChange={setQc} title="10. Контроль качества" />
               </AdvancedOnly>
               <AdvancedOnly>
-                <PackagingSection value={packaging} onChange={setPackaging} />
+                <PackagingSection value={packaging} onChange={setPackaging} title="11. Упаковка" />
               </AdvancedOnly>
               <AdvancedOnly>
                 <TechWarnings warnings={[]} />
@@ -886,7 +886,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
               </TechOnly>
 
               <Card>
-                <CardHeader><CardTitle className="text-sm">Итоговая стоимость</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">13. Итоговая стоимость</CardTitle></CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <Row label="Себестоимость" value={fmtMoney(totals.cost)} />
                   <Row label={`Наценка ${margin}%`} value={fmtMoney(totals.sale - totals.cost)} />
