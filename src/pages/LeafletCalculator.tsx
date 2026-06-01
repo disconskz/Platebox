@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { runCalculation, FORMAT_PRESETS } from "@/lib/calc/engine";
 import type { CalcInput, FormatType, SpecItem } from "@/lib/calc/types";
 import { fmtMoney, fmtNum } from "@/lib/format";
+import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 import { toast } from "sonner";
 import TemplateActions from "@/components/calc/TemplateActions";
 
