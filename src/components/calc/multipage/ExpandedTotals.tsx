@@ -75,7 +75,7 @@ export default function ExpandedTotals({ data }: { data: ExpandedTotalsData }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm flex items-center justify-between">
-          <span>Итог</span>
+          <span>13. Итог</span>
           <span className="text-accent text-base font-semibold tabular-nums">{fmtMoney(totals.perItem)}/шт</span>
         </CardTitle>
       </CardHeader>
