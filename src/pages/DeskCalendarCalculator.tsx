@@ -682,7 +682,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
               {/* 3. Перекидные листы */}
               <Card>
-                <CardHeader><CardTitle className="text-sm">3. Перекидные листы</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">4. Внутренние блоки — перекидные листы</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Checkbox id="flip" checked={hasFlipSheets} onCheckedChange={(v) => setHasFlipSheets(!!v)} />
@@ -731,7 +731,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
               {/* 4. Биговка и конструкция */}
               <Card>
-                <CardHeader><CardTitle className="text-sm">4. Биговка и конструкция</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">7. Постпечатка — биговка и конструкция</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <PostpressRow label="Биговка основания (обязательно)" checked={optBigBase} onChange={setOptBigBase}>
                     <Input className="h-8 w-24" type="number" min={1} value={bigBaseCount} onChange={(e) => setBigBaseCount(Number(e.target.value) || 1)} />
@@ -763,7 +763,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
               {/* 6. Премиальные операции */}
               <Card>
-                <CardHeader><CardTitle className="text-sm">6. Премиальные операции</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">7. Постпечатка — премиальные операции</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <PostpressRow label="Ламинация основания" checked={optBaseLam} onChange={setOptBaseLam}>
                     <Select value={String(optBaseLamSides)} onValueChange={(v) => setOptBaseLamSides(Number(v) as 1 | 2)}>
