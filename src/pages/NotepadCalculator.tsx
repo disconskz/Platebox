@@ -211,6 +211,37 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     makeDefaultBlock({ kind: "main", pages: 50 }),
   ]);
 
+  // Двусторонняя синхронизация: первый элемент internalBlocks <-> legacy-поля
+  // (страницы / бумага / цветность). Редактор «Внутренние блоки» — источник
+  // правды; legacy-поля удалены из UI, но используются в расчёте listов и форм.
+  useEffect(() => {
+    setInternalBlocks((prev) => {
+      const b = prev[0];
+      if (!b) return prev;
+      const density = BLOCK_PAPERS.find((p) => p.value === blockPaperKey)?.density ?? b.density;
+      if (
+        b.pages === pages &&
+        b.paper === blockPaperKey &&
+        b.density === density &&
+        b.colorFront === colorBlockFront &&
+        b.colorBack === colorBlockBack
+      ) return prev;
+      const next = [...prev];
+      next[0] = { ...b, pages, paper: blockPaperKey, density, colorFront: colorBlockFront, colorBack: colorBlockBack };
+      return next;
+    });
+  }, [pages, blockPaperKey, colorBlockFront, colorBlockBack]);
+
+  useEffect(() => {
+    const b = internalBlocks[0];
+    if (!b) return;
+    if (b.pages !== pages) setPages(b.pages);
+    if (b.paper !== blockPaperKey && BLOCK_PAPERS.some((p) => p.value === b.paper)) setBlockPaperKey(b.paper);
+    if (b.colorFront !== colorBlockFront) setColorBlockFront(b.colorFront);
+    if (b.colorBack !== colorBlockBack) setColorBlockBack(b.colorBack);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [internalBlocks]);
+
   const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
   const premiumCoef = kind.coef;
 
