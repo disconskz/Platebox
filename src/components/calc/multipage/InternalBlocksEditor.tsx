@@ -29,6 +29,8 @@ export default function InternalBlocksEditor({ blocks, onChange }: InternalBlock
   const ctx = useMultipageCalcOptional();
   const globalPrint = ctx?.global.printType;
   const g = ctx?.global;
+  const globalFormat = g?.format ?? "";
+  const globalCirculation = g?.circulation ?? 0;
   const inheritedSummary = g
     ? [
         g.format ? `Формат: ${g.format}` : null,
@@ -171,38 +173,81 @@ export default function InternalBlocksEditor({ blocks, onChange }: InternalBlock
               </div>
 
               {/* Переопределение глобальных параметров */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id={`override-${b.id}`}
-                    checked={b.override}
-                    onCheckedChange={(v) => patch(b.id, { override: !!v })}
-                  />
-                  <Label htmlFor={`override-${b.id}`} className="cursor-pointer text-xs">
-                    Переопределить параметры блока
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">Печать</Label>
-                  <Select
-                    value={effectivePrint}
-                    disabled={!b.override}
-                    onValueChange={(v) => patch(b.id, { printType: v as PrintKindLocal })}
-                  >
-                    <SelectTrigger className="h-8 w-36">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Авто</SelectItem>
-                      <SelectItem value="offset">Офсет</SelectItem>
-                      <SelectItem value="digital">Цифровая</SelectItem>
-                      <SelectItem value="uv">UV</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {!b.override && globalPrint && (
-                    <span className="text-[11px] text-muted-foreground">← из глобальных</span>
+              <div className="space-y-2 rounded-md border bg-muted/30 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id={`override-${b.id}`}
+                      checked={b.override}
+                      onCheckedChange={(v) => patch(b.id, { override: !!v })}
+                    />
+                    <Label htmlFor={`override-${b.id}`} className="cursor-pointer text-xs">
+                      Переопределить параметры блока
+                    </Label>
+                  </div>
+                  {!b.override && (
+                    <span className="text-[11px] text-muted-foreground">
+                      Наследуется из глобальных
+                    </span>
                   )}
                 </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Формат блока</Label>
+                    <Input
+                      className="h-8"
+                      value={b.override ? (b.localFormat ?? globalFormat) : globalFormat}
+                      disabled={!b.override}
+                      onChange={(e) => patch(b.id, { localFormat: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Тираж блока</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      className="h-8"
+                      value={b.override ? (b.localCirculation ?? globalCirculation) : globalCirculation}
+                      disabled={!b.override}
+                      onChange={(e) => patch(b.id, { localCirculation: Math.max(1, Number(e.target.value) || 1) })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Печать блока</Label>
+                    <Select
+                      value={effectivePrint}
+                      disabled={!b.override}
+                      onValueChange={(v) => patch(b.id, { printType: v as PrintKindLocal })}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Авто</SelectItem>
+                        <SelectItem value="offset">Офсет</SelectItem>
+                        <SelectItem value="digital">Цифровая</SelectItem>
+                        <SelectItem value="uv">UV</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Дополнительные операции */}
+              <div className="space-y-1">
+                <Label className="text-xs">Дополнительные операции</Label>
+                <Input
+                  placeholder="Например: перфорация, нумерация, штамп (через запятую)"
+                  value={b.operations.join(", ")}
+                  onChange={(e) =>
+                    patch(b.id, {
+                      operations: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
               </div>
             </div>
           );
