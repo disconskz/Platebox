@@ -644,9 +644,16 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
                 </CardContent>
               </Card>
 
-              {/* 2. Основание */}
+              <AdvancedOnly>
+                <CoverSection value={cover} onChange={setCover} title="2. Обложка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
+              </AdvancedOnly>
+
+              {/* 4. Внутренние блоки — основание */}
               <Card>
-                <CardHeader><CardTitle className="text-sm">2. Основание</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">4. Внутренние блоки — основание</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <Label>Бумага основания</Label>
