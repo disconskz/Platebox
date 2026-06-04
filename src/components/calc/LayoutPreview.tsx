@@ -676,7 +676,7 @@ export const LayoutPreview = ({
         )}
 
         {/* === Список альтернатив с мини-превью + сортировка === */}
-        {alternatives && alternatives.length > 0 && (
+        {false && alternatives && alternatives.length > 0 && (
           <div className="rounded-lg border bg-card p-3 shadow-card">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
