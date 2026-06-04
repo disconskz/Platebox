@@ -48,6 +48,10 @@ export interface InternalBlock {
   operations: string[];
   /** Включить локальные параметры (Переопределить параметры блока). */
   override: boolean;
+  /** Локальный формат блока (используется только при override=true). */
+  localFormat?: string;
+  /** Локальный тираж блока (используется только при override=true). */
+  localCirculation?: number;
   /** Комментарий менеджера. */
   note?: string;
 }
