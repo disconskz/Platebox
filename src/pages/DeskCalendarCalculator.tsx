@@ -20,6 +20,8 @@ import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibili
 import CostByStageBlock from "@/components/calc/multipage/CostByStageBlock";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
+import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
+import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
