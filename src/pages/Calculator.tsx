@@ -5326,6 +5326,21 @@ const Calculator = () => {
                   margin={boxResult.margin}
                   vatPercent={boxResult.vatPercent}
                 />
+                {result && !("error" in result) && result.layout && (
+                  <Card className="shadow-elevated">
+                    <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
+                    <CardContent>
+                      <LayoutPreview
+                        layout={result.layout}
+                        productW={dims.w}
+                        productH={dims.h}
+                        productType={productType}
+                        alternatives={result.alternatives}
+                        mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
               </section>
             )}
             {!isTemplateDriven(productType) && (<>
@@ -10201,30 +10216,7 @@ const Calculator = () => {
           {/* Desktop sidebar with totals */}
           <div className="hidden lg:block w-full space-y-4 order-2">
             {isTemplateDriven(productType) ? (
-              boxResult && (
-                <div className="space-y-4">
-                  <BoxPriceBreakdown
-                    result={boxResult.result}
-                    margin={boxResult.margin}
-                    vatPercent={boxResult.vatPercent}
-                  />
-                  {result && !("error" in result) && result.layout && (
-                    <Card className="shadow-elevated">
-                      <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
-                      <CardContent>
-                        <LayoutPreview
-                          layout={result.layout}
-                          productW={dims.w}
-                          productH={dims.h}
-                          productType={productType}
-                          alternatives={result.alternatives}
-                          mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }}
-                        />
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )
+              null
             ) : (
             result && !("error" in result) && (
               <div className="space-y-4">
