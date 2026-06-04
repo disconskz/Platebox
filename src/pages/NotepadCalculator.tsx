@@ -950,7 +950,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                     printType: printMode,
                     colorFront: colorBlockFront,
                     colorBack: colorBlockBack,
-                    printFormat: `${blockLayout?.printW ?? "—"}×${blockLayout?.printH ?? "—"} мм`,
+                    printFormat: "—",
                     printSheets: blockLayout?.printSheets ?? 0,
                   }}
                   onChange={setPrintBlock}
