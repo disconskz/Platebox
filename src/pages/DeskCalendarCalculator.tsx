@@ -128,6 +128,8 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
   // Доработка 85 — ERP-обвязка
   const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [printBlock, setPrintBlock] = useState<PrintState>(DEFAULT_PRINT);
+  const [postpress, setPostpress] = useState<PostpressState>(DEFAULT_POSTPRESS);
   const [qc, setQc] = useState<QcState>(DEFAULT_QC);
   const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
   const [cover, setCover] = useState<CoverState>(DEFAULT_COVER);
@@ -886,6 +888,23 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
               <AdvancedOnly>
                 <PrepressSection value={prepress} onChange={setPrepress} title="5. Допечатка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PrintSection
+                  value={{
+                    ...printBlock,
+                    printType: printMode,
+                    colorFront: colorBaseFront,
+                    colorBack: colorBaseBack,
+                    printFormat: baseMaterial ? `${baseMaterial.format_width}×${baseMaterial.format_height} мм` : "—",
+                    printSheets: basePrintSheets + leafPrintSheets,
+                  }}
+                  onChange={setPrintBlock}
+                  title="6. Печать"
+                />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
               </AdvancedOnly>
               <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
