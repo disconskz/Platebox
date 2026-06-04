@@ -40,6 +40,7 @@ import CoverSection, {
   DEFAULT_COVER,
   type CoverState,
 } from "@/components/calc/multipage/sections/CoverSection";
+import { buildCoverLines } from "@/lib/calc/cover/cost";
 import UnderlaySection, {
   DEFAULT_UNDERLAY,
   type UnderlayState,
