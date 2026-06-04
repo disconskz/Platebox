@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { buildCoverLines } from "@/lib/calc/cover/cost";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -341,13 +342,23 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
     if (packKind !== "none") push("Упаковка", `Упаковка: ${pack.label}`, circulation, "шт.", pack.price);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
+    // Задача 5 — ERP-блок себестоимости обложки (CoverSection).
+    try {
+      const coverLines = buildCoverLines(cover, {
+        itemW, itemH, circulation,
+        printType: offset ? "offset" : "digital",
+      });
+      for (const l of coverLines) out.push(l);
+    } catch {}
+
     return out;
   }, [hasDesign, hasGrid, year, gridLang, material, layout, offset, ownTurn, twoSides,
       colorFront, colorBack, pantoneCount, lamType, lam, lamSides,
       optVarnish, optSpotVarnish, spotVarnishAreaCm2, optStamp, stampAreaCm2, optEmboss,
       optDieCut, optDeflash, optRound, roundCorners,
       optQR, optBarcode, optPersonal, personalCount, variable,
-      packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost]);
+      packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost,
+      cover, itemW, itemH]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
