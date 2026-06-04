@@ -262,6 +262,37 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     }),
   ]);
 
+  // Двусторонняя синхронизация legacy-полей основного блока (pages / бумага / цветность)
+  // с первым элементом internalBlocks. Это позволяет редактору «Внутренние блоки»
+  // быть единым источником правды для ERP, не ломая текущий UI обложки/тиражей.
+  useEffect(() => {
+    setInternalBlocks((prev) => {
+      const b = prev[0];
+      if (!b) return prev;
+      const density = BLOCK_PAPERS.find((p) => p.value === blockPaperKey)?.density ?? b.density;
+      if (
+        b.pages === pages &&
+        b.paper === blockPaperKey &&
+        b.density === density &&
+        b.colorFront === colorBlockFront &&
+        b.colorBack === colorBlockBack
+      ) return prev;
+      const next = [...prev];
+      next[0] = { ...b, pages, paper: blockPaperKey, density, colorFront: colorBlockFront, colorBack: colorBlockBack };
+      return next;
+    });
+  }, [pages, blockPaperKey, colorBlockFront, colorBlockBack]);
+
+  useEffect(() => {
+    const b = internalBlocks[0];
+    if (!b) return;
+    if (b.pages !== pages) setPages(b.pages);
+    if (b.paper !== blockPaperKey && BLOCK_PAPERS.some((p) => p.value === b.paper)) setBlockPaperKey(b.paper);
+    if (b.colorFront !== colorBlockFront) setColorBlockFront(b.colorFront);
+    if (b.colorBack !== colorBlockBack) setColorBlockBack(b.colorBack);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [internalBlocks]);
+
   // Этап 3: новые ERP-секции (допечатка / контроль качества / упаковка).
   const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
   const [qc, setQc] = useState<QcState>(DEFAULT_QC);

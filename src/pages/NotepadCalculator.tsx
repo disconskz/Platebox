@@ -211,6 +211,37 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     makeDefaultBlock({ kind: "main", pages: 50 }),
   ]);
 
+  // Двусторонняя синхронизация: первый элемент internalBlocks <-> legacy-поля
+  // (страницы / бумага / цветность). Редактор «Внутренние блоки» — источник
+  // правды; legacy-поля удалены из UI, но используются в расчёте listов и форм.
+  useEffect(() => {
+    setInternalBlocks((prev) => {
+      const b = prev[0];
+      if (!b) return prev;
+      const density = BLOCK_PAPERS.find((p) => p.value === blockPaperKey)?.density ?? b.density;
+      if (
+        b.pages === pages &&
+        b.paper === blockPaperKey &&
+        b.density === density &&
+        b.colorFront === colorBlockFront &&
+        b.colorBack === colorBlockBack
+      ) return prev;
+      const next = [...prev];
+      next[0] = { ...b, pages, paper: blockPaperKey, density, colorFront: colorBlockFront, colorBack: colorBlockBack };
+      return next;
+    });
+  }, [pages, blockPaperKey, colorBlockFront, colorBlockBack]);
+
+  useEffect(() => {
+    const b = internalBlocks[0];
+    if (!b) return;
+    if (b.pages !== pages) setPages(b.pages);
+    if (b.paper !== blockPaperKey && BLOCK_PAPERS.some((p) => p.value === b.paper)) setBlockPaperKey(b.paper);
+    if (b.colorFront !== colorBlockFront) setColorBlockFront(b.colorFront);
+    if (b.colorBack !== colorBlockBack) setColorBlockBack(b.colorBack);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [internalBlocks]);
+
   const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
   const premiumCoef = kind.coef;
 
@@ -350,6 +381,28 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     push("Печать", offset ? "Печать блока (офсет)" : "Печать блока (цифра)",
       blockLayout.printSheets, "лист", offset ? 5 : 25);
 
+    // Дополнительные внутренние блоки (мульти-блочная ERP-архитектура).
+    // Первый блок учтён выше через legacy-поля; считаем остальные блоки приближённо.
+    internalBlocks.slice(1).forEach((b, i) => {
+      const idx = i + 2;
+      const cols = Math.max(1, Math.floor(blockPaper.sheetW / itemW));
+      const rows = Math.max(1, Math.floor(blockPaper.sheetH / itemH));
+      const up = Math.max(1, cols * rows);
+      const netSheetsN = Math.max(1, Math.ceil((circulation * b.pages) / (2 * up)));
+      const setupN = offset ? 200 : 30;
+      const printSheetsN = netSheetsN + setupN;
+      const paperPrice = Math.max(6, b.density * 0.07);
+      push("Материалы", `Бумага блока #${idx} (${b.paper} ${b.density} г/м²)`, printSheetsN, "лист", paperPrice);
+      const isOffsetN = b.override && b.printType !== "auto" ? b.printType === "offset" : offset;
+      if (isOffsetN) {
+        const formsN = (b.colorFront || 0) + (b.colorBack || 0);
+        if (formsN > 0) push("Печать", `Формы блока #${idx}`, formsN, "форма", 1500);
+        push("Печать", `Приладка блока #${idx}`, 1, "усл.", 800);
+      }
+      const printPriceN = isOffsetN ? 5 : 25;
+      push("Печать", `Печать блока #${idx} (${isOffsetN ? "офсет" : "цифра"})`, printSheetsN, "лист", printPriceN);
+    });
+
     // Обложка
     if (hasCover) {
       push("Материалы", `Бумага обложки: ${coverPaper.label}`, coverLayout.printSheets, "лист", coverPaper.pricePerSheet);
@@ -481,7 +534,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack]);
+  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack, internalBlocks]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -624,36 +677,6 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
               <Card>
                 <CardContent className="pt-4">
                   <Accordion type="multiple" defaultValue={["block", "cover", "binding"]} className="w-full">
-                    {/* Внутренний блок */}
-                    <AccordionItem value="block">
-                      <AccordionTrigger>Внутренний блок</AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <div><Label>Количество страниц</Label>
-                            <Input type="number" min={2} step={2} value={pages} onChange={(e) => setPages(+e.target.value || 2)} />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <Label>Бумага блока</Label>
-                            <Select value={blockPaperKey} onValueChange={setBlockPaperKey}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {BLOCK_PAPERS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label} ({fmtMoney(p.pricePerSheet)}/лист)</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div><Label>Плотность, г/м²</Label><Input value={blockPaper.density} readOnly /></div>
-                          <div><Label>Толщина листа, мм</Label><Input value={blockPaper.thicknessMm} readOnly /></div>
-                          <div><Label>Цветность (лицо)</Label><Input type="number" min={0} max={6} value={colorBlockFront} onChange={(e) => setColorBlockFront(+e.target.value || 0)} /></div>
-                          <div><Label>Цветность (оборот)</Label><Input type="number" min={0} max={6} value={colorBlockBack} onChange={(e) => setColorBlockBack(+e.target.value || 0)} /></div>
-                          <AdvancedOnly>
-                            <div className="sm:col-span-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                              Листов в блоке: <b>{sheetsInBlock}</b> · Толщина блока: <b>{blockThicknessMm} мм</b> · Печатных листов: <b>{blockLayout.printSheets}</b>
-                            </div>
-                          </AdvancedOnly>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-
                     {/* Обложка */}
                     <AccordionItem value="cover">
                       <AccordionTrigger>
