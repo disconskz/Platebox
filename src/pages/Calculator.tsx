@@ -5319,6 +5319,30 @@ const Calculator = () => {
                 />
               </section>
             )}
+            {isTemplateDriven(productType) && boxResult && (
+              <section id="section-template-breakdown" className="scroll-mt-24 space-y-4">
+                <BoxPriceBreakdown
+                  result={boxResult.result}
+                  margin={boxResult.margin}
+                  vatPercent={boxResult.vatPercent}
+                />
+                {result && !("error" in result) && result.layout && (
+                  <Card className="shadow-elevated">
+                    <CardHeader className="pb-3"><CardTitle className="text-base">Раскладка</CardTitle></CardHeader>
+                    <CardContent>
+                      <LayoutPreview
+                        layout={result.layout}
+                        productW={dims.w}
+                        productH={dims.h}
+                        productType={productType}
+                        alternatives={result.alternatives}
+                        mainCosts={{ paperCost: result.paperCost, printCost: result.printCost, totalCost: result.totalCost }}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+              </section>
+            )}
             {!isTemplateDriven(productType) && (<>
             <section id="section-2" className="scroll-mt-24">
               {caps.cover && (
