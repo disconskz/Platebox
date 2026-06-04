@@ -487,6 +487,18 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
       out.push({ stage: "delivery", name: "Доставка", quantity: 1, unit: "шт", unitPrice: deliveryCost, total: deliveryCost });
     }
 
+    // Задача 5 — ERP-сущность «Обложка».
+    try {
+      const coverLines = buildCoverLines(cover, {
+        itemW: baseSize.w, itemH: baseSize.h, circulation,
+        printType: printMode,
+        spineMm: 0,
+      });
+      for (const l of coverLines) {
+        out.push({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total });
+      }
+    } catch {}
+
     return out;
   }, [
     hasDesign, hasFlipSheets, flipSheetCount, baseMaterial, leafMaterial, basePrintSheets, leafPrintSheets,
@@ -494,7 +506,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     optBaseLam, optBaseLamSides, optLeafLam, optLeafLamSides, optSoftTouch, optVarnish, varnishType,
     optDieCut, optDeflash, optBigBase, bigBaseCount, optSpring, springHoles, optStamp, stampW, stampH,
     optEmboss, embossW, embossH, optRound, roundCorners, optMagnets, magnetsPerItem, optIndividualPack,
-    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2,
+    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode,
   ]);
 
   const totals = useMemo(() => {
