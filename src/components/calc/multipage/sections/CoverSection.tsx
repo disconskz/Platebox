@@ -301,7 +301,7 @@ export default function CoverSection({ value, onChange, title = "Обложка"
             <div className="space-y-1">
               <Label className="text-xs">Кол-во форм</Label>
               <Input type="number" value={v.formsCount} onChange={(e) => patch({ formsCount: Number(e.target.value) || 0 })} className="h-8" />
-              <p className="text-[10px] text-muted-foreground">Авто: {formsAuto}</p>
+              <p className="text-[10px] text-muted-foreground">Авто: {(v.colorFront || 0) + (v.twoSided ? (v.colorBack || 0) : 0)}</p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Сторона печати</Label>
