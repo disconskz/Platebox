@@ -357,7 +357,8 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       optVarnish, optSpotVarnish, spotVarnishAreaCm2, optStamp, stampAreaCm2, optEmboss,
       optDieCut, optDeflash, optRound, roundCorners,
       optQR, optBarcode, optPersonal, personalCount, variable,
-      packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost]);
+      packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost,
+      cover, itemW, itemH]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
