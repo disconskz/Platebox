@@ -31,6 +31,8 @@ import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
 import TechWarnings from "@/components/calc/multipage/TechWarnings";
 import CompositionTable from "@/components/calc/multipage/CompositionTable";
 import TechReport from "@/components/calc/multipage/TechReport";
+import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
+import { makeDefaultBlock, type InternalBlock } from "@/lib/calc/multipage/blocks";
 
 /**
  * Шаблон «Блокнот» — детальная форма с раскрывающимися блоками
@@ -205,6 +207,9 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [underlay, setUnderlay] = useState<UnderlayState>(DEFAULT_UNDERLAY);
   const [assembly, setAssembly] = useState<AssemblyState>(DEFAULT_ASSEMBLY);
   const [specialOps, setSpecialOps] = useState<SpecialOpsState>(DEFAULT_SPECIAL_OPS);
+  const [internalBlocks, setInternalBlocks] = useState<InternalBlock[]>(() => [
+    makeDefaultBlock({ kind: "main", pages: 50 }),
+  ]);
 
   const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
   const premiumCoef = kind.coef;
@@ -611,6 +616,9 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
               </AdvancedOnly>
               <AdvancedOnly>
                 <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} />
               </AdvancedOnly>
 
               <Card>
