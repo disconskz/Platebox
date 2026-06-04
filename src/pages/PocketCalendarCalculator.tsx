@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { buildCoverLines } from "@/lib/calc/cover/cost";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
