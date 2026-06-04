@@ -1,0 +1,100 @@
+import * as React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Printer } from "lucide-react";
+
+/**
+ * 6. Печать (ТЗ задачи 3). Отдельный блок: тип печати, цветность,
+ * формы, приладка, формат печати, кол-во печатных листов.
+ * Это ОТОБРАЖЕНИЕ агрегированных параметров — реальные расчёты
+ * выполняются движком страницы.
+ */
+
+export type PrintType = "auto" | "offset" | "digital";
+
+export interface PrintState {
+  printType: PrintType;
+  colorFront: number;
+  colorBack: number;
+  forms: number;
+  setup: number;
+  printFormat: string;
+  printSheets: number;
+}
+
+export const DEFAULT_PRINT: PrintState = {
+  printType: "auto",
+  colorFront: 4,
+  colorBack: 4,
+  forms: 0,
+  setup: 0,
+  printFormat: "—",
+  printSheets: 0,
+};
+
+export interface PrintSectionProps {
+  value: PrintState;
+  onChange: (next: PrintState) => void;
+  title?: string;
+  /** Если true — все поля только для чтения (значения подставлены движком). */
+  readonly?: boolean;
+}
+
+export default function PrintSection({ value, onChange, title = "Печать", readonly = true }: PrintSectionProps) {
+  const set = <K extends keyof PrintState>(k: K, v: PrintState[K]) => onChange({ ...value, [k]: v });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <Printer className="h-4 w-4" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div>
+          <Label className="text-xs">Тип печати</Label>
+          <Select value={value.printType} onValueChange={(v) => set("printType", v as PrintType)} disabled={readonly}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">Авто</SelectItem>
+              <SelectItem value="offset">Офсет</SelectItem>
+              <SelectItem value="digital">Цифра</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Цветность лицо</Label>
+          <Input type="number" min={0} max={6} className="h-8 text-xs"
+            value={value.colorFront} onChange={(e) => set("colorFront", +e.target.value || 0)} readOnly={readonly} />
+        </div>
+        <div>
+          <Label className="text-xs">Цветность оборот</Label>
+          <Input type="number" min={0} max={6} className="h-8 text-xs"
+            value={value.colorBack} onChange={(e) => set("colorBack", +e.target.value || 0)} readOnly={readonly} />
+        </div>
+        <div>
+          <Label className="text-xs">Формы</Label>
+          <Input type="number" min={0} className="h-8 text-xs"
+            value={value.forms} onChange={(e) => set("forms", +e.target.value || 0)} readOnly={readonly} />
+        </div>
+        <div>
+          <Label className="text-xs">Приладка</Label>
+          <Input type="number" min={0} className="h-8 text-xs"
+            value={value.setup} onChange={(e) => set("setup", +e.target.value || 0)} readOnly={readonly} />
+        </div>
+        <div>
+          <Label className="text-xs">Формат печати</Label>
+          <Input className="h-8 text-xs"
+            value={value.printFormat} onChange={(e) => set("printFormat", e.target.value)} readOnly={readonly} />
+        </div>
+        <div>
+          <Label className="text-xs">Печатных листов</Label>
+          <Input type="number" min={0} className="h-8 text-xs"
+            value={value.printSheets} onChange={(e) => set("printSheets", +e.target.value || 0)} readOnly={readonly} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
