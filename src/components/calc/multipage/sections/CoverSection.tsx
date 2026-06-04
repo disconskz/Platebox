@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { BookOpen, AlertTriangle } from "lucide-react";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import { buildCoverReport, buildCoverRoute, buildCoverWarnings } from "@/lib/calc/cover/cost";
 
 /**
  * Задача 5 — Обложка как самостоятельная ERP-сущность.
@@ -149,27 +150,19 @@ export default function CoverSection({ value, onChange, title = "Обложка"
   const isOverride = !!v.override;
   const locked = !isOverride;
 
-  // 10. Технологические предупреждения
-  const warnings: string[] = [];
-  if ((v.lamType !== "none" || v.lamination) && !v.bigging && v.density >= 200) {
-    warnings.push("Ламинация без биговки — риск трещин. Рекомендуется биговка.");
-  }
-  if (v.density < 170 && (v.kind === "hard" || v.kind === "thick")) {
-    warnings.push("Плотность слишком маленькая для выбранного типа обложки.");
-  }
-  if (v.stamping && v.lamType === "soft_touch") {
-    warnings.push("Soft-touch плохо подходит под тиснение — возможен брак.");
-  }
-  if (v.figuredCut && v.density < 200) {
-    warnings.push("Для фигурной высечки рекомендуется плотность ≥ 200 г/м².");
-  }
-
-  // Тех. отчёт (примитивная оценка)
-  const circulation = v.override && v.localCirculation ? v.localCirculation : (g?.circulation ?? 0);
-  const formsAuto = (v.colorFront || 0) + (v.twoSided ? (v.colorBack || 0) : 0);
-  const purchaseSheets = Math.ceil(circulation * 1.05);
-  const printSheets = circulation + (v.makeready ? 150 : 0);
-  const waste = Math.max(0, printSheets - circulation);
+  // §10-§11: предупреждения и тех. отчёт через единый ERP-движок обложки.
+  const itemW = g?.formatWidth ?? 0;
+  const itemH = g?.formatHeight ?? 0;
+  const ctxCalc = {
+    itemW: itemW || 210,
+    itemH: itemH || 297,
+    circulation: g?.circulation ?? 0,
+    printType: g?.printType,
+  };
+  const warnings = buildCoverWarnings(v, ctxCalc);
+  const report = buildCoverReport(v, ctxCalc);
+  const route = buildCoverRoute(v, ctxCalc);
+  const circulation = report.circulation;
 
   return (
     <Card>
@@ -405,13 +398,23 @@ export default function CoverSection({ value, onChange, title = "Обложка"
 
         {/* 11. Тех. отчёт */}
         {circulation > 0 && (
-          <div className="rounded-md border bg-muted/20 p-2 text-[11px] text-muted-foreground">
-            <div className="mb-1 text-xs font-semibold text-foreground">Тех. отчёт по обложке</div>
+          <div className="space-y-2 rounded-md border bg-muted/20 p-2 text-[11px] text-muted-foreground">
+            <div className="text-xs font-semibold text-foreground">Тех. отчёт по обложке</div>
             <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
-              <div>Закупочных листов: <b>{purchaseSheets}</b></div>
-              <div>Печатных листов: <b>{printSheets}</b></div>
-              <div>Форм: <b>{v.formsCount || formsAuto}</b></div>
-              <div>Отходы: <b>{waste}</b></div>
+              <div>Формат печати: <b>{report.spreadW}×{report.spreadH} мм</b></div>
+              <div>Изделий на листе: <b>{report.upPerSheet}</b></div>
+              <div>Закупочных листов: <b>{report.purchaseSheets}</b></div>
+              <div>Печатных листов: <b>{report.printSheets}</b></div>
+              <div>Форм: <b>{report.formsCount}</b></div>
+              <div>Отходы: <b>{report.wasteSheets}</b></div>
+              <div>Премиум-коэф.: <b>×{report.premiumCoef.toFixed(2)}</b></div>
+              <div>+ к сроку: <b>{report.extraLeadDays} дн.</b></div>
+            </div>
+            <div>
+              <div className="mb-1 text-xs font-semibold text-foreground">Маршрут обложки</div>
+              <ol className="list-decimal space-y-0.5 pl-4">
+                {route.map((s, i) => <li key={i}>{s}</li>)}
+              </ol>
             </div>
           </div>
         )}
