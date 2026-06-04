@@ -21,6 +21,8 @@ import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibili
 import CostByStageBlock from "@/components/calc/multipage/CostByStageBlock";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
+import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
+import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
@@ -202,6 +204,8 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
 
   // ERP-обвязка (Доработка 85): новые секции, видимы в Расширенном/Тех. режиме
   const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [printBlock, setPrintBlock] = useState<PrintState>(DEFAULT_PRINT);
+  const [postpress, setPostpress] = useState<PostpressState>(DEFAULT_POSTPRESS);
   const [qc, setQc] = useState<QcState>(DEFAULT_QC);
   const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
   const [cover, setCover] = useState<CoverState>(DEFAULT_COVER);
@@ -938,6 +942,23 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
 
               <AdvancedOnly>
                 <PrepressSection value={prepress} onChange={setPrepress} title="5. Допечатка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PrintSection
+                  value={{
+                    ...printBlock,
+                    printType: printMode,
+                    colorFront: colorBlockFront,
+                    colorBack: colorBlockBack,
+                    printFormat: "—",
+                    printSheets: blockLayout?.printSheets ?? 0,
+                  }}
+                  onChange={setPrintBlock}
+                  title="6. Печать"
+                />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
               </AdvancedOnly>
               <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
