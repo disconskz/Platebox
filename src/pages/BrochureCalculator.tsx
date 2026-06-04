@@ -743,8 +743,18 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     push("Логистика", packLabel, circulation, "шт.", packPrice);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
+    // Задача 5 — ERP-сущность «Обложка»: добавляем отдельные строки себестоимости.
+    try {
+      const coverLines = buildCoverLines(cover, {
+        itemW, itemH, circulation,
+        printType: printMode,
+        spineMm: coverLayout.spineMm,
+      });
+      for (const l of coverLines) out.push(l);
+    } catch {}
+
     return out;
-  }, [isCatalog, isMagazine, isCatalogLike, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, signaturePages, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, optFlaps, flapWidthMm, optTabs, tabsCount, packagingKind, hasDelivery, deliveryCost, internalBlocks]);
+  }, [isCatalog, isMagazine, isCatalogLike, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, signaturePages, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, optFlaps, flapWidthMm, optTabs, tabsCount, packagingKind, hasDelivery, deliveryCost, internalBlocks, cover, printMode]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
