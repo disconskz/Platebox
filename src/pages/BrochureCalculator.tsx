@@ -1031,8 +1031,13 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 </CardContent>
               </Card>
 
+              {/* 3. Подложка (опционально) */}
+              <AdvancedOnly>
+                <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
+              </AdvancedOnly>
+
               <Card>
-                <CardHeader><CardTitle className="text-sm">3. Внутренние блоки</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">4. Внутренние блоки</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <Label>Бумага блока</Label>
@@ -1320,7 +1325,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               </AdvancedOnly>
 
               <Card>
-                <CardHeader><CardTitle className="text-sm">12. Доставка и оплата</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm">Доставка и оплата</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div className="flex items-end gap-2">
                     <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />

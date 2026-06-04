@@ -61,7 +61,7 @@ export default function TechReport({ data }: { data: TechReportData }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <Wrench className="h-4 w-4" />
-          Технологический отчёт
+          14. Технологический отчёт
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
