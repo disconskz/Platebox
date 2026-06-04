@@ -80,6 +80,7 @@ export default function MultipageTemplateHost({ productType, onTemplateResult }:
 
   return (
     <MultipageCalcProvider>
+      <ModeSwitcher className="mb-3" />
       <GlobalParamsBar className="mb-3" />
       {inner}
     </MultipageCalcProvider>
