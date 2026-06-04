@@ -33,6 +33,7 @@ import CompositionTable from "@/components/calc/multipage/CompositionTable";
 import TechReport from "@/components/calc/multipage/TechReport";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
 import { makeDefaultBlock, type InternalBlock } from "@/lib/calc/multipage/blocks";
+import { buildCoverLines } from "@/lib/calc/cover/cost";
 
 /**
  * Шаблон «Блокнот» — детальная форма с раскрывающимися блоками
