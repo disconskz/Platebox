@@ -624,36 +624,6 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
               <Card>
                 <CardContent className="pt-4">
                   <Accordion type="multiple" defaultValue={["block", "cover", "binding"]} className="w-full">
-                    {/* Внутренний блок */}
-                    <AccordionItem value="block">
-                      <AccordionTrigger>Внутренний блок</AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <div><Label>Количество страниц</Label>
-                            <Input type="number" min={2} step={2} value={pages} onChange={(e) => setPages(+e.target.value || 2)} />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <Label>Бумага блока</Label>
-                            <Select value={blockPaperKey} onValueChange={setBlockPaperKey}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {BLOCK_PAPERS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label} ({fmtMoney(p.pricePerSheet)}/лист)</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div><Label>Плотность, г/м²</Label><Input value={blockPaper.density} readOnly /></div>
-                          <div><Label>Толщина листа, мм</Label><Input value={blockPaper.thicknessMm} readOnly /></div>
-                          <div><Label>Цветность (лицо)</Label><Input type="number" min={0} max={6} value={colorBlockFront} onChange={(e) => setColorBlockFront(+e.target.value || 0)} /></div>
-                          <div><Label>Цветность (оборот)</Label><Input type="number" min={0} max={6} value={colorBlockBack} onChange={(e) => setColorBlockBack(+e.target.value || 0)} /></div>
-                          <AdvancedOnly>
-                            <div className="sm:col-span-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                              Листов в блоке: <b>{sheetsInBlock}</b> · Толщина блока: <b>{blockThicknessMm} мм</b> · Печатных листов: <b>{blockLayout.printSheets}</b>
-                            </div>
-                          </AdvancedOnly>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-
                     {/* Обложка */}
                     <AccordionItem value="cover">
                       <AccordionTrigger>
