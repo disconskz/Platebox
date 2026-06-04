@@ -606,6 +606,13 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                 </CardContent>
               </Card>
 
+              <AdvancedOnly>
+                <CoverSection value={cover} onChange={setCover} title="2. Обложка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
+              </AdvancedOnly>
+
               <Card>
                 <CardContent className="pt-4">
                   <Accordion type="multiple" defaultValue={["block", "cover", "binding"]} className="w-full">
