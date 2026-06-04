@@ -21,7 +21,7 @@ export default function RouteTimeline({ operations }: { operations: RouteOperati
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <RouteIcon className="h-4 w-4" />
-          Маршрут производства
+          12. Маршрут производства
           <Badge variant="secondary" className="ml-1">{operations.length} операций</Badge>
         </CardTitle>
       </CardHeader>
