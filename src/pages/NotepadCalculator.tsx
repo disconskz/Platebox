@@ -617,6 +617,9 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
               <AdvancedOnly>
                 <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
               </AdvancedOnly>
+              <AdvancedOnly>
+                <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} />
+              </AdvancedOnly>
 
               <Card>
                 <CardContent className="pt-4">
