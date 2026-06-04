@@ -16,12 +16,6 @@ import GlobalParamsBar from "./GlobalParamsBar";
 export default function StandaloneModeShell({ children }: { children?: React.ReactNode }) {
   return (
     <MultipageCalcProvider>
-      <div className="px-3 pt-3 sm:px-4">
-        <div className="mb-2 flex justify-end">
-          <ModeSwitcher />
-        </div>
-        <GlobalParamsBar className="mb-3" />
-      </div>
       {children ?? <Outlet />}
     </MultipageCalcProvider>
   );
