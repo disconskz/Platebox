@@ -31,6 +31,8 @@ import RouteTimeline from "@/components/calc/multipage/RouteTimeline";
 import TechWarnings from "@/components/calc/multipage/TechWarnings";
 import CompositionTable from "@/components/calc/multipage/CompositionTable";
 import TechReport from "@/components/calc/multipage/TechReport";
+import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
+import { makeDefaultBlock, type InternalBlock } from "@/lib/calc/multipage/blocks";
 
 /**
  * Шаблон «Блокнот» — детальная форма с раскрывающимися блоками
