@@ -80,9 +80,6 @@ export default function MultipageTemplateHost({ productType, onTemplateResult }:
 
   return (
     <MultipageCalcProvider>
-      <div className="mb-2 flex justify-end">
-        <ModeSwitcher />
-      </div>
       <GlobalParamsBar className="mb-3" />
       {inner}
     </MultipageCalcProvider>
