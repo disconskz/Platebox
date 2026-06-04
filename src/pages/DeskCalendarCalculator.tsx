@@ -23,6 +23,7 @@ import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/compone
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
+import { buildCoverLines } from "@/lib/calc/cover/cost";
 import UnderlaySection, { DEFAULT_UNDERLAY, type UnderlayState } from "@/components/calc/multipage/sections/UnderlaySection";
 import AssemblySection, { DEFAULT_ASSEMBLY, type AssemblyState } from "@/components/calc/multipage/sections/AssemblySection";
 import SpecialOpsSection, { DEFAULT_SPECIAL_OPS, type SpecialOpsState } from "@/components/calc/multipage/sections/SpecialOpsSection";
@@ -486,6 +487,18 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
       out.push({ stage: "delivery", name: "Доставка", quantity: 1, unit: "шт", unitPrice: deliveryCost, total: deliveryCost });
     }
 
+    // Задача 5 — ERP-сущность «Обложка».
+    try {
+      const coverLines = buildCoverLines(cover, {
+        itemW: baseSize.w, itemH: baseSize.h, circulation,
+        printType: printMode,
+        spineMm: 0,
+      });
+      for (const l of coverLines) {
+        out.push({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total });
+      }
+    } catch {}
+
     return out;
   }, [
     hasDesign, hasFlipSheets, flipSheetCount, baseMaterial, leafMaterial, basePrintSheets, leafPrintSheets,
@@ -493,7 +506,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     optBaseLam, optBaseLamSides, optLeafLam, optLeafLamSides, optSoftTouch, optVarnish, varnishType,
     optDieCut, optDeflash, optBigBase, bigBaseCount, optSpring, springHoles, optStamp, stampW, stampH,
     optEmboss, embossW, embossH, optRound, roundCorners, optMagnets, magnetsPerItem, optIndividualPack,
-    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2,
+    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode,
   ]);
 
   const totals = useMemo(() => {
