@@ -205,6 +205,9 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [underlay, setUnderlay] = useState<UnderlayState>(DEFAULT_UNDERLAY);
   const [assembly, setAssembly] = useState<AssemblyState>(DEFAULT_ASSEMBLY);
   const [specialOps, setSpecialOps] = useState<SpecialOpsState>(DEFAULT_SPECIAL_OPS);
+  const [internalBlocks, setInternalBlocks] = useState<InternalBlock[]>(() => [
+    makeDefaultBlock({ kind: "main", pages: 50 }),
+  ]);
 
   const kind = useMemo(() => NOTEPAD_KINDS.find((k) => k.value === notepadKind) ?? NOTEPAD_KINDS[0], [notepadKind]);
   const premiumCoef = kind.coef;
