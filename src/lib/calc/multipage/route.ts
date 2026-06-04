@@ -51,11 +51,28 @@ export function buildRoute(input: RouteInput): RouteOperation[] {
   }
 
   // 2. Печать
-  ops.push({
-    id: "print-main",
-    stage: "print",
-    label: input.printType === "digital" ? "Цифровая печать" : input.printType === "uv" ? "UV-печать" : "Офсетная печать",
-  });
+  const printLabel = input.printType === "digital" ? "Цифровая печать" : input.printType === "uv" ? "UV-печать" : "Офсетная печать";
+  if (input.blocks.length <= 1) {
+    ops.push({ id: "print-main", stage: "print", label: printLabel });
+  } else {
+    input.blocks.forEach((b, i) => {
+      const kindRu: Record<string, string> = {
+        main: "Основной блок",
+        insert: "Вставка",
+        divider: "Разделитель",
+        tracing: "Калька",
+        ad: "Реклама",
+        endpaper: "Форзац",
+        special: "Спецсекция",
+      };
+      ops.push({
+        id: `print-blk-${i}`,
+        stage: "print",
+        label: `${printLabel} — ${kindRu[b.kind] ?? "Блок"} #${i + 1}`,
+        hint: `${b.pages} стр.`,
+      });
+    });
+  }
   if (input.hasCover) ops.push({ id: "print-cover", stage: "print", label: "Печать обложки" });
   if (input.hasUnderlay) ops.push({ id: "print-under", stage: "print", label: "Печать подложки" });
 

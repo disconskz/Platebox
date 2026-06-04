@@ -497,6 +497,28 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     push("Печать", offset ? "Печать блок (офсет)" : "Печать блок (цифра)", blockLayout.printSheets, "лист", printPriceBlock);
     push("Печать", offset ? "Печать обложка (офсет)" : "Печать обложка (цифра)", coverLayout.printSheets, "лист", printPriceCover);
 
+    // Дополнительные внутренние блоки (ERP — мульти-блочная архитектура).
+    // Первый блок уже учтён в legacy-расчёте выше; считаем остальные приближённо.
+    internalBlocks.slice(1).forEach((b, i) => {
+      const idx = i + 2;
+      const sigPages = signaturePages;
+      const sigsN = Math.max(1, Math.ceil(b.pages / sigPages));
+      const upPerSide = sigPages / 2;
+      const netSheetsN = Math.max(1, Math.ceil((circulation * b.pages) / sigPages));
+      const setupN = offset ? 200 : 30;
+      const printSheetsN = netSheetsN + setupN * sigsN;
+      const paperPrice = Math.max(6, b.density * 0.07); // приближённая цена за лист по плотности
+      push("Материалы", `Бумага блока #${idx} (${b.paper} ${b.density} г/м²)`, printSheetsN, "лист", paperPrice);
+      const isOffsetN = b.override && b.printType !== "auto" ? b.printType === "offset" : offset;
+      if (isOffsetN) {
+        const formsN = ((b.colorFront || 0) + (b.colorBack || 0)) * sigsN;
+        if (formsN > 0) push("Печать", `Формы блока #${idx}`, formsN, "форма", 1500);
+        push("Печать", `Приладка блока #${idx}`, sigsN, "усл.", (ownTurn ? 150 : 300));
+      }
+      const printPriceN = isOffsetN ? 5 : 30;
+      push("Печать", `Печать блока #${idx} (${isOffsetN ? "офсет" : "цифра"})`, printSheetsN, "лист", printPriceN);
+    });
+
     // Ламинация обложки
     if (optCoverLam) {
       const areaM2 = (coverLayout.spreadW * itemH) / 1_000_000;
@@ -690,7 +712,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     return out;
-  }, [isCatalog, isMagazine, isCatalogLike, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, optFlaps, flapWidthMm, optTabs, tabsCount, packagingKind, hasDelivery, deliveryCost]);
+  }, [isCatalog, isMagazine, isCatalogLike, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, signaturePages, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, optFlaps, flapWidthMm, optTabs, tabsCount, packagingKind, hasDelivery, deliveryCost, internalBlocks]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);

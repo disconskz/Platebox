@@ -142,7 +142,7 @@ export default function InternalBlocksEditor({ blocks, onChange }: InternalBlock
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Страниц в блоке</Label>
+                  <Label className="text-xs">Количество листов</Label>
                   <Input
                     type="number"
                     min={1}
