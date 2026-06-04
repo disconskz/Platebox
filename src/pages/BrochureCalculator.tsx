@@ -28,6 +28,8 @@ import PrepressSection, {
   DEFAULT_PREPRESS,
   type PrepressState,
 } from "@/components/calc/multipage/sections/PrepressSection";
+import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
+import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
 import QualityControlSection, {
   DEFAULT_QC,
   type QcState,
@@ -296,6 +298,8 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
 
   // Этап 3: новые ERP-секции (допечатка / контроль качества / упаковка).
   const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
+  const [printBlock, setPrintBlock] = useState<PrintState>(DEFAULT_PRINT);
+  const [postpress, setPostpress] = useState<PostpressState>(DEFAULT_POSTPRESS);
   const [qc, setQc] = useState<QcState>(DEFAULT_QC);
   const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
   const [cover, setCover] = useState<CoverState>(DEFAULT_COVER);
@@ -1370,6 +1374,23 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
 
               {/* 8. Контроль качества */}
               {/* 7. Сборка (после постпечатки) */}
+              <AdvancedOnly>
+                <PrintSection
+                  value={{
+                    ...printBlock,
+                    printType: printMode,
+                    colorFront: colorBlockFront,
+                    colorBack: colorBlockBack,
+                    printFormat: `${coverPaper.sheetW}×${coverPaper.sheetH} мм`,
+                    printSheets: (blockLayout?.printSheets ?? 0) + (coverLayout?.printSheets ?? 0),
+                  }}
+                  onChange={setPrintBlock}
+                  title="6. Печать"
+                />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
+              </AdvancedOnly>
               <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
               </AdvancedOnly>
