@@ -381,6 +381,28 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     push("Печать", offset ? "Печать блока (офсет)" : "Печать блока (цифра)",
       blockLayout.printSheets, "лист", offset ? 5 : 25);
 
+    // Дополнительные внутренние блоки (мульти-блочная ERP-архитектура).
+    // Первый блок учтён выше через legacy-поля; считаем остальные блоки приближённо.
+    internalBlocks.slice(1).forEach((b, i) => {
+      const idx = i + 2;
+      const cols = Math.max(1, Math.floor(blockPaper.sheetW / itemW));
+      const rows = Math.max(1, Math.floor(blockPaper.sheetH / itemH));
+      const up = Math.max(1, cols * rows);
+      const netSheetsN = Math.max(1, Math.ceil((circulation * b.pages) / (2 * up)));
+      const setupN = offset ? 200 : 30;
+      const printSheetsN = netSheetsN + setupN;
+      const paperPrice = Math.max(6, b.density * 0.07);
+      push("Материалы", `Бумага блока #${idx} (${b.paper} ${b.density} г/м²)`, printSheetsN, "лист", paperPrice);
+      const isOffsetN = b.override && b.printType !== "auto" ? b.printType === "offset" : offset;
+      if (isOffsetN) {
+        const formsN = (b.colorFront || 0) + (b.colorBack || 0);
+        if (formsN > 0) push("Печать", `Формы блока #${idx}`, formsN, "форма", 1500);
+        push("Печать", `Приладка блока #${idx}`, 1, "усл.", 800);
+      }
+      const printPriceN = isOffsetN ? 5 : 25;
+      push("Печать", `Печать блока #${idx} (${isOffsetN ? "офсет" : "цифра"})`, printSheetsN, "лист", printPriceN);
+    });
+
     // Обложка
     if (hasCover) {
       push("Материалы", `Бумага обложки: ${coverPaper.label}`, coverLayout.printSheets, "лист", coverPaper.pricePerSheet);
