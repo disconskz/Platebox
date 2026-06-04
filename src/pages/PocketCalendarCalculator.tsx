@@ -342,6 +342,15 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
     if (packKind !== "none") push("Упаковка", `Упаковка: ${pack.label}`, circulation, "шт.", pack.price);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
+    // Задача 5 — ERP-блок себестоимости обложки (CoverSection).
+    try {
+      const coverLines = buildCoverLines(cover, {
+        itemW, itemH, circulation,
+        printType: offset ? "offset" : "digital",
+      });
+      for (const l of coverLines) out.push(l);
+    } catch {}
+
     return out;
   }, [hasDesign, hasGrid, year, gridLang, material, layout, offset, ownTurn, twoSides,
       colorFront, colorBack, pantoneCount, lamType, lam, lamSides,
