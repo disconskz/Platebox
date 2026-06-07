@@ -57,6 +57,9 @@ export interface CoverState {
   sides: 1 | 2;
   grain: "long" | "short";
 
+  /** Количество страниц обложки (4 — обычная брошюра; 2 — лист-обложка к подложке). */
+  pages?: 2 | 4;
+
   // 3-4. Наследование / переопределение
   override?: boolean;
   localFormat?: string;
@@ -100,6 +103,7 @@ export const DEFAULT_COVER: CoverState = {
   twoSided: false,
   sides: 1,
   grain: "long",
+  pages: 4,
   override: false,
   printType: "auto",
   pantone: "",
