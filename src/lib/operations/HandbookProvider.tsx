@@ -16,6 +16,8 @@ export interface HandbookLine {
   total: number;
   /** 'handbook' — посчитано по формуле справочника, 'default' — захардкоженный fallback. */
   source: "handbook" | "default";
+  /** Детализация расчёта (переменные, формулы) — для раскрывающегося блока в спецификации. */
+  details?: Array<{ label: string; value: string }>;
 }
 
 interface Ctx {
@@ -89,6 +91,10 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
       }
 
       const out: HandbookLine[] = [];
+      // Сводка переменных, использованных в расчёте — пригодится в детализации.
+      const usedVars: Array<{ label: string; value: string }> = Object.entries(ctx)
+        .filter(([, v]) => Number.isFinite(v))
+        .map(([k, v]) => ({ label: k, value: String(Math.round((v as number) * 100) / 100) }));
       for (const w of wis) {
         const q = evalFormula(w.quantity_source, ctx);
         const pr = evalFormula(w.price_source, ctx);
@@ -98,6 +104,12 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
         const qty = q.value;
         const price = pr.value;
         if (qty === 0 && price === 0) continue; // пустая строка — пропустим
+        const details: Array<{ label: string; value: string }> = [
+          { label: "Источник", value: `Справочник · ${op.name}` },
+          { label: "Формула кол-ва", value: `${w.quantity_source} = ${Math.round(qty * 100) / 100}` },
+          { label: "Формула цены", value: `${w.price_source} = ${Math.round(price * 100) / 100}` },
+          ...usedVars.map((v) => ({ label: `пер. ${v.label}`, value: v.value })),
+        ];
         out.push({
           stage: def.stage,
           name: `${op.name} — ${w.name}`,
@@ -106,6 +118,7 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
           price: Math.round(price * 100) / 100,
           total: Math.round(qty * price * 100) / 100,
           source: "handbook",
+          details,
         });
       }
       if (!out.length) return null;
