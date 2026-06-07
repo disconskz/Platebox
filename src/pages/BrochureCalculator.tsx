@@ -626,45 +626,87 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     // Ламинация обложки
     if (optCoverLam) {
       const areaM2 = (coverLayout.spreadW * itemH) / 1_000_000;
-      push("Постпечать", `Ламинация обложки (${coverLamSides} ст.)`,
-        +(areaM2 * coverLayout.printSheets * coverLamSides).toFixed(3), "м²", 220);
+      const sheets = coverLayout.printSheets;
+      const pricePerSheet = +(areaM2 * 220).toFixed(2);
+      const opKey = coverLamSides === 2 ? "coverLam2" : "coverLam1";
+      const ok = tryHandbook(opKey, {
+        "Количество бумаги на тираж": sheets,
+        "Количество прогонов": coverLamSides,
+        "Цена за лист": pricePerSheet,
+      });
+      if (!ok) push("Постпечать", `Ламинация обложки (${coverLamSides} ст.)`,
+        +(areaM2 * sheets * coverLamSides).toFixed(3), "м²", 220);
     }
     if (optSoftTouch) {
       const areaM2 = (coverLayout.spreadW * itemH) / 1_000_000;
       push("Постпечать", "Soft-touch плёнка", +(areaM2 * coverLayout.printSheets).toFixed(3), "м²", 380);
     }
-    if (optCoverBig) push("Постпечать", "Биговка обложки", circulation * 2, "биг", 1.5);
+    if (optCoverBig) {
+      const totalBigs = circulation * 2;
+      const ok = tryHandbook("creaseMachine", { "количество бигов общее за тираж": totalBigs });
+      if (!ok) push("Постпечать", "Биговка обложки", totalBigs, "биг", 1.5);
+    }
     if (optVarnish) push("Постпечать", "УФ/ВД-лак обложки", coverLayout.printSheets, "лист", 5);
     if (optSpotVarnish) {
       push("Постпечать", "Подготовка выб. лака", 1, "усл.", 3000);
       push("Постпечать", "Приладка выб. лака", 1, "усл.", 1500);
       push("Постпечать", "Выборочный лак", coverLayout.printSheets, "лист", 8);
     }
-    if (optStamp) push("Постпечать", "Тиснение фольгой", circulation, "оттиск", Math.max(8, stampArea * 0.6) * premiumCoef);
-    if (optEmboss) push("Постпечать", "Конгрев", circulation, "оттиск", 12 * premiumCoef);
+    if (optStamp) {
+      const ok = tryHandbook("stamp", {
+        "Площадь тиснения, см2": stampArea,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      });
+      if (!ok) push("Постпечать", "Тиснение фольгой", circulation, "оттиск", Math.max(8, stampArea * 0.6) * premiumCoef);
+    }
+    if (optEmboss) {
+      const ok = tryHandbook("emboss", {
+        "Площадь конгрева, см2": 4,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      });
+      if (!ok) push("Постпечать", "Конгрев", circulation, "оттиск", 12 * premiumCoef);
+    }
     if (optPerf) {
       const meters = (perfLineMm * perfLines * circulation) / 1000;
-      push("Постпечать", "Перфорация", +meters.toFixed(2), "м", 12);
+      const ok = tryHandbook("perfMachine", { "общее количество линий перфорации за тираж": perfLines * circulation });
+      if (!ok) push("Постпечать", "Перфорация", +meters.toFixed(2), "м", 12);
     }
     if (optNum) push("Постпечать", "Нумерация", circulation * numCount, "номер", 1.2);
-    if (optDieCut) push("Постпечать", "Высечка обложки", coverLayout.printSheets, "лист", 4);
+    if (optDieCut) {
+      const ok = tryHandbook("dieCut", {
+        "количество приладок": 1,
+        "стоимость ножа": 0,
+        "Количество бумаги на тираж": coverLayout.printSheets,
+        "Количество ударов высечки общее за тираж": circulation,
+      });
+      if (!ok) push("Постпечать", "Высечка обложки", coverLayout.printSheets, "лист", 4);
+    }
     if (optDieCut && optDeflash) push("Постпечать", "Удаление облоя", coverLayout.printSheets, "лист", 1.5);
     if (optRound) push("Постпечать", "Скругление углов", circulation * roundCorners, "угол", 0.6);
 
     // Фальцовка тетрадей (офсет/многостраничные)
     const needsFold = offset || pages > 4;
     if (needsFold) {
-      push("Сборка блока", "Фальцовка тетрадей", circulation * signatures, "тетр.", 0.8);
+      const totalFolds = circulation * signatures;
+      const ok = tryHandbook("fold", { "Тираж": totalFolds, "Стоимость за 1 изделие": 0.8 });
+      if (!ok) push("Сборка блока", "Фальцовка тетрадей", totalFolds, "тетр.", 0.8);
     }
     // Подборка
     if (signatures > 1 || bindingKind !== "staple") {
-      push("Сборка блока", "Подборка блока", circulation * signatures, "тетр.", 0.6);
+      const totalSheets = circulation * signatures;
+      const ok = tryHandbook("gather", { "общее количество листов": totalSheets });
+      if (!ok) push("Сборка блока", "Подборка блока", totalSheets, "тетр.", 0.6);
     }
     // Скрепление
     if (bindingKind === "staple") {
       const staples = 2;
-      push("Скрепление", "Скоба", circulation * staples, "скоба", 0.6);
-      push("Скрепление", "Приладка скобы", 1, "усл.", 800);
+      const ok = tryHandbook("staple", { "количество скоб на изделии": staples, "общее количество скоб на изделии": circulation * staples });
+      if (!ok) {
+        push("Скрепление", "Скоба", circulation * staples, "скоба", 0.6);
+        push("Скрепление", "Приладка скобы", 1, "усл.", 800);
+      }
     } else if (bindingKind === "eurostaple") {
       const staples = 2;
       push("Скрепление", "Евроскоба", circulation * staples, "скоба", 1.2);
@@ -675,14 +717,20 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
       push("Скрепление", "Клей (термоплавкий)", circulation, "шт.", 1.2);
       push("Скрепление", "Приладка КБС", 1, "усл.", 2500);
     } else if (bindingKind === "thermo") {
-      push("Скрепление", "Термосклейка", circulation, "шт.", 7);
-      push("Скрепление", "Приладка термобиндера", 1, "усл.", 2000);
+      const ok = tryHandbook("thermo", { "Стоимость работы за изделие": 7 });
+      if (!ok) {
+        push("Скрепление", "Термосклейка", circulation, "шт.", 7);
+        push("Скрепление", "Приладка термобиндера", 1, "усл.", 2000);
+      }
     } else if (bindingKind === "spiral") {
       const holes = Math.max(20, Math.round(itemH / 6));
-      push("Скрепление", "Перфорация под пружину", holes * circulation, "отв.", 0.5);
-      push("Скрепление", "Навивка пружины", circulation, "шт.", 35);
-      push("Скрепление", "Пружина (материал)", circulation, "шт.", 45);
-      push("Скрепление", "Приладка пружины", 1, "усл.", 1500);
+      const ok = tryHandbook("spiral", { "Количество витков": holes, "Стоимость витка пружины": 45 / Math.max(1, holes) });
+      if (!ok) {
+        push("Скрепление", "Перфорация под пружину", holes * circulation, "отв.", 0.5);
+        push("Скрепление", "Навивка пружины", circulation, "шт.", 35);
+        push("Скрепление", "Пружина (материал)", circulation, "шт.", 45);
+        push("Скрепление", "Приладка пружины", 1, "усл.", 1500);
+      }
     } else if (bindingKind === "pva") {
       push("Скрепление", "Клей ПВА", circulation, "шт.", 1.0);
       push("Скрепление", "Проклейка ПВА", circulation, "шт.", 4);
@@ -700,7 +748,10 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     }
 
     // Обрезка готового изделия (3 стороны)
-    push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.5);
+    {
+      const ok = tryHandbook("trimBlock", { "ТИРАЖ": circulation });
+      if (!ok) push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.5);
+    }
 
     // ===== Твёрдый переплёт (книжные операции) =====
     if (isHardcover) {
