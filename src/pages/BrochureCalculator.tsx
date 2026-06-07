@@ -569,6 +569,14 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    // Пытается посчитать операцию по формуле из справочника. Если справочник
+    // не сконфигурирован — возвращает false, и шаблон применяет fallback.
+    const tryHandbook = (opKey: Parameters<typeof priceOp>[0], vars: Record<string, number>): boolean => {
+      const lines = priceOp(opKey, { "ТИРАЖ": circulation, ...vars });
+      if (!lines) return false;
+      for (const l of lines) out.push({ stage: l.stage, name: l.name, qty: l.qty, unit: l.unit, price: l.price, total: l.total });
+      return true;
+    };
 
     if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", isMagazine ? 20000 : isCatalog ? 25000 : 12000);
     push("Препресс", "Проверка макета и спуск полос", signatures + 1, "форма", 600);
