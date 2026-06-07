@@ -23,6 +23,8 @@ import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/compone
 import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
 import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import type { TemplateOpKey } from "@/lib/operations/templateOpsMap";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
@@ -71,6 +73,7 @@ export interface DeskCalendarCalculatorProps {
   onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
 }
 export default function DeskCalendarCalculator({ embedded = false, onResult }: DeskCalendarCalculatorProps = {}) {
+  const { priceOp } = useHandbook();
   // Основные параметры
   const [circulation, setCirculation] = useState(100);
   const [basePreset, setBasePreset] = useState("medium");
