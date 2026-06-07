@@ -133,6 +133,39 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
   const [colorBack, setColorBack] = useState(4);
   const [pantoneCount, setPantoneCount] = useState(0);
 
+  // Материалы из справочника + операции из справочника
+  const [materialsDb, setMaterialsDb] = useState<Material[]>(MATERIALS_FALLBACK);
+  const [catalogOps, setCatalogOps] = useState<SpecItem[]>([]);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("materials")
+        .select("id,name,type,density,format_width,format_height,cost_per_sheet")
+        .order("name");
+      if (stop || error || !Array.isArray(data) || data.length === 0) return;
+      const mapped: Material[] = (data as any[])
+        .filter((m) => m.type !== "self_adhesive" && m.type !== "other")
+        .map((m) => ({
+          value: `db:${m.id}`,
+          label: `${m.name}${m.density ? ` ${m.density} г/м²` : ""}`,
+          type: m.type || "other",
+          density: Number(m.density) || 0,
+          sheetW: Number(m.format_width) || 700,
+          sheetH: Number(m.format_height) || 1000,
+          pricePerSheet: Number(m.cost_per_sheet) || 0,
+        }));
+      if (mapped.length) setMaterialsDb(mapped);
+    })();
+    return () => { stop = true; };
+  }, []);
+  const MATERIALS = materialsDb;
+  useEffect(() => {
+    if (!MATERIALS.find((m) => m.value === materialKey) && MATERIALS[0]) {
+      setMaterialKey(MATERIALS[0].value);
+    }
+  }, [MATERIALS, materialKey]);
+
   // Постпечать
   const [lamType, setLamType] = useState<LamType>("gloss");
   const [lamSides, setLamSides] = useState(2);
