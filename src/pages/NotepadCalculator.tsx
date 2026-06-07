@@ -125,6 +125,7 @@ export interface NotepadCalculatorProps {
   onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
 }
 export default function NotepadCalculator({ embedded = false, onResult }: NotepadCalculatorProps = {}) {
+  const { priceOp } = useHandbook();
   // Основные параметры
   const [presetKey, setPresetKey] = useState("A5");
   const [customW, setCustomW] = useState(148);
