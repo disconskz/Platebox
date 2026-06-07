@@ -97,6 +97,8 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
   // Бумага (справочник)
   const [materials, setMaterials] = useState<Material[]>([]);
+  // Операции из справочника (формулы)
+  const [catalogOps, setCatalogOps] = useState<SpecItem[]>([]);
   const [baseMaterialId, setBaseMaterialId] = useState<string>("");
   const [leafMaterialId, setLeafMaterialId] = useState<string>("");
 
