@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -64,6 +64,7 @@ export default function PrintSection({ value, onChange, title = "Печать", 
             <Printer className="h-4 w-4" />
             {title}
           </CardTitle>
+          <CardDescription>Блок для просмотра параметров — редактирование не требуется</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Field label="Тип печати" val={printTypeLabel} />
