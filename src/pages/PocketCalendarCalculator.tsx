@@ -301,6 +301,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн карманного календаря", 1, "усл.", 5000);
     push("Препресс", "Проверка и подготовка макета", 1, "усл.", 800);
@@ -326,9 +327,17 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
 
     // Ламинация (по площади печатного листа × кол-во сторон)
     if (lamType !== "none") {
-      push("Постпечать", `Ламинация: ${lam.label} (${lamSides} ст.)`,
-        +(layout.areaM2 * layout.printSheets * lamSides).toFixed(3), "м²", lam.price);
-      push("Постпечать", "Приладка ламинации", 1, "усл.", 600);
+      const sheets = layout.printSheets;
+      const pricePerSheet = +(layout.areaM2 * lam.price).toFixed(2);
+      tryHB(lamSides === 2 ? "coverLam2" : "coverLam1", {
+        "Количество бумаги на тираж": sheets,
+        "Количество прогонов": lamSides,
+        "Цена за лист": pricePerSheet,
+      }, () => {
+        push("Постпечать", `Ламинация: ${lam.label} (${lamSides} ст.)`,
+          +(layout.areaM2 * sheets * lamSides).toFixed(3), "м²", lam.price);
+        push("Постпечать", "Приладка ламинации", 1, "усл.", 600);
+      });
     }
     if (optVarnish) push("Постпечать", "УФ/ВД-лак", layout.printSheets, "лист", 5);
     if (optSpotVarnish) {
@@ -338,29 +347,49 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       push("Постпечать", "Выборочный лак", +areaM2.toFixed(3), "м²", 1200);
     }
     if (optStamp) {
-      push("Постпечать", "Клише тиснения", 1, "усл.", Math.max(2000, stampAreaCm2 * 80));
-      push("Постпечать", "Приладка тиснения", 1, "усл.", 1200);
-      push("Постпечать", "Фольга (площадь)",
-        +((stampAreaCm2 / 10000) * circulation).toFixed(3), "м²", 1800);
-      push("Постпечать", "Тиснение фольгой (нанесение)",
-        circulation, "оттиск", +(Math.max(6, stampAreaCm2 * 0.6) * premiumCoef).toFixed(2));
+      tryHB("stamp", {
+        "Площадь тиснения, см2": stampAreaCm2,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      }, () => {
+        push("Постпечать", "Клише тиснения", 1, "усл.", Math.max(2000, stampAreaCm2 * 80));
+        push("Постпечать", "Приладка тиснения", 1, "усл.", 1200);
+        push("Постпечать", "Фольга (площадь)",
+          +((stampAreaCm2 / 10000) * circulation).toFixed(3), "м²", 1800);
+        push("Постпечать", "Тиснение фольгой (нанесение)",
+          circulation, "оттиск", +(Math.max(6, stampAreaCm2 * 0.6) * premiumCoef).toFixed(2));
+      });
     }
     if (optEmboss) {
-      push("Постпечать", "Клише конгрева", 1, "усл.", 3000);
-      push("Постпечать", "Приладка конгрева", 1, "усл.", 1200);
-      push("Постпечать", "Конгрев (нанесение)", circulation, "оттиск", +(10 * premiumCoef).toFixed(2));
+      tryHB("emboss", {
+        "Площадь конгрева, см2": 4,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      }, () => {
+        push("Постпечать", "Клише конгрева", 1, "усл.", 3000);
+        push("Постпечать", "Приладка конгрева", 1, "усл.", 1200);
+        push("Постпечать", "Конгрев (нанесение)", circulation, "оттиск", +(10 * premiumCoef).toFixed(2));
+      });
     }
     if (optDieCut) {
-      push("Постпечать", "Штамп высечки", 1, "усл.", 5500);
-      push("Постпечать", "Приладка высечки", 1, "усл.", 1500);
-      push("Постпечать", "Высечка", layout.printSheets, "лист", 4);
+      tryHB("dieCut", {
+        "количество приладок": 1,
+        "стоимость ножа": 0,
+        "Количество бумаги на тираж": layout.printSheets,
+        "Количество ударов высечки общее за тираж": circulation,
+      }, () => {
+        push("Постпечать", "Штамп высечки", 1, "усл.", 5500);
+        push("Постпечать", "Приладка высечки", 1, "усл.", 1500);
+        push("Постпечать", "Высечка", layout.printSheets, "лист", 4);
+      });
       if (optDeflash)
         push("Постпечать", "Удаление облоя",
           layout.printSheets * layout.up, "изд.", +(1.0 * premiumCoef).toFixed(2));
     }
 
     // Резка готовой продукции
-    push("Постпечать", "Резка готовой продукции", layout.printSheets, "лист", 1.0);
+    tryHB("trimSheets", {},
+      () => push("Постпечать", "Резка готовой продукции", layout.printSheets, "лист", 1.0));
     if (optRound) push("Постпечать", "Скругление углов", circulation * roundCorners, "угол", 0.6);
 
     // Переменные данные
@@ -384,7 +413,9 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       circulation, "изд.", +(0.8 * qcCoef).toFixed(2));
 
     // Упаковка
-    if (packKind !== "none") push("Упаковка", `Упаковка: ${pack.label}`, circulation, "шт.", pack.price);
+    if (packKind !== "none")
+      tryHB("packStickers", { "Количество видов": 1 },
+        () => push("Упаковка", `Упаковка: ${pack.label}`, circulation, "шт.", pack.price));
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     // Задача 5 — ERP-блок себестоимости обложки (CoverSection).
@@ -423,6 +454,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       optQR, optBarcode, optPersonal, personalCount, variable,
       packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost,
       cover, itemW, itemH, catalogOps]);
+
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
