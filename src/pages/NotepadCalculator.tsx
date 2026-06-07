@@ -36,6 +36,8 @@ import TechReport from "@/components/calc/multipage/TechReport";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
 import { makeDefaultBlock, type InternalBlock } from "@/lib/calc/multipage/blocks";
 import { buildCoverLines } from "@/lib/calc/cover/cost";
+import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import type { SpecItem } from "@/lib/calc/types";
 
 /**
  * Шаблон «Блокнот» — детальная форма с раскрывающимися блоками
@@ -55,14 +57,14 @@ const FORMATS: FormatOpt[] = [
 ];
 
 type Paper = { value: string; label: string; pricePerSheet: number; sheetW: number; sheetH: number; density: number; thicknessMm: number };
-const BLOCK_PAPERS: Paper[] = [
+const BLOCK_PAPERS_FALLBACK: Paper[] = [
   { value: "offset70", label: "Офсет 70 г/м²", pricePerSheet: 14, sheetW: 620, sheetH: 940, density: 70, thicknessMm: 0.09 },
   { value: "offset80", label: "Офсет 80 г/м²", pricePerSheet: 18, sheetW: 620, sheetH: 940, density: 80, thicknessMm: 0.10 },
   { value: "offset90", label: "Офсет 90 г/м²", pricePerSheet: 22, sheetW: 620, sheetH: 940, density: 90, thicknessMm: 0.11 },
   { value: "coated115", label: "Мелованная 115 г/м²", pricePerSheet: 28, sheetW: 620, sheetH: 940, density: 115, thicknessMm: 0.10 },
   { value: "coated130", label: "Мелованная 130 г/м²", pricePerSheet: 34, sheetW: 620, sheetH: 940, density: 130, thicknessMm: 0.11 },
 ];
-const COVER_PAPERS: Paper[] = [
+const COVER_PAPERS_FALLBACK: Paper[] = [
   { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170, thicknessMm: 0.18 },
   { value: "coated250", label: "Мелованная 250 г/м²", pricePerSheet: 70, sheetW: 620, sheetH: 940, density: 250, thicknessMm: 0.27 },
   { value: "coated300", label: "Мелованная 300 г/м²", pricePerSheet: 90, sheetW: 620, sheetH: 940, density: 300, thicknessMm: 0.32 },
