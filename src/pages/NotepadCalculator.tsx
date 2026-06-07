@@ -515,6 +515,16 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
         push("Подложка", "Печать на подложке", circulation, "шт.", offset ? 6 : 18);
         if (offset) push("Подложка", "Формы подложки", Math.max(backingColorFront, 1), "форма", 1500);
       }
+      // Ламинация подложки (как на обложке)
+      if (underlay.lamination) {
+        const sides = underlay.lamSides ?? 1;
+        const lamAreaM2 = +(backingLayout.areaM2 * sides).toFixed(3);
+        tryHB(sides === 2 ? "coverLam2" : "coverLam1", {
+          "Количество бумаги на тираж": circulation,
+          "Количество прогонов": sides,
+          "Цена за лист": 4,
+        }, () => push("Подложка", `Ламинация подложки (${sides} ст.)`, lamAreaM2, "м²", 220));
+      }
     }
 
     // Подборка / фальцовка блока
