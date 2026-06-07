@@ -393,6 +393,25 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       for (const l of coverLines) out.push(l);
     } catch {}
 
+    // Операции из справочника (формулы)
+    const stageMap: Record<string, string> = {
+      prepress: "Препресс",
+      material: "Материалы",
+      print: "Печать",
+      postpress: "Постпечать",
+      logistics: "Логистика",
+    };
+    for (const it of catalogOps) {
+      out.push({
+        stage: stageMap[it.stage] || "Постпечать",
+        name: it.name,
+        qty: it.quantity,
+        unit: it.unit,
+        price: it.unitPrice,
+        total: it.total,
+      });
+    }
+
     return out;
   }, [hasDesign, hasGrid, year, gridLang, material, layout, offset, ownTurn, twoSides,
       colorFront, colorBack, pantoneCount, lamType, lam, lamSides,
@@ -400,7 +419,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       optDieCut, optDeflash, optRound, roundCorners,
       optQR, optBarcode, optPersonal, personalCount, variable,
       packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost,
-      cover, itemW, itemH]);
+      cover, itemW, itemH, catalogOps]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
