@@ -439,7 +439,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     push("Материалы", `Бумага блока: ${blockPaper.label}`, blockLayout.printSheets, "лист", blockPaper.pricePerSheet, [
       { label: "Формат изделия", value: `${itemW}×${itemH} мм` },
       { label: "Формат листа", value: `${blockPaper.sheetW}×${blockPaper.sheetH} мм` },
-      { label: "Кол-во полос блока", value: `${blockPages}` },
+      { label: "Кол-во полос блока", value: `${pages}` },
       { label: "Тираж", value: `${circulation} шт` },
       { label: "Чистых листов", value: `${blockLayout.netSheets ?? "—"}` },
       { label: "Печатных листов (с приладкой)", value: `${blockLayout.printSheets}` },
