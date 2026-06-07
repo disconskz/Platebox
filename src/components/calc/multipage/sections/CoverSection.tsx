@@ -252,6 +252,16 @@ export default function CoverSection({ value, onChange, title = "Обложка"
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Кол-во страниц обложки</Label>
+            <Select value={String(v.pages ?? 4)} onValueChange={(val) => patch({ pages: (+val as 2 | 4) })}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="4">4 (стандарт)</SelectItem>
+                <SelectItem value="2">2 (лист-обложка к подложке)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* 4. Локальные параметры при override */}
