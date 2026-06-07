@@ -714,7 +714,7 @@ export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps
             <Card className="mt-4">
               <CardHeader><CardTitle className="text-sm">Спецификация работ и материалов</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
-                <SpecTable lines={lines} />
+                <SpecTable lines={fullSpec.map((l: any) => ({ stage: l.stage, name: l.name, qty: l.quantity, unit: l.unit, price: l.unitPrice, total: l.total }))} />
               </CardContent>
             </Card>
           )}
