@@ -24,6 +24,8 @@ import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
 import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
+import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import type { SpecItem } from "@/lib/calc/types";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
@@ -53,7 +55,7 @@ type Material = {
   value: string; label: string; type: string; density: number;
   sheetW: number; sheetH: number; pricePerSheet: number; designer?: boolean; premium?: boolean;
 };
-const MATERIALS: Material[] = [
+const MATERIALS_FALLBACK: Material[] = [
   { value: "coated250", label: "Мелованная 250 г/м²", type: "coated", density: 250, sheetW: 620, sheetH: 940, pricePerSheet: 70 },
   { value: "coatedboard300", label: "Мелованный картон 300 г/м²", type: "coated-board", density: 300, sheetW: 620, sheetH: 940, pricePerSheet: 95 },
   { value: "coatedboard350", label: "Мелованный картон 350 г/м²", type: "coated-board", density: 350, sheetW: 620, sheetH: 940, pricePerSheet: 120 },
@@ -131,6 +133,39 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
   const [colorBack, setColorBack] = useState(4);
   const [pantoneCount, setPantoneCount] = useState(0);
 
+  // Материалы из справочника + операции из справочника
+  const [materialsDb, setMaterialsDb] = useState<Material[]>(MATERIALS_FALLBACK);
+  const [catalogOps, setCatalogOps] = useState<SpecItem[]>([]);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("materials")
+        .select("id,name,type,density,format_width,format_height,cost_per_sheet")
+        .order("name");
+      if (stop || error || !Array.isArray(data) || data.length === 0) return;
+      const mapped: Material[] = (data as any[])
+        .filter((m) => m.type !== "self_adhesive" && m.type !== "other")
+        .map((m) => ({
+          value: `db:${m.id}`,
+          label: `${m.name}${m.density ? ` ${m.density} г/м²` : ""}`,
+          type: m.type || "other",
+          density: Number(m.density) || 0,
+          sheetW: Number(m.format_width) || 700,
+          sheetH: Number(m.format_height) || 1000,
+          pricePerSheet: Number(m.cost_per_sheet) || 0,
+        }));
+      if (mapped.length) setMaterialsDb(mapped);
+    })();
+    return () => { stop = true; };
+  }, []);
+  const MATERIALS = materialsDb;
+  useEffect(() => {
+    if (!MATERIALS.find((m) => m.value === materialKey) && MATERIALS[0]) {
+      setMaterialKey(MATERIALS[0].value);
+    }
+  }, [MATERIALS, materialKey]);
+
   // Постпечать
   const [lamType, setLamType] = useState<LamType>("gloss");
   const [lamSides, setLamSides] = useState(2);
@@ -183,7 +218,10 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       marginPercent: margin,
     });
   }, [calcCtx, format.value, itemW, itemH, circulation, printMode, margin]);
-  const material = useMemo(() => MATERIALS.find((m) => m.value === materialKey)!, [materialKey]);
+  const material = useMemo(
+    () => MATERIALS.find((m) => m.value === materialKey) ?? MATERIALS[0],
+    [materialKey, MATERIALS]
+  );
   const lam = useMemo(() => LAMS.find((l) => l.value === lamType)!, [lamType]);
   const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
 
@@ -355,6 +393,25 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       for (const l of coverLines) out.push(l);
     } catch {}
 
+    // Операции из справочника (формулы)
+    const stageMap: Record<string, string> = {
+      prepress: "Препресс",
+      material: "Материалы",
+      print: "Печать",
+      postpress: "Постпечать",
+      logistics: "Логистика",
+    };
+    for (const it of catalogOps) {
+      out.push({
+        stage: stageMap[it.stage] || "Постпечать",
+        name: it.name,
+        qty: it.quantity,
+        unit: it.unit,
+        price: it.unitPrice,
+        total: it.total,
+      });
+    }
+
     return out;
   }, [hasDesign, hasGrid, year, gridLang, material, layout, offset, ownTurn, twoSides,
       colorFront, colorBack, pantoneCount, lamType, lam, lamSides,
@@ -362,7 +419,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       optDieCut, optDeflash, optRound, roundCorners,
       optQR, optBarcode, optPersonal, personalCount, variable,
       packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost,
-      cover, itemW, itemH]);
+      cover, itemW, itemH, catalogOps]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -683,6 +740,16 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
               </AdvancedOnly>
               <AdvancedOnly>
                 <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Операции из справочника</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CatalogOperationsPicker circulation={circulation} onChange={setCatalogOps} />
+                  </CardContent>
+                </Card>
               </AdvancedOnly>
               <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />

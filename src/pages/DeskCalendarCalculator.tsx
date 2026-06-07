@@ -22,6 +22,7 @@ import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
 import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
+import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
@@ -96,6 +97,8 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
   // Бумага (справочник)
   const [materials, setMaterials] = useState<Material[]>([]);
+  // Операции из справочника (формулы)
+  const [catalogOps, setCatalogOps] = useState<SpecItem[]>([]);
   const [baseMaterialId, setBaseMaterialId] = useState<string>("");
   const [leafMaterialId, setLeafMaterialId] = useState<string>("");
 
@@ -503,6 +506,9 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
       }
     } catch {}
 
+    // Операции из справочника
+    for (const op of catalogOps) out.push(op);
+
     return out;
   }, [
     hasDesign, hasFlipSheets, flipSheetCount, baseMaterial, leafMaterial, basePrintSheets, leafPrintSheets,
@@ -510,7 +516,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     optBaseLam, optBaseLamSides, optLeafLam, optLeafLamSides, optSoftTouch, optVarnish, varnishType,
     optDieCut, optDeflash, optBigBase, bigBaseCount, optSpring, springHoles, optStamp, stampW, stampH,
     optEmboss, embossW, embossH, optRound, roundCorners, optMagnets, magnetsPerItem, optIndividualPack,
-    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode,
+    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode, catalogOps,
   ]);
 
   const totals = useMemo(() => {
@@ -905,6 +911,16 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
               </AdvancedOnly>
               <AdvancedOnly>
                 <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Операции из справочника</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CatalogOperationsPicker circulation={circulation} onChange={setCatalogOps} />
+                  </CardContent>
+                </Card>
               </AdvancedOnly>
               <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />

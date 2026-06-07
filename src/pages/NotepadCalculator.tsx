@@ -36,6 +36,8 @@ import TechReport from "@/components/calc/multipage/TechReport";
 import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEditor";
 import { makeDefaultBlock, type InternalBlock } from "@/lib/calc/multipage/blocks";
 import { buildCoverLines } from "@/lib/calc/cover/cost";
+import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import type { SpecItem } from "@/lib/calc/types";
 
 /**
  * Шаблон «Блокнот» — детальная форма с раскрывающимися блоками
@@ -55,14 +57,14 @@ const FORMATS: FormatOpt[] = [
 ];
 
 type Paper = { value: string; label: string; pricePerSheet: number; sheetW: number; sheetH: number; density: number; thicknessMm: number };
-const BLOCK_PAPERS: Paper[] = [
+const BLOCK_PAPERS_FALLBACK: Paper[] = [
   { value: "offset70", label: "Офсет 70 г/м²", pricePerSheet: 14, sheetW: 620, sheetH: 940, density: 70, thicknessMm: 0.09 },
   { value: "offset80", label: "Офсет 80 г/м²", pricePerSheet: 18, sheetW: 620, sheetH: 940, density: 80, thicknessMm: 0.10 },
   { value: "offset90", label: "Офсет 90 г/м²", pricePerSheet: 22, sheetW: 620, sheetH: 940, density: 90, thicknessMm: 0.11 },
   { value: "coated115", label: "Мелованная 115 г/м²", pricePerSheet: 28, sheetW: 620, sheetH: 940, density: 115, thicknessMm: 0.10 },
   { value: "coated130", label: "Мелованная 130 г/м²", pricePerSheet: 34, sheetW: 620, sheetH: 940, density: 130, thicknessMm: 0.11 },
 ];
-const COVER_PAPERS: Paper[] = [
+const COVER_PAPERS_FALLBACK: Paper[] = [
   { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170, thicknessMm: 0.18 },
   { value: "coated250", label: "Мелованная 250 г/м²", pricePerSheet: 70, sheetW: 620, sheetH: 940, density: 250, thicknessMm: 0.27 },
   { value: "coated300", label: "Мелованная 300 г/м²", pricePerSheet: 90, sheetW: 620, sheetH: 940, density: 300, thicknessMm: 0.32 },
@@ -131,6 +133,42 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [hasDesign, setHasDesign] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
+
+  // Бумаги из справочника материалов (доработка: связь шаблонов со справочником)
+  const [blockPapersDb, setBlockPapersDb] = useState<Paper[]>(BLOCK_PAPERS_FALLBACK);
+  const [coverPapersDb, setCoverPapersDb] = useState<Paper[]>(COVER_PAPERS_FALLBACK);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("materials")
+        .select("id,name,type,density,format_width,format_height,cost_per_sheet")
+        .order("name");
+      if (stop || error || !Array.isArray(data) || data.length === 0) return;
+      const mapped: Paper[] = (data as any[])
+        .filter((m) => m.type !== "self_adhesive" && m.type !== "cardboard" && m.type !== "other")
+        .map((m) => ({
+          value: `db:${m.id}`,
+          label: `${m.name}${m.density ? ` ${m.density} г/м²` : ""}`,
+          pricePerSheet: Number(m.cost_per_sheet) || 0,
+          sheetW: Number(m.format_width) || 700,
+          sheetH: Number(m.format_height) || 1000,
+          density: Number(m.density) || 0,
+          thicknessMm: Math.max(0.05, (Number(m.density) || 80) / 900),
+        }));
+      if (mapped.length === 0) return;
+      const blocks = mapped.filter((p) => p.density === 0 || p.density < 200);
+      const covers = mapped.filter((p) => p.density === 0 || p.density >= 150);
+      setBlockPapersDb(blocks.length ? blocks : BLOCK_PAPERS_FALLBACK);
+      setCoverPapersDb(covers.length ? covers : COVER_PAPERS_FALLBACK);
+    })();
+    return () => { stop = true; };
+  }, []);
+  const BLOCK_PAPERS = blockPapersDb;
+  const COVER_PAPERS = coverPapersDb;
+
+  // Операции из справочника (формулы)
+  const [catalogOps, setCatalogOps] = useState<SpecItem[]>([]);
 
   // Внутренний блок
   const [pages, setPages] = useState(100);
@@ -315,8 +353,24 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
       marginPercent: margin,
     });
   }, [calcCtx, format.label, itemW, itemH, circulation, printMode, bindingKind, margin]);
-  const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
-  const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
+  const blockPaper = useMemo(
+    () => BLOCK_PAPERS.find((p) => p.value === blockPaperKey) ?? BLOCK_PAPERS[0],
+    [blockPaperKey, BLOCK_PAPERS]
+  );
+  const coverPaper = useMemo(
+    () => COVER_PAPERS.find((p) => p.value === coverPaperKey) ?? COVER_PAPERS[0],
+    [coverPaperKey, COVER_PAPERS]
+  );
+  useEffect(() => {
+    if (!BLOCK_PAPERS.find((p) => p.value === blockPaperKey) && BLOCK_PAPERS[0]) {
+      setBlockPaperKey(BLOCK_PAPERS[0].value);
+    }
+  }, [BLOCK_PAPERS, blockPaperKey]);
+  useEffect(() => {
+    if (!COVER_PAPERS.find((p) => p.value === coverPaperKey) && COVER_PAPERS[0]) {
+      setCoverPaperKey(COVER_PAPERS[0].value);
+    }
+  }, [COVER_PAPERS, coverPaperKey]);
   const backing = useMemo(() => BACKINGS.find((b) => b.value === backingMaterial)!, [backingMaterial]);
   const spring = useMemo(() => SPRING_MATERIALS.find((s) => s.value === springMaterial)!, [springMaterial]);
 
@@ -549,8 +603,27 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
       for (const l of coverLines) out.push(l);
     } catch {}
 
+    // Операции из справочника (формулы)
+    const stageMap: Record<string, string> = {
+      prepress: "Препресс",
+      material: "Материалы",
+      print: "Печать",
+      postpress: "Постпечать",
+      logistics: "Логистика",
+    };
+    for (const op of catalogOps) {
+      out.push({
+        stage: stageMap[op.stage] || "Постпечать",
+        name: op.name,
+        qty: Number(op.quantity) || 0,
+        unit: op.unit || "шт",
+        price: Number(op.unitPrice) || 0,
+        total: Number(op.total) || 0,
+      });
+    }
+
     return out;
-  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack, internalBlocks, cover, printMode, blockThicknessMm]);
+  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack, internalBlocks, cover, printMode, blockThicknessMm, catalogOps]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -959,6 +1032,16 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
               </AdvancedOnly>
               <AdvancedOnly>
                 <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Операции из справочника</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CatalogOperationsPicker circulation={circulation} onChange={setCatalogOps} />
+                  </CardContent>
+                </Card>
               </AdvancedOnly>
               <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
