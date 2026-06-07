@@ -83,14 +83,14 @@ const FORMATS: BroFormat[] = [
 ];
 
 type Paper = { value: string; label: string; pricePerSheet: number; sheetW: number; sheetH: number; density: number };
-const BLOCK_PAPERS: Paper[] = [
+const BLOCK_PAPERS_FALLBACK: Paper[] = [
   { value: "offset80", label: "Офсет 80 г/м²", pricePerSheet: 18, sheetW: 620, sheetH: 940, density: 80 },
   { value: "offset90", label: "Офсет 90 г/м²", pricePerSheet: 22, sheetW: 620, sheetH: 940, density: 90 },
   { value: "coated115", label: "Мелованная 115 г/м²", pricePerSheet: 28, sheetW: 620, sheetH: 940, density: 115 },
   { value: "coated130", label: "Мелованная 130 г/м²", pricePerSheet: 34, sheetW: 620, sheetH: 940, density: 130 },
   { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170 },
 ];
-const COVER_PAPERS: Paper[] = [
+const COVER_PAPERS_FALLBACK: Paper[] = [
   { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170 },
   { value: "coated250", label: "Мелованная 250 г/м²", pricePerSheet: 70, sheetW: 620, sheetH: 940, density: 250 },
   { value: "coated300", label: "Мелованная 300 г/м²", pricePerSheet: 90, sheetW: 620, sheetH: 940, density: 300 },
@@ -150,6 +150,38 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   const [margin, setMargin] = useState(isMagazine ? 35 : isCatalog ? 40 : 30);
   const [vatPercent] = useState(16);
   const [ownTurn, setOwnTurn] = useState(true);
+
+  // Бумаги из справочника материалов (доработка: связь шаблонов со справочником)
+  const [blockPapersDb, setBlockPapersDb] = useState<Paper[]>(BLOCK_PAPERS_FALLBACK);
+  const [coverPapersDb, setCoverPapersDb] = useState<Paper[]>(COVER_PAPERS_FALLBACK);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("materials")
+        .select("id,name,type,density,format_width,format_height,cost_per_sheet")
+        .order("name");
+      if (stop || error || !Array.isArray(data) || data.length === 0) return;
+      const mapped: Paper[] = (data as any[])
+        .filter((m) => m.type !== "self_adhesive" && m.type !== "cardboard" && m.type !== "other")
+        .map((m) => ({
+          value: `db:${m.id}`,
+          label: `${m.name}${m.density ? ` ${m.density} г/м²` : ""}`,
+          pricePerSheet: Number(m.cost_per_sheet) || 0,
+          sheetW: Number(m.format_width) || 700,
+          sheetH: Number(m.format_height) || 1000,
+          density: Number(m.density) || 0,
+        }));
+      if (mapped.length === 0) return;
+      const blocks = mapped.filter((p) => p.density === 0 || p.density < 200);
+      const covers = mapped.filter((p) => p.density === 0 || p.density >= 150);
+      setBlockPapersDb([...mapped.filter((p) => p.density && p.density < 200), ...BLOCK_PAPERS_FALLBACK].length ? (blocks.length ? blocks : BLOCK_PAPERS_FALLBACK) : BLOCK_PAPERS_FALLBACK);
+      setCoverPapersDb(covers.length ? covers : COVER_PAPERS_FALLBACK);
+    })();
+    return () => { stop = true; };
+  }, []);
+  const BLOCK_PAPERS = blockPapersDb;
+  const COVER_PAPERS = coverPapersDb;
 
   // Постпечатные опции
   const [optCoverLam, setOptCoverLam] = useState(true);
@@ -407,8 +439,25 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[1], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
   const itemH = format.value === "custom" ? customH : format.h;
-  const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
-  const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
+  const blockPaper = useMemo(
+    () => BLOCK_PAPERS.find((p) => p.value === blockPaperKey) ?? BLOCK_PAPERS[0],
+    [blockPaperKey, BLOCK_PAPERS]
+  );
+  const coverPaper = useMemo(
+    () => COVER_PAPERS.find((p) => p.value === coverPaperKey) ?? COVER_PAPERS[0],
+    [coverPaperKey, COVER_PAPERS]
+  );
+  // Если выбранный ключ отсутствует в списке (например, после загрузки из справочника), переключаемся на первый
+  useEffect(() => {
+    if (!BLOCK_PAPERS.find((p) => p.value === blockPaperKey) && BLOCK_PAPERS[0]) {
+      setBlockPaperKey(BLOCK_PAPERS[0].value);
+    }
+  }, [BLOCK_PAPERS, blockPaperKey]);
+  useEffect(() => {
+    if (!COVER_PAPERS.find((p) => p.value === coverPaperKey) && COVER_PAPERS[0]) {
+      setCoverPaperKey(COVER_PAPERS[0].value);
+    }
+  }, [COVER_PAPERS, coverPaperKey]);
 
   // ── Этап 1 (доработка 85): публикация главных параметров изделия
   // в глобальный контекст ERP, чтобы все внутренние блоки/секции
