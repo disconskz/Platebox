@@ -506,6 +506,9 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
       }
     } catch {}
 
+    // Операции из справочника
+    for (const op of catalogOps) out.push(op);
+
     return out;
   }, [
     hasDesign, hasFlipSheets, flipSheetCount, baseMaterial, leafMaterial, basePrintSheets, leafPrintSheets,
@@ -513,7 +516,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     optBaseLam, optBaseLamSides, optLeafLam, optLeafLamSides, optSoftTouch, optVarnish, varnishType,
     optDieCut, optDeflash, optBigBase, bigBaseCount, optSpring, springHoles, optStamp, stampW, stampH,
     optEmboss, embossW, embossH, optRound, roundCorners, optMagnets, magnetsPerItem, optIndividualPack,
-    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode,
+    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode, catalogOps,
   ]);
 
   const totals = useMemo(() => {
