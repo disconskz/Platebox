@@ -353,8 +353,24 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
       marginPercent: margin,
     });
   }, [calcCtx, format.label, itemW, itemH, circulation, printMode, bindingKind, margin]);
-  const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
-  const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
+  const blockPaper = useMemo(
+    () => BLOCK_PAPERS.find((p) => p.value === blockPaperKey) ?? BLOCK_PAPERS[0],
+    [blockPaperKey, BLOCK_PAPERS]
+  );
+  const coverPaper = useMemo(
+    () => COVER_PAPERS.find((p) => p.value === coverPaperKey) ?? COVER_PAPERS[0],
+    [coverPaperKey, COVER_PAPERS]
+  );
+  useEffect(() => {
+    if (!BLOCK_PAPERS.find((p) => p.value === blockPaperKey) && BLOCK_PAPERS[0]) {
+      setBlockPaperKey(BLOCK_PAPERS[0].value);
+    }
+  }, [BLOCK_PAPERS, blockPaperKey]);
+  useEffect(() => {
+    if (!COVER_PAPERS.find((p) => p.value === coverPaperKey) && COVER_PAPERS[0]) {
+      setCoverPaperKey(COVER_PAPERS[0].value);
+    }
+  }, [COVER_PAPERS, coverPaperKey]);
   const backing = useMemo(() => BACKINGS.find((b) => b.value === backingMaterial)!, [backingMaterial]);
   const spring = useMemo(() => SPRING_MATERIALS.find((s) => s.value === springMaterial)!, [springMaterial]);
 
