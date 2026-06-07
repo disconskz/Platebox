@@ -122,6 +122,7 @@ export interface BrochureLikeProps {
 
 export default function BrochureCalculator({ mode = "brochure", embedded = false, onResult }: BrochureLikeProps = {}) {
   const isSoftcover = mode === "softcover";
+  const { priceOp } = useHandbook();
   const isPlanner = mode === "planner";
   const isHardcover = mode === "hardcover" || isPlanner;
   const isNotepad = mode === "notepad";
