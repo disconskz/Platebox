@@ -460,6 +460,7 @@ export default function BookletLifletCalculator({ mode }: Props = {}) {
     hasStamping, stampingAreaCm2, hasEmbossing, embossingAreaCm2,
     hasQr, hasPersonalization, variableElements,
     packKind, pack, circulation, hasDelivery, deliveryCost,
+  priceOp,
   ]);
 
   const totals = useMemo(() => {

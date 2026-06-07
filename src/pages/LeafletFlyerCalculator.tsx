@@ -418,6 +418,7 @@ export default function LeafletFlyerCalculator() {
     hasBlockGlue, blockSize, finishedH,
     hasRoundCorners, cornersCount,
     packKind, pack, circulation, hasDelivery, deliveryCost,
+  priceOp,
   ]);
 
   const totals = useMemo(() => {
