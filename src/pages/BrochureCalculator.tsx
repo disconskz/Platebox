@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { SpecTable } from "@/components/calc/SpecTable";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -566,9 +567,9 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   const offset = printMode === "offset" || (printMode === "auto" && circulation >= 300);
 
   const lines = useMemo(() => {
-    const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
-    const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
-      out.push({ stage, name, qty, unit, price, total: qty * price });
+    const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number; details?: { label: string; value: string }[] }[] = [];
+    const push = (stage: string, name: string, qty: number, unit: string, price: number, details?: { label: string; value: string }[]) =>
+      out.push({ stage, name, qty, unit, price, total: qty * price, details });
     // Пытается посчитать операцию по формуле из справочника. Если справочник
     // не сконфигурирован — возвращает false, и шаблон применяет fallback.
     const tryHandbook = (opKey: Parameters<typeof priceOp>[0], vars: Record<string, number>): boolean => {
@@ -1658,30 +1659,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
           <Card className="mt-4">
             <CardHeader><CardTitle className="text-sm">Спецификация</CardTitle></CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Этап</TableHead>
-                    <TableHead>Операция</TableHead>
-                    <TableHead className="text-right">Кол-во</TableHead>
-                    <TableHead>Ед.</TableHead>
-                    <TableHead className="text-right">Цена</TableHead>
-                    <TableHead className="text-right">Итого</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((l, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-xs text-muted-foreground">{l.stage}</TableCell>
-                      <TableCell>{l.name}</TableCell>
-                      <TableCell className="text-right">{fmtNum(l.qty)}</TableCell>
-                      <TableCell>{l.unit}</TableCell>
-                      <TableCell className="text-right">{fmtMoney(l.price)}</TableCell>
-                      <TableCell className="text-right font-medium">{fmtMoney(l.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <SpecTable lines={lines} />
             </CardContent>
           </Card>
         </PageContainer>
