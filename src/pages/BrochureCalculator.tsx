@@ -439,8 +439,25 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   const format = useMemo(() => FORMATS.find((f) => f.value === presetKey) ?? FORMATS[1], [presetKey]);
   const itemW = format.value === "custom" ? customW : format.w;
   const itemH = format.value === "custom" ? customH : format.h;
-  const blockPaper = useMemo(() => BLOCK_PAPERS.find((p) => p.value === blockPaperKey)!, [blockPaperKey]);
-  const coverPaper = useMemo(() => COVER_PAPERS.find((p) => p.value === coverPaperKey)!, [coverPaperKey]);
+  const blockPaper = useMemo(
+    () => BLOCK_PAPERS.find((p) => p.value === blockPaperKey) ?? BLOCK_PAPERS[0],
+    [blockPaperKey, BLOCK_PAPERS]
+  );
+  const coverPaper = useMemo(
+    () => COVER_PAPERS.find((p) => p.value === coverPaperKey) ?? COVER_PAPERS[0],
+    [coverPaperKey, COVER_PAPERS]
+  );
+  // Если выбранный ключ отсутствует в списке (например, после загрузки из справочника), переключаемся на первый
+  useEffect(() => {
+    if (!BLOCK_PAPERS.find((p) => p.value === blockPaperKey) && BLOCK_PAPERS[0]) {
+      setBlockPaperKey(BLOCK_PAPERS[0].value);
+    }
+  }, [BLOCK_PAPERS, blockPaperKey]);
+  useEffect(() => {
+    if (!COVER_PAPERS.find((p) => p.value === coverPaperKey) && COVER_PAPERS[0]) {
+      setCoverPaperKey(COVER_PAPERS[0].value);
+    }
+  }, [COVER_PAPERS, coverPaperKey]);
 
   // ── Этап 1 (доработка 85): публикация главных параметров изделия
   // в глобальный контекст ERP, чтобы все внутренние блоки/секции
