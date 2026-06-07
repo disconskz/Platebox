@@ -26,6 +26,8 @@ import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
 import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
 import type { SpecItem } from "@/lib/calc/types";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
@@ -109,6 +111,7 @@ export interface PocketCalendarCalculatorProps {
   onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
 }
 export default function PocketCalendarCalculator({ embedded = false, onResult }: PocketCalendarCalculatorProps = {}) {
+  const { priceOp } = useHandbook();
   const [presetKey, setPresetKey] = useState("70x100");
   const [customW, setCustomW] = useState(70);
   const [customH, setCustomH] = useState(100);
