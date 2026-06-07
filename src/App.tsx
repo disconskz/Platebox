@@ -9,6 +9,7 @@ import AuthPage from "./pages/Auth.tsx";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
+import { HandbookProvider } from "@/lib/operations/HandbookProvider";
 import AiChatLayout from "@/components/ai-calc/AiChatLayout";
 import Calculator from "./pages/Calculator.tsx";
 import MultiSkuCalculator from "./pages/MultiSkuCalculator.tsx";
@@ -82,6 +83,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <HandbookProvider>
           <Routes>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/landing" element={<Landing />} />
@@ -158,6 +160,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </HandbookProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
