@@ -1,7 +1,15 @@
 import type { HandbookLine } from "./HandbookProvider";
 import type { TemplateOpKey } from "./templateOpsMap";
 
-type PushFn = (stage: string, name: string, qty: number, unit: string, price: number) => void;
+type Detail = { label: string; value: string };
+type PushFn = (
+  stage: string,
+  name: string,
+  qty: number,
+  unit: string,
+  price: number,
+  details?: Detail[],
+) => void;
 type PriceOpFn = (key: TemplateOpKey, vars: Record<string, number>) => HandbookLine[] | null;
 
 /**
@@ -19,7 +27,7 @@ export function buildTryHandbook(
   return (opKey: TemplateOpKey, vars: Record<string, number>, fallback: () => void): void => {
     const lines = priceOp(opKey, { ...baseCtx, ...vars });
     if (lines && lines.length) {
-      for (const l of lines) push(l.stage, l.name, l.qty, l.unit, l.price);
+      for (const l of lines) push(l.stage, l.name, l.qty, l.unit, l.price, l.details);
     } else {
       fallback();
     }

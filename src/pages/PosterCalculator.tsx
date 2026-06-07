@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { SpecTable } from "@/components/calc/SpecTable";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -608,25 +609,7 @@ export default function PosterCalculator() {
             <Card className="lg:col-span-3">
               <CardHeader><CardTitle className="text-base">Спецификация</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Этап</TableHead><TableHead>Операция</TableHead><TableHead className="text-right">Кол-во</TableHead><TableHead>Ед.</TableHead><TableHead className="text-right">Цена</TableHead><TableHead className="text-right">Сумма</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lines.map((l, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-xs text-muted-foreground">{l.stage}</TableCell>
-                        <TableCell>{l.name}</TableCell>
-                        <TableCell className="text-right">{fmtNum(l.quantity)}</TableCell>
-                        <TableCell>{l.unit}</TableCell>
-                        <TableCell className="text-right">{fmtMoney(l.unitPrice)}</TableCell>
-                        <TableCell className="text-right">{fmtMoney(l.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <SpecTable lines={lines} />
                 <Separator className="my-4" />
                 <div className="grid gap-2 sm:grid-cols-4 text-sm">
                   <div><div className="text-muted-foreground">Себестоимость</div><div className="font-semibold">{fmtMoney(totals.cost)}</div></div>

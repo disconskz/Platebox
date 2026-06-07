@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { SpecTable } from "@/components/calc/SpecTable";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
@@ -1032,30 +1033,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
             <Card className="mt-4">
               <CardHeader><CardTitle className="text-sm">Спецификация работ и материалов</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Этап</TableHead>
-                      <TableHead>Наименование</TableHead>
-                      <TableHead className="text-right">Кол-во</TableHead>
-                      <TableHead>Ед.</TableHead>
-                      <TableHead className="text-right">Цена</TableHead>
-                      <TableHead className="text-right">Сумма</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {spec.map((it, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-xs text-muted-foreground">{it.stage}</TableCell>
-                        <TableCell>{it.name}</TableCell>
-                        <TableCell className="text-right">{fmtNum(it.quantity)}</TableCell>
-                        <TableCell>{it.unit}</TableCell>
-                        <TableCell className="text-right">{fmtMoney(it.unitPrice)}</TableCell>
-                        <TableCell className="text-right">{fmtMoney(it.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <SpecTable lines={lines} />
               </CardContent>
             </Card>
           )}
