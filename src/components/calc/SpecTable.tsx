@@ -22,7 +22,24 @@ export interface SpecLine {
 export function SpecTable({ lines }: { lines: SpecLine[] }) {
   const [open, setOpen] = React.useState<Record<number, boolean>>({});
   const toggle = (i: number) => setOpen((s) => ({ ...s, [i]: !s[i] }));
+  const [allOpen, setAllOpen] = React.useState(false);
+  const expandAll = () => {
+    const next: Record<number, boolean> = {};
+    lines.forEach((_, i) => (next[i] = !allOpen));
+    setOpen(next);
+    setAllOpen((v) => !v);
+  };
   return (
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={expandAll}
+          className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+        >
+          {allOpen ? "Свернуть все" : "Раскрыть все"}
+        </button>
+      </div>
     <Table>
       <TableHeader>
         <TableRow>
@@ -37,7 +54,16 @@ export function SpecTable({ lines }: { lines: SpecLine[] }) {
       </TableHeader>
       <TableBody>
         {lines.map((l, i) => {
-          const has = !!(l.details && l.details.length);
+          // Если у строки нет деталей — авто-детализация по умолчанию,
+          // чтобы пользователь всегда мог раскрыть и увидеть расчёт.
+          const details: SpecLineDetail[] = l.details && l.details.length
+            ? l.details
+            : [
+                { label: "Этап", value: l.stage },
+                { label: "Расчёт", value: `${fmtNum(l.qty)} ${l.unit} × ${fmtMoney(l.price)} = ${fmtMoney(l.total)}` },
+                { label: "Источник", value: "Базовый расчёт калькулятора" },
+              ];
+          const has = details.length > 0;
           const isOpen = !!open[i];
           return (
             <React.Fragment key={i}>
@@ -66,7 +92,7 @@ export function SpecTable({ lines }: { lines: SpecLine[] }) {
                   <TableCell />
                   <TableCell colSpan={6} className="py-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[11px]">
-                      {l.details!.map((d, k) => (
+                      {details.map((d, k) => (
                         <div key={k} className="flex gap-2">
                           <span className="text-muted-foreground shrink-0">{d.label}:</span>
                           <span className="font-mono break-all">{d.value}</span>
@@ -81,6 +107,7 @@ export function SpecTable({ lines }: { lines: SpecLine[] }) {
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }
 

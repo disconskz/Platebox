@@ -436,14 +436,35 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     push("Препресс", "Проверка макета и спуск полос", 1, "усл.", 1200);
 
     // Внутренний блок
-    push("Материалы", `Бумага блока: ${blockPaper.label}`, blockLayout.printSheets, "лист", blockPaper.pricePerSheet);
+    push("Материалы", `Бумага блока: ${blockPaper.label}`, blockLayout.printSheets, "лист", blockPaper.pricePerSheet, [
+      { label: "Формат изделия", value: `${itemW}×${itemH} мм` },
+      { label: "Формат листа", value: `${blockPaper.sheetW}×${blockPaper.sheetH} мм` },
+      { label: "Кол-во полос блока", value: `${pages}` },
+      { label: "Тираж", value: `${circulation} шт` },
+      { label: "Чистых листов", value: `${blockLayout.netSheets ?? "—"}` },
+      { label: "Печатных листов (с приладкой)", value: `${blockLayout.printSheets}` },
+      { label: "Цена за лист", value: `${blockPaper.pricePerSheet} ₸` },
+      { label: "Итого по бумаге", value: `${blockLayout.printSheets} × ${blockPaper.pricePerSheet} = ${blockLayout.printSheets * blockPaper.pricePerSheet} ₸` },
+    ]);
     if (offset) {
       const formsBlock = Math.max(colorBlockFront, 0) + Math.max(colorBlockBack, 0);
-      push("Печать", "Формы блока", formsBlock, "форма", 1500);
-      push("Печать", "Приладка блока", 1, "усл.", 800);
+      push("Печать", "Формы блока", formsBlock, "форма", 1500, [
+        { label: "Красочность лицо", value: `${colorBlockFront}` },
+        { label: "Красочность оборот", value: `${colorBlockBack}` },
+        { label: "Расчёт", value: `${colorBlockFront} + ${colorBlockBack} = ${formsBlock} форм × 1500 ₸` },
+      ]);
+      push("Печать", "Приладка блока", 1, "усл.", 800, [
+        { label: "Тип печати", value: "Офсет" },
+        { label: "Расчёт", value: "1 приладка × 800 ₸" },
+      ]);
     }
     push("Печать", offset ? "Печать блока (офсет)" : "Печать блока (цифра)",
-      blockLayout.printSheets, "лист", offset ? 5 : 25);
+      blockLayout.printSheets, "лист", offset ? 5 : 25, [
+        { label: "Тип печати", value: offset ? "Офсет" : "Цифра" },
+        { label: "Печатных листов", value: `${blockLayout.printSheets}` },
+        { label: "Цена за лист", value: `${offset ? 5 : 25} ₸` },
+        { label: "Расчёт", value: `${blockLayout.printSheets} × ${offset ? 5 : 25} = ${blockLayout.printSheets * (offset ? 5 : 25)} ₸` },
+      ]);
 
     // Дополнительные внутренние блоки (мульти-блочная ERP-архитектура).
     // Первый блок учтён выше через legacy-поля; считаем остальные блоки приближённо.
@@ -469,7 +490,14 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
 
     // Обложка
     if (hasCover) {
-      push("Материалы", `Бумага обложки: ${coverPaper.label}`, coverLayout.printSheets, "лист", coverPaper.pricePerSheet);
+      push("Материалы", `Бумага обложки: ${coverPaper.label}`, coverLayout.printSheets, "лист", coverPaper.pricePerSheet, [
+        { label: "Формат изделия", value: `${itemW}×${itemH} мм` },
+        { label: "Формат разворота обложки", value: `${coverLayout.spreadW}×${itemH} мм` },
+        { label: "Формат листа", value: `${coverPaper.sheetW}×${coverPaper.sheetH} мм` },
+        { label: "Тираж", value: `${circulation} шт` },
+        { label: "Печатных листов", value: `${coverLayout.printSheets}` },
+        { label: "Цена за лист", value: `${coverPaper.pricePerSheet} ₸` },
+      ]);
       if (offset) {
         const formsCover = Math.max(colorCoverFront, 0) + Math.max(colorCoverBack, 0);
         push("Печать", "Формы обложки", formsCover, "форма", 1500);
@@ -509,8 +537,17 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     // Подложка
     if (hasBacking) {
       push("Подложка", `Материал: ${backing.label} (${backingThicknessMm} мм)`,
-        backingLayout.areaM2, "м²", backing.pricePerM2);
-      push("Подложка", "Резка подложки", circulation, "шт.", 0.8);
+        backingLayout.areaM2, "м²", backing.pricePerM2, [
+          { label: "Формат изделия", value: `${itemW}×${itemH} мм` },
+          { label: "Толщина", value: `${backingThicknessMm} мм` },
+          { label: "Тираж", value: `${circulation} шт` },
+          { label: "Площадь, м²", value: `(${itemW}×${itemH})/1 000 000 × ${circulation} = ${backingLayout.areaM2}` },
+          { label: "Цена за м²", value: `${backing.pricePerM2} ₸` },
+        ]);
+      push("Подложка", "Резка подложки", circulation, "шт.", 0.8, [
+        { label: "Тираж", value: `${circulation} шт` },
+        { label: "Расчёт", value: `${circulation} × 0,8 = ${circulation * 0.8} ₸` },
+      ]);
       if (backingPrint) {
         push("Подложка", "Печать на подложке", circulation, "шт.", offset ? 6 : 18);
         if (offset) push("Подложка", "Формы подложки", Math.max(backingColorFront, 1), "форма", 1500);
@@ -538,10 +575,22 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
         "Количество витков": holes,
         "Стоимость витка пружины": (spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5) / Math.max(1, holes),
       }, () => {
-        push("Скрепление", "Перфорация под пружину", holes * circulation, "отв.", 0.5);
+        const springPrice = spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5;
+        push("Скрепление", "Перфорация под пружину", holes * circulation, "отв.", 0.5, [
+          { label: "Отверстий на изделии", value: `${holes} (≈ высота/6)` },
+          { label: "Тираж", value: `${circulation} шт` },
+          { label: "Расчёт", value: `${holes} × ${circulation} × 0,5 = ${holes * circulation * 0.5} ₸` },
+        ]);
         push("Скрепление", `Пружина ${spring.label} Ø${springDiameterMm} мм (${springColor})`,
-          circulation, "шт.", spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5);
-        push("Скрепление", "Навивка пружины", circulation, "шт.", 35);
+          circulation, "шт.", springPrice, [
+            { label: "Диаметр пружины", value: `${springDiameterMm} мм` },
+            { label: "База цены", value: `${spring.pricePerItem} ₸` },
+            { label: "Надбавка за Ø", value: `+${Math.max(0, springDiameterMm - 8) * 1.5} ₸` },
+            { label: "Итого за шт", value: `${springPrice} ₸` },
+          ]);
+        push("Скрепление", "Навивка пружины", circulation, "шт.", 35, [
+          { label: "Расчёт", value: `${circulation} × 35 = ${circulation * 35} ₸` },
+        ]);
         push("Скрепление", "Приладка пружины", 1, "усл.", 1500);
       });
     } else if (bindingKind === "staple") {
