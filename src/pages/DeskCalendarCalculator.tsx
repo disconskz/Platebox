@@ -913,6 +913,16 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
                 <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
               </AdvancedOnly>
               <AdvancedOnly>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Операции из справочника</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CatalogOperationsPicker circulation={circulation} onChange={setCatalogOps} />
+                  </CardContent>
+                </Card>
+              </AdvancedOnly>
+              <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
               </AdvancedOnly>
               <AdvancedOnly>
