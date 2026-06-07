@@ -609,7 +609,7 @@ export default function PosterCalculator() {
             <Card className="lg:col-span-3">
               <CardHeader><CardTitle className="text-base">Спецификация</CardTitle></CardHeader>
               <CardContent className="overflow-x-auto">
-                <SpecTable lines={lines} />
+                <SpecTable lines={lines.map((l) => ({ stage: l.stage, name: l.name, qty: l.quantity, unit: l.unit, price: l.unitPrice, total: l.total }))} />
                 <Separator className="my-4" />
                 <div className="grid gap-2 sm:grid-cols-4 text-sm">
                   <div><div className="text-muted-foreground">Себестоимость</div><div className="font-semibold">{fmtMoney(totals.cost)}</div></div>
