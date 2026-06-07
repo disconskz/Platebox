@@ -30,6 +30,8 @@ import PrepressSection, {
 } from "@/components/calc/multipage/sections/PrepressSection";
 import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
+import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import type { SpecItem } from "@/lib/calc/types";
 import QualityControlSection, {
   DEFAULT_QC,
   type QcState,
@@ -300,6 +302,13 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   const [prepress, setPrepress] = useState<PrepressState>(DEFAULT_PREPRESS);
   const [printBlock, setPrintBlock] = useState<PrintState>(DEFAULT_PRINT);
   const [postpress, setPostpress] = useState<PostpressState>(DEFAULT_POSTPRESS);
+  /**
+   * Операции, добавленные пользователем из справочника операций.
+   * Стоимость и количество считаются по формулам из справочника
+   * (operation_catalog / operation_parameters / operation_work_items)
+   * и приплюсовываются к итогу шаблона.
+   */
+  const [catalogOps, setCatalogOps] = useState<SpecItem[]>([]);
   const [qc, setQc] = useState<QcState>(DEFAULT_QC);
   const [packaging, setPackaging] = useState<PackagingState>(DEFAULT_PACKAGING);
   const [cover, setCover] = useState<CoverState>(DEFAULT_COVER);
@@ -757,8 +766,27 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
       for (const l of coverLines) out.push(l);
     } catch {}
 
+    // Операции из справочника (формулы редактируются в разделе «Справочник → Операции»)
+    for (const it of catalogOps) {
+      const stageMap: Record<string, string> = {
+        prepress: "Препресс",
+        material: "Материалы",
+        print: "Печать",
+        postpress: "Постпечать",
+        logistics: "Логистика",
+      };
+      out.push({
+        stage: stageMap[it.stage] || "Постпечать",
+        name: it.name,
+        qty: it.quantity,
+        unit: it.unit,
+        price: it.unitPrice,
+        total: it.total,
+      });
+    }
+
     return out;
-  }, [isCatalog, isMagazine, isCatalogLike, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, signaturePages, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, optFlaps, flapWidthMm, optTabs, tabsCount, packagingKind, hasDelivery, deliveryCost, internalBlocks, cover, printMode]);
+  }, [isCatalog, isMagazine, isCatalogLike, isHardcover, isPlanner, plDated, plOptElastic, plOptMagnet, plOptPocket, plOptPenLoop, plOptCorners, plCornersCount, plOptNameplate, plOptPersonalize, plOptGiftBox, hcBoardThicknessMm, hcCoverMaterial, hcOptLasse, hcOptEdgeColor, hcOptEdgeFoil, hcOptSuperjacket, hcOptSlipcase, hcOptShubr, itemW, hasDesign, blockPaper, coverPaper, blockLayout, coverLayout, signatures, signaturePages, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, ownTurn, optCoverLam, coverLamSides, itemH, optCoverBig, optSoftTouch, circulation, optVarnish, optSpotVarnish, optStamp, stampArea, optEmboss, optPerf, perfLineMm, perfLines, optNum, numCount, optDieCut, optDeflash, optRound, roundCorners, premiumCoef, pages, bindingKind, optInserts, insertCount, insertAuto, optAddress, addressMode, optShrink, optFlaps, flapWidthMm, optTabs, tabsCount, packagingKind, hasDelivery, deliveryCost, internalBlocks, cover, printMode, catalogOps]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
@@ -1390,6 +1418,20 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               </AdvancedOnly>
               <AdvancedOnly>
                 <PostpressSection value={postpress} onChange={setPostpress} title="7. Постпечатка" />
+              </AdvancedOnly>
+              <AdvancedOnly>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Операции из справочника (формулы)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Добавьте операцию из справочника — её стоимость рассчитается по формулам, которые
+                      настроены в разделе «Справочник → Операции». Любая правка формулы сразу отразится здесь.
+                    </p>
+                    <CatalogOperationsPicker circulation={circulation} onChange={setCatalogOps} />
+                  </CardContent>
+                </Card>
               </AdvancedOnly>
               <AdvancedOnly>
                 <AssemblySection value={assembly} onChange={setAssembly} title="8. Сборка" />
