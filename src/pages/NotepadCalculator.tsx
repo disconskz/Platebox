@@ -134,6 +134,42 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [hasDelivery, setHasDelivery] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
 
+  // Бумаги из справочника материалов (доработка: связь шаблонов со справочником)
+  const [blockPapersDb, setBlockPapersDb] = useState<Paper[]>(BLOCK_PAPERS_FALLBACK);
+  const [coverPapersDb, setCoverPapersDb] = useState<Paper[]>(COVER_PAPERS_FALLBACK);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("materials")
+        .select("id,name,type,density,format_width,format_height,cost_per_sheet")
+        .order("name");
+      if (stop || error || !Array.isArray(data) || data.length === 0) return;
+      const mapped: Paper[] = (data as any[])
+        .filter((m) => m.type !== "self_adhesive" && m.type !== "cardboard" && m.type !== "other")
+        .map((m) => ({
+          value: `db:${m.id}`,
+          label: `${m.name}${m.density ? ` ${m.density} г/м²` : ""}`,
+          pricePerSheet: Number(m.cost_per_sheet) || 0,
+          sheetW: Number(m.format_width) || 700,
+          sheetH: Number(m.format_height) || 1000,
+          density: Number(m.density) || 0,
+          thicknessMm: Math.max(0.05, (Number(m.density) || 80) / 900),
+        }));
+      if (mapped.length === 0) return;
+      const blocks = mapped.filter((p) => p.density === 0 || p.density < 200);
+      const covers = mapped.filter((p) => p.density === 0 || p.density >= 150);
+      setBlockPapersDb(blocks.length ? blocks : BLOCK_PAPERS_FALLBACK);
+      setCoverPapersDb(covers.length ? covers : COVER_PAPERS_FALLBACK);
+    })();
+    return () => { stop = true; };
+  }, []);
+  const BLOCK_PAPERS = blockPapersDb;
+  const COVER_PAPERS = coverPapersDb;
+
+  // Операции из справочника (формулы)
+  const [catalogOps, setCatalogOps] = useState<SpecItem[]>([]);
+
   // Внутренний блок
   const [pages, setPages] = useState(100);
   const [blockPaperKey, setBlockPaperKey] = useState("offset80");
