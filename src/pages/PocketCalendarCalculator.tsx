@@ -218,7 +218,10 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       marginPercent: margin,
     });
   }, [calcCtx, format.value, itemW, itemH, circulation, printMode, margin]);
-  const material = useMemo(() => MATERIALS.find((m) => m.value === materialKey)!, [materialKey]);
+  const material = useMemo(
+    () => MATERIALS.find((m) => m.value === materialKey) ?? MATERIALS[0],
+    [materialKey, MATERIALS]
+  );
   const lam = useMemo(() => LAMS.find((l) => l.value === lamType)!, [lamType]);
   const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
 
