@@ -453,7 +453,7 @@ export default function PocketCalendarCalculator({ embedded = false, onResult }:
       optDieCut, optDeflash, optRound, roundCorners,
       optQR, optBarcode, optPersonal, personalCount, variable,
       packKind, pack, circulation, premiumCoef, hasDelivery, deliveryCost,
-      cover, itemW, itemH, catalogOps]);
+      cover, itemW, itemH, catalogOps, priceOp]);
 
 
   const totals = useMemo(() => {
