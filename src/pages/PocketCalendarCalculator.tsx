@@ -55,7 +55,7 @@ type Material = {
   value: string; label: string; type: string; density: number;
   sheetW: number; sheetH: number; pricePerSheet: number; designer?: boolean; premium?: boolean;
 };
-const MATERIALS: Material[] = [
+const MATERIALS_FALLBACK: Material[] = [
   { value: "coated250", label: "Мелованная 250 г/м²", type: "coated", density: 250, sheetW: 620, sheetH: 940, pricePerSheet: 70 },
   { value: "coatedboard300", label: "Мелованный картон 300 г/м²", type: "coated-board", density: 300, sheetW: 620, sheetH: 940, pricePerSheet: 95 },
   { value: "coatedboard350", label: "Мелованный картон 350 г/м²", type: "coated-board", density: 350, sheetW: 620, sheetH: 940, pricePerSheet: 120 },
