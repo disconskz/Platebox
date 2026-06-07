@@ -44,6 +44,39 @@ export interface PrintSectionProps {
 
 export default function PrintSection({ value, onChange, title = "Печать", readonly = true }: PrintSectionProps) {
   const set = <K extends keyof PrintState>(k: K, v: PrintState[K]) => onChange({ ...value, [k]: v });
+  // Readonly режим: показываем значения как статичный текст,
+  // чтобы колесо мыши / стрелки не «дёргали» числа в number-инпутах.
+  if (readonly) {
+    const printTypeLabel =
+      value.printType === "offset" ? "Офсет" : value.printType === "digital" ? "Цифра" : "Авто";
+    const Field = ({ label, val }: { label: string; val: React.ReactNode }) => (
+      <div>
+        <Label className="text-xs">{label}</Label>
+        <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+          {val}
+        </div>
+      </div>
+    );
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Printer className="h-4 w-4" />
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label="Тип печати" val={printTypeLabel} />
+          <Field label="Цветность лицо" val={value.colorFront} />
+          <Field label="Цветность оборот" val={value.colorBack} />
+          <Field label="Формы" val={value.forms} />
+          <Field label="Приладка" val={value.setup} />
+          <Field label="Формат печати" val={value.printFormat || "—"} />
+          <Field label="Печатных листов" val={value.printSheets} />
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card>
       <CardHeader>
