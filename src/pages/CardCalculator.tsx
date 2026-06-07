@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Открытка» — листовая логика с поддержкой биговки, фальцовки,
  * фигурной высечки, премиальной отделки, персонализации и конвертов.
@@ -85,6 +87,7 @@ const PACKS: { value: PackKind; label: string; price: number }[] = [
 ];
 
 export default function CardCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [presetKey, setPresetKey] = useState("105x148");
   const [customW, setCustomW] = useState(105);
@@ -198,6 +201,7 @@ export default function CardCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн открытки", 1, "усл.", 8000);
     push("Препресс", "Проверка макета и спуск полос", 1, "усл.", 1000);

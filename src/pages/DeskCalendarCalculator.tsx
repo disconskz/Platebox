@@ -23,6 +23,8 @@ import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/compone
 import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
 import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import type { TemplateOpKey } from "@/lib/operations/templateOpsMap";
 import QualityControlSection, { DEFAULT_QC, type QcState } from "@/components/calc/multipage/sections/QualityControlSection";
 import PackagingSection, { DEFAULT_PACKAGING, type PackagingState } from "@/components/calc/multipage/sections/PackagingSection";
 import CoverSection, { DEFAULT_COVER, type CoverState } from "@/components/calc/multipage/sections/CoverSection";
@@ -71,6 +73,7 @@ export interface DeskCalendarCalculatorProps {
   onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
 }
 export default function DeskCalendarCalculator({ embedded = false, onResult }: DeskCalendarCalculatorProps = {}) {
+  const { priceOp } = useHandbook();
   // Основные параметры
   const [circulation, setCirculation] = useState(100);
   const [basePreset, setBasePreset] = useState("medium");
@@ -310,6 +313,20 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
   // Спецификация
   const spec = useMemo<SpecItem[]>(() => {
     const out: SpecItem[] = [];
+    // Маппинг русских категорий справочника в технические stage этого шаблона.
+    const stageRu2En: Record<string, SpecItem["stage"]> = {
+      "Постпечать": "postpress", "Сборка": "assembly", "Сборка блока": "assembly",
+      "Скрепление": "postpress", "Финиш": "postpress", "Упаковка": "packing",
+    };
+    const tryHB = (opKey: TemplateOpKey, vars: Record<string, number>, fallback: () => void): void => {
+      const ls = priceOp(opKey, { "ТИРАЖ": circulation, ...vars });
+      if (ls && ls.length) {
+        for (const l of ls) out.push({
+          stage: stageRu2En[l.stage] || "postpress",
+          name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total,
+        });
+      } else { fallback(); }
+    };
 
     // Дизайн
     if (hasDesign) {
@@ -402,10 +419,17 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
     // Высечка
     if (optDieCut) {
-      const price = 2.5;
-      out.push({ stage: "postpress", name: "Высечка (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
-      out.push({ stage: "postpress", name: "Высечка", quantity: circulation, unit: "изд", unitPrice: price, total: circulation * price });
-      out.push({ stage: "postpress", name: "Стоимость штампа высечки", quantity: 1, unit: "шт", unitPrice: 15000, total: 15000 });
+      tryHB("dieCut", {
+        "количество приладок": 1,
+        "стоимость ножа": 15000,
+        "Количество бумаги на тираж": basePrintSheets,
+        "Количество ударов высечки общее за тираж": circulation,
+      }, () => {
+        const price = 2.5;
+        out.push({ stage: "postpress", name: "Высечка (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+        out.push({ stage: "postpress", name: "Высечка", quantity: circulation, unit: "изд", unitPrice: price, total: circulation * price });
+        out.push({ stage: "postpress", name: "Стоимость штампа высечки", quantity: 1, unit: "шт", unitPrice: 15000, total: 15000 });
+      });
     }
 
     // Удаление облоя
@@ -417,9 +441,11 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
     // Биговка основания (обязательная)
     if (optBigBase) {
-      const price = 1.5;
-      out.push({ stage: "postpress", name: `Биговка основания (${bigBaseCount} биг.)`, quantity: circulation * bigBaseCount, unit: "биг", unitPrice: price, total: circulation * bigBaseCount * price });
-      out.push({ stage: "postpress", name: "Биговка основания (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      tryHB("creaseMachine", { "количество бигов общее за тираж": circulation * bigBaseCount }, () => {
+        const price = 1.5;
+        out.push({ stage: "postpress", name: `Биговка основания (${bigBaseCount} биг.)`, quantity: circulation * bigBaseCount, unit: "биг", unitPrice: price, total: circulation * bigBaseCount * price });
+        out.push({ stage: "postpress", name: "Биговка основания (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      });
     }
 
     // Перфорация под пружину
@@ -431,11 +457,16 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
     // Навивка пружины
     if (hasFlipSheets && optSpring) {
-      const price = 45;
-      const springPrice = 25;
-      out.push({ stage: "postpress", name: "Навивка пружины", quantity: circulation, unit: "изд", unitPrice: price, total: circulation * price });
-      out.push({ stage: "material", name: "Пружина", quantity: circulation, unit: "шт", unitPrice: springPrice, total: circulation * springPrice });
-      out.push({ stage: "postpress", name: "Навивка пружины (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      tryHB("spiral", {
+        "Количество витков": springHoles,
+        "Стоимость витка пружины": 25 / Math.max(1, springHoles),
+      }, () => {
+        const price = 45;
+        const springPrice = 25;
+        out.push({ stage: "postpress", name: "Навивка пружины", quantity: circulation, unit: "изд", unitPrice: price, total: circulation * price });
+        out.push({ stage: "material", name: "Пружина", quantity: circulation, unit: "шт", unitPrice: springPrice, total: circulation * springPrice });
+        out.push({ stage: "postpress", name: "Навивка пружины (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+      });
     }
 
     // Сборка конструкции
@@ -447,19 +478,31 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
 
     // Тиснение
     if (optStamp) {
-      const area = stampW * stampH;
-      out.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
-      out.push({ stage: "postpress", name: "Тиснение — нанесение", quantity: circulation, unit: "изд", unitPrice: area * 12, total: circulation * area * 12 });
-      out.push({ stage: "postpress", name: "Тиснение — фольга", quantity: circulation, unit: "изд", unitPrice: area * 8, total: circulation * area * 8 });
-      out.push({ stage: "prepress", name: "Тиснение — клише", quantity: 1, unit: "шт", unitPrice: 8000, total: 8000 });
+      tryHB("stamp", {
+        "Площадь тиснения, см2": stampW * stampH,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      }, () => {
+        const area = stampW * stampH;
+        out.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+        out.push({ stage: "postpress", name: "Тиснение — нанесение", quantity: circulation, unit: "изд", unitPrice: area * 12, total: circulation * area * 12 });
+        out.push({ stage: "postpress", name: "Тиснение — фольга", quantity: circulation, unit: "изд", unitPrice: area * 8, total: circulation * area * 8 });
+        out.push({ stage: "prepress", name: "Тиснение — клише", quantity: 1, unit: "шт", unitPrice: 8000, total: 8000 });
+      });
     }
 
     // Конгрев
     if (optEmboss) {
-      const area = embossW * embossH;
-      out.push({ stage: "postpress", name: "Конгрев (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
-      out.push({ stage: "postpress", name: "Конгрев — нанесение", quantity: circulation, unit: "изд", unitPrice: area * 10, total: circulation * area * 10 });
-      out.push({ stage: "prepress", name: "Конгрев — клише", quantity: 1, unit: "шт", unitPrice: 8000, total: 8000 });
+      tryHB("emboss", {
+        "Площадь конгрева, см2": embossW * embossH,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      }, () => {
+        const area = embossW * embossH;
+        out.push({ stage: "postpress", name: "Конгрев (приладка)", quantity: 1, unit: "шт", unitPrice: setup, total: setup });
+        out.push({ stage: "postpress", name: "Конгрев — нанесение", quantity: circulation, unit: "изд", unitPrice: area * 10, total: circulation * area * 10 });
+        out.push({ stage: "prepress", name: "Конгрев — клише", quantity: 1, unit: "шт", unitPrice: 8000, total: 8000 });
+      });
     }
 
     // Скругление углов
@@ -484,7 +527,8 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     }
 
     // Упаковка
-    out.push({ stage: "packing", name: "Упаковка", quantity: circulation, unit: "изд", unitPrice: 8, total: circulation * 8 });
+    tryHB("pack", { "Количество видов": 1 },
+      () => out.push({ stage: "packing", name: "Упаковка", quantity: circulation, unit: "изд", unitPrice: 8, total: circulation * 8 }));
 
     // Контроль качества
     out.push({ stage: "qc", name: "Контроль качества", quantity: circulation, unit: "изд", unitPrice: 5, total: circulation * 5 });
@@ -516,7 +560,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     optBaseLam, optBaseLamSides, optLeafLam, optLeafLamSides, optSoftTouch, optVarnish, varnishType,
     optDieCut, optDeflash, optBigBase, bigBaseCount, optSpring, springHoles, optStamp, stampW, stampH,
     optEmboss, embossW, embossH, optRound, roundCorners, optMagnets, magnetsPerItem, optIndividualPack,
-    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode, catalogOps,
+    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode, catalogOps, priceOp,
   ]);
 
   const totals = useMemo(() => {

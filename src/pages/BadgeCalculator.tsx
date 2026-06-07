@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Бейдж / Пропуск / Пластиковая карта» — отдельный маршрут для
  * бумажных бейджей, ламинированных пропусков и пластиковых карт с поддержкой
@@ -101,6 +103,7 @@ const FITTINGS: { value: FittingKind; label: string; price: number; install: num
 ];
 
 export default function BadgeCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [kind, setKind] = useState<BadgeKind>("paper");
   const [circulation, setCirculation] = useState(500);
@@ -236,6 +239,7 @@ export default function BadgeCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн макета", Math.max(1, designsCount), "макет", 3500);
     push("Препресс", "Проверка макета", Math.max(1, designsCount), "макет", 800);

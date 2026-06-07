@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Самокопирующийся бланк / NCR» — отдельный калькулятор
  * многослойной NCR-продукции: бланки, квитанции, накладные, акты,
@@ -73,6 +75,7 @@ const SHEET_H = 940;
 const PURCHASE_PRICE_PER_NCR_SHEET = 0; // расчёт идёт по выбранным слоям
 
 export default function NcrCalculator() {
+  const { priceOp } = useHandbook();
   // 1. Основные параметры
   const [name, setName] = useState("Расчёт NCR");
   const [kind, setKind] = useState<NcrKind>("blank");
@@ -202,6 +205,7 @@ export default function NcrCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, n: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": setsCirculation * copiesPerSet });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн NCR-бланка", Math.max(1, designsCount), "макет", 2800);

@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Магнит» — Доработка 83.
  * Производственная архитектура: печать на бумаге/самоклейке/картоне →
@@ -82,6 +84,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function MagnetCalculator() {
+  const { priceOp } = useHandbook();
   // 1. Основные
   const [name, setName] = useState("Расчёт магнита");
   const [kind, setKind] = useState<MagnetKind>("rect");
@@ -238,6 +241,7 @@ export default function MagnetCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, n: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн магнита", Math.max(1, designsCount), "макет", 3000);
     push("Препресс", "Проверка макета", Math.max(1, designsCount), "макет", 800);

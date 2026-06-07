@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Пакет» — упаковочная продукция: развёртка, конструкция, высечка,
  * биговка, склейка, ручки, люверсы, окно, усиление, сборка, premium.
@@ -118,6 +120,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function BagCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(500);
   const [designsCount, setDesignsCount] = useState(1);
@@ -288,6 +291,7 @@ export default function BagCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн пакета", Math.max(1, designsCount), "макет", 6000);

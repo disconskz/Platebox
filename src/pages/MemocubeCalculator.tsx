@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Кубарик / Блок для записей» — внутренний блок, печать листов,
  * подложка, ламинация, высечка, формирование, проклейка ПВА, подрезка блока,
@@ -99,6 +101,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function MemocubeCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(300);
   const [designsCount, setDesignsCount] = useState(1);
@@ -241,6 +244,7 @@ export default function MemocubeCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн блока", Math.max(1, designsCount), "макет", 6000);

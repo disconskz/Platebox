@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Доработка 79 — выделенный шаблон «Листовка / Флаер».
  * Расширенная архитектура: типы листовки, авто-маршрут (офсет/цифра),
@@ -98,6 +100,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function LeafletFlyerCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);
@@ -238,6 +241,7 @@ export default function LeafletFlyerCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, n: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн листовки", Math.max(1, designsCount), "макет", 2500);
     push("Препресс", "Проверка и подготовка макета", Math.max(1, designsCount), "макет", 600);
@@ -279,9 +283,16 @@ export default function LeafletFlyerCalculator() {
     if (hasLamination) {
       const sheetM2 = (material.sheetW / 1000) * (material.sheetH / 1000);
       const totalM2 = +(sheetM2 * netSheets * lamSides).toFixed(2);
-      push("Постпечать", "Приладка ламинации", 1, "усл.", 1500);
-      push("Постпечать", `Ламинация ${LAM_LABELS[lamFilm]} (${lamSides} стор.)`,
-        totalM2, "м²", LAM_PRICES[lamFilm]);
+      const pricePerSheet = +(sheetM2 * LAM_PRICES[lamFilm]).toFixed(2);
+      tryHB(lamSides === 2 ? "coverLam2" : "coverLam1", {
+        "Количество бумаги на тираж": netSheets,
+        "Количество прогонов": lamSides,
+        "Цена за лист": pricePerSheet,
+      }, () => {
+        push("Постпечать", "Приладка ламинации", 1, "усл.", 1500);
+        push("Постпечать", `Ламинация ${LAM_LABELS[lamFilm]} (${lamSides} стор.)`,
+          totalM2, "м²", LAM_PRICES[lamFilm]);
+      });
     }
 
     // УФ-лак
@@ -320,16 +331,25 @@ export default function LeafletFlyerCalculator() {
     // Перфорация
     if (hasPerforation) {
       const meters = +(circulation * perfLines * perfLineLenMm / 1000).toFixed(2);
-      push("Постпечать", "Приладка перфорации", 1, "усл.", 1200);
-      push("Постпечать", "Перфорация", meters, "пог.м", 8);
+      tryHB("perfMachine", { "общее количество линий перфорации за тираж": circulation * perfLines }, () => {
+        push("Постпечать", "Приладка перфорации", 1, "усл.", 1200);
+        push("Постпечать", "Перфорация", meters, "пог.м", 8);
+      });
     }
 
     // Высечка + удаление облоя
     if (hasDieCut) {
       const dieCost = +(Math.max(0.05, dieKnifeM) * 4500 + 1500).toFixed(0);
-      push("Материалы", "Штамп высечки", 1, "шт", dieCost);
-      push("Постпечать", "Приладка высечки", 1, "усл.", 2000);
-      push("Постпечать", "Высечка", printSheets, "лист", 1.8);
+      tryHB("dieCut", {
+        "количество приладок": 1,
+        "стоимость ножа": dieCost,
+        "Количество бумаги на тираж": printSheets,
+        "Количество ударов высечки общее за тираж": circulation,
+      }, () => {
+        push("Материалы", "Штамп высечки", 1, "шт", dieCost);
+        push("Постпечать", "Приладка высечки", 1, "усл.", 2000);
+        push("Постпечать", "Высечка", printSheets, "лист", 1.8);
+      });
       if (hasFlashRemoval) {
         push("Постпечать", "Удаление облоя",
           printSheets * layout.perSheet, "шт", 0.25);
@@ -338,12 +358,16 @@ export default function LeafletFlyerCalculator() {
 
     // Биговка / фальцовка
     if (hasBiegovka) {
-      push("Постпечать", "Приладка биговки", 1, "усл.", 1000);
-      push("Постпечать", "Биговка", circulation * Math.max(1, biegovkaCount), "биг", 1.0);
+      tryHB("creaseMachine", { "количество бигов общее за тираж": circulation * Math.max(1, biegovkaCount) }, () => {
+        push("Постпечать", "Приладка биговки", 1, "усл.", 1000);
+        push("Постпечать", "Биговка", circulation * Math.max(1, biegovkaCount), "биг", 1.0);
+      });
     }
     if (hasFold) {
-      push("Постпечать", "Приладка фальцовки", 1, "усл.", 1000);
-      push("Постпечать", "Фальцовка", circulation * Math.max(1, foldCount), "фальц", 0.8);
+      tryHB("fold", { "Тираж": circulation * Math.max(1, foldCount), "Стоимость за 1 изделие": 0.8 }, () => {
+        push("Постпечать", "Приладка фальцовки", 1, "усл.", 1000);
+        push("Постпечать", "Фальцовка", circulation * Math.max(1, foldCount), "фальц", 0.8);
+      });
     }
 
     // Склейка в блок
@@ -364,8 +388,9 @@ export default function LeafletFlyerCalculator() {
 
     // Резка готовой продукции
     const cutsPerItem = 4;
-    push("Постпечать", "Резка готовой продукции",
-      printSheets * layout.perSheet * cutsPerItem, "рез", 0.2);
+    tryHB("trimSheets", {},
+      () => push("Постпечать", "Резка готовой продукции",
+        printSheets * layout.perSheet * cutsPerItem, "рез", 0.2));
 
     // Контроль качества
     const qcCoef = hasNumbering || hasQr || hasBarcode || hasPersonalization ? 1.3 : 1.0;
@@ -375,7 +400,8 @@ export default function LeafletFlyerCalculator() {
     // Упаковка
     if (packKind !== "none") {
       const units = Math.max(1, Math.ceil(circulation / Math.max(1, pack.perPack)));
-      push("Упаковка", `Упаковка: ${pack.label}`, units, "ед.", pack.price);
+      tryHB("packStickers", { "Количество видов": 1 },
+        () => push("Упаковка", `Упаковка: ${pack.label}`, units, "ед.", pack.price));
     }
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
     return out;
@@ -392,6 +418,7 @@ export default function LeafletFlyerCalculator() {
     hasBlockGlue, blockSize, finishedH,
     hasRoundCorners, cornersCount,
     packKind, pack, circulation, hasDelivery, deliveryCost,
+  priceOp,
   ]);
 
   const totals = useMemo(() => {

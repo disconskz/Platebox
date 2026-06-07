@@ -37,6 +37,8 @@ import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEdit
 import { makeDefaultBlock, type InternalBlock } from "@/lib/calc/multipage/blocks";
 import { buildCoverLines } from "@/lib/calc/cover/cost";
 import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 import type { SpecItem } from "@/lib/calc/types";
 
 /**
@@ -123,6 +125,7 @@ export interface NotepadCalculatorProps {
   onResult?: (payload: import("@/pages/BoxProCalculator").BoxProResultPayload) => void;
 }
 export default function NotepadCalculator({ embedded = false, onResult }: NotepadCalculatorProps = {}) {
+  const { priceOp } = useHandbook();
   // Основные параметры
   const [presetKey, setPresetKey] = useState("A5");
   const [customW, setCustomW] = useState(148);
@@ -426,6 +429,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", 12000);
     push("Препресс", "Проверка макета и спуск полос", 1, "усл.", 1200);
@@ -474,16 +478,31 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
         coverLayout.printSheets, "лист", offset ? 7 : 35);
       if (optCoverLam) {
         const areaM2 = (coverLayout.spreadW * itemH) / 1_000_000;
-        push("Постпечать", `Ламинация обложки (${coverLamSides} ст.)`,
-          +(areaM2 * coverLayout.printSheets * coverLamSides).toFixed(3), "м²", 220);
+        const sheets = coverLayout.printSheets;
+        const pricePerSheet = +(areaM2 * 220).toFixed(2);
+        tryHB(coverLamSides === 2 ? "coverLam2" : "coverLam1", {
+          "Количество бумаги на тираж": sheets,
+          "Количество прогонов": coverLamSides,
+          "Цена за лист": pricePerSheet,
+        }, () => push("Постпечать", `Ламинация обложки (${coverLamSides} ст.)`,
+          +(areaM2 * sheets * coverLamSides).toFixed(3), "м²", 220));
       }
-      if (optCoverBig) push("Постпечать", "Биговка обложки", circulation * 2, "биг", 1.5);
+      if (optCoverBig) tryHB("creaseMachine", { "количество бигов общее за тираж": circulation * 2 },
+        () => push("Постпечать", "Биговка обложки", circulation * 2, "биг", 1.5));
       if (optSpotVarnish) {
         push("Постпечать", "Подготовка выб. лака", 1, "усл.", 3000);
         push("Постпечать", "Выборочный лак", coverLayout.printSheets, "лист", 8);
       }
-      if (optStamp) push("Постпечать", "Тиснение фольгой", circulation, "оттиск", Math.max(8, stampArea * 0.6));
-      if (optEmboss) push("Постпечать", "Конгрев", circulation, "оттиск", 12);
+      if (optStamp) tryHB("stamp", {
+        "Площадь тиснения, см2": stampArea,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      }, () => push("Постпечать", "Тиснение фольгой", circulation, "оттиск", Math.max(8, stampArea * 0.6)));
+      if (optEmboss) tryHB("emboss", {
+        "Площадь конгрева, см2": 4,
+        "Количество ударов общее за тираж": circulation,
+        "Количество приладок": 1,
+      }, () => push("Постпечать", "Конгрев", circulation, "оттиск", 12));
     }
 
     // Подложка
@@ -498,19 +517,30 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     }
 
     // Подборка / фальцовка блока
-    push("Сборка", "Подборка блока", circulation, "шт.", +(1.2 * premiumCoef).toFixed(2));
+    tryHB("gather", { "общее количество листов": circulation },
+      () => push("Сборка", "Подборка блока", circulation, "шт.", +(1.2 * premiumCoef).toFixed(2)));
 
     // Скрепление
     if (bindingKind === "spiral") {
       const holes = Math.max(20, Math.round(itemH / 6));
-      push("Скрепление", "Перфорация под пружину", holes * circulation, "отв.", 0.5);
-      push("Скрепление", `Пружина ${spring.label} Ø${springDiameterMm} мм (${springColor})`,
-        circulation, "шт.", spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5);
-      push("Скрепление", "Навивка пружины", circulation, "шт.", 35);
-      push("Скрепление", "Приладка пружины", 1, "усл.", 1500);
+      tryHB("spiral", {
+        "Количество витков": holes,
+        "Стоимость витка пружины": (spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5) / Math.max(1, holes),
+      }, () => {
+        push("Скрепление", "Перфорация под пружину", holes * circulation, "отв.", 0.5);
+        push("Скрепление", `Пружина ${spring.label} Ø${springDiameterMm} мм (${springColor})`,
+          circulation, "шт.", spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5);
+        push("Скрепление", "Навивка пружины", circulation, "шт.", 35);
+        push("Скрепление", "Приладка пружины", 1, "усл.", 1500);
+      });
     } else if (bindingKind === "staple") {
-      push("Скрепление", "Скоба", circulation * 2, "скоба", 0.6);
-      push("Скрепление", "Приладка скобы", 1, "усл.", 800);
+      tryHB("staple", {
+        "количество скоб на изделии": 2,
+        "общее количество скоб на изделии": circulation * 2,
+      }, () => {
+        push("Скрепление", "Скоба", circulation * 2, "скоба", 0.6);
+        push("Скрепление", "Приладка скобы", 1, "усл.", 800);
+      });
     } else if (bindingKind === "pva") {
       push("Скрепление", "Клей ПВА", circulation, "шт.", 1.0);
       push("Скрепление", "Проклейка ПВА", circulation, "шт.", 4);
@@ -521,14 +551,17 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
       push("Скрепление", "Клей термоплавкий", circulation, "шт.", 1.2);
       push("Скрепление", "Приладка КБС", 1, "усл.", 2500);
     } else if (bindingKind === "thermo") {
-      push("Скрепление", "Термосклейка", circulation, "шт.", 7);
-      push("Скрепление", "Приладка термобиндера", 1, "усл.", 2000);
+      tryHB("thermo", { "Стоимость работы за изделие": 7 }, () => {
+        push("Скрепление", "Термосклейка", circulation, "шт.", 7);
+        push("Скрепление", "Приладка термобиндера", 1, "усл.", 2000);
+      });
     }
 
     // Постпечатные операции блока
     if (optPerf) {
       const meters = (perfLineMm * perfLines * circulation) / 1000;
-      push("Постпечать", "Перфорация листов (отрывные)", +meters.toFixed(2), "м", 12);
+      tryHB("perfMachine", { "общее количество линий перфорации за тираж": perfLines * circulation },
+        () => push("Постпечать", "Перфорация листов (отрывные)", +meters.toFixed(2), "м", 12));
     }
     if (optRound) push("Постпечать", "Скругление углов", circulation * roundCorners, "угол", 0.6);
     if (optTearOff) push("Постпечать", "Подготовка отрывных листов", 1, "усл.", 1500);
@@ -581,7 +614,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     push("Сборка", "Финальная сборка блокнота", circulation, "шт.", +(6 * premiumCoef).toFixed(2));
 
     // Обрезка
-    push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.2);
+    tryHB("trimBlock", {}, () => push("Финиш", "Обрезка готового изделия", circulation, "шт.", 1.2));
 
     // Логистика
     push("Логистика", "Контроль качества", circulation, "шт.", +(1.5 * premiumCoef).toFixed(2));
@@ -589,7 +622,8 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
       const packs = Math.max(1, Math.ceil(circulation / Math.max(1, itemsPerPack)));
       push("Логистика", `Термоусадка (по ${itemsPerPack} шт)`, packs, "уп.", 35);
     }
-    push("Логистика", "Упаковка", circulation, "шт.", 3);
+    tryHB("pack", { "Количество видов": 1 },
+      () => push("Логистика", "Упаковка", circulation, "шт.", 3));
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
 
     // Задача 5 — отдельный ERP-блок себестоимости обложки (буква "Постпечать обложки").
@@ -623,7 +657,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     }
 
     return out;
-  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack, internalBlocks, cover, printMode, blockThicknessMm, catalogOps]);
+  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack, internalBlocks, cover, printMode, blockThicknessMm, catalogOps, priceOp]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);

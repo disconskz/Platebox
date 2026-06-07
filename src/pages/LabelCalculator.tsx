@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Этикетка» — самоклеящаяся продукция с акцентом на рулон,
  * штрихкоды, переменные данные, партии, контроль. Доработка 65.
@@ -95,6 +97,7 @@ const PACKS: { value: PackKind; label: string; price: number }[] = [
 ];
 
 export default function LabelCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(5000);
   const [designsCount, setDesignsCount] = useState(1);
@@ -277,6 +280,7 @@ export default function LabelCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн этикетки", Math.max(1, designsCount), "макет", 4000);
     push("Препресс", "Проверка макета", Math.max(1, designsCount), "макет", 600);

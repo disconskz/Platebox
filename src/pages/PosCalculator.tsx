@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «POS-материалы» — воблер, шелфтокер, хенгер, стоппер, тейбл-тент,
  * ценникодержатель, некхенгер, рекламный указатель, фигурный POS. Доработка 74.
@@ -98,6 +100,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function PosCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(500);
   const [designsCount, setDesignsCount] = useState(1);
@@ -252,6 +255,7 @@ export default function PosCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн POS-материала", Math.max(1, designsCount), "макет", 4500);

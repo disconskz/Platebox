@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Тубус» — цилиндрическая упаковка: навивка, кашировка, крышки, дно,
  * втулка, ложементы, магниты, ленты, окно, premium-конструкции. Доработка 69.
@@ -130,6 +132,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function TubeCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(300);
   const [designsCount, setDesignsCount] = useState(1);
@@ -280,6 +283,7 @@ export default function TubeCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн тубуса", Math.max(1, designsCount), "макет", 8000);

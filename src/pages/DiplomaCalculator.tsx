@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Грамота / Диплом» — листовая логика с расширенной поддержкой
  * персонализации, нумерации, тиснения/фольгирования, рамок и папок. Доработка 62.
@@ -120,6 +122,7 @@ const PACKS: { value: PackKind; label: string; price: number }[] = [
 ];
 
 export default function DiplomaCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [presetKey, setPresetKey] = useState("a4v");
   const [customW, setCustomW] = useState(210);
@@ -239,6 +242,7 @@ export default function DiplomaCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн грамоты/диплома", 1, "усл.", 7000);
     push("Препресс", "Проверка и подготовка макета", 1, "усл.", 1200);
