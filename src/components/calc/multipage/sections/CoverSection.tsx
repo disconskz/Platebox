@@ -57,6 +57,9 @@ export interface CoverState {
   sides: 1 | 2;
   grain: "long" | "short";
 
+  /** Количество страниц обложки (4 — обычная брошюра; 2 — лист-обложка к подложке). */
+  pages?: 2 | 4;
+
   // 3-4. Наследование / переопределение
   override?: boolean;
   localFormat?: string;
@@ -100,6 +103,7 @@ export const DEFAULT_COVER: CoverState = {
   twoSided: false,
   sides: 1,
   grain: "long",
+  pages: 4,
   override: false,
   printType: "auto",
   pantone: "",
@@ -245,6 +249,16 @@ export default function CoverSection({ value, onChange, title = "Обложка"
               <SelectContent>
                 <SelectItem value="long">Долевое</SelectItem>
                 <SelectItem value="short">Поперечное</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Кол-во страниц обложки</Label>
+            <Select value={String(v.pages ?? 4)} onValueChange={(val) => patch({ pages: (+val as 2 | 4) })}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="4">4 (стандарт)</SelectItem>
+                <SelectItem value="2">2 (лист-обложка к подложке)</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -22,6 +22,9 @@ export interface UnderlayState {
   cutting: boolean;
   drilling: boolean;
   caching: boolean;
+  /** Ламинация подложки (как на обложке). */
+  lamination?: boolean;
+  lamSides?: 1 | 2;
   /** Переопределить параметры блока вручную. По умолчанию false → блок наследует общие параметры. */
   override?: boolean;
 }
@@ -35,6 +38,8 @@ export const DEFAULT_UNDERLAY: UnderlayState = {
   cutting: true,
   drilling: false,
   caching: false,
+  lamination: false,
+  lamSides: 1,
   override: false,
 };
 
@@ -146,6 +151,29 @@ export default function UnderlaySection({ value, onChange, title = "Подлож
                 </Label>
               </label>
             ))}
+          </div>
+          {/* Ламинация подложки */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 rounded-md border bg-card/40 p-2">
+            <label htmlFor="ul-lam" className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                id="ul-lam"
+                checked={!!value.lamination}
+                onCheckedChange={(v) => patch({ lamination: !!v })}
+              />
+              <Label htmlFor="ul-lam" className="cursor-pointer text-xs font-normal">Ламинация подложки</Label>
+            </label>
+            <div className="space-y-1">
+              <Label className="text-xs">Сторон ламинации</Label>
+              <select
+                disabled={!value.lamination}
+                value={String(value.lamSides ?? 1)}
+                onChange={(e) => patch({ lamSides: (+e.target.value as 1 | 2) })}
+                className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+              >
+                <option value="1">1 сторона</option>
+                <option value="2">2 стороны</option>
+              </select>
+            </div>
           </div>
         </CardContent>
       )}

@@ -515,6 +515,16 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
         push("Подложка", "Печать на подложке", circulation, "шт.", offset ? 6 : 18);
         if (offset) push("Подложка", "Формы подложки", Math.max(backingColorFront, 1), "форма", 1500);
       }
+      // Ламинация подложки (как на обложке)
+      if (underlay.lamination) {
+        const sides = underlay.lamSides ?? 1;
+        const lamAreaM2 = +(backingLayout.areaM2 * sides).toFixed(3);
+        tryHB(sides === 2 ? "coverLam2" : "coverLam1", {
+          "Количество бумаги на тираж": circulation,
+          "Количество прогонов": sides,
+          "Цена за лист": 4,
+        }, () => push("Подложка", `Ламинация подложки (${sides} ст.)`, lamAreaM2, "м²", 220));
+      }
     }
 
     // Подборка / фальцовка блока
@@ -658,7 +668,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     }
 
     return out;
-  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack, internalBlocks, cover, printMode, blockThicknessMm, catalogOps, priceOp]);
+  }, [hasDesign, blockPaper, blockLayout, offset, colorBlockFront, colorBlockBack, hasCover, coverPaper, coverLayout, colorCoverFront, colorCoverBack, optCoverLam, coverLamSides, optCoverBig, optSpotVarnish, optStamp, stampArea, optEmboss, hasBacking, backing, backingThicknessMm, backingLayout, backingPrint, backingColorFront, bindingKind, itemH, spring, springColor, springDiameterMm, optPerf, perfLineMm, perfLines, optRound, roundCorners, optTearOff, circulation, hasDelivery, deliveryCost, itemW, premiumCoef, optSoftTouch, optFoil, foilArea, hasForzac, hasKapital, hasMarlya, hasLyasse, lyasseCount, hasElastic, hasPocket, optNumbering, optQR, optPersonalize, optShrink, itemsPerPack, internalBlocks, cover, underlay, printMode, blockThicknessMm, catalogOps, priceOp]);
 
   const totals = useMemo(() => {
     const cost = lines.reduce((s, l) => s + l.total, 0);
