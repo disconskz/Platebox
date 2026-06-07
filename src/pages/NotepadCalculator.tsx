@@ -604,13 +604,20 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     } catch {}
 
     // Операции из справочника (формулы)
+    const stageMap: Record<string, string> = {
+      prepress: "Препресс",
+      material: "Материалы",
+      print: "Печать",
+      postpress: "Постпечать",
+      logistics: "Логистика",
+    };
     for (const op of catalogOps) {
       out.push({
-        stage: op.stage || "Справочник",
+        stage: stageMap[op.stage] || "Постпечать",
         name: op.name,
-        qty: Number(op.qty) || 0,
+        qty: Number(op.quantity) || 0,
         unit: op.unit || "шт",
-        price: Number(op.price) || 0,
+        price: Number(op.unitPrice) || 0,
         total: Number(op.total) || 0,
       });
     }
