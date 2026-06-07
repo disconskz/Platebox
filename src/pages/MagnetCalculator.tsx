@@ -241,6 +241,7 @@ export default function MagnetCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, n: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     if (hasDesign) push("Препресс", "Дизайн магнита", Math.max(1, designsCount), "макет", 3000);
     push("Препресс", "Проверка макета", Math.max(1, designsCount), "макет", 800);

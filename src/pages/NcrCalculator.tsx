@@ -205,6 +205,7 @@ export default function NcrCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, n: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн NCR-бланка", Math.max(1, designsCount), "макет", 2800);
