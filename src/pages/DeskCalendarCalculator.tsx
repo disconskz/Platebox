@@ -560,7 +560,7 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
     optBaseLam, optBaseLamSides, optLeafLam, optLeafLamSides, optSoftTouch, optVarnish, varnishType,
     optDieCut, optDeflash, optBigBase, bigBaseCount, optSpring, springHoles, optStamp, stampW, stampH,
     optEmboss, embossW, embossH, optRound, roundCorners, optMagnets, magnetsPerItem, optIndividualPack,
-    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode, catalogOps,
+    packType, hasDelivery, deliveryCost, baseAreaM2, leafAreaM2, cover, baseSize, printMode, catalogOps, priceOp,
   ]);
 
   const totals = useMemo(() => {
