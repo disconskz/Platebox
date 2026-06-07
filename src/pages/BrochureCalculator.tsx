@@ -32,6 +32,7 @@ import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
 import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
 import type { SpecItem } from "@/lib/calc/types";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
 import QualityControlSection, {
   DEFAULT_QC,
   type QcState,
