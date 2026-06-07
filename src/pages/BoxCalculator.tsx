@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Коробка» — упаковочная/конструктивная продукция: развёртка, высечка,
  * биговка, кашировка, микрогофра, ложементы, магниты, ленты, окна, склейка,
@@ -128,6 +130,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function BoxCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(300);
   const [designsCount, setDesignsCount] = useState(1);
@@ -303,6 +306,7 @@ export default function BoxCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн коробки", Math.max(1, designsCount), "макет", 8000);

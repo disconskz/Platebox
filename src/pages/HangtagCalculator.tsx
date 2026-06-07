@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Бирка / Ярлык» — листовая продукция с акцентом на форму, высечку,
  * отверстия, люверсы, шнурки/ленты, тиснение, персонализацию и комплектовку.
@@ -114,6 +116,7 @@ const PACKS: { value: PackKind; label: string; price: number; perSet: boolean }[
 ];
 
 export default function HangtagCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(1000);
   const [designsCount, setDesignsCount] = useState(1);
@@ -285,6 +288,7 @@ export default function HangtagCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     // Препресс
     if (hasDesign) push("Препресс", "Дизайн бирки", Math.max(1, designsCount), "макет", 3500);

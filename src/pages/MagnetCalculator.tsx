@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Магнит» — Доработка 83.
  * Производственная архитектура: печать на бумаге/самоклейке/картоне →
@@ -82,6 +84,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function MagnetCalculator() {
+  const { priceOp } = useHandbook();
   // 1. Основные
   const [name, setName] = useState("Расчёт магнита");
   const [kind, setKind] = useState<MagnetKind>("rect");

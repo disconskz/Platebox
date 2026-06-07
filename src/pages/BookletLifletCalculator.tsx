@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Доработка 80 — выделенный шаблон «Буклет / Лифлет».
  * Размер в развороте + в сложенном виде, схема фальцовки, биговка,
@@ -99,6 +101,7 @@ type Direction = "vertical" | "horizontal";
 interface Props { mode?: "booklet" | "liflet" }
 
 export default function BookletLifletCalculator({ mode }: Props = {}) {
+  const { priceOp } = useHandbook();
   // Основные
   const [name, setName] = useState("");
   const [circulation, setCirculation] = useState(1000);

@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Визитка» — отдельный маршрут листовой продукции с расширенной
  * постпечатной логикой: дизайнерская бумага, ламинация / soft-touch,
@@ -95,6 +97,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 ];
 
 export default function BusinessCardCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [kind, setKind] = useState<CardKind>("standard");
   const [circulation, setCirculation] = useState(1000);
@@ -247,6 +250,7 @@ export default function BusinessCardCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     if (hasDesign) push("Препресс", "Дизайн макета", Math.max(1, designsCount), "макет", 3500);
     push("Препресс", "Проверка макета", Math.max(1, designsCount), "макет", 800);

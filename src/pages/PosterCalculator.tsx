@@ -15,6 +15,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Доработка 40 — выделенный шаблон «Афиша».
  * Доработка 58 — расширение «Плакат / постер»: UV / сольвент / экосольвент / latex,
@@ -82,6 +84,7 @@ const PRINT_PRICE = {
 type Line = { stage: string; name: string; quantity: number; unit: string; unitPrice: number; total: number };
 
 export default function PosterCalculator() {
+  const { priceOp } = useHandbook();
   const [circulation, setCirculation] = useState(50);
   const [presetKey, setPresetKey] = useState("A2");
   const [customW, setCustomW] = useState(600);

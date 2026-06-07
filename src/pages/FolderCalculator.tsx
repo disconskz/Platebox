@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Папка» — конструктивное изделие с биговкой, высечкой,
  * карманами, клапанами, склейкой и фурнитурой. Доработка 61.
@@ -95,6 +97,7 @@ const PACKS: { value: PackKind; label: string; price: number }[] = [
 ];
 
 export default function FolderCalculator() {
+  const { priceOp } = useHandbook();
   // 3.1 Основные
   const [presetKey, setPresetKey] = useState("a4");
   const [customW, setCustomW] = useState(220);
@@ -253,6 +256,7 @@ export default function FolderCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     if (hasDesign) push("Препресс", "Дизайн папки", 1, "усл.", 12000);
     push("Препресс", "Проверка и спуск полос", 1, "усл.", 1500);

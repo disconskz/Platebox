@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Самокопирующийся бланк / NCR» — отдельный калькулятор
  * многослойной NCR-продукции: бланки, квитанции, накладные, акты,
@@ -73,6 +75,7 @@ const SHEET_H = 940;
 const PURCHASE_PRICE_PER_NCR_SHEET = 0; // расчёт идёт по выбранным слоям
 
 export default function NcrCalculator() {
+  const { priceOp } = useHandbook();
   // 1. Основные параметры
   const [name, setName] = useState("Расчёт NCR");
   const [kind, setKind] = useState<NcrKind>("blank");

@@ -18,6 +18,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 import { toast } from "sonner";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 
 /**
  * Доработка 36 — выделенный шаблон «Листовка».
@@ -144,6 +146,7 @@ export interface LeafletLikeProps {
 }
 
 export default function LeafletCalculator({ mode = "leaflet" }: LeafletLikeProps = {}) {
+  const { priceOp } = useHandbook();
   const isFlyer = mode === "flyer";
   const isEuro = mode === "euroflyer";
   const isCard = mode === "businesscard";

@@ -25,6 +25,8 @@ import {
 } from "@/lib/calc/box-pro/impose";
 import { calcDiecut, type DiecutResult } from "@/lib/calc/box-pro/diecut";
 import { buildUnfoldSvg, buildUnfoldDxf, buildProductionRoute } from "@/lib/calc/box-pro/svg";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 
 /**
  * Доработка 84 — ERP-модуль расчёта коробок (Этап 1: каркас + конструктор деталей).
@@ -290,6 +292,7 @@ export interface BoxProCalculatorProps {
   onResult?: (payload: BoxProResultPayload) => void;
 }
 export default function BoxProCalculator({ embedded = false, onResult }: BoxProCalculatorProps = {}) {
+  const { priceOp } = useHandbook();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   // ─── Доработка 84 — два уровня UI ────────────────────────────────

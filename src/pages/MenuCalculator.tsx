@@ -15,6 +15,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Доработка 44 — выделенный шаблон «Меню».
  * Поддерживает бумажные, ламинированные, на пружине/кольцах/болтах,
@@ -96,6 +98,7 @@ const BINDINGS: { value: BindingKind; label: string; perElement: number; default
 ];
 
 export default function MenuCalculator() {
+  const { priceOp } = useHandbook();
   const [menuKind, setMenuKind] = useState<MenuKind>("laminated");
   const [presetKey, setPresetKey] = useState("A4");
   const [customW, setCustomW] = useState(210);
@@ -200,6 +203,7 @@ export default function MenuCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", 8000);
     push("Препресс", "Проверка макета", 1, "усл.", 500);

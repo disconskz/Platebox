@@ -16,6 +16,8 @@ import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 /**
  * Шаблон «Фирменный бланк / Бланк» — листовая логика с поддержкой
  * тонкой бумаги, NCR-самокопирки, нумерации, перфорации, склейки
@@ -71,6 +73,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 type FastenKind = "none" | "glue_pva" | "staple";
 
 export default function LetterheadCalculator() {
+  const { priceOp } = useHandbook();
   // Основные
   const [circulation, setCirculation] = useState(1000);
   const [designsCount, setDesignsCount] = useState(1);
@@ -182,6 +185,7 @@ export default function LetterheadCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
 
     if (hasDesign) push("Препресс", "Дизайн бланка", Math.max(1, designsCount), "макет", 2500);
     push("Препресс", "Проверка макета", Math.max(1, designsCount), "макет", 800);
