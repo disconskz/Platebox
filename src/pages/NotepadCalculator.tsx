@@ -37,6 +37,8 @@ import InternalBlocksEditor from "@/components/calc/multipage/InternalBlocksEdit
 import { makeDefaultBlock, type InternalBlock } from "@/lib/calc/multipage/blocks";
 import { buildCoverLines } from "@/lib/calc/cover/cost";
 import { CatalogOperationsPicker } from "@/components/calc/CatalogOperationsPicker";
+import { useHandbook } from "@/lib/operations/HandbookProvider";
+import { buildTryHandbook } from "@/lib/operations/applyHandbook";
 import type { SpecItem } from "@/lib/calc/types";
 
 /**
