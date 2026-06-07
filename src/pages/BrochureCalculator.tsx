@@ -83,14 +83,14 @@ const FORMATS: BroFormat[] = [
 ];
 
 type Paper = { value: string; label: string; pricePerSheet: number; sheetW: number; sheetH: number; density: number };
-const BLOCK_PAPERS: Paper[] = [
+const BLOCK_PAPERS_FALLBACK: Paper[] = [
   { value: "offset80", label: "Офсет 80 г/м²", pricePerSheet: 18, sheetW: 620, sheetH: 940, density: 80 },
   { value: "offset90", label: "Офсет 90 г/м²", pricePerSheet: 22, sheetW: 620, sheetH: 940, density: 90 },
   { value: "coated115", label: "Мелованная 115 г/м²", pricePerSheet: 28, sheetW: 620, sheetH: 940, density: 115 },
   { value: "coated130", label: "Мелованная 130 г/м²", pricePerSheet: 34, sheetW: 620, sheetH: 940, density: 130 },
   { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170 },
 ];
-const COVER_PAPERS: Paper[] = [
+const COVER_PAPERS_FALLBACK: Paper[] = [
   { value: "coated170", label: "Мелованная 170 г/м²", pricePerSheet: 48, sheetW: 620, sheetH: 940, density: 170 },
   { value: "coated250", label: "Мелованная 250 г/м²", pricePerSheet: 70, sheetW: 620, sheetH: 940, density: 250 },
   { value: "coated300", label: "Мелованная 300 г/м²", pricePerSheet: 90, sheetW: 620, sheetH: 940, density: 300 },
