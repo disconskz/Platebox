@@ -255,7 +255,7 @@ export default function StickerCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
-    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн / макет стикера", Math.max(1, designsCount), "макет", 4000);
     push("Препресс", "Проверка макета", Math.max(1, designsCount), "макет", 600);

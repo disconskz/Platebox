@@ -241,7 +241,7 @@ export default function LeafletFlyerCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, n: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
-    const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
+    const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн листовки", Math.max(1, designsCount), "макет", 2500);
     push("Препресс", "Проверка и подготовка макета", Math.max(1, designsCount), "макет", 600);

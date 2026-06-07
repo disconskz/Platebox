@@ -242,7 +242,7 @@ export default function DiplomaCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
-    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн грамоты/диплома", 1, "усл.", 7000);
     push("Препресс", "Проверка и подготовка макета", 1, "усл.", 1200);

@@ -201,7 +201,7 @@ export default function CardCalculator() {
     const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number) =>
       out.push({ stage, name, qty, unit, price, total: qty * price });
-    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": typeof circulation === "number" ? circulation : 0 });
+    const tryHB = buildTryHandbook(priceOp, push, { "ТИРАЖ": circulation });
 
     if (hasDesign) push("Препресс", "Дизайн открытки", 1, "усл.", 8000);
     push("Препресс", "Проверка макета и спуск полос", 1, "усл.", 1000);
