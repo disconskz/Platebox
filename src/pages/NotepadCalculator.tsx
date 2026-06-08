@@ -255,13 +255,25 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [assembly, setAssembly] = useState<AssemblyState>(DEFAULT_ASSEMBLY);
   const [specialOps, setSpecialOps] = useState<SpecialOpsState>(DEFAULT_SPECIAL_OPS);
   const [internalBlocks, setInternalBlocks] = useState<InternalBlock[]>(() => [
-    makeDefaultBlock({ kind: "main", pages: 50 }),
+    makeDefaultBlock({
+      kind: "main",
+      pages: 100,
+      paper: "offset80",
+      density: 80,
+      colorFront: 1,
+      colorBack: 1,
+    }),
   ]);
+  const legacyBlockSyncRef = useRef<"legacy" | "blocks" | null>(null);
 
   // Двусторонняя синхронизация: первый элемент internalBlocks <-> legacy-поля
   // (страницы / бумага / цветность). Редактор «Внутренние блоки» — источник
   // правды; legacy-поля удалены из UI, но используются в расчёте listов и форм.
   useEffect(() => {
+    if (legacyBlockSyncRef.current === "blocks") {
+      legacyBlockSyncRef.current = null;
+      return;
+    }
     setInternalBlocks((prev) => {
       const b = prev[0];
       if (!b) return prev;
@@ -275,13 +287,25 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
       ) return prev;
       const next = [...prev];
       next[0] = { ...b, pages, paper: blockPaperKey, density, colorFront: colorBlockFront, colorBack: colorBlockBack };
+      legacyBlockSyncRef.current = "legacy";
       return next;
     });
   }, [pages, blockPaperKey, colorBlockFront, colorBlockBack]);
 
   useEffect(() => {
+    if (legacyBlockSyncRef.current === "legacy") {
+      legacyBlockSyncRef.current = null;
+      return;
+    }
     const b = internalBlocks[0];
     if (!b) return;
+    const shouldSync =
+      b.pages !== pages ||
+      (b.paper !== blockPaperKey && BLOCK_PAPERS.some((p) => p.value === b.paper)) ||
+      b.colorFront !== colorBlockFront ||
+      b.colorBack !== colorBlockBack;
+    if (!shouldSync) return;
+    legacyBlockSyncRef.current = "blocks";
     if (b.pages !== pages) setPages(b.pages);
     if (b.paper !== blockPaperKey && BLOCK_PAPERS.some((p) => p.value === b.paper)) setBlockPaperKey(b.paper);
     if (b.colorFront !== colorBlockFront) setColorBlockFront(b.colorFront);
