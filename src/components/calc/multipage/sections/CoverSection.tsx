@@ -275,24 +275,33 @@ export default function CoverSection({ value, onChange, title = "Обложка"
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Материал</Label>
-            <Select
-              value={COVER_MATERIALS.some((m) => m.value === v.paper) ? v.paper : "__custom__"}
-              onValueChange={(val) => {
-                if (val === "__custom__") return;
-                const m = COVER_MATERIALS.find((x) => x.value === val);
-                if (m) patch({ paper: m.value, density: m.density, thicknessMm: m.thicknessMm });
-              }}
-            >
-              <SelectTrigger className="h-8"><SelectValue placeholder="Выберите материал" /></SelectTrigger>
-              <SelectContent>
-                {COVER_MATERIALS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>
-                ))}
-                {!COVER_MATERIALS.some((m) => m.value === v.paper) && v.paper && (
-                  <SelectItem value="__custom__">{v.paper} (свой)</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+            {(() => {
+              const list = COVER_MATERIALS_BY_KIND[v.kind] ?? [];
+              const inList = list.some((m) => m.value === v.paper);
+              return (
+                <Select
+                  value={inList ? v.paper : "__custom__"}
+                  onValueChange={(val) => {
+                    if (val === "__custom__") return;
+                    const m = list.find((x) => x.value === val);
+                    if (m) patch({ paper: m.value, density: m.density, thicknessMm: m.thicknessMm });
+                  }}
+                >
+                  <SelectTrigger className="h-8"><SelectValue placeholder="Выберите материал" /></SelectTrigger>
+                  <SelectContent>
+                    {list.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>
+                    ))}
+                    {!inList && v.paper && (
+                      <SelectItem value="__custom__">{v.paper} (свой)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              );
+            })()}
+            <p className="text-[10px] text-muted-foreground">
+              Список материалов зависит от типа обложки.
+            </p>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Плотность, г/м²</Label>
