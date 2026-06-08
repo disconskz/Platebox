@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { SpecTable } from "@/components/calc/SpecTable";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
@@ -724,9 +724,14 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     return { cost, sale, withVat, perItem };
   }, [lines, margin, vatPercent, circulation]);
 
+  const lastResultKeyRef = useRef<string>("");
   useEffect(() => {
     if (!onResult) return;
     const result = toTemplatePriceResult(lines, { margin, vatPercent, circulation });
+    // Защита от бесконечного цикла: вызываем onResult только если итог реально изменился.
+    const key = `${result.totalCost.toFixed(2)}|${result.totalWithVat.toFixed(2)}|${result.materials.toFixed(2)}|${result.printCost.toFixed(2)}|${result.postCost.toFixed(2)}|${result.fittings.toFixed(2)}|${result.assembly.toFixed(2)}|${margin}|${vatPercent}|${circulation}`;
+    if (key === lastResultKeyRef.current) return;
+    lastResultKeyRef.current = key;
     onResult({ result, margin, vatPercent });
   }, [lines, margin, vatPercent, circulation, onResult]);
 
