@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AdvancedOnly, TechOnly } from "@/components/calc/multipage/ModeVisibility";
 import CostByStageBlock from "@/components/calc/multipage/CostByStageBlock";
-import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import { useMultipageCalcOptional, useSyncMultipageGlobal } from "@/lib/calc/multipage/context";
 import PrepressSection, { DEFAULT_PREPRESS, type PrepressState } from "@/components/calc/multipage/sections/PrepressSection";
 import PrintSection, { DEFAULT_PRINT, type PrintState } from "@/components/calc/multipage/sections/PrintSection";
 import PostpressSection, { DEFAULT_POSTPRESS, type PostpressState } from "@/components/calc/multipage/sections/PostpressSection";
@@ -345,18 +345,15 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
 
   // Доработка 85 — синхронизация глобальных параметров с ERP-контекстом
   const calcCtx = useMultipageCalcOptional();
-  useEffect(() => {
-    if (!calcCtx) return;
-    calcCtx.setGlobal({
-      format: format.label,
-      formatWidth: itemW,
-      formatHeight: itemH,
-      circulation,
-      printType: printMode,
-      bindingType: bindingKind,
-      marginPercent: margin,
-    });
-  }, [calcCtx, format.label, itemW, itemH, circulation, printMode, bindingKind, margin]);
+  useSyncMultipageGlobal({
+    format: format.label,
+    formatWidth: itemW,
+    formatHeight: itemH,
+    circulation,
+    printType: printMode,
+    bindingType: bindingKind,
+    marginPercent: margin,
+  });
   const blockPaper = useMemo(
     () => BLOCK_PAPERS.find((p) => p.value === blockPaperKey) ?? BLOCK_PAPERS[0],
     [blockPaperKey, BLOCK_PAPERS]
