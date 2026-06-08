@@ -139,6 +139,20 @@ const SPEC_OPS: { key: keyof CoverState; label: string }[] = [
   { key: "figuredCut", label: "Фигурная высечка" },
 ];
 
+/** Пресеты материалов обложки — для выпадающего списка «Материал». */
+const COVER_MATERIALS: { value: string; density: number; thicknessMm: number }[] = [
+  { value: "Мелованная бумага 170 г/м²", density: 170, thicknessMm: 0.18 },
+  { value: "Мелованная бумага 250 г/м²", density: 250, thicknessMm: 0.27 },
+  { value: "Мелованная бумага 300 г/м²", density: 300, thicknessMm: 0.32 },
+  { value: "Мелованный картон 300 г/м²", density: 300, thicknessMm: 0.32 },
+  { value: "Дизайнерская бумага 300 г/м²", density: 300, thicknessMm: 0.34 },
+  { value: "Картон хром-эрзац", density: 280, thicknessMm: 0.40 },
+  { value: "Переплётный картон 1.5 мм", density: 950, thicknessMm: 1.5 },
+  { value: "Переплётный картон 2.0 мм", density: 1250, thicknessMm: 2.0 },
+  { value: "Крафт 300 г/м²", density: 300, thicknessMm: 0.36 },
+  { value: "Пластик ПВХ 0.5 мм", density: 700, thicknessMm: 0.5 },
+];
+
 export interface CoverSectionProps {
   value: CoverState;
   onChange: (next: CoverState) => void;
@@ -214,7 +228,24 @@ export default function CoverSection({ value, onChange, title = "Обложка"
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Материал</Label>
-            <Input value={v.paper} onChange={(e) => patch({ paper: e.target.value })} className="h-8" />
+            <Select
+              value={COVER_MATERIALS.some((m) => m.value === v.paper) ? v.paper : "__custom__"}
+              onValueChange={(val) => {
+                if (val === "__custom__") return;
+                const m = COVER_MATERIALS.find((x) => x.value === val);
+                if (m) patch({ paper: m.value, density: m.density, thicknessMm: m.thicknessMm });
+              }}
+            >
+              <SelectTrigger className="h-8"><SelectValue placeholder="Выберите материал" /></SelectTrigger>
+              <SelectContent>
+                {COVER_MATERIALS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>
+                ))}
+                {!COVER_MATERIALS.some((m) => m.value === v.paper) && v.paper && (
+                  <SelectItem value="__custom__">{v.paper} (свой)</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Плотность, г/м²</Label>
