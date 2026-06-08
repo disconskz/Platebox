@@ -140,18 +140,65 @@ const SPEC_OPS: { key: keyof CoverState; label: string }[] = [
 ];
 
 /** Пресеты материалов обложки — для выпадающего списка «Материал». */
-const COVER_MATERIALS: { value: string; density: number; thicknessMm: number }[] = [
-  { value: "Мелованная бумага 170 г/м²", density: 170, thicknessMm: 0.18 },
-  { value: "Мелованная бумага 250 г/м²", density: 250, thicknessMm: 0.27 },
-  { value: "Мелованная бумага 300 г/м²", density: 300, thicknessMm: 0.32 },
-  { value: "Мелованный картон 300 г/м²", density: 300, thicknessMm: 0.32 },
-  { value: "Дизайнерская бумага 300 г/м²", density: 300, thicknessMm: 0.34 },
-  { value: "Картон хром-эрзац", density: 280, thicknessMm: 0.40 },
-  { value: "Переплётный картон 1.5 мм", density: 950, thicknessMm: 1.5 },
-  { value: "Переплётный картон 2.0 мм", density: 1250, thicknessMm: 2.0 },
-  { value: "Крафт 300 г/м²", density: 300, thicknessMm: 0.36 },
-  { value: "Пластик ПВХ 0.5 мм", density: 700, thicknessMm: 0.5 },
-];
+type CoverMaterial = { value: string; density: number; thicknessMm: number };
+
+/**
+ * Материалы, сгруппированные по типу обложки.
+ * Зависимый справочник: при выборе типа обложки список материалов фильтруется.
+ */
+const COVER_MATERIALS_BY_KIND: Record<CoverKind, CoverMaterial[]> = {
+  soft: [
+    { value: "Мелованная бумага 170 г/м²", density: 170, thicknessMm: 0.18 },
+    { value: "Мелованная бумага 200 г/м²", density: 200, thicknessMm: 0.22 },
+    { value: "Мелованная бумага 250 г/м²", density: 250, thicknessMm: 0.27 },
+    { value: "Офсетная бумага 160 г/м²", density: 160, thicknessMm: 0.20 },
+  ],
+  thick: [
+    { value: "Мелованная бумага 300 г/м²", density: 300, thicknessMm: 0.32 },
+    { value: "Мелованный картон 300 г/м²", density: 300, thicknessMm: 0.32 },
+    { value: "Мелованный картон 350 г/м²", density: 350, thicknessMm: 0.38 },
+    { value: "Картон хром-эрзац 280 г/м²", density: 280, thicknessMm: 0.40 },
+  ],
+  plastic: [
+    { value: "Пластик ПВХ 0.3 мм", density: 420, thicknessMm: 0.3 },
+    { value: "Пластик ПВХ 0.5 мм", density: 700, thicknessMm: 0.5 },
+    { value: "Пластик ПВХ 0.7 мм", density: 980, thicknessMm: 0.7 },
+    { value: "Полипропилен 0.5 мм", density: 460, thicknessMm: 0.5 },
+  ],
+  designer: [
+    { value: "Дизайнерская бумага 250 г/м²", density: 250, thicknessMm: 0.30 },
+    { value: "Дизайнерская бумага 300 г/м²", density: 300, thicknessMm: 0.34 },
+    { value: "Дизайнерская бумага 350 г/м²", density: 350, thicknessMm: 0.40 },
+    { value: "Touche Cover 320 г/м²", density: 320, thicknessMm: 0.42 },
+  ],
+  kraft: [
+    { value: "Крафт 170 г/м²", density: 170, thicknessMm: 0.22 },
+    { value: "Крафт 250 г/м²", density: 250, thicknessMm: 0.30 },
+    { value: "Крафт 300 г/м²", density: 300, thicknessMm: 0.36 },
+    { value: "Крафт-картон 400 г/м²", density: 400, thicknessMm: 0.50 },
+  ],
+  laminated: [
+    { value: "Мелованная бумага 250 г/м² + ламинация", density: 250, thicknessMm: 0.29 },
+    { value: "Мелованная бумага 300 г/м² + ламинация", density: 300, thicknessMm: 0.34 },
+    { value: "Мелованный картон 300 г/м² + ламинация", density: 300, thicknessMm: 0.34 },
+  ],
+  cashed: [
+    { value: "Переплётный картон 1.5 мм + мелованная 130 г/м²", density: 1080, thicknessMm: 1.65 },
+    { value: "Переплётный картон 2.0 мм + мелованная 130 г/м²", density: 1380, thicknessMm: 2.15 },
+    { value: "Переплётный картон 2.0 мм + дизайнерская 150 г/м²", density: 1400, thicknessMm: 2.18 },
+  ],
+  hard: [
+    { value: "Переплётный картон 1.5 мм", density: 950, thicknessMm: 1.5 },
+    { value: "Переплётный картон 2.0 мм", density: 1250, thicknessMm: 2.0 },
+    { value: "Переплётный картон 2.5 мм", density: 1550, thicknessMm: 2.5 },
+    { value: "Переплётный картон 3.0 мм", density: 1850, thicknessMm: 3.0 },
+  ],
+  composite: [
+    { value: "Переплётный картон 2.0 мм + крафт корешок", density: 1280, thicknessMm: 2.1 },
+    { value: "Переплётный картон 2.0 мм + балакрон корешок", density: 1320, thicknessMm: 2.15 },
+    { value: "Переплётный картон 1.5 мм + ткань корешок", density: 1020, thicknessMm: 1.6 },
+  ],
+};
 
 export interface CoverSectionProps {
   value: CoverState;
@@ -228,24 +275,33 @@ export default function CoverSection({ value, onChange, title = "Обложка"
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Материал</Label>
-            <Select
-              value={COVER_MATERIALS.some((m) => m.value === v.paper) ? v.paper : "__custom__"}
-              onValueChange={(val) => {
-                if (val === "__custom__") return;
-                const m = COVER_MATERIALS.find((x) => x.value === val);
-                if (m) patch({ paper: m.value, density: m.density, thicknessMm: m.thicknessMm });
-              }}
-            >
-              <SelectTrigger className="h-8"><SelectValue placeholder="Выберите материал" /></SelectTrigger>
-              <SelectContent>
-                {COVER_MATERIALS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>
-                ))}
-                {!COVER_MATERIALS.some((m) => m.value === v.paper) && v.paper && (
-                  <SelectItem value="__custom__">{v.paper} (свой)</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+            {(() => {
+              const list = COVER_MATERIALS_BY_KIND[v.kind] ?? [];
+              const inList = list.some((m) => m.value === v.paper);
+              return (
+                <Select
+                  value={inList ? v.paper : "__custom__"}
+                  onValueChange={(val) => {
+                    if (val === "__custom__") return;
+                    const m = list.find((x) => x.value === val);
+                    if (m) patch({ paper: m.value, density: m.density, thicknessMm: m.thicknessMm });
+                  }}
+                >
+                  <SelectTrigger className="h-8"><SelectValue placeholder="Выберите материал" /></SelectTrigger>
+                  <SelectContent>
+                    {list.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>
+                    ))}
+                    {!inList && v.paper && (
+                      <SelectItem value="__custom__">{v.paper} (свой)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              );
+            })()}
+            <p className="text-[10px] text-muted-foreground">
+              Список материалов зависит от типа обложки.
+            </p>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Плотность, г/м²</Label>
