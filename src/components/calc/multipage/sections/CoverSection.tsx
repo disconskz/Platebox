@@ -139,6 +139,20 @@ const SPEC_OPS: { key: keyof CoverState; label: string }[] = [
   { key: "figuredCut", label: "Фигурная высечка" },
 ];
 
+/** Пресеты материалов обложки — для выпадающего списка «Материал». */
+const COVER_MATERIALS: { value: string; density: number; thicknessMm: number }[] = [
+  { value: "Мелованная бумага 170 г/м²", density: 170, thicknessMm: 0.18 },
+  { value: "Мелованная бумага 250 г/м²", density: 250, thicknessMm: 0.27 },
+  { value: "Мелованная бумага 300 г/м²", density: 300, thicknessMm: 0.32 },
+  { value: "Мелованный картон 300 г/м²", density: 300, thicknessMm: 0.32 },
+  { value: "Дизайнерская бумага 300 г/м²", density: 300, thicknessMm: 0.34 },
+  { value: "Картон хром-эрзац", density: 280, thicknessMm: 0.40 },
+  { value: "Переплётный картон 1.5 мм", density: 950, thicknessMm: 1.5 },
+  { value: "Переплётный картон 2.0 мм", density: 1250, thicknessMm: 2.0 },
+  { value: "Крафт 300 г/м²", density: 300, thicknessMm: 0.36 },
+  { value: "Пластик ПВХ 0.5 мм", density: 700, thicknessMm: 0.5 },
+];
+
 export interface CoverSectionProps {
   value: CoverState;
   onChange: (next: CoverState) => void;
