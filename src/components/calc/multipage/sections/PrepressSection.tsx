@@ -16,8 +16,6 @@ export interface PrepressState {
   plates: boolean;
   filesPrep: boolean;
   stampPrep: boolean;
-  dxf: boolean;
-  svg: boolean;
   qr: boolean;
   variableData: boolean;
 }
@@ -29,8 +27,6 @@ export const DEFAULT_PREPRESS: PrepressState = {
   plates: true,
   filesPrep: true,
   stampPrep: false,
-  dxf: false,
-  svg: false,
   qr: false,
   variableData: false,
 };
@@ -39,7 +35,7 @@ const ITEMS: { key: keyof PrepressState; label: string }[] = [
   { key: "filesPrep", label: "Подготовка к печати" },
   { key: "imposition", label: "Спуск полос" },
   { key: "plates", label: "Вывод форм" },
-  { key: "stampPrep", label: "Подготовка штампа" },
+  { key: "stampPrep", label: "Подготовка штампа (DXF/SVG)" },
   { key: "variableData", label: "Подготовка базы переменных данных" },
 ];
 
