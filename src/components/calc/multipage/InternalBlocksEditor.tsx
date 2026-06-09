@@ -15,17 +15,21 @@ import {
   makeDefaultBlock,
 } from "@/lib/calc/multipage/blocks";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import { BlockFormulas } from "./OperationFormulaRow";
+import type { SpecLine } from "./CostByStageBlock";
 
 export interface InternalBlocksEditorProps {
   blocks: InternalBlock[];
   onChange: (next: InternalBlock[]) => void;
+  /** Полная спецификация расчёта — для показа формул в каждой карточке блока. */
+  spec?: SpecLine[];
 }
 
 /**
  * Редактор внутренних блоков многостраничного изделия.
  * Этап 2 переработки ERP-архитектуры.
  */
-export default function InternalBlocksEditor({ blocks, onChange }: InternalBlocksEditorProps) {
+export default function InternalBlocksEditor({ blocks, onChange, spec }: InternalBlocksEditorProps) {
   const ctx = useMultipageCalcOptional();
   const globalPrint = ctx?.global.printType;
   const g = ctx?.global;
@@ -249,6 +253,13 @@ export default function InternalBlocksEditor({ blocks, onChange }: InternalBlock
                   }
                 />
               </div>
+
+              {spec && (
+                <BlockFormulas
+                  title={`Формулы расчёта блока #${i + 1}`}
+                  lines={spec.filter((l) => l.blockId === b.id)}
+                />
+              )}
             </div>
           );
         })}
