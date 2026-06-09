@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { evalFormula } from "@/lib/operations/formula";
 import { TEMPLATE_OP_MAP, type TemplateOpKey } from "@/lib/operations/templateOpsMap";
@@ -47,7 +47,7 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
   const [params, setParams] = useState<ParamRow[]>([]);
   const [ready, setReady] = useState(false);
 
-  const load = React.useCallback(async () => {
+  const load = useCallback(async () => {
     const [cR, wR, pR] = await Promise.all([
       supabase.from("operation_catalog").select("code,name,category"),
       supabase.from("operation_work_items").select("code,name,operation_code,price_source,quantity_source,sort_order"),
