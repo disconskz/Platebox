@@ -1226,7 +1226,12 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
               <UnderlaySection value={underlay} onChange={setUnderlay} title="3. Подложка" />
 
               {/* 4. Внутренние блоки (ERP — мульти-блочная архитектура) */}
-              <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} spec={lines} />
+              <InternalBlocksEditor
+                blocks={internalBlocks}
+                onChange={setInternalBlocks}
+                spec={lines}
+                papers={BLOCK_PAPERS.map((p) => ({ value: p.value, label: p.label, density: p.density }))}
+              />
 
               {/* 4. Допечатка */}
               <AdvancedOnly>
