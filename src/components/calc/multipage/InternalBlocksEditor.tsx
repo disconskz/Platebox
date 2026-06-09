@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { ArrowDown, ArrowUp, Layers, Plus, Trash2 } from "lucide-react";
 import {
   BLOCK_KIND_LABELS,
@@ -33,8 +32,6 @@ export default function InternalBlocksEditor({ blocks, onChange, spec }: Interna
   const ctx = useMultipageCalcOptional();
   const globalPrint = ctx?.global.printType;
   const g = ctx?.global;
-  const globalFormat = g?.format ?? "";
-  const globalCirculation = g?.circulation ?? 0;
   const inheritedSummary = g
     ? [
         g.format ? `Формат: ${g.format}` : null,
@@ -130,7 +127,7 @@ export default function InternalBlocksEditor({ blocks, onChange, spec }: Interna
               </div>
 
               {/* Поля блока */}
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Бумага</Label>
                   <Input value={b.paper} onChange={(e) => patch(b.id, { paper: e.target.value })} />
@@ -146,13 +143,17 @@ export default function InternalBlocksEditor({ blocks, onChange, spec }: Interna
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Количество листов</Label>
+                  <Label className="text-xs">Количество страниц</Label>
                   <Input
                     type="number"
                     min={1}
                     value={b.pages}
                     onChange={(e) => patch(b.id, { pages: Math.max(1, Number(e.target.value) || 1) })}
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    Листов: <span className="font-medium text-foreground">{Math.ceil(b.pages / 2)}</span>
+                    {" "}(страницы ÷ 2)
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Цветность лицо/оборот</Label>
@@ -174,84 +175,30 @@ export default function InternalBlocksEditor({ blocks, onChange, spec }: Interna
                     />
                   </div>
                 </div>
-              </div>
-
-              {/* Переопределение глобальных параметров */}
-              <div className="space-y-2 rounded-md border bg-muted/30 px-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id={`override-${b.id}`}
-                      checked={b.override}
-                      onCheckedChange={(v) => patch(b.id, { override: !!v })}
-                    />
-                    <Label htmlFor={`override-${b.id}`} className="cursor-pointer text-xs">
-                      Переопределить параметры блока
-                    </Label>
-                  </div>
-                  {!b.override && (
-                    <span className="text-[11px] text-muted-foreground">
+                <div className="space-y-1">
+                  <Label className="text-xs">Тип печати</Label>
+                  <Select
+                    value={effectivePrint}
+                    onValueChange={(v) =>
+                      patch(b.id, { printType: v as PrintKindLocal, override: true })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Авто</SelectItem>
+                      <SelectItem value="offset">Офсет</SelectItem>
+                      <SelectItem value="digital">Цифровая</SelectItem>
+                      <SelectItem value="uv">UV</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {!b.override && globalPrint && (
+                    <p className="text-[11px] text-muted-foreground">
                       Наследуется из глобальных
-                    </span>
+                    </p>
                   )}
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">Формат блока</Label>
-                    <Input
-                      className="h-8"
-                      value={b.override ? (b.localFormat ?? globalFormat) : globalFormat}
-                      disabled={!b.override}
-                      onChange={(e) => patch(b.id, { localFormat: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">Тираж блока</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      className="h-8"
-                      value={b.override ? (b.localCirculation ?? globalCirculation) : globalCirculation}
-                      disabled={!b.override}
-                      onChange={(e) => patch(b.id, { localCirculation: Math.max(1, Number(e.target.value) || 1) })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-muted-foreground">Печать блока</Label>
-                    <Select
-                      value={effectivePrint}
-                      disabled={!b.override}
-                      onValueChange={(v) => patch(b.id, { printType: v as PrintKindLocal })}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Авто</SelectItem>
-                        <SelectItem value="offset">Офсет</SelectItem>
-                        <SelectItem value="digital">Цифровая</SelectItem>
-                        <SelectItem value="uv">UV</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Дополнительные операции */}
-              <div className="space-y-1">
-                <Label className="text-xs">Дополнительные операции</Label>
-                <Input
-                  placeholder="Например: перфорация, нумерация, штамп (через запятую)"
-                  value={b.operations.join(", ")}
-                  onChange={(e) =>
-                    patch(b.id, {
-                      operations: e.target.value
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                />
               </div>
 
               {spec && (
