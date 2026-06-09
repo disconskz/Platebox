@@ -207,6 +207,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [springMaterial, setSpringMaterial] = useState<SpringMaterial>("metal");
   const [springColor, setSpringColor] = useState("Чёрный");
   const [springDiameterMm, setSpringDiameterMm] = useState(10);
+  const [springSide, setSpringSide] = useState<"top" | "left">("top");
 
   // Постпечать / опции
   const [optPerf, setOptPerf] = useState(false);
@@ -596,7 +597,9 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
 
     // Скрепление
     if (bindingKind === "spiral") {
-      const holes = Math.max(20, Math.round(itemH / 6));
+      // Шаг отверстий ≈ 6 мм. Сторона крепления определяет, по какой стороне они идут.
+      const bindEdgeMm = springSide === "top" ? itemW : itemH;
+      const holes = Math.max(20, Math.round(bindEdgeMm / 6));
       tryHB("spiral", {
         "Количество витков": holes,
         "Стоимость витка пружины": (spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5) / Math.max(1, holes),
@@ -1023,7 +1026,23 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                           </span>
                         </AccordionTrigger>
                         <AccordionContent>
-                          <div className="grid gap-3 sm:grid-cols-2 pt-2">
+                          {(() => {
+                            const recommendedDiameter = Math.max(6, Math.ceil(blockThicknessMm + 2));
+                            const bindEdgeMm = springSide === "top" ? itemW : itemH;
+                            const holes = Math.max(20, Math.round(bindEdgeMm / 6));
+                            const springPricePerItem = spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5;
+                            const windingPerItem = 35;
+                            const perforationTotal = holes * circulation * 0.5;
+                            const springTotal = circulation * springPricePerItem;
+                            const windingTotal = circulation * windingPerItem + 1500;
+                            return (
+                              <div className="space-y-3 pt-2">
+                                <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs space-y-1">
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Толщина блока</span><span className="font-medium">{blockThicknessMm.toFixed(2)} мм</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Рекомендуемый Ø пружины</span><span className="font-medium">{recommendedDiameter} мм</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Количество отверстий</span><span className="font-medium">{holes} (шаг ≈ 6 мм по стороне {springSide === "top" ? "сверху" : "слева"})</span></div>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
                             <div>
                               <Label>Материал пружины</Label>
                               <Select value={springMaterial} onValueChange={(v) => setSpringMaterial(v as SpringMaterial)}>
@@ -1043,11 +1062,37 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div><Label>Диаметр, мм</Label>
-                              <Input type="number" min={6} max={32} value={springDiameterMm} onChange={(e) => setSpringDiameterMm(+e.target.value || 6)} />
-                              <p className="text-[11px] text-muted-foreground mt-1">Рекомендованный минимум: {Math.max(6, Math.ceil(blockThicknessMm + 2))} мм (по толщине блока).</p>
-                            </div>
-                          </div>
+                                  <div>
+                                    <Label>Сторона крепления</Label>
+                                    <Select value={springSide} onValueChange={(v) => setSpringSide(v as "top" | "left")}>
+                                      <SelectTrigger><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="top">Сверху</SelectItem>
+                                        <SelectItem value="left">Слева</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div>
+                                    <Label>Диаметр, мм</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input type="number" min={6} max={32} value={springDiameterMm} onChange={(e) => setSpringDiameterMm(+e.target.value || 6)} />
+                                      <Button type="button" size="sm" variant="outline" onClick={() => setSpringDiameterMm(recommendedDiameter)}>
+                                        Подобрать
+                                      </Button>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-1">Авто-подбор по толщине блока: {recommendedDiameter} мм.</p>
+                                  </div>
+                                </div>
+                                <div className="rounded-md border bg-card/50 px-3 py-2 text-xs space-y-1">
+                                  <div className="font-medium mb-1">Стоимость скрепления</div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Перфорация под пружину ({holes} отв. × {circulation})</span><span>{fmtMoney(perforationTotal)}</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Пружина {spring.label} Ø{springDiameterMm} ({fmtMoney(springPricePerItem)}/шт × {circulation})</span><span>{fmtMoney(springTotal)}</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Навивка / установка ({fmtMoney(windingPerItem)}/шт × {circulation} + приладка 1 500)</span><span>{fmtMoney(windingTotal)}</span></div>
+                                  <div className="flex justify-between border-t pt-1 font-medium"><span>Итого скрепление</span><span>{fmtMoney(perforationTotal + springTotal + windingTotal)}</span></div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </AccordionContent>
                       </AccordionItem>
                     )}
