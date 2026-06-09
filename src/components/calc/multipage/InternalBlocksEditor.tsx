@@ -32,8 +32,6 @@ export default function InternalBlocksEditor({ blocks, onChange, spec }: Interna
   const ctx = useMultipageCalcOptional();
   const globalPrint = ctx?.global.printType;
   const g = ctx?.global;
-  const globalFormat = g?.format ?? "";
-  const globalCirculation = g?.circulation ?? 0;
   const inheritedSummary = g
     ? [
         g.format ? `Формат: ${g.format}` : null,
