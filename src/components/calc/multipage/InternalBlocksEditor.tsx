@@ -22,13 +22,15 @@ export interface InternalBlocksEditorProps {
   onChange: (next: InternalBlock[]) => void;
   /** Полная спецификация расчёта — для показа формул в каждой карточке блока. */
   spec?: SpecLine[];
+  /** Справочник бумаг для выпадающего списка (с человекочитаемыми названиями). */
+  papers?: { value: string; label: string; density?: number }[];
 }
 
 /**
  * Редактор внутренних блоков многостраничного изделия.
  * Этап 2 переработки ERP-архитектуры.
  */
-export default function InternalBlocksEditor({ blocks, onChange, spec }: InternalBlocksEditorProps) {
+export default function InternalBlocksEditor({ blocks, onChange, spec, papers }: InternalBlocksEditorProps) {
   const ctx = useMultipageCalcOptional();
   const globalPrint = ctx?.global.printType;
   const g = ctx?.global;
@@ -130,7 +132,44 @@ export default function InternalBlocksEditor({ blocks, onChange, spec }: Interna
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Бумага</Label>
-                  <Input value={b.paper} onChange={(e) => patch(b.id, { paper: e.target.value })} />
+                  {papers && papers.length > 0 ? (
+                    (() => {
+                      const inList = papers.some((p) => p.value === b.paper);
+                      return (
+                        <Select
+                          value={inList ? b.paper : "__custom__"}
+                          onValueChange={(val) => {
+                            if (val === "__custom__") return;
+                            const p = papers.find((x) => x.value === val);
+                            if (p) {
+                              patch(b.id, {
+                                paper: p.value,
+                                density: p.density && p.density > 0 ? p.density : b.density,
+                              });
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите бумагу" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {papers.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>
+                                {p.label}
+                              </SelectItem>
+                            ))}
+                            {!inList && b.paper && (
+                              <SelectItem value="__custom__">
+                                {b.paper.startsWith("db:") ? "Бумага из справочника" : b.paper} (свой)
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      );
+                    })()
+                  ) : (
+                    <Input value={b.paper} onChange={(e) => patch(b.id, { paper: e.target.value })} />
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Плотность, г/м²</Label>
