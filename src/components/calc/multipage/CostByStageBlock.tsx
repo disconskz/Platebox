@@ -275,7 +275,7 @@ function StageRow({
       {open && (
         <div className="ml-4 mt-1 space-y-1.5 border-l-2 border-muted pl-2.5">
           {lines.map((l, i) => (
-            <OperationRow key={`${stage}-${i}-${l.name}`} line={l} />
+            <OperationFormulaRow key={`${stage}-${i}-${l.name}`} line={l} />
           ))}
         </div>
       )}
