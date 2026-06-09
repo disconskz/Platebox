@@ -207,6 +207,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
   const [springMaterial, setSpringMaterial] = useState<SpringMaterial>("metal");
   const [springColor, setSpringColor] = useState("Чёрный");
   const [springDiameterMm, setSpringDiameterMm] = useState(10);
+  const [springSide, setSpringSide] = useState<"top" | "left">("top");
 
   // Постпечать / опции
   const [optPerf, setOptPerf] = useState(false);
