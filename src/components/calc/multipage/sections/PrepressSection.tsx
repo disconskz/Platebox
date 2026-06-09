@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { FileCheck2 } from "lucide-react";
+import { SectionHelp } from "../SectionHelp";
 
 /**
  * Допечатка (раздел 15 ТЗ): проверка макета, цветокоррекция, спуск полос,
@@ -52,6 +53,14 @@ export default function PrepressSection({ value, onChange, title = "Допеча
         <CardTitle className="flex items-center gap-2 text-sm">
           <FileCheck2 className="h-4 w-4" />
           {title}
+          <SectionHelp
+            title="Допечатка"
+            what="Подготовительные операции до запуска печати: подготовка файлов, спуск полос, вывод форм, изготовление штампа, формирование базы переменных данных. Само нанесение (QR, штрихкод, нумерация, ПД) — в Спецоперациях."
+            simple="Используются значения по умолчанию — ничего настраивать не нужно."
+            advanced="Включайте/выключайте операции вручную, влияет на маршрут и итог."
+            tech="Каждая операция отображается в спецификации и техотчёте с формулой расчёта."
+            learnMore="prepress"
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">
