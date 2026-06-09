@@ -109,6 +109,9 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
           { label: "Формула кол-ва", value: `${w.quantity_source} = ${Math.round(qty * 100) / 100}` },
           { label: "Формула цены", value: `${w.price_source} = ${Math.round(price * 100) / 100}` },
           ...usedVars.map((v) => ({ label: `пер. ${v.label}`, value: v.value })),
+          // Скрытые служебные поля для deep-link «Открыть в справочнике».
+          { label: "__opCode", value: String(def.code) },
+          { label: "__opName", value: op.name },
         ];
         out.push({
           stage: def.stage,

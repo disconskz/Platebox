@@ -40,7 +40,7 @@ interface OpWorkItem {
   quantity_source: string;
 }
 
-export default function OperationCatalog() {
+export default function OperationCatalog({ initialOpCode }: { initialOpCode?: number | null } = {}) {
   const [ops, setOps] = useState<Operation[]>([]);
   const [params, setParams] = useState<Record<number, OpParam[]>>({});
   const [workItems, setWorkItems] = useState<Record<number, OpWorkItem[]>>({});
@@ -88,6 +88,13 @@ export default function OperationCatalog() {
       setLoading(false);
     })();
   }, []);
+
+  // Deep-link из калькулятора: ?op=<code> — авто-выделить операцию.
+  useEffect(() => {
+    if (initialOpCode == null) return;
+    setActiveCode(initialOpCode);
+    setSearch("");
+  }, [initialOpCode]);
 
   useEffect(() => {
     if (activeCode == null) return;

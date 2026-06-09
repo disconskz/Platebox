@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Plus, Trash2, Save, ChevronLeft, ChevronRight, AlertTriangle,
   Copy, Download, Upload, MoreHorizontal, Search, X, Link2, Layers,
@@ -1278,9 +1278,18 @@ const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 const NAV_BY_KEY: Record<string, NavItem> = Object.fromEntries(ALL_NAV_ITEMS.map((i) => [i.key, i]));
 
 const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authReady: boolean }) => {
-  const [active, setActive] = useState<string>("materials");
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const opParam = searchParams.get("op");
+  const initialOpCode = opParam ? Number(opParam) : null;
+  const [active, setActive] = useState<string>(tabParam || "materials");
   const [navQuery, setNavQuery] = useState("");
   const [counts, setCounts] = useState<Record<string, number>>({});
+
+  // При смене query-параметра tab — переключаем активный раздел.
+  useEffect(() => {
+    if (tabParam) setActive(tabParam);
+  }, [tabParam]);
 
   // Подсчёт строк в каждой реальной таблице — показываем рядом с пунктом.
   // Один проход на сессию: не блокирует UI, ошибки тихо игнорируем.
@@ -1320,7 +1329,7 @@ const ReferencesNav = ({ dynOpts, authReady }: { dynOpts: DynamicOptions; authRe
     if (active === "__custom") return <CustomReferences />;
     if (active === "__glossary") return <ProductGlossary />;
     if (active === "__calc_constants") return <CalcConstants />;
-    if (active === "__op_catalog") return <OperationCatalog />;
+    if (active === "__op_catalog") return <OperationCatalog initialOpCode={initialOpCode} />;
     const spec = TABLES.find((t) => t.key === active);
     if (!spec) return null;
     return <RefTable spec={spec as any} dynOpts={dynOpts} authReady={authReady} />;
