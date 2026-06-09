@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Printer } from "lucide-react";
+import { SectionHelp } from "../SectionHelp";
 
 /**
  * 6. Печать (ТЗ задачи 3). Отдельный блок: тип печати, цветность,
@@ -63,6 +64,14 @@ export default function PrintSection({ value, onChange, title = "Печать", 
           <CardTitle className="flex items-center gap-2 text-sm">
             <Printer className="h-4 w-4" />
             {title}
+            <SectionHelp
+              title="Печать"
+              what="Сводка по печати: тип (офсет/цифра), цветность лицо/оборот, формы, приладка, формат и количество печатных листов. Значения рассчитываются автоматически по основным параметрам и блокам."
+              simple="Видно как сводку только для просмотра."
+              advanced="Можно сверить цветность и формат — основной выбор делается в основных параметрах."
+              tech="Все значения берутся из спуска полос и проходят в техотчёт и спецификацию."
+              learnMore="print"
+            />
           </CardTitle>
           <CardDescription>Блок для просмотра параметров — редактирование не требуется</CardDescription>
         </CardHeader>
@@ -84,6 +93,14 @@ export default function PrintSection({ value, onChange, title = "Печать", 
         <CardTitle className="flex items-center gap-2 text-sm">
           <Printer className="h-4 w-4" />
           {title}
+          <SectionHelp
+            title="Печать"
+            what="Сводка по печати: тип (офсет/цифра), цветность лицо/оборот, формы, приладка, формат и количество печатных листов."
+            simple="Видно как сводку только для просмотра."
+            advanced="Можно сверить цветность и формат — основной выбор делается в основных параметрах."
+            tech="Все значения берутся из спуска полос и проходят в техотчёт и спецификацию."
+            learnMore="print"
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">

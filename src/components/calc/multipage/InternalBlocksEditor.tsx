@@ -16,6 +16,7 @@ import {
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import { BlockFormulas } from "./OperationFormulaRow";
 import type { SpecLine } from "./CostByStageBlock";
+import { SectionHelp } from "./SectionHelp";
 
 export interface InternalBlocksEditorProps {
   blocks: InternalBlock[];
@@ -76,6 +77,14 @@ export default function InternalBlocksEditor({ blocks, onChange, spec, papers }:
           <Layers className="h-4 w-4" />
           Внутренние блоки
           <Badge variant="secondary" className="ml-1">{blocks.length}</Badge>
+          <SectionHelp
+            title="Внутренние блоки"
+            what="Блоки внутри изделия: основной, вставки, разделители, форзацы, реклама. Для каждого блока — бумага, плотность, страницы, цветность и тип печати. Количество листов считается как страницы ÷ 2."
+            simple="Достаточно одного основного блока со страницами из основных параметров."
+            advanced="Добавляйте дополнительные блоки (вкладки, разделители) с собственной бумагой и цветностью."
+            tech="Видны формулы расчёта по каждому блоку: листы, тетради, приладка, отходы, материал."
+            learnMore="internal-blocks"
+          />
         </CardTitle>
         <Button type="button" size="sm" variant="outline" onClick={add}>
           <Plus className="mr-1 h-4 w-4" />

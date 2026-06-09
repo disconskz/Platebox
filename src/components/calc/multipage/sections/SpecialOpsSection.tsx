@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Sparkles } from "lucide-react";
+import { SectionHelp } from "../SectionHelp";
 
 /**
  * Спецоперации (раздел 19 ТЗ). Идут ПОСЛЕ сборки, не являются отдельным
@@ -64,6 +65,14 @@ export default function SpecialOpsSection({ value, onChange, title = "Спецо
         <CardTitle className="flex items-center gap-2 text-sm">
           <Sparkles className="h-4 w-4" />
           {title}
+          <SectionHelp
+            title="Спецоперации"
+            what="Нанесение и нестандартные ручные работы ПОСЛЕ сборки: QR/штрихкод, нумерация, переменные данные, персонализация, ручная вклейка, стикеровка и т.п."
+            simple="Все опции выключены по умолчанию. Включайте только то, что заказчик запросил."
+            advanced="Активные операции добавляют отдельные строки в спецификацию и маршрут."
+            tech="Видны формулы и тарифы каждой спецоперации; для нанесения переменных данных автоматически добавляется подготовка базы в Допечатке."
+            learnMore="special-ops"
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">

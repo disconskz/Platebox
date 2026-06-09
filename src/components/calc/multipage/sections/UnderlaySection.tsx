@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Layers3 } from "lucide-react";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
+import { SectionHelp } from "../SectionHelp";
 
 /**
  * Подложка (раздел 13 ТЗ). Опциональная — включается переключателем.
@@ -70,6 +71,14 @@ export default function UnderlaySection({ value, onChange, title = "Подлож
           {value.enabled && isOverride && (
             <Badge variant="outline" className="ml-1 text-[10px]">Переопределено</Badge>
           )}
+          <SectionHelp
+            title="Подложка"
+            what="Опциональная подложка под блок (для блокнотов, планингов, отрывных календарей). Включается переключателем — иначе не считается."
+            simple="Обычно не нужна. Если изделие требует подложку, включите и оставьте значения по умолчанию."
+            advanced="Можно выбрать материал и плотность, включить ламинацию/кашировку, переопределить параметры."
+            tech="При включении подложка добавляется в спецификацию материалов и в маршрут постпечатки."
+            learnMore="underlay"
+          />
         </CardTitle>
         <div className="flex items-center gap-4">
           {value.enabled && (
