@@ -989,7 +989,19 @@ export default function DeskCalendarCalculator({ embedded = false, onResult }: D
                 <CompositionTable rows={[]} />
               </AdvancedOnly>
               <TechOnly>
-                <TechReport data={{ material: { name: preset.value }, imposition: {}, print: { type: printMode }, postpress: [], route: route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const })) }} />
+                <TechReport
+                  data={{
+                    material: { name: preset.value },
+                    imposition: {},
+                    print: { type: printMode },
+                    postpress: [],
+                    route: route.map((label, idx) => ({ id: String(idx), label, stage: "assembly" as const })),
+                    stageCosts: Array.from(
+                      spec.reduce((m, l) => m.set(l.stage, (m.get(l.stage) ?? 0) + (l.total || 0)), new Map<string, number>()),
+                      ([stage, cost]) => ({ stage, cost })
+                    ),
+                  }}
+                />
               </TechOnly>
 
               <Card>

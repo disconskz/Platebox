@@ -34,6 +34,8 @@ export interface TechReportData {
   };
   postpress: string[];
   route: RouteOperation[];
+  /** Стоимость по операциям/этапам (опционально). */
+  stageCosts?: Array<{ stage: string; cost: number }>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -100,6 +102,22 @@ export default function TechReport({ data }: { data: TechReportData }) {
             </ul>
           )}
         </Section>
+
+        {data.stageCosts && data.stageCosts.length > 0 && (
+          <Section title="Стоимость по операциям">
+            <div className="space-y-0.5">
+              {data.stageCosts.map((s, i) => (
+                <Row key={i} k={s.stage} v={`${s.cost.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ₸`} />
+              ))}
+              <div className="mt-1 flex justify-between gap-3 border-t pt-1 font-medium">
+                <span>Итого</span>
+                <span>
+                  {data.stageCosts.reduce((s, x) => s + x.cost, 0).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ₸
+                </span>
+              </div>
+            </div>
+          </Section>
+        )}
 
         <Section title="Маршрут">
           <ol className="list-decimal pl-4 space-y-0.5">
