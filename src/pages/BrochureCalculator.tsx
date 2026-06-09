@@ -1274,7 +1274,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
 
               {/* 4. Внутренние блоки (ERP — мульти-блочная архитектура) */}
               <AdvancedOnly>
-                <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} />
+                <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} spec={lines} />
               </AdvancedOnly>
 
               {/* 4. Допечатка */}
