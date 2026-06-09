@@ -7,7 +7,6 @@ import type { ProductType } from "@/lib/calc/types";
 import type { BoxProResultPayload } from "@/pages/BoxProCalculator";
 import { MultipageCalcProvider } from "@/lib/calc/multipage/context";
 import ModeSwitcher from "@/components/calc/multipage/ModeSwitcher";
-import GlobalParamsBar from "@/components/calc/multipage/GlobalParamsBar";
 
 /**
  * Список типов продукции, для которых вместо стандартных секций «Нового расчёта»
@@ -81,7 +80,6 @@ export default function MultipageTemplateHost({ productType, onTemplateResult }:
   return (
     <MultipageCalcProvider>
       <ModeSwitcher className="mb-3" />
-      <GlobalParamsBar className="mb-3" />
       {inner}
     </MultipageCalcProvider>
   );
