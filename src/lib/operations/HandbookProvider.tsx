@@ -28,9 +28,18 @@ interface Ctx {
    * или null, если справочник не загружен / формул нет / переменных не хватает.
    */
   priceOp: (opKey: TemplateOpKey, ctx: Record<string, number>) => HandbookLine[] | null;
+  /** Перечитывает справочник из базы — нужно после правок формул из калькулятора. */
+  refresh: () => Promise<void>;
+  /** Список переменных операции (имена параметров) — для редактора формулы. */
+  getOpVariables: (opCode: number) => Array<{ name: string }>;
 }
 
-const HandbookCtx = createContext<Ctx>({ ready: false, priceOp: () => null });
+const HandbookCtx = createContext<Ctx>({
+  ready: false,
+  priceOp: () => null,
+  refresh: async () => {},
+  getOpVariables: () => [],
+});
 
 export function HandbookProvider({ children }: { children: ReactNode }) {
   const [catalog, setCatalog] = useState<CatalogOp[]>([]);
@@ -38,22 +47,19 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
   const [params, setParams] = useState<ParamRow[]>([]);
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const [cR, wR, pR] = await Promise.all([
-        supabase.from("operation_catalog").select("code,name,category"),
-        supabase.from("operation_work_items").select("code,name,operation_code,price_source,quantity_source,sort_order"),
-        supabase.from("operation_parameters").select("code,name,operation_code,default_value,formula,sort_order"),
-      ]);
-      if (!active) return;
-      setCatalog(((cR.data as any) || []) as CatalogOp[]);
-      setWorkItems(((wR.data as any) || []) as WorkItem[]);
-      setParams(((pR.data as any) || []) as ParamRow[]);
-      setReady(true);
-    })();
-    return () => { active = false; };
+  const load = React.useCallback(async () => {
+    const [cR, wR, pR] = await Promise.all([
+      supabase.from("operation_catalog").select("code,name,category"),
+      supabase.from("operation_work_items").select("code,name,operation_code,price_source,quantity_source,sort_order"),
+      supabase.from("operation_parameters").select("code,name,operation_code,default_value,formula,sort_order"),
+    ]);
+    setCatalog(((cR.data as any) || []) as CatalogOp[]);
+    setWorkItems(((wR.data as any) || []) as WorkItem[]);
+    setParams(((pR.data as any) || []) as ParamRow[]);
+    setReady(true);
   }, []);
+
+  useEffect(() => { void load(); }, [load]);
 
   const value = useMemo<Ctx>(() => ({
     ready,
@@ -112,6 +118,9 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
           // Скрытые служебные поля для deep-link «Открыть в справочнике».
           { label: "__opCode", value: String(def.code) },
           { label: "__opName", value: op.name },
+          { label: "__workItemCode", value: String(w.code) },
+          { label: "__quantitySource", value: w.quantity_source ?? "" },
+          { label: "__priceSource", value: w.price_source ?? "" },
         ];
         out.push({
           stage: def.stage,
@@ -127,7 +136,10 @@ export function HandbookProvider({ children }: { children: ReactNode }) {
       if (!out.length) return null;
       return out;
     },
-  }), [ready, catalog, workItems, params]);
+    refresh: load,
+    getOpVariables: (opCode: number) =>
+      params.filter((p) => p.operation_code === opCode).map((p) => ({ name: p.name })),
+  }), [ready, catalog, workItems, params, load]);
 
   return <HandbookCtx.Provider value={value}>{children}</HandbookCtx.Provider>;
 }
