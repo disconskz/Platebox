@@ -2,7 +2,6 @@ import * as React from "react";
 import { Outlet } from "react-router-dom";
 import { MultipageCalcProvider } from "@/lib/calc/multipage/context";
 import ModeSwitcher from "./ModeSwitcher";
-import GlobalParamsBar from "./GlobalParamsBar";
 
 /**
  * Обёртка для standalone-страниц шаблонных калькуляторов
