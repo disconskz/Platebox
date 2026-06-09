@@ -899,56 +899,6 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
               <Card>
                 <CardContent className="pt-4">
                   <Accordion type="multiple" defaultValue={["block", "cover", "binding"]} className="w-full">
-                    {/* Обложка */}
-                    <AccordionItem value="cover">
-                      <AccordionTrigger>
-                        <span className="flex items-center gap-2">
-                          Обложка
-                          <Badge variant={hasCover ? "default" : "outline"} className="text-[10px]">{hasCover ? "есть" : "нет"}</Badge>
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <div className="sm:col-span-2 flex items-center gap-2">
-                            <Checkbox id="hasCover" checked={hasCover} onCheckedChange={(v) => setHasCover(!!v)} />
-                            <Label htmlFor="hasCover" className="cursor-pointer">Изделие с обложкой</Label>
-                          </div>
-                          {hasCover && (<>
-                            <div className="sm:col-span-2">
-                              <Label>Бумага обложки</Label>
-                              <Select value={coverPaperKey} onValueChange={setCoverPaperKey}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {COVER_PAPERS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label} ({fmtMoney(p.pricePerSheet)}/лист)</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div><Label>Плотность, г/м²</Label><Input value={coverPaper.density} readOnly /></div>
-                            <div><Label>Цветность (лицо)</Label><Input type="number" min={0} max={6} value={colorCoverFront} onChange={(e) => setColorCoverFront(+e.target.value || 0)} /></div>
-                            <div><Label>Цветность (оборот)</Label><Input type="number" min={0} max={6} value={colorCoverBack} onChange={(e) => setColorCoverBack(+e.target.value || 0)} /></div>
-                            <div className="sm:col-span-2 space-y-2 text-sm">
-                              <Row label="Ламинация" checked={optCoverLam} onChange={setOptCoverLam}>
-                                <Select value={String(coverLamSides)} onValueChange={(v) => setCoverLamSides(+v as 1 | 2)}>
-                                  <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="1">1 сторона</SelectItem>
-                                    <SelectItem value="2">2 стороны</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </Row>
-                              <Row label="Биговка (авто при ламинации/плотной)" checked={optCoverBig} onChange={setOptCoverBig} />
-                              <Row label="Выборочный лак" checked={optSpotVarnish} onChange={setOptSpotVarnish} />
-                              <Row label="Тиснение фольгой" checked={optStamp} onChange={setOptStamp}>
-                                <Input className="h-8 w-20" type="number" min={0} value={stampArea} onChange={(e) => setStampArea(+e.target.value || 0)} />
-                                <span className="text-xs text-muted-foreground">см² клише</span>
-                              </Row>
-                              <Row label="Конгрев" checked={optEmboss} onChange={setOptEmboss} />
-                            </div>
-                          </>)}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-
                     {/* Подложка */}
                     <AccordionItem value="backing">
                       <AccordionTrigger>
