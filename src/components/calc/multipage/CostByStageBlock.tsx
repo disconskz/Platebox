@@ -1,10 +1,11 @@
 import * as React from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Wrench } from "lucide-react";
+import { RotateCcw, Wrench, ChevronDown, ChevronRight, Pencil, FunctionSquare } from "lucide-react";
 import { AdvancedOnly, TechOnly } from "./ModeVisibility";
 
 export interface SpecLine {
@@ -14,6 +15,8 @@ export interface SpecLine {
   unit: string;
   price: number;
   total: number;
+  /** Детали расчёта из справочника (формулы и переменные). */
+  details?: Array<{ label: string; value: string }>;
 }
 
 export interface CostByStageMetrics {
@@ -113,14 +116,15 @@ export default function CostByStageBlock({
   }, [metrics, overrides.metrics]);
 
   const { groups, total, opsCount } = React.useMemo(() => {
-    const map = new Map<string, { total: number; ops: number }>();
+    const map = new Map<string, { total: number; ops: number; lines: SpecLine[] }>();
     let total = 0;
     for (const l of spec) {
       const mul = stageMul(l.stage);
       const lineTotal = l.total * mul;
-      const g = map.get(l.stage) ?? { total: 0, ops: 0 };
+      const g = map.get(l.stage) ?? { total: 0, ops: 0, lines: [] };
       g.total += lineTotal;
       g.ops += 1;
+      g.lines.push({ ...l, total: lineTotal });
       map.set(l.stage, g);
       total += lineTotal;
     }
@@ -177,27 +181,15 @@ export default function CostByStageBlock({
             {groups.map((g) => {
               const pct = total > 0 ? (g.total / total) * 100 : 0;
               return (
-                <div key={g.stage} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-foreground">
-                      {g.stage}
-                      {stageMul(g.stage) !== 1 && (
-                        <span className="ml-1 text-[10px] text-amber-600">
-                          ×{stageMul(g.stage).toFixed(2)}
-                        </span>
-                      )}
-                    </span>
-                    <span className="tabular-nums text-muted-foreground">
-                      {g.ops} оп. · <span className="text-foreground font-medium">{fmtMoney(g.total)}</span> · {pct.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: `${Math.min(100, pct)}%` }}
-                    />
-                  </div>
-                </div>
+                <StageRow
+                  key={g.stage}
+                  stage={g.stage}
+                  total={g.total}
+                  pct={pct}
+                  ops={g.ops}
+                  mul={stageMul(g.stage)}
+                  lines={g.lines}
+                />
               );
             })}
           </div>
