@@ -20,6 +20,8 @@ export interface RouteInput {
   hasPerforation: boolean;
   hasNumbering: boolean;
   hasVariableData: boolean;
+  hasQr?: boolean;
+  hasBarcodes?: boolean;
   binding: "staple" | "eurostaple" | "kbs" | "thermo" | "spiral" | "pva" | "sewn" | "sewn_kbs" | "hardcover" | "none";
   blocks: Pick<InternalBlock, "kind" | "pages">[];
   packaging: { bundles: boolean; boxes: boolean; shrink: boolean; pallets: boolean };
@@ -39,15 +41,17 @@ export interface RouteOperation {
 export function buildRoute(input: RouteInput): RouteOperation[] {
   const ops: RouteOperation[] = [];
 
-  // 1. Допечатка
-  ops.push({ id: "pp-proof", stage: "prepress", label: "Проверка макета" });
-  ops.push({ id: "pp-color", stage: "prepress", label: "Цветокоррекция" });
+  // 1. Допечатка — только подготовительные операции (нанесение идёт в Спецоперациях)
+  ops.push({ id: "pp-files", stage: "prepress", label: "Подготовка к печати" });
   ops.push({ id: "pp-imp", stage: "prepress", label: "Спуск полос" });
   if (input.printType !== "digital") {
     ops.push({ id: "pp-plates", stage: "prepress", label: "Вывод форм", hint: "офсетная печать" });
   }
-  if (input.hasVariableData) {
-    ops.push({ id: "pp-vd", stage: "prepress", label: "Переменные данные" });
+  if (input.hasStamping || input.hasEmbossing || input.hasDieCut) {
+    ops.push({ id: "pp-stamp", stage: "prepress", label: "Подготовка штампа" });
+  }
+  if (input.hasVariableData || input.hasNumbering || input.hasQr || input.hasBarcodes) {
+    ops.push({ id: "pp-vd-db", stage: "prepress", label: "Подготовка базы переменных данных" });
   }
 
   // 2. Печать
@@ -113,7 +117,9 @@ export function buildRoute(input: RouteInput): RouteOperation[] {
 
   // 5. Спецоперации
   if (input.hasNumbering) ops.push({ id: "spc-num", stage: "special", label: "Нумерация" });
-  if (input.hasVariableData) ops.push({ id: "spc-pers", stage: "special", label: "Персонализация" });
+  if (input.hasQr) ops.push({ id: "spc-qr", stage: "special", label: "Нанесение QR-кода" });
+  if (input.hasBarcodes) ops.push({ id: "spc-bc", stage: "special", label: "Нанесение штрихкода" });
+  if (input.hasVariableData) ops.push({ id: "spc-vd", stage: "special", label: "Переменные данные (нанесение)" });
 
   // 6. Контроль качества
   ops.push({ id: "qc-final", stage: "qc", label: "Контроль качества" });
