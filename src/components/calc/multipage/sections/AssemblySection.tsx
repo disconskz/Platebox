@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Wrench } from "lucide-react";
+import { SectionHelp } from "../SectionHelp";
 
 /**
  * Сборка (раздел 18 ТЗ). Идёт ПОСЛЕ постпечатки, не раньше.
@@ -59,6 +60,14 @@ export default function AssemblySection({ value, onChange, title = "Сборка
         <CardTitle className="flex items-center gap-2 text-sm">
           <Wrench className="h-4 w-4" />
           {title}
+          <SectionHelp
+            title="Сборка"
+            what="Операции после постпечатки: подборка тетрадей, скрепление (КБС/скоба/пружина/ригель), установка магнитов/ложемента и финальная сборка."
+            simple="Тип скрепления берётся из основных параметров — здесь обычно ничего не меняем."
+            advanced="Можно добавить дополнительные узлы сборки (магниты, ложемент, ригель)."
+            tech="Каждый узел даёт строку в спецификации с тарифом за изделие/комплект."
+            learnMore="assembly"
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">
