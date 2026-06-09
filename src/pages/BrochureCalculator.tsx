@@ -1060,25 +1060,48 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     if (optDieCut) postpress.push("Высечка");
     if (optPerf) postpress.push(`Перфорация ×${perfLines}`);
     if (optNum) postpress.push(`Нумерация ×${numCount}`);
+    const formsCount = offset
+      ? (colorBlockFront + colorBlockBack) * signatures + (colorCoverFront + colorCoverBack)
+      : 0;
+    const netTotal = blockLayout.netSheets + coverLayout.netSheets;
+    const printTotal = blockLayout.printSheets + coverLayout.printSheets;
+    const wasteSheets = Math.max(0, printTotal - netTotal);
+    const wastePercent = netTotal > 0 ? (wasteSheets / netTotal) * 100 : 0;
+    const stageMap = new Map<string, number>();
+    for (const l of lines) stageMap.set(l.stage, (stageMap.get(l.stage) ?? 0) + (l.total || 0));
+    const stageCosts = Array.from(stageMap, ([stage, cost]) => ({ stage, cost }));
+    const materialCost = lines.filter((l) => l.stage === "Материалы").reduce((s, l) => s + (l.total || 0), 0);
+    const printCost = lines.filter((l) => l.stage === "Печать").reduce((s, l) => s + (l.total || 0), 0);
+    const formsCost = lines.filter((l) => /форм/i.test(l.name)).reduce((s, l) => s + (l.total || 0), 0);
     return {
       material: {
         name: `Блок: ${blockPaper.label}; обложка: ${coverPaper.label}`,
         purchaseFormat: `${blockPaper.sheetW}×${blockPaper.sheetH} мм`,
-        purchaseSheets: blockLayout.printSheets,
+        purchaseSheets: printTotal,
+        costTotal: materialCost,
+        wasteSheets,
+        wastePercent,
       },
       imposition: {
         printFormat: `${format.w}×${format.h} мм`,
+        itemsPerSheet: blockLayout.effectiveUp,
         signatures,
-        printSheets: blockLayout.printSheets,
+        printSheets: printTotal,
+        variant: `Блок: ${blockLayout.effectiveUp} на стороне × ${signatures} тетр.; Обложка: ${coverLayout.upPerSheet} на лист`,
       },
       print: {
         type: offset ? "Офсет" : "Цифровая",
-        colors: `${colorBlockFront}+${colorBlockBack}`,
+        colors: `Блок ${colorBlockFront}+${colorBlockBack} · Обложка ${colorCoverFront}+${colorCoverBack}`,
+        forms: formsCount || undefined,
+        formsCost: formsCost || undefined,
+        setupSheets: blockLayout.setup * signatures + coverLayout.setup,
+        printCost: printCost || undefined,
       },
       postpress,
       route: dynamicRoute,
+      stageCosts,
     };
-  }, [optCoverLam, coverLamSides, optCoverBig, optStamp, stampArea, optEmboss, optDieCut, optPerf, perfLines, optNum, numCount, blockPaper, coverPaper, blockLayout, format, signatures, offset, colorBlockFront, colorBlockBack, dynamicRoute]);
+  }, [optCoverLam, coverLamSides, optCoverBig, optStamp, stampArea, optEmboss, optDieCut, optPerf, perfLines, optNum, numCount, blockPaper, coverPaper, blockLayout, coverLayout, format, signatures, offset, colorBlockFront, colorBlockBack, colorCoverFront, colorCoverBack, dynamicRoute, lines]);
 
   // Этап 6: расширенный итог (цена/шт, срок, листы, форматы, отходы, формы)
   const expandedTotals = useMemo<ExpandedTotalsData>(() => {
