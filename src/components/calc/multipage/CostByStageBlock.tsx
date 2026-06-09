@@ -224,6 +224,120 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * Строка одного этапа: бар + раскрывающийся список операций с формулами.
+ * Формулы видны в Расширенном режиме, переменные и ссылка на справочник — в режиме Технолога.
+ */
+function StageRow({
+  stage,
+  total,
+  pct,
+  ops,
+  mul,
+  lines,
+}: {
+  stage: string;
+  total: number;
+  pct: number;
+  ops: number;
+  mul: number;
+  lines: SpecLine[];
+}) {
+  const [open, setOpen] = React.useState(false);
+  const hasDetails = lines.some((l) => Array.isArray(l.details) && l.details.length > 0);
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between text-xs hover:text-foreground transition-colors"
+        aria-expanded={open}
+      >
+        <span className="font-medium text-foreground flex items-center gap-1">
+          {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {stage}
+          {mul !== 1 && (
+            <span className="ml-1 text-[10px] text-amber-600">×{mul.toFixed(2)}</span>
+          )}
+          {hasDetails && (
+            <FunctionSquare className="h-3 w-3 text-muted-foreground/70" />
+          )}
+        </span>
+        <span className="tabular-nums text-muted-foreground">
+          {ops} оп. · <span className="text-foreground font-medium">{fmtMoney(total)}</span> · {pct.toFixed(1)}%
+        </span>
+      </button>
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div className="h-full bg-primary" style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
+      {open && (
+        <div className="ml-4 mt-1 space-y-1.5 border-l-2 border-muted pl-2.5">
+          {lines.map((l, i) => (
+            <OperationRow key={`${stage}-${i}-${l.name}`} line={l} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Одна операция этапа: имя, кол-во × цена = сумма, формула, переменные. */
+function OperationRow({ line }: { line: SpecLine }) {
+  const details = line.details ?? [];
+  const opCode = details.find((d) => d.label === "__opCode")?.value;
+  const formulaQty = details.find((d) => d.label === "Формула кол-ва")?.value;
+  const formulaPrice = details.find((d) => d.label === "Формула цены")?.value;
+  const vars = details.filter((d) => d.label.startsWith("пер. "));
+  const hasFormula = Boolean(formulaQty || formulaPrice);
+
+  return (
+    <div className="text-[11px] space-y-0.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-foreground/90 truncate" title={line.name}>{line.name}</span>
+        <span className="tabular-nums text-muted-foreground shrink-0">
+          {fmt(line.qty)} {line.unit} × {fmt(line.price)} ={" "}
+          <span className="text-foreground font-medium">{fmtMoney(line.total)}</span>
+        </span>
+      </div>
+      {hasFormula && (
+        <AdvancedOnly>
+          <div className="font-mono text-[10px] leading-tight text-muted-foreground space-y-0.5">
+            {formulaQty && <div>кол-во: {formulaQty}</div>}
+            {formulaPrice && <div>цена: {formulaPrice}</div>}
+          </div>
+        </AdvancedOnly>
+      )}
+      {(vars.length > 0 || opCode) && (
+        <TechOnly>
+          <div className="rounded-sm bg-muted/30 px-1.5 py-1 space-y-1">
+            {vars.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {vars.map((v) => (
+                  <span
+                    key={v.label}
+                    className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-background border"
+                  >
+                    {v.label.replace(/^пер\.\s*/, "")} = {v.value}
+                  </span>
+                ))}
+              </div>
+            )}
+            {opCode && (
+              <Link
+                to={`/references?tab=__op_catalog&op=${opCode}`}
+                className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+              >
+                <Pencil className="h-3 w-3" />
+                Редактировать формулу в справочнике
+              </Link>
+            )}
+          </div>
+        </TechOnly>
+      )}
+    </div>
+  );
+}
+
 /** Редактор тех. корректировок: множители по этапам + переопределение метрик. */
 function TechOverridesEditor({
   stages,
