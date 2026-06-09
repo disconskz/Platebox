@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { BookOpen, AlertTriangle } from "lucide-react";
+import { SectionHelp } from "../SectionHelp";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import { buildCoverReport, buildCoverRoute, buildCoverWarnings } from "@/lib/calc/cover/cost";
 
@@ -239,6 +240,14 @@ export default function CoverSection({ value, onChange, title = "Обложка"
           {isOverride && (
             <Badge variant="outline" className="ml-1 text-[10px]">Переопределено</Badge>
           )}
+          <SectionHelp
+            title="Обложка"
+            what="Параметры обложки: тип (мягкая/твёрдая/пластик/...), материал, плотность, цветность, толщина и постпечатные операции (ламинация, тиснение, фольга, конгрев и пр.)."
+            simple="Достаточно выбрать тип и материал — остальное считается автоматически."
+            advanced="Можно переопределить формат/тираж/печать отдельно от основных параметров и добавить отделку."
+            tech="Виден ERP-отчёт обложки: спуск, формы, приладка, отходы, предупреждения по технологии."
+            learnMore="cover"
+          />
         </CardTitle>
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           Переопределить параметры обложки
