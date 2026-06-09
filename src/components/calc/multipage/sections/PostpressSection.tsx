@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Layers } from "lucide-react";
+import { SectionHelp } from "../SectionHelp";
 
 /**
  * 7. Постпечатка (ТЗ задачи 3). Самостоятельный блок:
@@ -62,6 +63,14 @@ export default function PostpressSection({ value, onChange, title = "Постп�
         <CardTitle className="flex items-center gap-2 text-sm">
           <Layers className="h-4 w-4" />
           {title}
+          <SectionHelp
+            title="Постпечатка"
+            what="Операции уровня изделия после печати и до сборки: ламинация, биговка, фальцовка, тиснение, высечка, перфорация, сверление, резка."
+            simple="Включены минимально необходимые операции (например, резка). Менять обычно не нужно."
+            advanced="Добавляйте отделочные операции — каждая попадает в маршрут и стоимость."
+            tech="Для каждой операции отображается формула, площадь/тираж и расход."
+            learnMore="postpress"
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">
