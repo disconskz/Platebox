@@ -597,7 +597,9 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
 
     // Скрепление
     if (bindingKind === "spiral") {
-      const holes = Math.max(20, Math.round(itemH / 6));
+      // Шаг отверстий ≈ 6 мм. Сторона крепления определяет, по какой стороне они идут.
+      const bindEdgeMm = springSide === "top" ? itemW : itemH;
+      const holes = Math.max(20, Math.round(bindEdgeMm / 6));
       tryHB("spiral", {
         "Количество витков": holes,
         "Стоимость витка пружины": (spring.pricePerItem + Math.max(0, springDiameterMm - 8) * 1.5) / Math.max(1, holes),
