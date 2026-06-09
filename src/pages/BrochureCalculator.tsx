@@ -1544,6 +1544,10 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                 <CompositionTable rows={composition} />
               </AdvancedOnly>
 
+              <AdvancedOnly>
+                <ExpandedTotals data={expandedTotals} />
+              </AdvancedOnly>
+
               <TechOnly>
                 <TechReport data={techReport} />
               </TechOnly>
@@ -1572,9 +1576,6 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
                   </CardContent>
                 </Card>
               </SimpleOnly>
-              <AdvancedOnly>
-                <ExpandedTotals data={expandedTotals} />
-              </AdvancedOnly>
 
               <TemplateActions
                 productType={
