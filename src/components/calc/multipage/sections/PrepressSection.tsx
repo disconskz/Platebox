@@ -36,16 +36,11 @@ export const DEFAULT_PREPRESS: PrepressState = {
 };
 
 const ITEMS: { key: keyof PrepressState; label: string }[] = [
-  { key: "proof", label: "Проверка макета" },
-  { key: "colorCorrection", label: "Цветокоррекция" },
+  { key: "filesPrep", label: "Подготовка к печати" },
   { key: "imposition", label: "Спуск полос" },
   { key: "plates", label: "Вывод форм" },
-  { key: "filesPrep", label: "Подготовка файлов" },
   { key: "stampPrep", label: "Подготовка штампа" },
-  { key: "dxf", label: "DXF" },
-  { key: "svg", label: "SVG" },
-  { key: "qr", label: "Генерация QR" },
-  { key: "variableData", label: "Переменные данные" },
+  { key: "variableData", label: "Подготовка базы переменных данных" },
 ];
 
 export interface PrepressSectionProps {
