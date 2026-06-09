@@ -2,6 +2,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wrench } from "lucide-react";
 import { ROUTE_STAGE_LABELS, type RouteOperation } from "@/lib/calc/multipage/route";
+import { SectionHelp } from "./SectionHelp";
 
 /**
  * Технологический отчёт (разделы 28–30 ТЗ).
@@ -64,6 +65,14 @@ export default function TechReport({ data }: { data: TechReportData }) {
         <CardTitle className="flex items-center gap-2 text-sm">
           <Wrench className="h-4 w-4" />
           14. Технологический отчёт
+          <SectionHelp
+            title="Технологический отчёт"
+            what="Сводный отчёт для производства: материал и закупочные листы, спуск (формат, изделий на лист, тетради, варианты), печать (тип, цветность, формы, приладка), постпечатка, стоимость по операциям и маршрут."
+            simple="Не показывается — режим скрывает технические детали."
+            advanced="Доступна часть данных по материалам и операциям."
+            tech="Полный отчёт со всеми параметрами для передачи в цех."
+            learnMore="tech-report"
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
