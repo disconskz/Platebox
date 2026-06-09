@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Package } from "lucide-react";
+import { SectionHelp } from "../SectionHelp";
 
 /** Упаковка (раздел 21 ТЗ). */
 
@@ -52,6 +53,14 @@ export default function PackagingSection({ value, onChange, title = "Упако�
         <CardTitle className="flex items-center gap-2 text-sm">
           <Package className="h-4 w-4" />
           {title}
+          <SectionHelp
+            title="Упаковка"
+            what="Финальная упаковка тиража: пачки, коробки, термоусадка, паллеты, маркировка и стикеры. Влияет на количество пачек/коробок и стоимость материалов упаковки."
+            simple="По умолчанию выбраны пачки + коробки. Меняйте только при особых требованиях."
+            advanced="Можно настроить вместимость пачек и коробок, добавить паллетирование/маркировку."
+            tech="Каждый тип упаковки даёт строку с расчётом штук/пачек/коробок."
+            learnMore="packaging"
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
