@@ -567,9 +567,12 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
   const offset = printMode === "offset" || (printMode === "auto" && circulation >= 300);
 
   const lines = useMemo(() => {
-    const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number; details?: { label: string; value: string }[] }[] = [];
+    const out: { stage: string; name: string; qty: number; unit: string; price: number; total: number; details?: { label: string; value: string }[]; blockId?: string }[] = [];
     const push = (stage: string, name: string, qty: number, unit: string, price: number, details?: { label: string; value: string }[]) =>
       out.push({ stage, name, qty, unit, price, total: qty * price, details });
+    const pushFor = (blockId: string) =>
+      (stage: string, name: string, qty: number, unit: string, price: number, details?: { label: string; value: string }[]) =>
+        out.push({ stage, name, qty, unit, price, total: qty * price, details, blockId });
     // Пытается посчитать операцию по формуле из справочника. Если справочник
     // не сконфигурирован — возвращает false, и шаблон применяет fallback.
     const tryHandbook = (opKey: Parameters<typeof priceOp>[0], vars: Record<string, number>): boolean => {
@@ -582,16 +585,17 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     if (hasDesign) push("Препресс", "Дизайн", 1, "усл.", isMagazine ? 20000 : isCatalog ? 25000 : 12000);
     push("Препресс", "Проверка макета и спуск полос", signatures + 1, "форма", 600);
 
+    const pushB0 = pushFor(internalBlocks[0]?.id ?? "block-0");
     // Бумага
-    push("Материалы", `Бумага блока: ${blockPaper.label}`, blockLayout.printSheets, "лист", blockPaper.pricePerSheet);
+    pushB0("Материалы", `Бумага блока: ${blockPaper.label}`, blockLayout.printSheets, "лист", blockPaper.pricePerSheet);
     push("Материалы", `Бумага обложки: ${coverPaper.label}`, coverLayout.printSheets, "лист", coverPaper.pricePerSheet);
 
     // Печать — блок
     if (offset) {
       const formsBlock = ((colorBlockFront > 0 ? colorBlockFront : 0) + (colorBlockBack > 0 ? colorBlockBack : 0)) * signatures;
-      push("Печать", "Формы блока", formsBlock, "форма", 1500);
+      pushB0("Печать", "Формы блока", formsBlock, "форма", 1500);
       const setupBase = ownTurn ? 150 : 300;
-      push("Печать", "Приладка блок", signatures, "усл.", setupBase + 0.01 * (blockLayout.printSheets / signatures) * 100);
+      pushB0("Печать", "Приладка блок", signatures, "усл.", setupBase + 0.01 * (blockLayout.printSheets / signatures) * 100);
 
       const formsCover = (colorCoverFront > 0 ? colorCoverFront : 0) + (colorCoverBack > 0 ? colorCoverBack : 0);
       push("Печать", "Формы обложки", formsCover, "форма", 1500);
@@ -599,13 +603,14 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
     }
     const printPriceBlock = offset ? 5 : 30;
     const printPriceCover = offset ? 7 : 35;
-    push("Печать", offset ? "Печать блок (офсет)" : "Печать блок (цифра)", blockLayout.printSheets, "лист", printPriceBlock);
+    pushB0("Печать", offset ? "Печать блок (офсет)" : "Печать блок (цифра)", blockLayout.printSheets, "лист", printPriceBlock);
     push("Печать", offset ? "Печать обложка (офсет)" : "Печать обложка (цифра)", coverLayout.printSheets, "лист", printPriceCover);
 
     // Дополнительные внутренние блоки (ERP — мульти-блочная архитектура).
     // Первый блок уже учтён в legacy-расчёте выше; считаем остальные приближённо.
     internalBlocks.slice(1).forEach((b, i) => {
       const idx = i + 2;
+      const pushBN = pushFor(b.id);
       const sigPages = signaturePages;
       const sigsN = Math.max(1, Math.ceil(b.pages / sigPages));
       const upPerSide = sigPages / 2;
@@ -613,15 +618,15 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
       const setupN = offset ? 200 : 30;
       const printSheetsN = netSheetsN + setupN * sigsN;
       const paperPrice = Math.max(6, b.density * 0.07); // приближённая цена за лист по плотности
-      push("Материалы", `Бумага блока #${idx} (${b.paper} ${b.density} г/м²)`, printSheetsN, "лист", paperPrice);
+      pushBN("Материалы", `Бумага блока #${idx} (${b.paper} ${b.density} г/м²)`, printSheetsN, "лист", paperPrice);
       const isOffsetN = b.override && b.printType !== "auto" ? b.printType === "offset" : offset;
       if (isOffsetN) {
         const formsN = ((b.colorFront || 0) + (b.colorBack || 0)) * sigsN;
-        if (formsN > 0) push("Печать", `Формы блока #${idx}`, formsN, "форма", 1500);
-        push("Печать", `Приладка блока #${idx}`, sigsN, "усл.", (ownTurn ? 150 : 300));
+        if (formsN > 0) pushBN("Печать", `Формы блока #${idx}`, formsN, "форма", 1500);
+        pushBN("Печать", `Приладка блока #${idx}`, sigsN, "усл.", (ownTurn ? 150 : 300));
       }
       const printPriceN = isOffsetN ? 5 : 30;
-      push("Печать", `Печать блока #${idx} (${isOffsetN ? "офсет" : "цифра"})`, printSheetsN, "лист", printPriceN);
+      pushBN("Печать", `Печать блока #${idx} (${isOffsetN ? "офсет" : "цифра"})`, printSheetsN, "лист", printPriceN);
     });
 
     // Ламинация обложки
@@ -1269,7 +1274,7 @@ export default function BrochureCalculator({ mode = "brochure", embedded = false
 
               {/* 4. Внутренние блоки (ERP — мульти-блочная архитектура) */}
               <AdvancedOnly>
-                <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} />
+                <InternalBlocksEditor blocks={internalBlocks} onChange={setInternalBlocks} spec={lines} />
               </AdvancedOnly>
 
               {/* 4. Допечатка */}
