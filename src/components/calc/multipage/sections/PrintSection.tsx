@@ -127,8 +127,10 @@ export default function PrintSection({ value, onChange, title = "Печать", 
         </div>
         <div>
           <Label className="text-xs">Формы</Label>
-          <Input type="number" min={0} className="h-8 text-xs"
-            value={value.forms} onChange={(e) => set("forms", +e.target.value || 0)} readOnly={readonly} />
+          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+            {value.forms}
+          </div>
+          <p className="text-[10px] text-muted-foreground">Авто (ERP, по красочности и обороту)</p>
         </div>
         <div>
           <Label className="text-xs">Приладка</Label>
