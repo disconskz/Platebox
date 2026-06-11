@@ -421,20 +421,9 @@ export default function CoverSection({ value, onChange, title = "Обложка"
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Кол-во форм</Label>
-              {(() => {
-                const autoForms = v.twoSided
-                  ? (v.colorFront || 0) + (v.colorBack || 0) // чужой оборот: формы = лицо + оборот
-                  : (v.colorFront || 0);                      // без оборота: формы = лицо
-                if (autoForms !== v.formsCount) {
-                  // sync state без ручного ввода
-                  setTimeout(() => patch({ formsCount: autoForms }), 0);
-                }
-                return (
-                  <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                    {autoForms}
-                  </div>
-                );
-              })()}
+              <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                {autoForms}
+              </div>
               <p className="text-[10px] text-muted-foreground">
                 Авто по ERP: {v.twoSided ? `${v.colorFront}+${v.colorBack} (чужой оборот)` : `${v.colorFront}+0`}
               </p>
