@@ -94,7 +94,6 @@ export function buildCoverReport(c: CoverState, ctx: CoverCalcContext): CoverRep
   if (c.lamType === "soft_touch") { premiumCoef *= 1.2; extraLeadDays += 1; }
   if (c.lamType === "anti_scratch") { premiumCoef *= 1.15; }
   if (c.stamping) extraLeadDays += 1;
-  if (c.foil) extraLeadDays += 1;
   if (c.figuredCut) extraLeadDays += 2;
   if (c.dieCut) extraLeadDays += 1;
 
