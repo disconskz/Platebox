@@ -65,6 +65,10 @@ export interface CoverSpecOpParams {
   rate?: number;
   /** Ручная итоговая стоимость (если задано — перебивает формулу). */
   manual?: number;
+  /** Площадь воздействия операции, см² (для тиснения = площадь клише, расход фольги). */
+  areaCm2?: number;
+  /** Цена материала (фольги) за м², ₸ — используется для тиснения. */
+  materialPricePerM2?: number;
 }
 
 export interface CoverState {
