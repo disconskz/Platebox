@@ -649,6 +649,52 @@ export default function CoverSection({ value, onChange, title = "Обложка"
                           <span className="ml-1 text-amber-600">(переопределено вручную: {calc.total.toLocaleString("ru-RU")} ₸)</span>
                         )}
                       </div>
+                      {key === "stamping" && (() => {
+                        const areaCm2 = params.areaCm2 ?? 20;
+                        const foilRate = params.materialPricePerM2 ?? 1800;
+                        const foilM2 = +((areaCm2 / 10000) * report.circulation).toFixed(3);
+                        const foilTotal = +(foilM2 * foilRate).toFixed(2);
+                        return (
+                          <div className="mt-2 rounded-md border border-dashed bg-card/40 p-2">
+                            <div className="mb-1 text-[11px] font-semibold text-foreground">
+                              Материал: фольга (авто по площади тиснения)
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Площадь тиснения, см²</Label>
+                                <Input
+                                  type="number" min={0} step="0.1"
+                                  value={areaCm2}
+                                  onChange={(e) => patchOp({ areaCm2: Number(e.target.value) || 0 })}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Цена фольги, ₸/м²</Label>
+                                <Input
+                                  type="number" min={0}
+                                  value={foilRate}
+                                  onChange={(e) => patchOp({ materialPricePerM2: Number(e.target.value) || 0 })}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Расход, м²</Label>
+                                <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                                  {foilM2}
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">= площадь/10000 × тираж</p>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Стоимость фольги, ₸</Label>
+                                <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs font-semibold">
+                                  {foilTotal.toLocaleString("ru-RU")}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
