@@ -211,6 +211,17 @@ export default function CoverSection({ value, onChange, title = "Обложка"
   // Защита от старых сохранённых состояний без новых полей.
   const v: CoverState = { ...DEFAULT_COVER, ...value };
   const patch = (p: Partial<CoverState>) => onChange({ ...v, ...p });
+  // §13 — автоматический расчёт количества форм по правилам ERP.
+  // Без оборота:   N+0 → N форм.
+  // Чужой оборот: front+back → front + back форм (4+4=8, 4+1=5, ...).
+  // Свой оборот реализуется выбором twoSided=false (одна сторона печатает обе).
+  const autoForms = v.twoSided
+    ? (v.colorFront || 0) + (v.colorBack || 0)
+    : (v.colorFront || 0);
+  React.useEffect(() => {
+    if (autoForms !== v.formsCount) patch({ formsCount: autoForms });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoForms]);
   const ctx = useMultipageCalcOptional();
   const g = ctx?.global;
   const isOverride = !!v.override;
@@ -410,8 +421,12 @@ export default function CoverSection({ value, onChange, title = "Обложка"
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Кол-во форм</Label>
-              <Input type="number" value={v.formsCount} onChange={(e) => patch({ formsCount: Number(e.target.value) || 0 })} className="h-8" />
-              <p className="text-[10px] text-muted-foreground">Авто: {(v.colorFront || 0) + (v.twoSided ? (v.colorBack || 0) : 0)}</p>
+              <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                {autoForms}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Авто по ERP: {v.twoSided ? `${v.colorFront}+${v.colorBack} (чужой оборот)` : `${v.colorFront}+0`}
+              </p>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Сторона печати</Label>

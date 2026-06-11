@@ -83,8 +83,9 @@ export function buildCoverReport(c: CoverState, ctx: CoverCalcContext): CoverRep
   const wasteSheets = Math.max(0, printSheets - netSheets);
   // Цена за лист: грубо по плотности (₸/лист), 7 коп. за г/м².
   const paperPricePerSheet = Math.max(8, +(c.density * 0.22).toFixed(2));
-  const formsAuto = (c.colorFront || 0) + (c.twoSided ? (c.colorBack || 0) : 0);
-  const formsCount = c.formsCount || formsAuto;
+  // §13 ERP — авто-расчёт форм по красочности и обороту.
+  // Без оборота: front+0 → front. Чужой оборот: front+back → front+back.
+  const formsCount = (c.colorFront || 0) + (c.twoSided ? (c.colorBack || 0) : 0);
 
   // §9 — premium-коэф. и срок
   let premiumCoef = 1;
