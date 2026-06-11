@@ -211,6 +211,17 @@ export default function CoverSection({ value, onChange, title = "Обложка"
   // Защита от старых сохранённых состояний без новых полей.
   const v: CoverState = { ...DEFAULT_COVER, ...value };
   const patch = (p: Partial<CoverState>) => onChange({ ...v, ...p });
+  // §13 — автоматический расчёт количества форм по правилам ERP.
+  // Без оборота:   N+0 → N форм.
+  // Чужой оборот: front+back → front + back форм (4+4=8, 4+1=5, ...).
+  // Свой оборот реализуется выбором twoSided=false (одна сторона печатает обе).
+  const autoForms = v.twoSided
+    ? (v.colorFront || 0) + (v.colorBack || 0)
+    : (v.colorFront || 0);
+  React.useEffect(() => {
+    if (autoForms !== v.formsCount) patch({ formsCount: autoForms });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoForms]);
   const ctx = useMultipageCalcOptional();
   const g = ctx?.global;
   const isOverride = !!v.override;
