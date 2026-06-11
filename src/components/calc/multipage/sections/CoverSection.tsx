@@ -152,17 +152,58 @@ export const DEFAULT_COVER: CoverState = {
   figuredCut: false,
 };
 
-const SPEC_OPS: { key: keyof CoverState; label: string }[] = [
-  { key: "spotVarnish", label: "Выборочный лак" },
-  { key: "stamping", label: "Тиснение" },
-  { key: "embossing", label: "Конгрев" },
-  { key: "foil", label: "Фольга" },
-  { key: "uv", label: "УФ-лак" },
-  { key: "roundCorners", label: "Скругление углов" },
-  { key: "dieCut", label: "Вырубка" },
-  { key: "window", label: "Окно" },
-  { key: "figuredCut", label: "Фигурная высечка" },
-];
+/**
+ * Каталог спецопераций обложки. Каждая операция имеет:
+ *  - приладку/штамп/клише (фикс. стоимость),
+ *  - тариф за единицу (лист/оттиск/угол/шт),
+ *  - базис количества (печатные листы / тираж / тираж×4 угла),
+ *  - возможность ручной итоговой стоимости.
+ * «Фольга» исключена — это материал, а не операция.
+ */
+export const COVER_SPEC_OP_CATALOG: Record<CoverSpecOpKey, {
+  label: string;
+  basis: "printSheets" | "circulation" | "circulationX4";
+  unit: string;
+  defaultSetup: number;
+  defaultRate: number;
+  setupLabel: string;
+}> = {
+  spotVarnish:  { label: "Выборочный лак",   basis: "printSheets",   unit: "лист",   defaultSetup: 3000,  defaultRate: 8,    setupLabel: "Подготовка / приладка" },
+  stamping:     { label: "Тиснение",          basis: "circulation",   unit: "оттиск", defaultSetup: 6000,  defaultRate: 8,    setupLabel: "Клише + приладка" },
+  embossing:    { label: "Конгрев",           basis: "circulation",   unit: "оттиск", defaultSetup: 4000,  defaultRate: 12,   setupLabel: "Клише конгрева" },
+  uv:           { label: "УФ-лак",            basis: "printSheets",   unit: "лист",   defaultSetup: 0,     defaultRate: 5,    setupLabel: "Приладка" },
+  roundCorners: { label: "Скругление углов",  basis: "circulationX4", unit: "угол",   defaultSetup: 0,     defaultRate: 0.6,  setupLabel: "Приладка" },
+  dieCut:       { label: "Вырубка",           basis: "circulation",   unit: "шт",     defaultSetup: 7800,  defaultRate: 3,    setupLabel: "Штамп + приладка" },
+  window:       { label: "Окно",              basis: "circulation",   unit: "шт",     defaultSetup: 0,     defaultRate: 6,    setupLabel: "Приладка" },
+  figuredCut:   { label: "Фигурная высечка",  basis: "circulation",   unit: "шт",     defaultSetup: 18300, defaultRate: 5,    setupLabel: "Штамп + ножи + биги" },
+};
+
+export function coverSpecOpQty(
+  key: CoverSpecOpKey,
+  ctx: { circulation: number; printSheets: number },
+): number {
+  const basis = COVER_SPEC_OP_CATALOG[key].basis;
+  if (basis === "printSheets") return Math.max(0, ctx.printSheets);
+  if (basis === "circulationX4") return Math.max(0, ctx.circulation) * 4;
+  return Math.max(0, ctx.circulation);
+}
+
+export function coverSpecOpTotal(
+  key: CoverSpecOpKey,
+  params: CoverSpecOpParams | undefined,
+  ctx: { circulation: number; printSheets: number; premiumCoef?: number },
+): { setup: number; rate: number; qty: number; total: number; manual: boolean } {
+  const cat = COVER_SPEC_OP_CATALOG[key];
+  const setup = params?.setup ?? cat.defaultSetup;
+  const rate = params?.rate ?? cat.defaultRate;
+  const qty = coverSpecOpQty(key, ctx);
+  const k = ctx.premiumCoef ?? 1;
+  const formulaTotal = +(setup + qty * rate * k).toFixed(2);
+  if (params?.manual != null && Number.isFinite(params.manual)) {
+    return { setup, rate, qty, total: +params.manual.toFixed(2), manual: true };
+  }
+  return { setup, rate, qty, total: formulaTotal, manual: false };
+}
 
 /** Пресеты материалов обложки — для выпадающего списка «Материал». */
 type CoverMaterial = { value: string; density: number; thicknessMm: number };
