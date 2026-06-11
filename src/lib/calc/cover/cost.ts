@@ -172,6 +172,15 @@ export function buildCoverLines(c: CoverState, ctx: CoverCalcContext): CoverLine
     if (calc.qty > 0 && calc.rate > 0) {
       push("Постпечать обложки", cat.label, calc.qty, cat.unit, +(calc.rate * k).toFixed(2));
     }
+    // Материал «Фольга» — автоматически по площади тиснения.
+    if (key === "stamping" && !calc.manual) {
+      const areaCm2 = params?.areaCm2 ?? 20;
+      const foilRate = params?.materialPricePerM2 ?? 1800;
+      const foilM2 = +((areaCm2 / 10000) * r.circulation).toFixed(3);
+      if (foilM2 > 0 && foilRate > 0) {
+        push("Материалы", "Фольга (тиснение)", foilM2, "м²", foilRate);
+      }
+    }
   }
 
   return out;
