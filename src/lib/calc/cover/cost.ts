@@ -191,7 +191,6 @@ export function buildCoverRoute(c: CoverState, ctx: CoverCalcContext): string[] 
   if (c.uv) s.push("УФ-лак");
   if (c.stamping) s.push("Тиснение");
   if (c.embossing) s.push("Конгрев");
-  if (c.foil) s.push("Фольгирование");
   if (c.dieCut) s.push("Вырубка");
   if (c.window) s.push("Окно");
   if (c.figuredCut) s.push("Фигурная высечка");
