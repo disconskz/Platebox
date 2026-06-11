@@ -46,6 +46,27 @@ export const LAM_LABELS: Record<LamType, string> = {
 
 export type PrintTypeLocal = "auto" | "offset" | "digital" | "uv";
 
+/** Ключи спецопераций обложки (без «фольги» — она является материалом). */
+export type CoverSpecOpKey =
+  | "spotVarnish"
+  | "stamping"
+  | "embossing"
+  | "uv"
+  | "roundCorners"
+  | "dieCut"
+  | "window"
+  | "figuredCut";
+
+/** Переопределения параметров одной спецоперации. */
+export interface CoverSpecOpParams {
+  /** Стоимость приладки/штампа/клише (₸). */
+  setup?: number;
+  /** Стоимость за один экземпляр базиса (лист/оттиск/угол/шт). */
+  rate?: number;
+  /** Ручная итоговая стоимость (если задано — перебивает формулу). */
+  manual?: number;
+}
+
 export interface CoverState {
   // 1. Основные
   kind: CoverKind;
@@ -92,6 +113,9 @@ export interface CoverState {
   dieCut: boolean;
   window: boolean;
   figuredCut: boolean;
+
+  /** Параметры по каждой спецоперации (ERP §9). */
+  specOps?: Partial<Record<CoverSpecOpKey, CoverSpecOpParams>>;
 }
 
 export const DEFAULT_COVER: CoverState = {
@@ -128,17 +152,58 @@ export const DEFAULT_COVER: CoverState = {
   figuredCut: false,
 };
 
-const SPEC_OPS: { key: keyof CoverState; label: string }[] = [
-  { key: "spotVarnish", label: "Выборочный лак" },
-  { key: "stamping", label: "Тиснение" },
-  { key: "embossing", label: "Конгрев" },
-  { key: "foil", label: "Фольга" },
-  { key: "uv", label: "УФ-лак" },
-  { key: "roundCorners", label: "Скругление углов" },
-  { key: "dieCut", label: "Вырубка" },
-  { key: "window", label: "Окно" },
-  { key: "figuredCut", label: "Фигурная высечка" },
-];
+/**
+ * Каталог спецопераций обложки. Каждая операция имеет:
+ *  - приладку/штамп/клише (фикс. стоимость),
+ *  - тариф за единицу (лист/оттиск/угол/шт),
+ *  - базис количества (печатные листы / тираж / тираж×4 угла),
+ *  - возможность ручной итоговой стоимости.
+ * «Фольга» исключена — это материал, а не операция.
+ */
+export const COVER_SPEC_OP_CATALOG: Record<CoverSpecOpKey, {
+  label: string;
+  basis: "printSheets" | "circulation" | "circulationX4";
+  unit: string;
+  defaultSetup: number;
+  defaultRate: number;
+  setupLabel: string;
+}> = {
+  spotVarnish:  { label: "Выборочный лак",   basis: "printSheets",   unit: "лист",   defaultSetup: 3000,  defaultRate: 8,    setupLabel: "Подготовка / приладка" },
+  stamping:     { label: "Тиснение",          basis: "circulation",   unit: "оттиск", defaultSetup: 6000,  defaultRate: 8,    setupLabel: "Клише + приладка" },
+  embossing:    { label: "Конгрев",           basis: "circulation",   unit: "оттиск", defaultSetup: 4000,  defaultRate: 12,   setupLabel: "Клише конгрева" },
+  uv:           { label: "УФ-лак",            basis: "printSheets",   unit: "лист",   defaultSetup: 0,     defaultRate: 5,    setupLabel: "Приладка" },
+  roundCorners: { label: "Скругление углов",  basis: "circulationX4", unit: "угол",   defaultSetup: 0,     defaultRate: 0.6,  setupLabel: "Приладка" },
+  dieCut:       { label: "Вырубка",           basis: "circulation",   unit: "шт",     defaultSetup: 7800,  defaultRate: 3,    setupLabel: "Штамп + приладка" },
+  window:       { label: "Окно",              basis: "circulation",   unit: "шт",     defaultSetup: 0,     defaultRate: 6,    setupLabel: "Приладка" },
+  figuredCut:   { label: "Фигурная высечка",  basis: "circulation",   unit: "шт",     defaultSetup: 18300, defaultRate: 5,    setupLabel: "Штамп + ножи + биги" },
+};
+
+export function coverSpecOpQty(
+  key: CoverSpecOpKey,
+  ctx: { circulation: number; printSheets: number },
+): number {
+  const basis = COVER_SPEC_OP_CATALOG[key].basis;
+  if (basis === "printSheets") return Math.max(0, ctx.printSheets);
+  if (basis === "circulationX4") return Math.max(0, ctx.circulation) * 4;
+  return Math.max(0, ctx.circulation);
+}
+
+export function coverSpecOpTotal(
+  key: CoverSpecOpKey,
+  params: CoverSpecOpParams | undefined,
+  ctx: { circulation: number; printSheets: number; premiumCoef?: number },
+): { setup: number; rate: number; qty: number; total: number; manual: boolean } {
+  const cat = COVER_SPEC_OP_CATALOG[key];
+  const setup = params?.setup ?? cat.defaultSetup;
+  const rate = params?.rate ?? cat.defaultRate;
+  const qty = coverSpecOpQty(key, ctx);
+  const k = ctx.premiumCoef ?? 1;
+  const formulaTotal = +(setup + qty * rate * k).toFixed(2);
+  if (params?.manual != null && Number.isFinite(params.manual)) {
+    return { setup, rate, qty, total: +params.manual.toFixed(2), manual: true };
+  }
+  return { setup, rate, qty, total: formulaTotal, manual: false };
+}
 
 /** Пресеты материалов обложки — для выпадающего списка «Материал». */
 type CoverMaterial = { value: string; density: number; thicknessMm: number };
@@ -489,23 +554,102 @@ export default function CoverSection({ value, onChange, title = "Обложка"
         {/* 8. Спецоперации */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-foreground">Спецоперации обложки</div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {SPEC_OPS.map((it) => (
-              <label
-                key={it.key}
-                htmlFor={`cv-${it.key}`}
-                className="flex cursor-pointer items-center gap-2 rounded-md border bg-card/40 px-2 py-1.5 text-sm hover:bg-muted/40"
-              >
-                <Checkbox
-                  id={`cv-${it.key}`}
-                  checked={!!(v as any)[it.key]}
-                  onCheckedChange={(c) => patch({ [it.key]: !!c } as Partial<CoverState>)}
-                />
-                <Label htmlFor={`cv-${it.key}`} className="cursor-pointer text-xs font-normal">
-                  {it.label}
-                </Label>
-              </label>
-            ))}
+          <p className="text-[11px] text-muted-foreground">
+            Каждая операция = собственные параметры (приладка, тариф, кол-во) и формула. «Фольга» исключена — это материал, формируется в материалах обложки.
+          </p>
+          <div className="space-y-2">
+            {(Object.keys(COVER_SPEC_OP_CATALOG) as CoverSpecOpKey[]).map((key) => {
+              const cat = COVER_SPEC_OP_CATALOG[key];
+              const enabled = !!(v as any)[key];
+              const params = v.specOps?.[key] ?? {};
+              const calc = coverSpecOpTotal(key, params, {
+                circulation: report.circulation,
+                printSheets: report.printSheets,
+                premiumCoef: report.premiumCoef,
+              });
+              const patchOp = (p: Partial<CoverSpecOpParams>) => {
+                const next: CoverState["specOps"] = { ...(v.specOps ?? {}) };
+                next[key] = { ...(next[key] ?? {}), ...p };
+                patch({ specOps: next });
+              };
+              return (
+                <div key={key} className="rounded-md border bg-card/40">
+                  <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
+                    <span className="flex items-center gap-2">
+                      <Checkbox
+                        checked={enabled}
+                        onCheckedChange={(c) => patch({ [key]: !!c } as Partial<CoverState>)}
+                      />
+                      <span className="text-xs">{cat.label}</span>
+                    </span>
+                    {enabled && (
+                      <span className="text-[11px] text-muted-foreground">
+                        Итого: <b className="text-foreground">{calc.total.toLocaleString("ru-RU")} ₸</b>
+                      </span>
+                    )}
+                  </label>
+                  {enabled && (
+                    <div className="border-t bg-muted/20 p-2">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">{cat.setupLabel}, ₸</Label>
+                          <Input
+                            type="number"
+                            value={params.setup ?? cat.defaultSetup}
+                            onChange={(e) => patchOp({ setup: Number(e.target.value) || 0 })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Тариф, ₸/{cat.unit}</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={params.rate ?? cat.defaultRate}
+                            onChange={(e) => patchOp({ rate: Number(e.target.value) || 0 })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Кол-во ({cat.unit})</Label>
+                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                            {calc.qty.toLocaleString("ru-RU")}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            {cat.basis === "printSheets" ? "= печатные листы" :
+                             cat.basis === "circulationX4" ? "= тираж × 4" : "= тираж"}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Ручная стоимость, ₸</Label>
+                          <Input
+                            type="number"
+                            placeholder="—"
+                            value={params.manual ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? undefined : Number(e.target.value);
+                              patchOp({ manual: val });
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2 text-[11px] text-muted-foreground">
+                        Формула: <code>приладка + кол-во × тариф{report.premiumCoef !== 1 ? " × премиум-коэф." : ""}</code>
+                        {" = "}
+                        <b className="text-foreground">
+                          {calc.setup.toLocaleString("ru-RU")} + {calc.qty.toLocaleString("ru-RU")} × {calc.rate}
+                          {report.premiumCoef !== 1 ? ` × ${report.premiumCoef.toFixed(2)}` : ""} = {(+(calc.setup + calc.qty * calc.rate * (report.premiumCoef ?? 1)).toFixed(2)).toLocaleString("ru-RU")} ₸
+                        </b>
+                        {calc.manual && (
+                          <span className="ml-1 text-amber-600">(переопределено вручную: {calc.total.toLocaleString("ru-RU")} ₸)</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 

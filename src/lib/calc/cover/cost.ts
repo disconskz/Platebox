@@ -3,7 +3,8 @@
  * Чистые функции: себестоимость, маршрут, тех. отчёт, предупреждения.
  * Использует `CoverState` из `components/calc/multipage/sections/CoverSection`.
  */
-import type { CoverState } from "@/components/calc/multipage/sections/CoverSection";
+import type { CoverSpecOpKey, CoverState } from "@/components/calc/multipage/sections/CoverSection";
+import { COVER_SPEC_OP_CATALOG, coverSpecOpTotal } from "@/components/calc/multipage/sections/CoverSection";
 
 export interface CoverCalcContext {
   /** Глобальный формат изделия (мм). */
@@ -93,7 +94,6 @@ export function buildCoverReport(c: CoverState, ctx: CoverCalcContext): CoverRep
   if (c.lamType === "soft_touch") { premiumCoef *= 1.2; extraLeadDays += 1; }
   if (c.lamType === "anti_scratch") { premiumCoef *= 1.15; }
   if (c.stamping) extraLeadDays += 1;
-  if (c.foil) extraLeadDays += 1;
   if (c.figuredCut) extraLeadDays += 2;
   if (c.dieCut) extraLeadDays += 1;
 
@@ -149,45 +149,29 @@ export function buildCoverLines(c: CoverState, ctx: CoverCalcContext): CoverLine
   }
 
   // §9 — Спецоперации
-  if (c.spotVarnish) {
-    push("Постпечать обложки", "Подготовка выб. лака", 1, "усл.", 3000);
-    push("Постпечать обложки", "Выборочный лак", r.printSheets, "лист", +(8 * k).toFixed(2));
-  }
-  if (c.stamping) {
-    push("Постпечать обложки", "Клише тиснения", 1, "усл.", 4500);
-    push("Постпечать обложки", "Приладка тиснения", 1, "усл.", 1500);
-    push("Постпечать обложки", "Тиснение", r.circulation, "оттиск", +(8 * k).toFixed(2));
-  }
-  if (c.embossing) {
-    push("Постпечать обложки", "Клише конгрева", 1, "усл.", 4000);
-    push("Постпечать обложки", "Конгрев", r.circulation, "оттиск", +(12 * k).toFixed(2));
-  }
-  if (c.foil) {
-    push("Постпечать обложки", "Клише фольгирования", 1, "усл.", 4500);
-    push("Постпечать обложки", "Приладка фольги", 1, "усл.", 1500);
-    push("Постпечать обложки", "Фольгирование", r.circulation, "оттиск", +(10 * k).toFixed(2));
-  }
-  if (c.uv) {
-    push("Постпечать обложки", "УФ-лак", r.printSheets, "лист", +(5 * k).toFixed(2));
-  }
-  if (c.roundCorners) {
-    push("Постпечать обложки", "Скругление углов", r.circulation * 4, "угол", 0.6);
-  }
-  if (c.dieCut) {
-    push("Постпечать обложки", "Изготовление штампа вырубки", 1, "усл.", 6000);
-    push("Постпечать обложки", "Приладка вырубки", 1, "усл.", 1800);
-    push("Постпечать обложки", "Вырубка", r.circulation, "шт.", +(3 * k).toFixed(2));
-  }
-  if (c.window) {
-    push("Постпечать обложки", "Окно (высечка + плёнка)", r.circulation, "шт.", +(6 * k).toFixed(2));
-  }
-  if (c.figuredCut) {
-    // штамп + высечка + ножи + биги
-    push("Постпечать обложки", "Штамп фигурной высечки", 1, "усл.", 12000);
-    const knives = 6 + (c.bigging ? 2 : 0);
-    push("Постпечать обложки", "Ножи штампа", knives, "нож", 850);
-    push("Постпечать обложки", "Биги штампа", c.bigging ? 4 : 2, "биг", 600);
-    push("Постпечать обложки", "Фигурная высечка", r.circulation, "шт.", +(5 * k).toFixed(2));
+  const opKeys: CoverSpecOpKey[] = [
+    "spotVarnish", "stamping", "embossing", "uv",
+    "roundCorners", "dieCut", "window", "figuredCut",
+  ];
+  for (const key of opKeys) {
+    if (!(c as any)[key]) continue;
+    const cat = COVER_SPEC_OP_CATALOG[key];
+    const params = c.specOps?.[key];
+    const calc = coverSpecOpTotal(key, params, {
+      circulation: r.circulation,
+      printSheets: r.printSheets,
+      premiumCoef: k,
+    });
+    if (calc.manual) {
+      push("Постпечать обложки", `${cat.label} (ручная стоимость)`, 1, "усл.", calc.total);
+      continue;
+    }
+    if (calc.setup > 0) {
+      push("Постпечать обложки", `${cat.label}: ${cat.setupLabel}`, 1, "усл.", calc.setup);
+    }
+    if (calc.qty > 0 && calc.rate > 0) {
+      push("Постпечать обложки", cat.label, calc.qty, cat.unit, +(calc.rate * k).toFixed(2));
+    }
   }
 
   return out;
@@ -206,7 +190,6 @@ export function buildCoverRoute(c: CoverState, ctx: CoverCalcContext): string[] 
   if (c.uv) s.push("УФ-лак");
   if (c.stamping) s.push("Тиснение");
   if (c.embossing) s.push("Конгрев");
-  if (c.foil) s.push("Фольгирование");
   if (c.dieCut) s.push("Вырубка");
   if (c.window) s.push("Окно");
   if (c.figuredCut) s.push("Фигурная высечка");
