@@ -46,6 +46,27 @@ export const LAM_LABELS: Record<LamType, string> = {
 
 export type PrintTypeLocal = "auto" | "offset" | "digital" | "uv";
 
+/** Ключи спецопераций обложки (без «фольги» — она является материалом). */
+export type CoverSpecOpKey =
+  | "spotVarnish"
+  | "stamping"
+  | "embossing"
+  | "uv"
+  | "roundCorners"
+  | "dieCut"
+  | "window"
+  | "figuredCut";
+
+/** Переопределения параметров одной спецоперации. */
+export interface CoverSpecOpParams {
+  /** Стоимость приладки/штампа/клише (₸). */
+  setup?: number;
+  /** Стоимость за один экземпляр базиса (лист/оттиск/угол/шт). */
+  rate?: number;
+  /** Ручная итоговая стоимость (если задано — перебивает формулу). */
+  manual?: number;
+}
+
 export interface CoverState {
   // 1. Основные
   kind: CoverKind;
@@ -92,6 +113,9 @@ export interface CoverState {
   dieCut: boolean;
   window: boolean;
   figuredCut: boolean;
+
+  /** Параметры по каждой спецоперации (ERP §9). */
+  specOps?: Partial<Record<CoverSpecOpKey, CoverSpecOpParams>>;
 }
 
 export const DEFAULT_COVER: CoverState = {
