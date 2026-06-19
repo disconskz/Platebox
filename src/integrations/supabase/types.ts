@@ -2024,34 +2024,40 @@ export type Database = {
           created_at: string
           film_type: string
           id: string
+          is_active: boolean
           min_cost: number
           name: string
           price_per_m2: number
           setup_cost: number
           sort_order: number
           updated_at: string
+          work_price_per_m2: number
         }
         Insert: {
           created_at?: string
           film_type: string
           id?: string
+          is_active?: boolean
           min_cost?: number
           name: string
           price_per_m2?: number
           setup_cost?: number
           sort_order?: number
           updated_at?: string
+          work_price_per_m2?: number
         }
         Update: {
           created_at?: string
           film_type?: string
           id?: string
+          is_active?: boolean
           min_cost?: number
           name?: string
           price_per_m2?: number
           setup_cost?: number
           sort_order?: number
           updated_at?: string
+          work_price_per_m2?: number
         }
         Relationships: []
       }
