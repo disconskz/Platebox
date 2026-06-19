@@ -184,10 +184,9 @@ const TABLES = [
       { k: "work_price_per_m2", t: "number", label: "Работа, ₸/м²" },
       { k: "setup_cost", t: "number", label: "Приладка, ₸" },
       { k: "min_cost", t: "number", label: "Мин. стоимость, ₸" },
-      { k: "is_active", t: "boolean", label: "Активна" },
       { k: "sort_order", t: "number", label: "Порядок" },
     ],
-    defaults: { name: "", film_type: "gloss", price_per_m2: 100, work_price_per_m2: 60, setup_cost: 3000, min_cost: 0, is_active: true, sort_order: 100 },
+    defaults: { name: "", film_type: "gloss", price_per_m2: 100, work_price_per_m2: 60, setup_cost: 3000, min_cost: 0, sort_order: 100 },
   },
   {
     key: "pouch_lamination_prices",
