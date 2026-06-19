@@ -405,6 +405,27 @@ export default function CoverSection({ value, onChange, title = "Обложка"
   // Защита от старых сохранённых состояний без новых полей.
   const v: CoverState = { ...DEFAULT_COVER, ...value };
   const patch = (p: Partial<CoverState>) => onChange({ ...v, ...p });
+  // Загрузка справочника лаков (varnish_types).
+  const [varnishTypes, setVarnishTypes] = React.useState<Array<{
+    id: string;
+    name: string;
+    material_price_per_m2: number;
+    work_price_per_sheet: number;
+    setup_price: number;
+    tooling_price: number;
+  }>>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    (supabase as any)
+      .from("varnish_types")
+      .select("id,name,material_price_per_m2,work_price_per_sheet,setup_price,tooling_price")
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }: any) => {
+        if (!cancelled && Array.isArray(data)) setVarnishTypes(data);
+      });
+    return () => { cancelled = true; };
+  }, []);
   // §13 — автоматическое определение типа оборота и количества форм по ERP.
   // Правило: если печать односторонняя → "без оборота".
   // Если двусторонняя и цветность лица == цветности оборота → "свой оборот"
