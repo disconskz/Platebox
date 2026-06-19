@@ -502,6 +502,26 @@ export default function CoverSection({ value, onChange, title = "Обложка"
         {/* 5. Печать обложки */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-foreground">Печать обложки</div>
+          {(() => {
+            const machineLabel =
+              report.printType === "offset"
+                ? `Офсетная машина (Heidelberg SM-74, ${report.sheetW}×${report.sheetH} мм)`
+                : report.printType === "uv"
+                  ? `UV-машина (Komori, ${report.sheetW}×${report.sheetH} мм)`
+                  : `Цифровая машина (Ricoh Pro, ${report.sheetW}×${report.sheetH} мм)`;
+            return (
+              <div className="grid gap-2 rounded-md border border-dashed bg-muted/30 p-2 text-[11px] sm:grid-cols-2">
+                <div>
+                  <span className="text-muted-foreground">Формат печатного листа: </span>
+                  <b className="text-foreground">{report.sheetW} × {report.sheetH} мм</b>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Выбрана печатная машина: </span>
+                  <b className="text-foreground">{machineLabel}</b>
+                </div>
+              </div>
+            );
+          })()}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="space-y-1">
               <Label className="text-xs">Тип печати</Label>
