@@ -436,6 +436,28 @@ export default function CoverSection({ value, onChange, title = "Обложка"
       });
     return () => { cancelled = true; };
   }, []);
+  // Загрузка справочника плёнок (film_prices).
+  const [filmTypes, setFilmTypes] = React.useState<Array<{
+    id: string;
+    name: string;
+    film_type: string;
+    price_per_m2: number;
+    work_price_per_m2: number;
+    setup_cost: number;
+    min_cost: number;
+  }>>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    (supabase as any)
+      .from("film_prices")
+      .select("id,name,film_type,price_per_m2,work_price_per_m2,setup_cost,min_cost")
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }: any) => {
+        if (!cancelled && Array.isArray(data)) setFilmTypes(data);
+      });
+    return () => { cancelled = true; };
+  }, []);
   // §13 — автоматическое определение типа оборота и количества форм по ERP.
   // Правило: если печать односторонняя → "без оборота".
   // Если двусторонняя и цветность лица == цветности оборота → "свой оборот"
