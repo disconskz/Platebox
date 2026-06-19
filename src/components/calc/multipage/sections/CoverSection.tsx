@@ -410,7 +410,14 @@ export default function CoverSection({ value, onChange, title = "Обложка"
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Сторон печати</Label>
-            <Select value={String(v.sides)} onValueChange={(val) => patch({ sides: (+val as 1 | 2), twoSided: +val === 2 })}>
+            <Select value={String(v.sides)} onValueChange={(val) => {
+              const n = +val as 1 | 2;
+              patch({
+                sides: n,
+                twoSided: n === 2,
+                colorBack: n === 2 ? (v.colorBack && v.colorBack > 0 ? v.colorBack : 4) : 0,
+              });
+            }}>
               <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">1 (только лицо)</SelectItem>
