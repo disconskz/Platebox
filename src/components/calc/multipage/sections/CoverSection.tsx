@@ -130,6 +130,16 @@ export interface CoverState {
   laminationRatePerM2?: number;
   /** Стоимость приладки припресса плёнкой (₸). По умолчанию 5000. */
   laminationSetup?: number;
+  /** ID плёнки из справочника `film_prices`. */
+  filmTypeId?: string;
+  /** Стоимость работы припресса ₸/м² (override). */
+  laminationWorkPerM2?: number;
+  /** Минимальная стоимость операции ₸ (override). */
+  laminationMinCost?: number;
+  /** Ручная итоговая стоимость припресса ₸ (если задано — перебивает формулу). */
+  laminationManualTotal?: number;
+  /** Раскрыть детали расчёта припресса (локальный тумблер). */
+  showLamDetails?: boolean;
 
   // 8. Спецоперации
   lamination: boolean;
