@@ -552,40 +552,6 @@ export default function CoverSection({ value, onChange, title = "Обложка"
 
         <Separator />
 
-        {/* 6. Ламинация */}
-        <div className="space-y-2">
-          <div className="text-xs font-semibold text-foreground">Ламинация обложки</div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Тип ламинации</Label>
-              <Select value={v.lamType} onValueChange={(val) => patch({ lamType: val as LamType, lamination: val !== "none" })}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(LAM_LABELS) as LamType[]).map((k) => (
-                    <SelectItem key={k} value={k}>{LAM_LABELS[k]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Сторона ламинации</Label>
-              <Select value={String(v.lamSides)} onValueChange={(val) => patch({ lamSides: +val as 1 | 2 })}>
-                <SelectTrigger className="h-8" disabled={v.lamType === "none"}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 сторона</SelectItem>
-                  <SelectItem value="2">2 стороны</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-card/40 px-2 py-1.5 text-xs">
-              <Checkbox checked={v.bigging} onCheckedChange={(c) => patch({ bigging: !!c })} />
-              Биговка
-            </label>
-          </div>
-        </div>
-
-        <Separator />
-
         {/* 8. Спецоперации */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-foreground">Спецоперации обложки</div>
@@ -593,6 +559,67 @@ export default function CoverSection({ value, onChange, title = "Обложка"
             Каждая операция = собственные параметры (приладка, тариф, кол-во) и формула. «Фольга» исключена — это материал, формируется в материалах обложки.
           </p>
           <div className="space-y-2">
+            {/* Ламинация — спецоперация (вкл/выкл + параметры) */}
+            <div className="rounded-md border bg-card/40">
+              <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
+                <span className="flex items-center gap-2">
+                  <Checkbox
+                    checked={v.lamination && v.lamType !== "none"}
+                    onCheckedChange={(c) => patch({
+                      lamination: !!c,
+                      lamType: c ? (v.lamType === "none" ? "matte" : v.lamType) : "none",
+                    })}
+                  />
+                  <span className="text-xs">Ламинация</span>
+                </span>
+              </label>
+              {v.lamination && v.lamType !== "none" && (
+                <div className="border-t bg-muted/20 p-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Тип ламинации</Label>
+                      <Select value={v.lamType} onValueChange={(val) => patch({ lamType: val as LamType, lamination: val !== "none" })}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(LAM_LABELS) as LamType[]).filter(k => k !== "none").map((k) => (
+                            <SelectItem key={k} value={k}>{LAM_LABELS[k]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Сторона ламинации</Label>
+                      <Select value={String(v.lamSides)} onValueChange={(val) => patch({ lamSides: +val as 1 | 2 })}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 сторона</SelectItem>
+                          <SelectItem value="2">2 стороны</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[11px] text-muted-foreground">
+                    Формула: <code>площадь разворота × печатных листов × сторон × тариф ({LAM_LABELS[v.lamType]})</code>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Биговка — спецоперация (вкл/выкл) */}
+            <div className="rounded-md border bg-card/40">
+              <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
+                <span className="flex items-center gap-2">
+                  <Checkbox checked={v.bigging} onCheckedChange={(c) => patch({ bigging: !!c })} />
+                  <span className="text-xs">Биговка</span>
+                </span>
+              </label>
+              {v.bigging && (
+                <div className="border-t bg-muted/20 p-2 text-[11px] text-muted-foreground">
+                  Формула: <code>тираж × 2 биг × тариф (по умолчанию 1.5 ₸/биг)</code>
+                </div>
+              )}
+            </div>
+
             {(Object.keys(COVER_SPEC_OP_CATALOG) as CoverSpecOpKey[]).map((key) => {
               const cat = COVER_SPEC_OP_CATALOG[key];
               const enabled = !!(v as any)[key];
