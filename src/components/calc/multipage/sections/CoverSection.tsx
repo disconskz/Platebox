@@ -854,17 +854,21 @@ export default function CoverSection({ value, onChange, title = "Обложка"
             {(Object.keys(COVER_SPEC_OP_CATALOG) as CoverSpecOpKey[]).map((key) => {
               const cat = COVER_SPEC_OP_CATALOG[key];
               const enabled = !!(v as any)[key];
-              const params = v.specOps?.[key] ?? {};
-              const calc = coverSpecOpTotal(key, params, {
+              const params: CoverSpecOpParams = v.specOps?.[key] ?? {};
+              const sheetAreaM2 = (report.sheetW * report.sheetH) / 1_000_000;
+              const br = coverSpecOpBreakdown(key, params, {
                 circulation: report.circulation,
                 printSheets: report.printSheets,
                 premiumCoef: report.premiumCoef,
+                sheetAreaM2,
               });
               const patchOp = (p: Partial<CoverSpecOpParams>) => {
                 const next: CoverState["specOps"] = { ...(v.specOps ?? {}) };
                 next[key] = { ...(next[key] ?? {}), ...p };
                 patch({ specOps: next });
               };
+              const newTooling = params.newTooling !== false;
+              const showDetails = !!v.showCalcDetails;
               return (
                 <div key={key} className="rounded-md border bg-card/40">
                   <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
@@ -877,113 +881,175 @@ export default function CoverSection({ value, onChange, title = "Обложка"
                     </span>
                     {enabled && (
                       <span className="text-[11px] text-muted-foreground">
-                        Итого: <b className="text-foreground">{calc.total.toLocaleString("ru-RU")} ₸</b>
+                        Итого: <b className="text-foreground">{br.total.toLocaleString("ru-RU")} ₸</b>
                       </span>
                     )}
                   </label>
                   {enabled && (
-                    <div className="border-t bg-muted/20 p-2">
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">{cat.setupLabel}, ₸</Label>
-                          <Input
-                            type="number"
-                            value={params.setup ?? cat.defaultSetup}
-                            onChange={(e) => patchOp({ setup: Number(e.target.value) || 0 })}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Тариф, ₸/{cat.unit}</Label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={params.rate ?? cat.defaultRate}
-                            onChange={(e) => patchOp({ rate: Number(e.target.value) || 0 })}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Кол-во ({cat.unit})</Label>
-                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                            {calc.qty.toLocaleString("ru-RU")}
+                    <div className="border-t bg-muted/20 p-2 space-y-2">
+                      {/* Селектор лака — только для spotVarnish */}
+                      {cat.hasVarnishCatalog && (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          <div className="space-y-1 sm:col-span-2">
+                            <Label className="text-[10px]">Тип лака</Label>
+                            <Select
+                              value={params.varnishTypeId ?? ""}
+                              onValueChange={(val) => {
+                                const vt = varnishTypes.find((x) => x.id === val);
+                                patchOp({
+                                  varnishTypeId: val,
+                                  ...(vt ? {
+                                    materialPrice: Number(vt.material_price_per_m2) || 0,
+                                    workPricePerSheet: Number(vt.work_price_per_sheet) || 0,
+                                    setup: Number(vt.setup_price) || 0,
+                                    tooling: Number(vt.tooling_price) || 0,
+                                  } : {}),
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder={varnishTypes.length ? "Выберите лак из справочника" : "Справочник лаков пуст"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {varnishTypes.map((vt) => (
+                                  <SelectItem key={vt.id} value={vt.id}>{vt.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {cat.basis === "printSheets" ? "= печатные листы" :
-                             cat.basis === "circulationX4" ? "= тираж × 4" : "= тираж"}
-                          </p>
+                          <div className="space-y-1">
+                            <Label className="text-[10px]">Покрытие лаком, %</Label>
+                            <Input
+                              type="number" min={0} max={100}
+                              value={params.coverageAreaPct ?? 100}
+                              onChange={(e) => patchOp({ coverageAreaPct: Number(e.target.value) || 0 })}
+                              className="h-8 text-xs"
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Ручная стоимость, ₸</Label>
-                          <Input
-                            type="number"
-                            placeholder="—"
-                            value={params.manual ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value === "" ? undefined : Number(e.target.value);
-                              patchOp({ manual: val });
-                            }}
-                            className="h-8 text-xs"
+                      )}
+
+                      {/* Сводка 4 составляющих — всегда */}
+                      <div className="grid grid-cols-2 gap-1 rounded-md border bg-card/40 p-2 text-[11px] sm:grid-cols-5">
+                        <div>
+                          <div className="text-muted-foreground">Материал</div>
+                          <div className="font-semibold text-foreground">{br.material.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Работа</div>
+                          <div className="font-semibold text-foreground">{br.work.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Приладка</div>
+                          <div className="font-semibold text-foreground">{br.setup.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Оснастка</div>
+                          <div className="font-semibold text-foreground">{br.tooling.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Итого</div>
+                          <div className="font-bold text-foreground">{br.total.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                      </div>
+
+                      {/* Чекбокс «Новая форма» — всегда виден, если у операции есть оснастка */}
+                      {cat.defaultTooling > 0 && (
+                        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+                          <Checkbox
+                            checked={newTooling}
+                            onCheckedChange={(c) => patchOp({ newTooling: !!c })}
                           />
-                        </div>
-                      </div>
-                      <div className="mt-2 text-[11px] text-muted-foreground">
-                        Формула: <code>приладка + кол-во × тариф{report.premiumCoef !== 1 ? " × премиум-коэф." : ""}</code>
-                        {" = "}
-                        <b className="text-foreground">
-                          {calc.setup.toLocaleString("ru-RU")} + {calc.qty.toLocaleString("ru-RU")} × {calc.rate}
-                          {report.premiumCoef !== 1 ? ` × ${report.premiumCoef.toFixed(2)}` : ""} = {(+(calc.setup + calc.qty * calc.rate * (report.premiumCoef ?? 1)).toFixed(2)).toLocaleString("ru-RU")} ₸
-                        </b>
-                        {calc.manual && (
-                          <span className="ml-1 text-amber-600">(переопределено вручную: {calc.total.toLocaleString("ru-RU")} ₸)</span>
-                        )}
-                      </div>
-                      {key === "stamping" && (() => {
-                        const areaCm2 = params.areaCm2 ?? 20;
-                        const foilRate = params.materialPricePerM2 ?? 1800;
-                        const foilM2 = +((areaCm2 / 10000) * report.circulation).toFixed(3);
-                        const foilTotal = +(foilM2 * foilRate).toFixed(2);
-                        return (
-                          <div className="mt-2 rounded-md border border-dashed bg-card/40 p-2">
-                            <div className="mb-1 text-[11px] font-semibold text-foreground">
-                              Материал: фольга (авто по площади тиснения)
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          Новая форма / оснастка (если выкл — оснастка не учитывается)
+                        </label>
+                      )}
+
+                      {/* Детали расчёта — только если включён глобальный тумблер */}
+                      {showDetails && (
+                        <div className="space-y-2 rounded-md border border-dashed bg-muted/20 p-2">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {cat.defaultMaterial > 0 && (
                               <div className="space-y-1">
-                                <Label className="text-[10px]">Площадь тиснения, см²</Label>
+                                <Label className="text-[10px]">Материал, ₸/м²</Label>
                                 <Input
                                   type="number" min={0} step="0.1"
-                                  value={areaCm2}
-                                  onChange={(e) => patchOp({ areaCm2: Number(e.target.value) || 0 })}
+                                  value={params.materialPrice ?? cat.defaultMaterial}
+                                  onChange={(e) => patchOp({ materialPrice: Number(e.target.value) || 0 })}
                                   className="h-8 text-xs"
                                 />
                               </div>
+                            )}
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Работа, ₸/{cat.unit}</Label>
+                              <Input
+                                type="number" min={0} step="0.1"
+                                value={params.workPricePerSheet ?? params.rate ?? cat.defaultRate}
+                                onChange={(e) => patchOp({ workPricePerSheet: Number(e.target.value) || 0, rate: Number(e.target.value) || 0 })}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Приладка, ₸</Label>
+                              <Input
+                                type="number" min={0}
+                                value={params.setup ?? cat.defaultSetup}
+                                onChange={(e) => patchOp({ setup: Number(e.target.value) || 0 })}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            {cat.defaultTooling > 0 && (
                               <div className="space-y-1">
-                                <Label className="text-[10px]">Цена фольги, ₸/м²</Label>
+                                <Label className="text-[10px]">Оснастка, ₸</Label>
                                 <Input
                                   type="number" min={0}
-                                  value={foilRate}
-                                  onChange={(e) => patchOp({ materialPricePerM2: Number(e.target.value) || 0 })}
+                                  value={params.tooling ?? cat.defaultTooling}
+                                  onChange={(e) => patchOp({ tooling: Number(e.target.value) || 0 })}
                                   className="h-8 text-xs"
                                 />
                               </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Расход, м²</Label>
-                                <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                                  {foilM2}
-                                </div>
-                                <p className="text-[10px] text-muted-foreground">= площадь/10000 × тираж</p>
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Стоимость фольги, ₸</Label>
-                                <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs font-semibold">
-                                  {foilTotal.toLocaleString("ru-RU")}
-                                </div>
-                              </div>
+                            )}
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Коэф. по тиражу</Label>
+                              <Input
+                                type="number" min={0} step="0.01"
+                                value={params.circulationCoef ?? br.k}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? undefined : Number(e.target.value);
+                                  patchOp({ circulationCoef: val });
+                                }}
+                                className="h-8 text-xs"
+                              />
+                              <p className="text-[10px] text-muted-foreground">авто: ≤500→1.3, 501–2000→1.0, &gt;2000→0.85</p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Ручная стоимость, ₸</Label>
+                              <Input
+                                type="number" placeholder="—"
+                                value={params.manual ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? undefined : Number(e.target.value);
+                                  patchOp({ manual: val });
+                                }}
+                                className="h-8 text-xs"
+                              />
                             </div>
                           </div>
-                        );
-                      })()}
+                          <div className="text-[11px] text-muted-foreground">
+                            Формула: <code>Материал + Работа + Приладка + Оснастка</code>
+                            {" = "}
+                            <b className="text-foreground">
+                              {br.material.toLocaleString("ru-RU")} + {br.work.toLocaleString("ru-RU")} + {br.setup.toLocaleString("ru-RU")} + {br.tooling.toLocaleString("ru-RU")} = {br.total.toLocaleString("ru-RU")} ₸
+                            </b>
+                            {br.manual && (
+                              <span className="ml-1 text-amber-600">(переопределено вручную)</span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            Материал = {br.materialQtyM2} м² × {br.materialPrice} ₸/м² × k {br.k.toFixed(2)} ·
+                            Работа = {br.workQty} {cat.unit} × {br.workPrice} ₸ × k {br.k.toFixed(2)}{report.premiumCoef !== 1 ? ` × premium ${report.premiumCoef.toFixed(2)}` : ""}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
