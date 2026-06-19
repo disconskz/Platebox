@@ -1127,6 +1127,20 @@ const TABLES = [
     defaults: { name: "", machine_type: "offset", max_format_width: 520, max_format_height: 360, cost_per_impression: 3, min_circulation: 0, max_circulation: null, setup_sheets: 0, setup_cost: 0, product_types: null, priority: 100, is_active: true, sort_order: 100 },
   },
   {
+    key: "varnish_types",
+    title: "Лаки",
+    cols: [
+      { k: "name", t: "text", label: "Название" },
+      { k: "material_price_per_m2", t: "number", label: "Лак, ₸/м²" },
+      { k: "work_price_per_sheet", t: "number", label: "Работа, ₸/лист" },
+      { k: "setup_price", t: "number", label: "Приладка, ₸" },
+      { k: "tooling_price", t: "number", label: "Форма, ₸" },
+      { k: "is_active", t: "select", label: "Активен", opts: ["true", "false"] },
+      { k: "sort_order", t: "number", label: "Порядок" },
+    ],
+    defaults: { name: "", material_price_per_m2: 450, work_price_per_sheet: 8, setup_price: 3000, tooling_price: 5000, is_active: true, sort_order: 100 },
+  },
+  {
     key: "product_circulation_rules",
     title: "Правила тиражей",
     cols: [
