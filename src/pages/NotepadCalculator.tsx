@@ -103,7 +103,6 @@ type NotepadKind =
   | "staple"
   | "kbs"
   | "pva"
-  | "planner"
   | "premium"
   | "elastic"
   | "lyasse"
@@ -357,7 +356,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     if (notepadKind === "lyasse") setHasLyasse(true);
     if (notepadKind === "elastic") setHasElastic(true);
     if (notepadKind === "pocket") setHasPocket(true);
-    if (notepadKind === "kbs" || notepadKind === "planner" || notepadKind === "premium") {
+    if (notepadKind === "kbs" || notepadKind === "premium") {
       setHasForzac(true); setHasKapital(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
