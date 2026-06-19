@@ -4,7 +4,7 @@
  * Использует `CoverState` из `components/calc/multipage/sections/CoverSection`.
  */
 import type { CoverSpecOpKey, CoverState } from "@/components/calc/multipage/sections/CoverSection";
-import { COVER_SPEC_OP_CATALOG, coverSpecOpTotal } from "@/components/calc/multipage/sections/CoverSection";
+import { COVER_SPEC_OP_CATALOG, coverSpecOpBreakdown } from "@/components/calc/multipage/sections/CoverSection";
 
 export interface CoverCalcContext {
   /** Глобальный формат изделия (мм). */
@@ -177,29 +177,32 @@ export function buildCoverLines(c: CoverState, ctx: CoverCalcContext): CoverLine
     if (!(c as any)[key]) continue;
     const cat = COVER_SPEC_OP_CATALOG[key];
     const params = c.specOps?.[key];
-    const calc = coverSpecOpTotal(key, params, {
+    const sheetAreaM2 = (r.sheetW * r.sheetH) / 1_000_000;
+    const br = coverSpecOpBreakdown(key, params, {
       circulation: r.circulation,
       printSheets: r.printSheets,
       premiumCoef: k,
+      sheetAreaM2,
     });
-    if (calc.manual) {
-      push("Постпечать обложки", `${cat.label} (ручная стоимость)`, 1, "усл.", calc.total);
+    if (br.manual) {
+      push("Постпечать обложки", `${cat.label} (ручная стоимость)`, 1, "усл.", br.total);
       continue;
     }
-    if (calc.setup > 0) {
-      push("Постпечать обложки", `${cat.label}: ${cat.setupLabel}`, 1, "усл.", calc.setup);
+    // Материал
+    if (br.material > 0) {
+      push("Материалы", `${cat.label}: материал`, br.materialQtyM2, "м²", +(br.materialPrice * br.k).toFixed(2));
     }
-    if (calc.qty > 0 && calc.rate > 0) {
-      push("Постпечать обложки", cat.label, calc.qty, cat.unit, +(calc.rate * k).toFixed(2));
+    // Работа
+    if (br.work > 0) {
+      push("Постпечать обложки", `${cat.label}: работа`, br.workQty, cat.unit, +(br.workPrice * br.k * k).toFixed(2));
     }
-    // Материал «Фольга» — автоматически по площади тиснения.
-    if (key === "stamping" && !calc.manual) {
-      const areaCm2 = params?.areaCm2 ?? 20;
-      const foilRate = params?.materialPricePerM2 ?? 1800;
-      const foilM2 = +((areaCm2 / 10000) * r.circulation).toFixed(3);
-      if (foilM2 > 0 && foilRate > 0) {
-        push("Материалы", "Фольга (тиснение)", foilM2, "м²", foilRate);
-      }
+    // Приладка
+    if (br.setup > 0) {
+      push("Постпечать обложки", `${cat.label}: приладка`, 1, "усл.", br.setup);
+    }
+    // Оснастка / форма
+    if (br.tooling > 0) {
+      push("Допечатка обложки", `${cat.label}: оснастка/форма`, 1, "усл.", br.tooling);
     }
   }
 

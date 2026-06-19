@@ -11,6 +11,7 @@ import { BookOpen, AlertTriangle } from "lucide-react";
 import { SectionHelp } from "../SectionHelp";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import { buildCoverReport, buildCoverRoute, buildCoverWarnings } from "@/lib/calc/cover/cost";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Задача 5 — Обложка как самостоятельная ERP-сущность.
@@ -69,6 +70,21 @@ export interface CoverSpecOpParams {
   areaCm2?: number;
   /** Цена материала (фольги) за м², ₸ — используется для тиснения. */
   materialPricePerM2?: number;
+  // ============ ERP-структура (Материал / Работа / Приладка / Оснастка) ============
+  /** Цена материала (лак/фольга/и т.п.) ₸/м². */
+  materialPrice?: number;
+  /** Тариф работы ₸/лист (по умолчанию = rate из catalog). */
+  workPricePerSheet?: number;
+  /** Стоимость оснастки/формы (₸). */
+  tooling?: number;
+  /** Считать оснастку (новая форма). По умолчанию true. */
+  newTooling?: boolean;
+  /** ID лака из справочника `varnish_types` (для spotVarnish). */
+  varnishTypeId?: string;
+  /** Доля покрытия лаком от площади листа, % (по умолчанию 100). */
+  coverageAreaPct?: number;
+  /** Коэффициент по тиражу (если перебит вручную). */
+  circulationCoef?: number;
 }
 
 export interface CoverState {
@@ -131,6 +147,13 @@ export interface CoverState {
 
   /** Параметры по каждой спецоперации (ERP §9). */
   specOps?: Partial<Record<CoverSpecOpKey, CoverSpecOpParams>>;
+
+  /**
+   * Глобальный тумблер «Показать детали расчёта»
+   * (тарифы, формулы, поля редактирования по операциям).
+   * По умолчанию выключен — менеджер видит только итоги.
+   */
+  showCalcDetails?: boolean;
 }
 
 export const DEFAULT_COVER: CoverState = {
@@ -165,6 +188,7 @@ export const DEFAULT_COVER: CoverState = {
   dieCut: false,
   window: false,
   figuredCut: false,
+  showCalcDetails: false,
 };
 
 /**
@@ -182,15 +206,21 @@ export const COVER_SPEC_OP_CATALOG: Record<CoverSpecOpKey, {
   defaultSetup: number;
   defaultRate: number;
   setupLabel: string;
+  /** Дефолтная цена материала ₸/м² (0 — у операции нет материала). */
+  defaultMaterial: number;
+  /** Дефолтная стоимость оснастки/формы ₸ (0 — у операции нет оснастки). */
+  defaultTooling: number;
+  /** Поддерживает ли операция выбор материала из справочника varnish_types. */
+  hasVarnishCatalog?: boolean;
 }> = {
-  spotVarnish:  { label: "Выборочный лак",   basis: "printSheets",   unit: "лист",   defaultSetup: 3000,  defaultRate: 8,    setupLabel: "Подготовка / приладка" },
-  stamping:     { label: "Тиснение",          basis: "circulation",   unit: "оттиск", defaultSetup: 6000,  defaultRate: 8,    setupLabel: "Клише + приладка" },
-  embossing:    { label: "Конгрев",           basis: "circulation",   unit: "оттиск", defaultSetup: 4000,  defaultRate: 12,   setupLabel: "Клише конгрева" },
-  uv:           { label: "УФ-лак",            basis: "printSheets",   unit: "лист",   defaultSetup: 0,     defaultRate: 5,    setupLabel: "Приладка" },
-  roundCorners: { label: "Скругление углов",  basis: "circulationX4", unit: "угол",   defaultSetup: 0,     defaultRate: 0.6,  setupLabel: "Приладка" },
-  dieCut:       { label: "Вырубка",           basis: "circulation",   unit: "шт",     defaultSetup: 7800,  defaultRate: 3,    setupLabel: "Штамп + приладка" },
-  window:       { label: "Окно",              basis: "circulation",   unit: "шт",     defaultSetup: 0,     defaultRate: 6,    setupLabel: "Приладка" },
-  figuredCut:   { label: "Фигурная высечка",  basis: "circulation",   unit: "шт",     defaultSetup: 18300, defaultRate: 5,    setupLabel: "Штамп + ножи + биги" },
+  spotVarnish:  { label: "Выборочный лак",   basis: "printSheets",   unit: "лист",   defaultSetup: 3000,  defaultRate: 8,    setupLabel: "Приладка",            defaultMaterial: 450,  defaultTooling: 5000, hasVarnishCatalog: true },
+  stamping:     { label: "Тиснение",          basis: "circulation",   unit: "оттиск", defaultSetup: 6000,  defaultRate: 8,    setupLabel: "Приладка",            defaultMaterial: 1800, defaultTooling: 6000 },
+  embossing:    { label: "Конгрев",           basis: "circulation",   unit: "оттиск", defaultSetup: 4000,  defaultRate: 12,   setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 4000 },
+  uv:           { label: "УФ-лак",            basis: "printSheets",   unit: "лист",   defaultSetup: 2000,  defaultRate: 5,    setupLabel: "Приладка",            defaultMaterial: 380,  defaultTooling: 0 },
+  roundCorners: { label: "Скругление углов",  basis: "circulationX4", unit: "угол",   defaultSetup: 1500,  defaultRate: 0.6,  setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 0 },
+  dieCut:       { label: "Вырубка",           basis: "circulation",   unit: "шт",     defaultSetup: 3000,  defaultRate: 3,    setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 7800 },
+  window:       { label: "Окно",              basis: "circulation",   unit: "шт",     defaultSetup: 1500,  defaultRate: 6,    setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 4000 },
+  figuredCut:   { label: "Фигурная высечка",  basis: "circulation",   unit: "шт",     defaultSetup: 4000,  defaultRate: 5,    setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 18300 },
 };
 
 export function coverSpecOpQty(
@@ -218,6 +248,90 @@ export function coverSpecOpTotal(
     return { setup, rate, qty, total: +params.manual.toFixed(2), manual: true };
   }
   return { setup, rate, qty, total: formulaTotal, manual: false };
+}
+
+/**
+ * Коэффициент по тиражу: до 500 → 1.3, 501–2000 → 1.0, 2001+ → 0.85.
+ * Может быть переопределён вручную в `params.circulationCoef`.
+ */
+export function coverCirculationCoef(circulation: number, override?: number): number {
+  if (override != null && Number.isFinite(override) && override > 0) return override;
+  if (circulation <= 500) return 1.3;
+  if (circulation <= 2000) return 1.0;
+  return 0.85;
+}
+
+/**
+ * ERP-структура себестоимости спецоперации обложки:
+ * Итого = Материал + Работа + Приладка + Оснастка.
+ * Материал = площадь_покрытия (м²) × цена_материала ₸/м² × k_тираж.
+ * Работа   = (печатные_листы + приладочные_листы) × тариф_работы ₸/лист × k_тираж × premium.
+ * Приладка = setup_price (фикс).
+ * Оснастка = tooling_price (включается, если newTooling=true).
+ */
+export function coverSpecOpBreakdown(
+  key: CoverSpecOpKey,
+  params: CoverSpecOpParams | undefined,
+  ctx: {
+    circulation: number;
+    printSheets: number;
+    premiumCoef?: number;
+    /** Площадь печатного листа, м² (для расчёта расхода материала). */
+    sheetAreaM2?: number;
+  },
+): {
+  material: number;
+  work: number;
+  setup: number;
+  tooling: number;
+  total: number;
+  manual: boolean;
+  /** Расход материала, м². */
+  materialQtyM2: number;
+  /** Кол-во листов работы (печатные + приладочные). */
+  workQty: number;
+  /** Применённый коэф. тиража. */
+  k: number;
+  /** Использованный материальный тариф ₸/м². */
+  materialPrice: number;
+  /** Использованный тариф работы ₸/лист. */
+  workPrice: number;
+} {
+  const cat = COVER_SPEC_OP_CATALOG[key];
+  const k = coverCirculationCoef(ctx.circulation, params?.circulationCoef);
+  const premium = ctx.premiumCoef ?? 1;
+
+  const materialPrice = params?.materialPrice ?? cat.defaultMaterial;
+  const workPrice = params?.workPricePerSheet ?? params?.rate ?? cat.defaultRate;
+  const setup = params?.setup ?? cat.defaultSetup;
+  const toolingPrice = params?.tooling ?? cat.defaultTooling;
+  const useTooling = params?.newTooling !== false; // по умолчанию true
+
+  const sheetAreaM2 = ctx.sheetAreaM2 ?? (720 * 1020) / 1_000_000;
+  const coveragePct = params?.coverageAreaPct ?? 100;
+  const materialQtyM2 = +((sheetAreaM2 * Math.max(0, ctx.printSheets) * coveragePct) / 100).toFixed(3);
+
+  const workQty = coverSpecOpQty(key, ctx); // = printSheets для лак/УФ, = circulation иначе
+
+  const material = +(materialQtyM2 * materialPrice * k).toFixed(2);
+  const work = +(workQty * workPrice * k * premium).toFixed(2);
+  const tooling = useTooling ? +toolingPrice.toFixed(2) : 0;
+
+  if (params?.manual != null && Number.isFinite(params.manual)) {
+    return {
+      material, work, setup, tooling,
+      total: +params.manual.toFixed(2),
+      manual: true,
+      materialQtyM2, workQty, k, materialPrice, workPrice,
+    };
+  }
+
+  const total = +(material + work + setup + tooling).toFixed(2);
+  return {
+    material, work, setup, tooling, total,
+    manual: false,
+    materialQtyM2, workQty, k, materialPrice, workPrice,
+  };
 }
 
 /** Пресеты материалов обложки — для выпадающего списка «Материал». */
@@ -291,6 +405,27 @@ export default function CoverSection({ value, onChange, title = "Обложка"
   // Защита от старых сохранённых состояний без новых полей.
   const v: CoverState = { ...DEFAULT_COVER, ...value };
   const patch = (p: Partial<CoverState>) => onChange({ ...v, ...p });
+  // Загрузка справочника лаков (varnish_types).
+  const [varnishTypes, setVarnishTypes] = React.useState<Array<{
+    id: string;
+    name: string;
+    material_price_per_m2: number;
+    work_price_per_sheet: number;
+    setup_price: number;
+    tooling_price: number;
+  }>>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    (supabase as any)
+      .from("varnish_types")
+      .select("id,name,material_price_per_m2,work_price_per_sheet,setup_price,tooling_price")
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }: any) => {
+        if (!cancelled && Array.isArray(data)) setVarnishTypes(data);
+      });
+    return () => { cancelled = true; };
+  }, []);
   // §13 — автоматическое определение типа оборота и количества форм по ERP.
   // Правило: если печать односторонняя → "без оборота".
   // Если двусторонняя и цветность лица == цветности оборота → "свой оборот"
@@ -563,10 +698,6 @@ export default function CoverSection({ value, onChange, title = "Обложка"
               </div>
               <p className="text-[10px] text-muted-foreground">Определяется автоматически</p>
             </div>
-            <div className="space-y-1 sm:col-span-2">
-              <Label className="text-xs">Подрядчик</Label>
-              <Input value={v.contractor} onChange={(e) => patch({ contractor: e.target.value })} className="h-8" />
-            </div>
             <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-card/40 px-2 py-1.5 text-xs sm:col-span-2">
               <Checkbox checked={v.makeready} onCheckedChange={(c) => patch({ makeready: !!c })} />
               Приладка (включить в маршрут)
@@ -578,9 +709,18 @@ export default function CoverSection({ value, onChange, title = "Обложка"
 
         {/* 8. Спецоперации */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-foreground">Спецоперации обложки</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold text-foreground">Спецоперации обложки</div>
+            <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+              <Switch
+                checked={!!v.showCalcDetails}
+                onCheckedChange={(c) => patch({ showCalcDetails: !!c })}
+              />
+              Показать детали расчёта
+            </label>
+          </div>
           <p className="text-[11px] text-muted-foreground">
-            Каждая операция = собственные параметры (приладка, тариф, кол-во) и формула. «Фольга» исключена — это материал, формируется в материалах обложки.
+            Стоимость = Материал + Работа + Приладка + Оснастка. По умолчанию форма считается новой.
           </p>
           <div className="space-y-2">
             {/* Припресс плёнкой — спецоперация (вкл/выкл + параметры) */}
@@ -714,17 +854,21 @@ export default function CoverSection({ value, onChange, title = "Обложка"
             {(Object.keys(COVER_SPEC_OP_CATALOG) as CoverSpecOpKey[]).map((key) => {
               const cat = COVER_SPEC_OP_CATALOG[key];
               const enabled = !!(v as any)[key];
-              const params = v.specOps?.[key] ?? {};
-              const calc = coverSpecOpTotal(key, params, {
+              const params: CoverSpecOpParams = v.specOps?.[key] ?? {};
+              const sheetAreaM2 = (report.sheetW * report.sheetH) / 1_000_000;
+              const br = coverSpecOpBreakdown(key, params, {
                 circulation: report.circulation,
                 printSheets: report.printSheets,
                 premiumCoef: report.premiumCoef,
+                sheetAreaM2,
               });
               const patchOp = (p: Partial<CoverSpecOpParams>) => {
                 const next: CoverState["specOps"] = { ...(v.specOps ?? {}) };
                 next[key] = { ...(next[key] ?? {}), ...p };
                 patch({ specOps: next });
               };
+              const newTooling = params.newTooling !== false;
+              const showDetails = !!v.showCalcDetails;
               return (
                 <div key={key} className="rounded-md border bg-card/40">
                   <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
@@ -737,113 +881,175 @@ export default function CoverSection({ value, onChange, title = "Обложка"
                     </span>
                     {enabled && (
                       <span className="text-[11px] text-muted-foreground">
-                        Итого: <b className="text-foreground">{calc.total.toLocaleString("ru-RU")} ₸</b>
+                        Итого: <b className="text-foreground">{br.total.toLocaleString("ru-RU")} ₸</b>
                       </span>
                     )}
                   </label>
                   {enabled && (
-                    <div className="border-t bg-muted/20 p-2">
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">{cat.setupLabel}, ₸</Label>
-                          <Input
-                            type="number"
-                            value={params.setup ?? cat.defaultSetup}
-                            onChange={(e) => patchOp({ setup: Number(e.target.value) || 0 })}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Тариф, ₸/{cat.unit}</Label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={params.rate ?? cat.defaultRate}
-                            onChange={(e) => patchOp({ rate: Number(e.target.value) || 0 })}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Кол-во ({cat.unit})</Label>
-                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                            {calc.qty.toLocaleString("ru-RU")}
+                    <div className="border-t bg-muted/20 p-2 space-y-2">
+                      {/* Селектор лака — только для spotVarnish */}
+                      {cat.hasVarnishCatalog && (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          <div className="space-y-1 sm:col-span-2">
+                            <Label className="text-[10px]">Тип лака</Label>
+                            <Select
+                              value={params.varnishTypeId ?? ""}
+                              onValueChange={(val) => {
+                                const vt = varnishTypes.find((x) => x.id === val);
+                                patchOp({
+                                  varnishTypeId: val,
+                                  ...(vt ? {
+                                    materialPrice: Number(vt.material_price_per_m2) || 0,
+                                    workPricePerSheet: Number(vt.work_price_per_sheet) || 0,
+                                    setup: Number(vt.setup_price) || 0,
+                                    tooling: Number(vt.tooling_price) || 0,
+                                  } : {}),
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder={varnishTypes.length ? "Выберите лак из справочника" : "Справочник лаков пуст"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {varnishTypes.map((vt) => (
+                                  <SelectItem key={vt.id} value={vt.id}>{vt.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {cat.basis === "printSheets" ? "= печатные листы" :
-                             cat.basis === "circulationX4" ? "= тираж × 4" : "= тираж"}
-                          </p>
+                          <div className="space-y-1">
+                            <Label className="text-[10px]">Покрытие лаком, %</Label>
+                            <Input
+                              type="number" min={0} max={100}
+                              value={params.coverageAreaPct ?? 100}
+                              onChange={(e) => patchOp({ coverageAreaPct: Number(e.target.value) || 0 })}
+                              className="h-8 text-xs"
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Ручная стоимость, ₸</Label>
-                          <Input
-                            type="number"
-                            placeholder="—"
-                            value={params.manual ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value === "" ? undefined : Number(e.target.value);
-                              patchOp({ manual: val });
-                            }}
-                            className="h-8 text-xs"
+                      )}
+
+                      {/* Сводка 4 составляющих — всегда */}
+                      <div className="grid grid-cols-2 gap-1 rounded-md border bg-card/40 p-2 text-[11px] sm:grid-cols-5">
+                        <div>
+                          <div className="text-muted-foreground">Материал</div>
+                          <div className="font-semibold text-foreground">{br.material.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Работа</div>
+                          <div className="font-semibold text-foreground">{br.work.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Приладка</div>
+                          <div className="font-semibold text-foreground">{br.setup.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Оснастка</div>
+                          <div className="font-semibold text-foreground">{br.tooling.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Итого</div>
+                          <div className="font-bold text-foreground">{br.total.toLocaleString("ru-RU")} ₸</div>
+                        </div>
+                      </div>
+
+                      {/* Чекбокс «Новая форма» — всегда виден, если у операции есть оснастка */}
+                      {cat.defaultTooling > 0 && (
+                        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+                          <Checkbox
+                            checked={newTooling}
+                            onCheckedChange={(c) => patchOp({ newTooling: !!c })}
                           />
-                        </div>
-                      </div>
-                      <div className="mt-2 text-[11px] text-muted-foreground">
-                        Формула: <code>приладка + кол-во × тариф{report.premiumCoef !== 1 ? " × премиум-коэф." : ""}</code>
-                        {" = "}
-                        <b className="text-foreground">
-                          {calc.setup.toLocaleString("ru-RU")} + {calc.qty.toLocaleString("ru-RU")} × {calc.rate}
-                          {report.premiumCoef !== 1 ? ` × ${report.premiumCoef.toFixed(2)}` : ""} = {(+(calc.setup + calc.qty * calc.rate * (report.premiumCoef ?? 1)).toFixed(2)).toLocaleString("ru-RU")} ₸
-                        </b>
-                        {calc.manual && (
-                          <span className="ml-1 text-amber-600">(переопределено вручную: {calc.total.toLocaleString("ru-RU")} ₸)</span>
-                        )}
-                      </div>
-                      {key === "stamping" && (() => {
-                        const areaCm2 = params.areaCm2 ?? 20;
-                        const foilRate = params.materialPricePerM2 ?? 1800;
-                        const foilM2 = +((areaCm2 / 10000) * report.circulation).toFixed(3);
-                        const foilTotal = +(foilM2 * foilRate).toFixed(2);
-                        return (
-                          <div className="mt-2 rounded-md border border-dashed bg-card/40 p-2">
-                            <div className="mb-1 text-[11px] font-semibold text-foreground">
-                              Материал: фольга (авто по площади тиснения)
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          Новая форма / оснастка (если выкл — оснастка не учитывается)
+                        </label>
+                      )}
+
+                      {/* Детали расчёта — только если включён глобальный тумблер */}
+                      {showDetails && (
+                        <div className="space-y-2 rounded-md border border-dashed bg-muted/20 p-2">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {cat.defaultMaterial > 0 && (
                               <div className="space-y-1">
-                                <Label className="text-[10px]">Площадь тиснения, см²</Label>
+                                <Label className="text-[10px]">Материал, ₸/м²</Label>
                                 <Input
                                   type="number" min={0} step="0.1"
-                                  value={areaCm2}
-                                  onChange={(e) => patchOp({ areaCm2: Number(e.target.value) || 0 })}
+                                  value={params.materialPrice ?? cat.defaultMaterial}
+                                  onChange={(e) => patchOp({ materialPrice: Number(e.target.value) || 0 })}
                                   className="h-8 text-xs"
                                 />
                               </div>
+                            )}
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Работа, ₸/{cat.unit}</Label>
+                              <Input
+                                type="number" min={0} step="0.1"
+                                value={params.workPricePerSheet ?? params.rate ?? cat.defaultRate}
+                                onChange={(e) => patchOp({ workPricePerSheet: Number(e.target.value) || 0, rate: Number(e.target.value) || 0 })}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Приладка, ₸</Label>
+                              <Input
+                                type="number" min={0}
+                                value={params.setup ?? cat.defaultSetup}
+                                onChange={(e) => patchOp({ setup: Number(e.target.value) || 0 })}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            {cat.defaultTooling > 0 && (
                               <div className="space-y-1">
-                                <Label className="text-[10px]">Цена фольги, ₸/м²</Label>
+                                <Label className="text-[10px]">Оснастка, ₸</Label>
                                 <Input
                                   type="number" min={0}
-                                  value={foilRate}
-                                  onChange={(e) => patchOp({ materialPricePerM2: Number(e.target.value) || 0 })}
+                                  value={params.tooling ?? cat.defaultTooling}
+                                  onChange={(e) => patchOp({ tooling: Number(e.target.value) || 0 })}
                                   className="h-8 text-xs"
                                 />
                               </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Расход, м²</Label>
-                                <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                                  {foilM2}
-                                </div>
-                                <p className="text-[10px] text-muted-foreground">= площадь/10000 × тираж</p>
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px]">Стоимость фольги, ₸</Label>
-                                <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs font-semibold">
-                                  {foilTotal.toLocaleString("ru-RU")}
-                                </div>
-                              </div>
+                            )}
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Коэф. по тиражу</Label>
+                              <Input
+                                type="number" min={0} step="0.01"
+                                value={params.circulationCoef ?? br.k}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? undefined : Number(e.target.value);
+                                  patchOp({ circulationCoef: val });
+                                }}
+                                className="h-8 text-xs"
+                              />
+                              <p className="text-[10px] text-muted-foreground">авто: ≤500→1.3, 501–2000→1.0, &gt;2000→0.85</p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">Ручная стоимость, ₸</Label>
+                              <Input
+                                type="number" placeholder="—"
+                                value={params.manual ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? undefined : Number(e.target.value);
+                                  patchOp({ manual: val });
+                                }}
+                                className="h-8 text-xs"
+                              />
                             </div>
                           </div>
-                        );
-                      })()}
+                          <div className="text-[11px] text-muted-foreground">
+                            Формула: <code>Материал + Работа + Приладка + Оснастка</code>
+                            {" = "}
+                            <b className="text-foreground">
+                              {br.material.toLocaleString("ru-RU")} + {br.work.toLocaleString("ru-RU")} + {br.setup.toLocaleString("ru-RU")} + {br.tooling.toLocaleString("ru-RU")} = {br.total.toLocaleString("ru-RU")} ₸
+                            </b>
+                            {br.manual && (
+                              <span className="ml-1 text-amber-600">(переопределено вручную)</span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            Материал = {br.materialQtyM2} м² × {br.materialPrice} ₸/м² × k {br.k.toFixed(2)} ·
+                            Работа = {br.workQty} {cat.unit} × {br.workPrice} ₸ × k {br.k.toFixed(2)}{report.premiumCoef !== 1 ? ` × premium ${report.premiumCoef.toFixed(2)}` : ""}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
