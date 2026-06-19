@@ -69,6 +69,21 @@ export interface CoverSpecOpParams {
   areaCm2?: number;
   /** Цена материала (фольги) за м², ₸ — используется для тиснения. */
   materialPricePerM2?: number;
+  // ============ ERP-структура (Материал / Работа / Приладка / Оснастка) ============
+  /** Цена материала (лак/фольга/и т.п.) ₸/м². */
+  materialPrice?: number;
+  /** Тариф работы ₸/лист (по умолчанию = rate из catalog). */
+  workPricePerSheet?: number;
+  /** Стоимость оснастки/формы (₸). */
+  tooling?: number;
+  /** Считать оснастку (новая форма). По умолчанию true. */
+  newTooling?: boolean;
+  /** ID лака из справочника `varnish_types` (для spotVarnish). */
+  varnishTypeId?: string;
+  /** Доля покрытия лаком от площади листа, % (по умолчанию 100). */
+  coverageAreaPct?: number;
+  /** Коэффициент по тиражу (если перебит вручную). */
+  circulationCoef?: number;
 }
 
 export interface CoverState {
