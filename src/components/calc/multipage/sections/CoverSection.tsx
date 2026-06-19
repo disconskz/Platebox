@@ -205,15 +205,21 @@ export const COVER_SPEC_OP_CATALOG: Record<CoverSpecOpKey, {
   defaultSetup: number;
   defaultRate: number;
   setupLabel: string;
+  /** Дефолтная цена материала ₸/м² (0 — у операции нет материала). */
+  defaultMaterial: number;
+  /** Дефолтная стоимость оснастки/формы ₸ (0 — у операции нет оснастки). */
+  defaultTooling: number;
+  /** Поддерживает ли операция выбор материала из справочника varnish_types. */
+  hasVarnishCatalog?: boolean;
 }> = {
-  spotVarnish:  { label: "Выборочный лак",   basis: "printSheets",   unit: "лист",   defaultSetup: 3000,  defaultRate: 8,    setupLabel: "Подготовка / приладка" },
-  stamping:     { label: "Тиснение",          basis: "circulation",   unit: "оттиск", defaultSetup: 6000,  defaultRate: 8,    setupLabel: "Клише + приладка" },
-  embossing:    { label: "Конгрев",           basis: "circulation",   unit: "оттиск", defaultSetup: 4000,  defaultRate: 12,   setupLabel: "Клише конгрева" },
-  uv:           { label: "УФ-лак",            basis: "printSheets",   unit: "лист",   defaultSetup: 0,     defaultRate: 5,    setupLabel: "Приладка" },
-  roundCorners: { label: "Скругление углов",  basis: "circulationX4", unit: "угол",   defaultSetup: 0,     defaultRate: 0.6,  setupLabel: "Приладка" },
-  dieCut:       { label: "Вырубка",           basis: "circulation",   unit: "шт",     defaultSetup: 7800,  defaultRate: 3,    setupLabel: "Штамп + приладка" },
-  window:       { label: "Окно",              basis: "circulation",   unit: "шт",     defaultSetup: 0,     defaultRate: 6,    setupLabel: "Приладка" },
-  figuredCut:   { label: "Фигурная высечка",  basis: "circulation",   unit: "шт",     defaultSetup: 18300, defaultRate: 5,    setupLabel: "Штамп + ножи + биги" },
+  spotVarnish:  { label: "Выборочный лак",   basis: "printSheets",   unit: "лист",   defaultSetup: 3000,  defaultRate: 8,    setupLabel: "Приладка",            defaultMaterial: 450,  defaultTooling: 5000, hasVarnishCatalog: true },
+  stamping:     { label: "Тиснение",          basis: "circulation",   unit: "оттиск", defaultSetup: 6000,  defaultRate: 8,    setupLabel: "Приладка",            defaultMaterial: 1800, defaultTooling: 6000 },
+  embossing:    { label: "Конгрев",           basis: "circulation",   unit: "оттиск", defaultSetup: 4000,  defaultRate: 12,   setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 4000 },
+  uv:           { label: "УФ-лак",            basis: "printSheets",   unit: "лист",   defaultSetup: 2000,  defaultRate: 5,    setupLabel: "Приладка",            defaultMaterial: 380,  defaultTooling: 0 },
+  roundCorners: { label: "Скругление углов",  basis: "circulationX4", unit: "угол",   defaultSetup: 1500,  defaultRate: 0.6,  setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 0 },
+  dieCut:       { label: "Вырубка",           basis: "circulation",   unit: "шт",     defaultSetup: 3000,  defaultRate: 3,    setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 7800 },
+  window:       { label: "Окно",              basis: "circulation",   unit: "шт",     defaultSetup: 1500,  defaultRate: 6,    setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 4000 },
+  figuredCut:   { label: "Фигурная высечка",  basis: "circulation",   unit: "шт",     defaultSetup: 4000,  defaultRate: 5,    setupLabel: "Приладка",            defaultMaterial: 0,    defaultTooling: 18300 },
 };
 
 export function coverSpecOpQty(
