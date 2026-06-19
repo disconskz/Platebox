@@ -249,6 +249,90 @@ export function coverSpecOpTotal(
   return { setup, rate, qty, total: formulaTotal, manual: false };
 }
 
+/**
+ * Коэффициент по тиражу: до 500 → 1.3, 501–2000 → 1.0, 2001+ → 0.85.
+ * Может быть переопределён вручную в `params.circulationCoef`.
+ */
+export function coverCirculationCoef(circulation: number, override?: number): number {
+  if (override != null && Number.isFinite(override) && override > 0) return override;
+  if (circulation <= 500) return 1.3;
+  if (circulation <= 2000) return 1.0;
+  return 0.85;
+}
+
+/**
+ * ERP-структура себестоимости спецоперации обложки:
+ * Итого = Материал + Работа + Приладка + Оснастка.
+ * Материал = площадь_покрытия (м²) × цена_материала ₸/м² × k_тираж.
+ * Работа   = (печатные_листы + приладочные_листы) × тариф_работы ₸/лист × k_тираж × premium.
+ * Приладка = setup_price (фикс).
+ * Оснастка = tooling_price (включается, если newTooling=true).
+ */
+export function coverSpecOpBreakdown(
+  key: CoverSpecOpKey,
+  params: CoverSpecOpParams | undefined,
+  ctx: {
+    circulation: number;
+    printSheets: number;
+    premiumCoef?: number;
+    /** Площадь печатного листа, м² (для расчёта расхода материала). */
+    sheetAreaM2?: number;
+  },
+): {
+  material: number;
+  work: number;
+  setup: number;
+  tooling: number;
+  total: number;
+  manual: boolean;
+  /** Расход материала, м². */
+  materialQtyM2: number;
+  /** Кол-во листов работы (печатные + приладочные). */
+  workQty: number;
+  /** Применённый коэф. тиража. */
+  k: number;
+  /** Использованный материальный тариф ₸/м². */
+  materialPrice: number;
+  /** Использованный тариф работы ₸/лист. */
+  workPrice: number;
+} {
+  const cat = COVER_SPEC_OP_CATALOG[key];
+  const k = coverCirculationCoef(ctx.circulation, params?.circulationCoef);
+  const premium = ctx.premiumCoef ?? 1;
+
+  const materialPrice = params?.materialPrice ?? cat.defaultMaterial;
+  const workPrice = params?.workPricePerSheet ?? params?.rate ?? cat.defaultRate;
+  const setup = params?.setup ?? cat.defaultSetup;
+  const toolingPrice = params?.tooling ?? cat.defaultTooling;
+  const useTooling = params?.newTooling !== false; // по умолчанию true
+
+  const sheetAreaM2 = ctx.sheetAreaM2 ?? (720 * 1020) / 1_000_000;
+  const coveragePct = params?.coverageAreaPct ?? 100;
+  const materialQtyM2 = +((sheetAreaM2 * Math.max(0, ctx.printSheets) * coveragePct) / 100).toFixed(3);
+
+  const workQty = coverSpecOpQty(key, ctx); // = printSheets для лак/УФ, = circulation иначе
+
+  const material = +(materialQtyM2 * materialPrice * k).toFixed(2);
+  const work = +(workQty * workPrice * k * premium).toFixed(2);
+  const tooling = useTooling ? +toolingPrice.toFixed(2) : 0;
+
+  if (params?.manual != null && Number.isFinite(params.manual)) {
+    return {
+      material, work, setup, tooling,
+      total: +params.manual.toFixed(2),
+      manual: true,
+      materialQtyM2, workQty, k, materialPrice, workPrice,
+    };
+  }
+
+  const total = +(material + work + setup + tooling).toFixed(2);
+  return {
+    material, work, setup, tooling, total,
+    manual: false,
+    materialQtyM2, workQty, k, materialPrice, workPrice,
+  };
+}
+
 /** Пресеты материалов обложки — для выпадающего списка «Материал». */
 type CoverMaterial = { value: string; density: number; thicknessMm: number };
 
