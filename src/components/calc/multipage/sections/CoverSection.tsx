@@ -521,19 +521,23 @@ export default function CoverSection({ value, onChange, title = "Обложка"
                 {autoForms}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Авто по ERP: {v.twoSided ? `${v.colorFront}+${v.colorBack} (чужой оборот)` : `${v.colorFront}+0`}
+                Авто по ERP: {autoTurnover === "none"
+                  ? `${v.colorFront}+0 (без оборота)`
+                  : autoTurnover === "self"
+                    ? `${v.colorFront}+${v.colorBack} (свой оборот)`
+                    : `${v.colorFront}+${v.colorBack} (чужой оборот)`}
               </p>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Сторона печати</Label>
-              <Select value={v.printSide} onValueChange={(val) => patch({ printSide: val as "front" | "back" | "both" })}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="front">Только лицо</SelectItem>
-                  <SelectItem value="back">Только оборот</SelectItem>
-                  <SelectItem value="both">Лицо + оборот</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-xs">Оборот</Label>
+              <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                {v.turnover === "none"
+                  ? "Без оборота"
+                  : v.turnover === "self"
+                    ? "Свой оборот"
+                    : "Чужой оборот"}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Определяется автоматически</p>
             </div>
             <div className="space-y-1 sm:col-span-2">
               <Label className="text-xs">Подрядчик</Label>
