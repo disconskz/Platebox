@@ -54,6 +54,9 @@ export interface CoverReport {
   premiumCoef: number;
   /** Доп. дней к сроку производства. */
   extraLeadDays: number;
+  /** Размер печатного листа, мм. */
+  sheetW: number;
+  sheetH: number;
 }
 
 function resolvePrintType(c: CoverState, ctx: CoverCalcContext): "offset" | "digital" | "uv" {
@@ -101,6 +104,7 @@ export function buildCoverReport(c: CoverState, ctx: CoverCalcContext): CoverRep
     paperPricePerSheet, spreadW, spreadH, upPerSheet,
     purchaseSheets, printSheets, wasteSheets, formsCount,
     circulation, printType, premiumCoef, extraLeadDays,
+    sheetW, sheetH,
   };
 }
 
@@ -133,14 +137,30 @@ export function buildCoverLines(c: CoverState, ctx: CoverCalcContext): CoverLine
     push("Печать обложки", `Pantone (${c.pantone})`, 1, "форма", 2500);
   }
 
-  // Ламинация
+  // Припресс плёнкой (бывш. «Ламинация»)
+  // Расчёт: площадь печатного листа × кол-во печатных листов × сторон × тариф (₸/м²) + приладка.
   if (c.lamType !== "none") {
-    const areaM2 = +((r.spreadW * r.spreadH) / 1_000_000 * r.printSheets * c.lamSides).toFixed(3);
-    const rate =
+    const areaM2 = +((r.sheetW * r.sheetH) / 1_000_000 * r.printSheets * c.lamSides).toFixed(3);
+    const defaultRate =
       c.lamType === "soft_touch" ? 380 :
       c.lamType === "anti_scratch" ? 320 :
       c.lamType === "gloss" ? 220 : 220; // matte
-    push("Постпечать обложки", `Ламинация (${c.lamType}, ${c.lamSides} ст.)`, areaM2, "м²", rate);
+    const rate = c.laminationRatePerM2 != null && Number.isFinite(c.laminationRatePerM2)
+      ? c.laminationRatePerM2
+      : defaultRate;
+    const setup = c.laminationSetup != null && Number.isFinite(c.laminationSetup)
+      ? c.laminationSetup
+      : 5000;
+    if (setup > 0) {
+      push("Постпечать обложки", "Припресс плёнкой: приладка", 1, "усл.", setup);
+    }
+    push(
+      "Постпечать обложки",
+      `Припресс плёнкой (${c.lamType}, ${c.lamSides} ст.)`,
+      areaM2,
+      "м²",
+      rate,
+    );
   }
 
   // Биговка
@@ -193,7 +213,7 @@ export function buildCoverRoute(c: CoverState, ctx: CoverCalcContext): string[] 
   if (r.printType === "offset") s.push("Вывод форм обложки");
   if (c.makeready) s.push("Приладка обложки");
   s.push(`Печать обложки (${r.printType === "offset" ? "офсет" : r.printType === "uv" ? "UV" : "цифра"})`);
-  if (c.lamType !== "none") s.push(`Ламинация (${c.lamType})`);
+  if (c.lamType !== "none") s.push(`Припресс плёнкой (${c.lamType})`);
   if (c.bigging) s.push("Биговка");
   if (c.spotVarnish) s.push("Выборочный лак");
   if (c.uv) s.push("УФ-лак");
@@ -213,7 +233,7 @@ export function buildCoverWarnings(c: CoverState, ctx: CoverCalcContext): string
   const spreadW = ctx.itemW * 2 + (ctx.spineMm ?? 0);
   const spreadH = ctx.itemH;
   if ((c.lamType !== "none" || c.lamination) && !c.bigging && c.density >= 200) {
-    w.push("Ламинация без биговки — риск трещин на сгибе. Рекомендуется биговка.");
+    w.push("Припресс плёнкой без биговки — риск трещин на сгибе. Рекомендуется биговка.");
   }
   if (c.density < 170 && (c.kind === "hard" || c.kind === "thick")) {
     w.push("Плотность слишком маленькая для выбранного типа обложки.");
