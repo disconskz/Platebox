@@ -97,7 +97,14 @@ export interface CoverState {
   pantone: string;
   formsCount: number;
   makeready: boolean;
-  printSide: "front" | "back" | "both";
+  /**
+   * Тип оборота (ERP):
+   *  - "none"  — без оборота (печать только лицо)
+   *  - "self"  — свой оборот (одни и те же формы, 4+4 = 4 формы)
+   *  - "other" — чужой оборот (4+4 = 8 форм)
+   * Определяется автоматически из цветности и сторон печати.
+   */
+  turnover: "none" | "self" | "other";
   contractor: string;
 
   // 6. Ламинация
@@ -138,7 +145,7 @@ export const DEFAULT_COVER: CoverState = {
   pantone: "",
   formsCount: 4,
   makeready: true,
-  printSide: "front",
+  turnover: "none",
   contractor: "Свои",
   lamType: "matte",
   lamSides: 1,
