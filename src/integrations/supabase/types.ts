@@ -3824,6 +3824,48 @@ export type Database = {
         }
         Relationships: []
       }
+      varnish_types: {
+        Row: {
+          circulation_coef: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          material_price_per_m2: number
+          name: string
+          setup_price: number
+          sort_order: number
+          tooling_price: number
+          updated_at: string
+          work_price_per_sheet: number
+        }
+        Insert: {
+          circulation_coef?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          material_price_per_m2?: number
+          name: string
+          setup_price?: number
+          sort_order?: number
+          tooling_price?: number
+          updated_at?: string
+          work_price_per_sheet?: number
+        }
+        Update: {
+          circulation_coef?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          material_price_per_m2?: number
+          name?: string
+          setup_price?: number
+          sort_order?: number
+          tooling_price?: number
+          updated_at?: string
+          work_price_per_sheet?: number
+        }
+        Relationships: []
+      }
       window_attachment_prices: {
         Row: {
           allowed_shapes: string
