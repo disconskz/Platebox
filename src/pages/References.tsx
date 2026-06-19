@@ -1238,6 +1238,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { key: "__op_catalog", title: "Виды работ (формулы)", desc: "Полный каталог операций с параметрами и формулами расчёта.", countKey: "operation_catalog", relatedKeys: ["operations"] },
       { key: "equipment", title: "Оборудование", desc: "Послепечатное оборудование и стоимость оттиска.", countKey: "equipment" },
       { key: "press_machines", title: "Печатные машины", desc: "Печатные машины, форматы, приладка, типы продукции.", countKey: "press_machines", relatedKeys: ["print_formats", "product_circulation_rules"] },
+      { key: "varnish_types", title: "Лаки", desc: "Справочник лаков для операции «Выборочный лак»: цена материала за м², работа, приладка, форма.", countKey: "varnish_types" },
       { key: "lamination_prices", title: "Ламинация", desc: "Цены за сторону по плёнке и размеру.", countKey: "lamination_prices" },
       { key: "film_prices", title: "Плёнки для припресса", desc: "Каталог плёнок: цена за м², приладка, минимальная стоимость. Используется для авто-расчёта припресса.", countKey: "film_prices" },
       { key: "pouch_lamination_prices", title: "Пакетная ламинация", desc: "Форматы пакетов и цена за 1 изделие. Используется для авто-расчёта пакетной ламинации.", countKey: "pouch_lamination_prices" },
