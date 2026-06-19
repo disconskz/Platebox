@@ -563,51 +563,118 @@ export default function CoverSection({ value, onChange, title = "Обложка"
             Каждая операция = собственные параметры (приладка, тариф, кол-во) и формула. «Фольга» исключена — это материал, формируется в материалах обложки.
           </p>
           <div className="space-y-2">
-            {/* Ламинация — спецоперация (вкл/выкл + параметры) */}
-            <div className="rounded-md border bg-card/40">
-              <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
-                <span className="flex items-center gap-2">
-                  <Checkbox
-                    checked={v.lamination && v.lamType !== "none"}
-                    onCheckedChange={(c) => patch({
-                      lamination: !!c,
-                      lamType: c ? (v.lamType === "none" ? "matte" : v.lamType) : "none",
-                    })}
-                  />
-                  <span className="text-xs">Ламинация</span>
-                </span>
-              </label>
-              {v.lamination && v.lamType !== "none" && (
-                <div className="border-t bg-muted/20 p-2">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Тип ламинации</Label>
-                      <Select value={v.lamType} onValueChange={(val) => patch({ lamType: val as LamType, lamination: val !== "none" })}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(LAM_LABELS) as LamType[]).filter(k => k !== "none").map((k) => (
-                            <SelectItem key={k} value={k}>{LAM_LABELS[k]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+            {/* Припресс плёнкой — спецоперация (вкл/выкл + параметры) */}
+            {(() => {
+              const defaultRate =
+                v.lamType === "soft_touch" ? 380 :
+                v.lamType === "anti_scratch" ? 320 :
+                v.lamType === "gloss" ? 220 : 220;
+              const rate = v.laminationRatePerM2 ?? defaultRate;
+              const setup = v.laminationSetup ?? 5000;
+              const sheetW = report.sheetW ?? 720;
+              const sheetH = report.sheetH ?? 1020;
+              const areaM2 = +((sheetW * sheetH) / 1_000_000 * report.printSheets * v.lamSides).toFixed(3);
+              const total = +(setup + areaM2 * rate).toFixed(2);
+              const enabled = v.lamination && v.lamType !== "none";
+              return (
+                <div className="rounded-md border bg-card/40">
+                  <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
+                    <span className="flex items-center gap-2">
+                      <Checkbox
+                        checked={enabled}
+                        onCheckedChange={(c) => patch({
+                          lamination: !!c,
+                          lamType: c ? (v.lamType === "none" ? "matte" : v.lamType) : "none",
+                        })}
+                      />
+                      <span className="text-xs">Припресс плёнкой</span>
+                    </span>
+                    {enabled && (
+                      <span className="text-[11px] text-muted-foreground">
+                        Итого: <b className="text-foreground">{total.toLocaleString("ru-RU")} ₸</b>
+                      </span>
+                    )}
+                  </label>
+                  {enabled && (
+                    <div className="border-t bg-muted/20 p-2">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Тип плёнки</Label>
+                          <Select value={v.lamType} onValueChange={(val) => patch({ lamType: val as LamType, lamination: val !== "none" })}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {(Object.keys(LAM_LABELS) as LamType[]).filter(k => k !== "none").map((k) => (
+                                <SelectItem key={k} value={k}>{LAM_LABELS[k]}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Сторон ламинации</Label>
+                          <Select value={String(v.lamSides)} onValueChange={(val) => patch({ lamSides: +val as 1 | 2 })}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1 сторона</SelectItem>
+                              <SelectItem value="2">2 стороны</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Приладка, ₸</Label>
+                          <Input
+                            type="number" min={0}
+                            value={setup}
+                            onChange={(e) => patch({ laminationSetup: Number(e.target.value) || 0 })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Цена плёнки, ₸/м²</Label>
+                          <Input
+                            type="number" min={0} step="0.1"
+                            value={rate}
+                            onChange={(e) => patch({ laminationRatePerM2: Number(e.target.value) || 0 })}
+                            className="h-8 text-xs"
+                          />
+                          <p className="text-[10px] text-muted-foreground">Дефолт по типу: {defaultRate}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Печатный лист, мм</Label>
+                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                            {sheetW} × {sheetH}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Печатных листов</Label>
+                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                            {report.printSheets.toLocaleString("ru-RU")}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Расход плёнки, м²</Label>
+                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
+                            {areaM2.toLocaleString("ru-RU")}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Итого, ₸</Label>
+                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs font-semibold">
+                            {total.toLocaleString("ru-RU")}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-[11px] text-muted-foreground">
+                        Формула: <code>приладка + (ширина × высота печатного листа / 1 000 000) × кол-во печатных листов × сторон × тариф</code>
+                        {" = "}
+                        <b className="text-foreground">
+                          {setup.toLocaleString("ru-RU")} + ({sheetW}×{sheetH}/1000000) × {report.printSheets} × {v.lamSides} × {rate} = {total.toLocaleString("ru-RU")} ₸
+                        </b>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Сторона ламинации</Label>
-                      <Select value={String(v.lamSides)} onValueChange={(val) => patch({ lamSides: +val as 1 | 2 })}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 сторона</SelectItem>
-                          <SelectItem value="2">2 стороны</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-[11px] text-muted-foreground">
-                    Формула: <code>площадь разворота × печатных листов × сторон × тариф ({LAM_LABELS[v.lamType]})</code>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Биговка — спецоперация (вкл/выкл) */}
             <div className="rounded-md border bg-card/40">
