@@ -103,18 +103,16 @@ type NotepadKind =
   | "staple"
   | "kbs"
   | "pva"
-  | "planner"
   | "premium"
   | "elastic"
   | "lyasse"
   | "pocket";
 const NOTEPAD_KINDS: { value: NotepadKind; label: string; coef: number }[] = [
-  { value: "simple", label: "Простой блокнот", coef: 1 },
-  { value: "spiral", label: "Блокнот на пружине", coef: 1.2 },
+  { value: "simple", label: "Блокнот на пружине в мягкой обложке", coef: 1 },
+  { value: "spiral", label: "Блокнот на пружине в твёрдой обложке", coef: 1.2 },
   { value: "staple", label: "Блокнот на скобе", coef: 1.1 },
   { value: "kbs", label: "Блокнот КБС", coef: 1.4 },
   { value: "pva", label: "Блокнот с проклейкой ПВА", coef: 1.3 },
-  { value: "planner", label: "Ежедневник", coef: 1.6 },
   { value: "premium", label: "Premium блокнот", coef: 2.0 },
   { value: "elastic", label: "Блокнот с резинкой", coef: 1.3 },
   { value: "lyasse", label: "Блокнот с ляссе", coef: 1.3 },
@@ -358,7 +356,7 @@ export default function NotepadCalculator({ embedded = false, onResult }: Notepa
     if (notepadKind === "lyasse") setHasLyasse(true);
     if (notepadKind === "elastic") setHasElastic(true);
     if (notepadKind === "pocket") setHasPocket(true);
-    if (notepadKind === "kbs" || notepadKind === "planner" || notepadKind === "premium") {
+    if (notepadKind === "kbs" || notepadKind === "premium") {
       setHasForzac(true); setHasKapital(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
