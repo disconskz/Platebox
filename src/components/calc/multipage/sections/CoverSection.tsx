@@ -676,10 +676,6 @@ export default function CoverSection({ value, onChange, title = "Обложка"
               </div>
               <p className="text-[10px] text-muted-foreground">Определяется автоматически</p>
             </div>
-            <div className="space-y-1 sm:col-span-2">
-              <Label className="text-xs">Подрядчик</Label>
-              <Input value={v.contractor} onChange={(e) => patch({ contractor: e.target.value })} className="h-8" />
-            </div>
             <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-card/40 px-2 py-1.5 text-xs sm:col-span-2">
               <Checkbox checked={v.makeready} onCheckedChange={(c) => patch({ makeready: !!c })} />
               Приладка (включить в маршрут)
