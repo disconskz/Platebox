@@ -146,6 +146,13 @@ export interface CoverState {
 
   /** Параметры по каждой спецоперации (ERP §9). */
   specOps?: Partial<Record<CoverSpecOpKey, CoverSpecOpParams>>;
+
+  /**
+   * Глобальный тумблер «Показать детали расчёта»
+   * (тарифы, формулы, поля редактирования по операциям).
+   * По умолчанию выключен — менеджер видит только итоги.
+   */
+  showCalcDetails?: boolean;
 }
 
 export const DEFAULT_COVER: CoverState = {
@@ -180,6 +187,7 @@ export const DEFAULT_COVER: CoverState = {
   dieCut: false,
   window: false,
   figuredCut: false,
+  showCalcDetails: false,
 };
 
 /**
