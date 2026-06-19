@@ -137,30 +137,43 @@ export function buildCoverLines(c: CoverState, ctx: CoverCalcContext): CoverLine
     push("Печать обложки", `Pantone (${c.pantone})`, 1, "форма", 2500);
   }
 
-  // Припресс плёнкой (бывш. «Ламинация»)
-  // Расчёт: площадь печатного листа × кол-во печатных листов × сторон × тариф (₸/м²) + приладка.
+  // Припресс плёнкой (ERP):
+  // Материал = площадь_листа × цена_плёнки ₸/м² × листов_для_операции × сторон.
+  // Работа   = площадь_листа × тариф_работы ₸/м² × листов_для_операции × сторон.
+  // Приладка = setup_price.
+  // Итого    = MAX(материал + работа + приладка; мин. стоимость).
+  // Параметры берутся из v.filmTypeId (справочник film_prices) с возможностью ручного override.
   if (c.lamType !== "none") {
-    const areaM2 = +((r.sheetW * r.sheetH) / 1_000_000 * r.printSheets * c.lamSides).toFixed(3);
-    const defaultRate =
-      c.lamType === "soft_touch" ? 380 :
-      c.lamType === "anti_scratch" ? 320 :
-      c.lamType === "gloss" ? 220 : 220; // matte
-    const rate = c.laminationRatePerM2 != null && Number.isFinite(c.laminationRatePerM2)
-      ? c.laminationRatePerM2
-      : defaultRate;
-    const setup = c.laminationSetup != null && Number.isFinite(c.laminationSetup)
-      ? c.laminationSetup
-      : 5000;
-    if (setup > 0) {
-      push("Постпечать обложки", "Припресс плёнкой: приладка", 1, "усл.", setup);
+    const sheetAreaM2 = (r.sheetW * r.sheetH) / 1_000_000;
+    const sheets = r.printSheets;
+    const sides = c.lamSides;
+    const pricePerM2 = c.laminationRatePerM2 ?? 0;
+    const workPerM2 = c.laminationWorkPerM2 ?? 0;
+    const setup = c.laminationSetup ?? 0;
+    const minCost = c.laminationMinCost ?? 0;
+    const areaTotal = +(sheetAreaM2 * sheets * sides).toFixed(3);
+    const material = +(areaTotal * pricePerM2).toFixed(2);
+    const work = +(areaTotal * workPerM2).toFixed(2);
+    const subtotal = material + work + setup;
+    const computed = Math.max(subtotal, minCost);
+    if (c.laminationManualTotal != null && Number.isFinite(c.laminationManualTotal)) {
+      push("Постпечать обложки", `Припресс плёнкой (${c.lamType}, ${sides} ст.) — ручная стоимость`, 1, "усл.", c.laminationManualTotal);
+    } else {
+      if (material > 0) {
+        push("Материалы", `Припресс плёнкой: плёнка (${c.lamType}, ${sides} ст.)`, areaTotal, "м²", pricePerM2);
+      }
+      if (work > 0) {
+        push("Постпечать обложки", `Припресс плёнкой: работа (${sides} ст.)`, areaTotal, "м²", workPerM2);
+      }
+      if (setup > 0) {
+        push("Постпечать обложки", "Припресс плёнкой: приладка", 1, "усл.", setup);
+      }
+      // Доплата до минимальной стоимости операции, если subtotal < minCost.
+      if (minCost > 0 && subtotal < minCost) {
+        push("Постпечать обложки", "Припресс плёнкой: доплата до мин. стоимости", 1, "усл.", +(minCost - subtotal).toFixed(2));
+      }
     }
-    push(
-      "Постпечать обложки",
-      `Припресс плёнкой (${c.lamType}, ${c.lamSides} ст.)`,
-      areaM2,
-      "м²",
-      rate,
-    );
+    void computed;
   }
 
   // Биговка
