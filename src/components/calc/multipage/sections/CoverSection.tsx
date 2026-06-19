@@ -757,17 +757,28 @@ export default function CoverSection({ value, onChange, title = "Обложка"
           <div className="space-y-2">
             {/* Припресс плёнкой — спецоперация (вкл/выкл + параметры) */}
             {(() => {
-              const defaultRate =
-                v.lamType === "soft_touch" ? 380 :
-                v.lamType === "anti_scratch" ? 320 :
-                v.lamType === "gloss" ? 220 : 220;
-              const rate = v.laminationRatePerM2 ?? defaultRate;
-              const setup = v.laminationSetup ?? 5000;
+              const enabled = v.lamination && v.lamType !== "none";
+              const ft = filmTypes.find((x) => x.id === v.filmTypeId)
+                ?? filmTypes.find((x) => x.film_type === v.lamType)
+                ?? null;
               const sheetW = report.sheetW ?? 720;
               const sheetH = report.sheetH ?? 1020;
-              const areaM2 = +((sheetW * sheetH) / 1_000_000 * report.printSheets * v.lamSides).toFixed(3);
-              const total = +(setup + areaM2 * rate).toFixed(2);
-              const enabled = v.lamination && v.lamType !== "none";
+              const sheetAreaM2 = (sheetW * sheetH) / 1_000_000;
+              const sheets = report.printSheets;
+              const sides = v.lamSides;
+              const pricePerM2 = v.laminationRatePerM2 ?? ft?.price_per_m2 ?? 0;
+              const workPerM2 = v.laminationWorkPerM2 ?? ft?.work_price_per_m2 ?? 0;
+              const setup = v.laminationSetup ?? ft?.setup_cost ?? 0;
+              const minCost = v.laminationMinCost ?? ft?.min_cost ?? 0;
+              const material = +(sheetAreaM2 * pricePerM2 * sheets * sides).toFixed(2);
+              const work = +(sheetAreaM2 * workPerM2 * sheets * sides).toFixed(2);
+              const subtotal = material + work + setup;
+              const computed = Math.max(subtotal, minCost);
+              const total = +(v.laminationManualTotal != null && Number.isFinite(v.laminationManualTotal)
+                ? v.laminationManualTotal
+                : computed).toFixed(2);
+              const showDetails = !!v.showLamDetails || !!v.showCalcDetails;
+              const advanced = !!v.showCalcDetails;
               return (
                 <div className="rounded-md border bg-card/40">
                   <label className="flex cursor-pointer items-center justify-between gap-2 px-2 py-1.5 text-sm">
@@ -788,21 +799,41 @@ export default function CoverSection({ value, onChange, title = "Обложка"
                     )}
                   </label>
                   {enabled && (
-                    <div className="border-t bg-muted/20 p-2">
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Тип плёнки</Label>
-                          <Select value={v.lamType} onValueChange={(val) => patch({ lamType: val as LamType, lamination: val !== "none" })}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <div className="border-t bg-muted/20 p-2 space-y-2">
+                      {/* Минимальный набор полей: вид плёнки + сторон */}
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-[10px]">Вид плёнки</Label>
+                          <Select
+                            value={v.filmTypeId ?? ""}
+                            onValueChange={(val) => {
+                              const f = filmTypes.find((x) => x.id === val);
+                              patch({
+                                filmTypeId: val,
+                                ...(f ? {
+                                  lamType: (["matte","gloss","soft_touch","anti_scratch"].includes(f.film_type)
+                                    ? f.film_type as LamType
+                                    : "matte"),
+                                  laminationRatePerM2: undefined,
+                                  laminationWorkPerM2: undefined,
+                                  laminationSetup: undefined,
+                                  laminationMinCost: undefined,
+                                } : {}),
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder={filmTypes.length ? "Выберите плёнку из справочника" : "Справочник плёнок пуст"} />
+                            </SelectTrigger>
                             <SelectContent>
-                              {(Object.keys(LAM_LABELS) as LamType[]).filter(k => k !== "none").map((k) => (
-                                <SelectItem key={k} value={k}>{LAM_LABELS[k]}</SelectItem>
+                              {filmTypes.map((f) => (
+                                <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px]">Сторон ламинации</Label>
+                          <Label className="text-[10px]">Кол-во сторон</Label>
                           <Select value={String(v.lamSides)} onValueChange={(val) => patch({ lamSides: +val as 1 | 2 })}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -811,57 +842,112 @@ export default function CoverSection({ value, onChange, title = "Обложка"
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Приладка, ₸</Label>
-                          <Input
-                            type="number" min={0}
-                            value={setup}
-                            onChange={(e) => patch({ laminationSetup: Number(e.target.value) || 0 })}
-                            className="h-8 text-xs"
-                          />
+                      </div>
+
+                      {/* Сводка 4 составляющих */}
+                      <div className="grid grid-cols-2 gap-1 rounded-md border bg-card/40 p-2 text-[11px] sm:grid-cols-4">
+                        <div>
+                          <div className="text-muted-foreground">Материал</div>
+                          <div className="font-semibold text-foreground">{material.toLocaleString("ru-RU")} ₸</div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Цена плёнки, ₸/м²</Label>
-                          <Input
-                            type="number" min={0} step="0.1"
-                            value={rate}
-                            onChange={(e) => patch({ laminationRatePerM2: Number(e.target.value) || 0 })}
-                            className="h-8 text-xs"
-                          />
-                          <p className="text-[10px] text-muted-foreground">Дефолт по типу: {defaultRate}</p>
+                        <div>
+                          <div className="text-muted-foreground">Работа</div>
+                          <div className="font-semibold text-foreground">{work.toLocaleString("ru-RU")} ₸</div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Печатный лист, мм</Label>
-                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                            {sheetW} × {sheetH}
-                          </div>
+                        <div>
+                          <div className="text-muted-foreground">Приладка</div>
+                          <div className="font-semibold text-foreground">{setup.toLocaleString("ru-RU")} ₸</div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Печатных листов</Label>
-                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                            {report.printSheets.toLocaleString("ru-RU")}
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Расход плёнки, м²</Label>
-                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs">
-                            {areaM2.toLocaleString("ru-RU")}
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px]">Итого, ₸</Label>
-                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/40 px-3 text-xs font-semibold">
-                            {total.toLocaleString("ru-RU")}
-                          </div>
+                        <div>
+                          <div className="text-muted-foreground">Итого</div>
+                          <div className="font-bold text-foreground">{total.toLocaleString("ru-RU")} ₸</div>
                         </div>
                       </div>
-                      <div className="mt-2 text-[11px] text-muted-foreground">
-                        Формула: <code>приладка + (ширина × высота печатного листа / 1 000 000) × кол-во печатных листов × сторон × тариф</code>
-                        {" = "}
-                        <b className="text-foreground">
-                          {setup.toLocaleString("ru-RU")} + ({sheetW}×{sheetH}/1000000) × {report.printSheets} × {v.lamSides} × {rate} = {total.toLocaleString("ru-RU")} ₸
-                        </b>
+
+                      {/* Локальная кнопка «Показать детали расчёта» */}
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => patch({ showLamDetails: !v.showLamDetails })}
+                          className="text-[11px] text-primary hover:underline"
+                        >
+                          {showDetails ? "▲ Скрыть детали расчёта" : "▼ Показать детали расчёта"}
+                        </button>
                       </div>
+
+                      {showDetails && (
+                        <div className="space-y-2 rounded-md border border-dashed bg-muted/20 p-2 text-[11px]">
+                          <div className="font-semibold text-foreground">Материал</div>
+                          <div className="grid grid-cols-2 gap-1 sm:grid-cols-4 text-muted-foreground">
+                            <div>Площадь листа: <b className="text-foreground">{sheetAreaM2.toFixed(4)} м²</b></div>
+                            <div>Листов для операции: <b className="text-foreground">{sheets.toLocaleString("ru-RU")}</b></div>
+                            <div>Сторон: <b className="text-foreground">{sides}</b></div>
+                            <div>Цена плёнки: <b className="text-foreground">{pricePerM2} ₸/м²</b></div>
+                            <div className="sm:col-span-4">
+                              Стоимость плёнки = {sheetAreaM2.toFixed(4)} × {pricePerM2} × {sheets} × {sides} = <b className="text-foreground">{material.toLocaleString("ru-RU")} ₸</b>
+                            </div>
+                          </div>
+                          <div className="font-semibold text-foreground pt-1">Работа</div>
+                          <div className="grid grid-cols-2 gap-1 sm:grid-cols-4 text-muted-foreground">
+                            <div>Работа: <b className="text-foreground">{workPerM2} ₸/м²</b></div>
+                            <div>Площадь обработки: <b className="text-foreground">{(sheetAreaM2 * sheets * sides).toFixed(3)} м²</b></div>
+                            <div className="sm:col-span-4">
+                              Стоимость работы = {sheetAreaM2.toFixed(4)} × {workPerM2} × {sheets} × {sides} = <b className="text-foreground">{work.toLocaleString("ru-RU")} ₸</b>
+                            </div>
+                          </div>
+                          <div className="font-semibold text-foreground pt-1">Приладка</div>
+                          <div className="text-muted-foreground">Стоимость приладки: <b className="text-foreground">{setup.toLocaleString("ru-RU")} ₸</b></div>
+                          {minCost > 0 && (
+                            <div className="text-muted-foreground">
+                              Мин. стоимость операции: <b className="text-foreground">{minCost.toLocaleString("ru-RU")} ₸</b>
+                              {subtotal < minCost && <span className="ml-1 text-amber-600">(применена)</span>}
+                            </div>
+                          )}
+                          <div className="pt-1">
+                            Итого = MAX({subtotal.toLocaleString("ru-RU")}; {minCost.toLocaleString("ru-RU")}) = <b className="text-foreground">{computed.toLocaleString("ru-RU")} ₸</b>
+                            {v.laminationManualTotal != null && Number.isFinite(v.laminationManualTotal) && (
+                              <span className="ml-1 text-amber-600">(перебито вручную: {v.laminationManualTotal.toLocaleString("ru-RU")} ₸)</span>
+                            )}
+                          </div>
+
+                          {/* Расширенный режим — ручные правки */}
+                          {advanced && (
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pt-2 border-t">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Цена плёнки, ₸/м²</Label>
+                                <Input type="number" min={0} step="0.1"
+                                  value={pricePerM2}
+                                  onChange={(e) => patch({ laminationRatePerM2: Number(e.target.value) || 0 })}
+                                  className="h-8 text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Работа, ₸/м²</Label>
+                                <Input type="number" min={0} step="0.1"
+                                  value={workPerM2}
+                                  onChange={(e) => patch({ laminationWorkPerM2: Number(e.target.value) || 0 })}
+                                  className="h-8 text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Приладка, ₸</Label>
+                                <Input type="number" min={0}
+                                  value={setup}
+                                  onChange={(e) => patch({ laminationSetup: Number(e.target.value) || 0 })}
+                                  className="h-8 text-xs" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Ручная итоговая, ₸</Label>
+                                <Input type="number" placeholder="—"
+                                  value={v.laminationManualTotal ?? ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value === "" ? undefined : Number(e.target.value);
+                                    patch({ laminationManualTotal: val });
+                                  }}
+                                  className="h-8 text-xs" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
