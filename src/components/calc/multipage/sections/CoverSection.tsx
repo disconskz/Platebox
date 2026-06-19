@@ -709,9 +709,18 @@ export default function CoverSection({ value, onChange, title = "Обложка"
 
         {/* 8. Спецоперации */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-foreground">Спецоперации обложки</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold text-foreground">Спецоперации обложки</div>
+            <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+              <Switch
+                checked={!!v.showCalcDetails}
+                onCheckedChange={(c) => patch({ showCalcDetails: !!c })}
+              />
+              Показать детали расчёта
+            </label>
+          </div>
           <p className="text-[11px] text-muted-foreground">
-            Каждая операция = собственные параметры (приладка, тариф, кол-во) и формула. «Фольга» исключена — это материал, формируется в материалах обложки.
+            Стоимость = Материал + Работа + Приладка + Оснастка. По умолчанию форма считается новой.
           </p>
           <div className="space-y-2">
             {/* Припресс плёнкой — спецоперация (вкл/выкл + параметры) */}
