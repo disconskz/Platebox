@@ -287,17 +287,30 @@ export default function CoverSection({ value, onChange, title = "Обложка"
   // Защита от старых сохранённых состояний без новых полей.
   const v: CoverState = { ...DEFAULT_COVER, ...value };
   const patch = (p: Partial<CoverState>) => onChange({ ...v, ...p });
-  // §13 — автоматический расчёт количества форм по правилам ERP.
-  // Без оборота:   N+0 → N форм.
-  // Чужой оборот: front+back → front + back форм (4+4=8, 4+1=5, ...).
-  // Свой оборот реализуется выбором twoSided=false (одна сторона печатает обе).
-  const autoForms = v.twoSided
-    ? (v.colorFront || 0) + (v.colorBack || 0)
-    : (v.colorFront || 0);
+  // §13 — автоматическое определение типа оборота и количества форм по ERP.
+  // Правило: если печать односторонняя → "без оборота".
+  // Если двусторонняя и цветность лица == цветности оборота → "свой оборот"
+  // (одни и те же формы используются для обеих сторон, кол-во форм = colorFront).
+  // Если двусторонняя и цветности разные → "чужой оборот"
+  // (отдельные формы для лица и оборота, кол-во форм = colorFront + colorBack).
+  const autoTurnover: "none" | "self" | "other" = !v.twoSided
+    ? "none"
+    : (v.colorFront || 0) === (v.colorBack || 0)
+      ? "self"
+      : "other";
+  const autoForms =
+    autoTurnover === "none"
+      ? (v.colorFront || 0)
+      : autoTurnover === "self"
+        ? (v.colorFront || 0)
+        : (v.colorFront || 0) + (v.colorBack || 0);
   React.useEffect(() => {
-    if (autoForms !== v.formsCount) patch({ formsCount: autoForms });
+    const next: Partial<CoverState> = {};
+    if (autoForms !== v.formsCount) next.formsCount = autoForms;
+    if (autoTurnover !== v.turnover) next.turnover = autoTurnover;
+    if (Object.keys(next).length) patch(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoForms]);
+  }, [autoForms, autoTurnover]);
   const ctx = useMultipageCalcOptional();
   const g = ctx?.global;
   const isOverride = !!v.override;
