@@ -110,6 +110,10 @@ export interface CoverState {
   // 6. Ламинация
   lamType: LamType;
   lamSides: 1 | 2;
+  /** Тариф припресса плёнкой (₸/м²). Если не задано — берётся дефолт по типу плёнки. */
+  laminationRatePerM2?: number;
+  /** Стоимость приладки припресса плёнкой (₸). По умолчанию 5000. */
+  laminationSetup?: number;
 
   // 8. Спецоперации
   lamination: boolean;
