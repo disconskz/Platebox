@@ -11,6 +11,7 @@ import { BookOpen, AlertTriangle } from "lucide-react";
 import { SectionHelp } from "../SectionHelp";
 import { useMultipageCalcOptional } from "@/lib/calc/multipage/context";
 import { buildCoverReport, buildCoverRoute, buildCoverWarnings } from "@/lib/calc/cover/cost";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Задача 5 — Обложка как самостоятельная ERP-сущность.
