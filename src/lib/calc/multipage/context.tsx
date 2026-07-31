@@ -8,7 +8,7 @@ import * as React from "react";
  *  - глобальные параметры изделия (наследуются всеми блоками)
  *
  * Используется в Этапах 1+ переработки архитектуры:
- *  см. .lovable/plan.md → «Этап 1 — Фундамент».
+ *  см. внутренний план архитектуры → «Этап 1 — Фундамент».
  */
 
 export type CalcUiMode = "simple" | "advanced" | "tech";
@@ -45,7 +45,7 @@ export interface MultipageCalcContextValue {
 
 const MultipageCalcContext = React.createContext<MultipageCalcContextValue | null>(null);
 
-const MODE_STORAGE_KEY = "lovable.calc.mode";
+const MODE_STORAGE_KEY = "platebox.calc.mode";
 
 function readStoredMode(): CalcUiMode {
   if (typeof window === "undefined") return "simple";

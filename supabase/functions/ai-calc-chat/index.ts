@@ -10,8 +10,6 @@ import { buildSystemPrompt } from "./prompt.ts";
 const ALLOWED_ORIGINS = new Set([
   "https://platebox.kz",
   "https://www.platebox.kz",
-  "https://printpal-calculus.lovable.app",
-  "https://id-preview--749d8514-bdc7-4f32-957d-16692d3b0bb0.lovable.app",
   "http://localhost:5173",
   "http://localhost:8080",
 ]);
@@ -42,8 +40,8 @@ function rateLimit(key: string) {
   return { ok: true, retryAfterSec: 0 };
 }
 
-const MODEL = "google/gemini-3-flash-preview";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const API_URL = Deno.env.get("AI_API_URL") ?? "https://api.openai.com/v1/chat/completions";
+const MODEL = Deno.env.get("AI_MODEL");
 const MAX_TOOL_STEPS = 8;
 
 type ChatMessage = {
@@ -58,9 +56,10 @@ async function callGateway(
   messages: ChatMessage[],
   opts: { tools?: unknown; response_format?: unknown; tool_choice?: unknown } = {},
 ) {
-  const key = Deno.env.get("LOVABLE_API_KEY");
-  if (!key) throw new Error("LOVABLE_API_KEY missing");
-  const res = await fetch(GATEWAY, {
+  const key = Deno.env.get("AI_API_KEY");
+  if (!key) throw new Error("AI_API_KEY missing");
+  if (!MODEL) throw new Error("AI_MODEL missing");
+  const res = await fetch(API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

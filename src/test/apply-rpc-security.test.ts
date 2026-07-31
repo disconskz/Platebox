@@ -12,11 +12,15 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL =
   (import.meta as any).env?.VITE_SUPABASE_URL ||
   process.env.VITE_SUPABASE_URL ||
-  "https://lbaabuoxtarbddefngat.supabase.co";
+  "http://127.0.0.1:54321";
 const SUPABASE_ANON_KEY =
   (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiYWFidW94dGFyYmRkZWZuZ2F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NDkyNzEsImV4cCI6MjA5MzUyNTI3MX0.p2fRsaXSlB-uzpX81Zjllm8fMPwhzRjMGPWW-bZmGvo";
+  "local-anon-key";
+const HAS_SUPABASE_TEST_ENV = Boolean(
+  ((import.meta as any).env?.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL) &&
+  ((import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY),
+);
 
 const RANDOM_UUID = "00000000-0000-0000-0000-000000000000";
 
@@ -36,7 +40,7 @@ function isPermissionDenied(err: { message?: string; code?: string } | null) {
   );
 }
 
-describe("apply_item_price_change — security", () => {
+describe.skipIf(!HAS_SUPABASE_TEST_ENV)("apply_item_price_change — security", () => {
   it("rejects anonymous callers (EXECUTE revoked from anon)", async () => {
     const { data, error } = await anon.rpc("apply_item_price_change", {
       _item_id: RANDOM_UUID,
@@ -63,7 +67,7 @@ describe("apply_item_price_change — security", () => {
   });
 });
 
-describe("apply_calculation_margin — security", () => {
+describe.skipIf(!HAS_SUPABASE_TEST_ENV)("apply_calculation_margin — security", () => {
   it("rejects anonymous callers (EXECUTE revoked from anon)", async () => {
     const { data, error } = await anon.rpc("apply_calculation_margin", {
       _calculation_id: RANDOM_UUID,
@@ -87,7 +91,7 @@ describe("apply_calculation_margin — security", () => {
   });
 });
 
-describe("apply_* — direct table writes blocked for anon (defense in depth)", () => {
+describe.skipIf(!HAS_SUPABASE_TEST_ENV)("apply_* — direct table writes blocked for anon (defense in depth)", () => {
   it("anon cannot SELECT calculations (RLS)", async () => {
     const { data, error } = await anon.from("calculations").select("id").limit(1);
     // RLS returns empty set for anon (no error, no rows) — never leaks data.

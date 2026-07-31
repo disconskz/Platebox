@@ -4,8 +4,6 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const ALLOWED_ORIGINS = new Set([
   "https://platebox.kz",
   "https://www.platebox.kz",
-  "https://printpal-calculus.lovable.app",
-  "https://id-preview--749d8514-bdc7-4f32-957d-16692d3b0bb0.lovable.app",
   "http://localhost:5173",
   "http://localhost:8080",
 ]);
@@ -19,8 +17,8 @@ function cors(origin: string | null): Record<string, string> {
   };
 }
 
-const MODEL = "google/gemini-2.5-flash-lite";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const API_URL = Deno.env.get("AI_API_URL") ?? "https://api.openai.com/v1/chat/completions";
+const MODEL = Deno.env.get("AI_MODEL");
 
 Deno.serve(async (req) => {
   const headers = cors(req.headers.get("origin"));
@@ -71,9 +69,9 @@ Deno.serve(async (req) => {
       .slice(0, 1500);
     if (!flat) return new Response(JSON.stringify({ error: "no_messages" }), { status: 400, headers: { ...headers, "Content-Type": "application/json" } });
 
-    const key = Deno.env.get("LOVABLE_API_KEY");
-    if (!key) return new Response(JSON.stringify({ error: "no_key" }), { status: 500, headers: { ...headers, "Content-Type": "application/json" } });
-    const res = await fetch(GATEWAY, {
+    const key = Deno.env.get("AI_API_KEY");
+    if (!key || !MODEL) return new Response(JSON.stringify({ error: "ai_not_configured" }), { status: 500, headers: { ...headers, "Content-Type": "application/json" } });
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify({

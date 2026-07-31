@@ -91,10 +91,10 @@ export default function CostByStageBlock({
   storageKey?: string;
 }) {
   const [overrides, setOverrides] = React.useState<StageOverrides>(() =>
-    storageKey ? readOverrides(`lovable.calc.tech-overrides.${storageKey}`) : EMPTY_OVERRIDES,
+    storageKey ? readOverrides(`platebox.calc.tech-overrides.${storageKey}`) : EMPTY_OVERRIDES,
   );
   React.useEffect(() => {
-    if (storageKey) writeOverrides(`lovable.calc.tech-overrides.${storageKey}`, overrides);
+    if (storageKey) writeOverrides(`platebox.calc.tech-overrides.${storageKey}`, overrides);
   }, [overrides, storageKey]);
 
   const stageMul = (stage: string) => overrides.stageMultipliers?.[stage] ?? 1;
