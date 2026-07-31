@@ -346,6 +346,11 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        {!collapsed && (
+          <div className="px-2 pb-2 text-[10px] text-muted-foreground/70">
+            Версия {__APP_VERSION__}
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
