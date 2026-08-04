@@ -5,6 +5,7 @@ import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { supabase } from "@/integrations/supabase/client";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 import { useHandbook } from "@/lib/operations/HandbookProvider";
@@ -104,6 +106,13 @@ export default function LeafletFlyerCalculator() {
   const { priceOp } = useHandbook();
   // Основные
   const [name, setName] = useState("");
+  const [calculationDate, setCalculationDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customer, setCustomer] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [comment, setComment] = useState("");
+  const [leadSourceId, setLeadSourceId] = useState("");
+  const [leadSources, setLeadSources] = useState<{ id: string; name: string }[]>([]);
   const [circulation, setCirculation] = useState(1000);
   const [designsCount, setDesignsCount] = useState(1);
   const [kind, setKind] = useState<LeafletKind>("simple");
@@ -164,6 +173,11 @@ export default function LeafletFlyerCalculator() {
 
   // Упаковка
   const [packKind, setPackKind] = useState<PackKind>("p100");
+
+  useEffect(() => {
+    supabase.from("lead_sources" as any).select("id,name").eq("is_active", true).order("sort_order")
+      .then(({ data }) => setLeadSources((data as any[]) || []));
+  }, []);
 
   // ===== Автологика по типу
   useEffect(() => {
@@ -481,13 +495,31 @@ export default function LeafletFlyerCalculator() {
 
       <PageMain>
         <PageContainer>
+          <Card className="mb-4">
+            <CardHeader><CardTitle className="text-sm">Данные расчёта и заказчика</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <section><h2 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Данные расчёта</h2><div className="grid gap-3 sm:grid-cols-3">
+                <div><Label>№ расчёта</Label><Input value="Будет присвоен при сохранении" disabled /></div>
+                <div><Label>Дата расчёта</Label><Input type="date" value={calculationDate} onChange={(e) => setCalculationDate(e.target.value)} /></div>
+                <div><Label>Ответственный менеджер</Label><Input value="Текущий пользователь" disabled /></div>
+              </div></section>
+              <section><h2 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Заказчик</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div><Label>Заказчик / компания</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Поиск или новый заказчик" /></div>
+                <div><Label>Контактное лицо</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} /></div>
+                <div><Label>Телефон</Label><Input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} /></div>
+                <div><Label>Источник обращения</Label><Select value={leadSourceId} onValueChange={setLeadSourceId}><SelectTrigger><SelectValue placeholder="Выберите источник" /></SelectTrigger><SelectContent>{leadSources.map((source) => <SelectItem key={source.id} value={source.id}>{source.name}</SelectItem>)}</SelectContent></Select></div>
+              </div></section>
+              <section><h2 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Дополнительно</h2><div className="grid gap-3 sm:grid-cols-2">
+                <div><Label>Название расчёта</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Листовка для летней акции" /></div>
+                <div><Label>Комментарий</Label><Textarea value={comment} onChange={(e) => setComment(e.target.value)} /></div>
+              </div></section>
+            </CardContent>
+          </Card>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
               <Card>
                 <CardHeader><CardTitle className="text-sm">1. Основные параметры</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
-                  <div className="sm:col-span-2"><Label>Название расчёта</Label>
-                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Листовка А5 промо" /></div>
                   <div><Label>Тираж</Label><Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(+e.target.value || 0)} /></div>
                   <div>
                     <Label>Тип листовки</Label>
@@ -757,6 +789,7 @@ export default function LeafletFlyerCalculator() {
                 margin={margin}
                 vatPercent={vatPercent}
                 spec={lines.map((l) => ({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total }))}
+                extra={{ calculation_date: calculationDate, contact_name: contactName, contact_phone: contactPhone, lead_source_id: leadSourceId, comment, calculation_payload: { customer, kind, formatKey, finishedW, finishedH, bleed, materialKey, printMode, turn, packKind } }}
               />
             </div>
           </div>

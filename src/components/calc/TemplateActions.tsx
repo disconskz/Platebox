@@ -63,6 +63,14 @@ export function TemplateActions(props: TemplateActionsProps) {
     margin_percent: margin,
     sale_price: totals.sale,
     profit: totals.sale - totals.cost,
+    calculation_date: (extra?.calculation_date as string) ?? new Date().toISOString().slice(0, 10),
+    client_id: (extra?.client_id as string) || null,
+    contact_name: (extra?.contact_name as string) || null,
+    contact_phone: (extra?.contact_phone as string) || null,
+    lead_source_id: (extra?.lead_source_id as string) || null,
+    comment: (extra?.comment as string) || null,
+    calculation_payload: (extra?.calculation_payload as Record<string, unknown>) ?? extra ?? {},
+    pricing_snapshot: { spec, totals, margin, vatPercent },
   });
 
   const persist = async (asTemplate: boolean): Promise<string | null> => {

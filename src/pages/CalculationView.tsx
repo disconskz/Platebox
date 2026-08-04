@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, Check, X, FileText, Download, Copy, History, FileDown, Loader2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Pencil, Check, X, FileText, Download, Copy, History, FileDown, Loader2, Archive, ArchiveRestore } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,7 @@ const marginSchema = z.number().min(0, "Не меньше 0%").max(500, "Не б
 
 const CalculationView = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [calc, setCalc] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [skus, setSkus] = useState<any[]>([]);
@@ -256,9 +257,18 @@ const CalculationView = () => {
               {exporting === "pdf" ? <Loader2 className="sm:mr-2 h-4 w-4 animate-spin" /> : <FileDown className="sm:mr-2 h-4 w-4" />}
               <span className="hidden sm:inline">{exporting === "pdf" ? "Формирование…" : "PDF"}</span>
             </Button>
-            <Link to={`/calculator?from=${id}`}>
-              <Button variant="outline" size="sm"><Copy className="sm:mr-2 h-4 w-4" /><span className="hidden sm:inline">Дублировать</span></Button>
-            </Link>
+            <Button variant="outline" size="sm" onClick={async () => {
+              const { data, error } = await supabase.rpc("copy_calculation" as any, { _id: id });
+              if (error) return toast.error("Не удалось создать копию: " + error.message);
+              const copyId = typeof data === "string" ? data : String(data);
+              toast.success("Копия создана с новым номером"); navigate(`/calculation/${copyId}`);
+            }}><Copy className="sm:mr-2 h-4 w-4" /><span className="hidden sm:inline">Создать копию</span></Button>
+            <Button variant="outline" size="sm" onClick={async () => {
+              const archived = calc.status === "archived";
+              const { error } = await supabase.rpc("set_calculation_archived" as any, { _id: id, _archived: !archived });
+              if (error) return toast.error("Не удалось изменить состояние: " + error.message);
+              toast.success(archived ? "Расчёт восстановлен" : "Расчёт перемещён в архив"); load();
+            }}>{calc.status === "archived" ? <ArchiveRestore className="sm:mr-2 h-4 w-4" /> : <Archive className="sm:mr-2 h-4 w-4" />}<span className="hidden sm:inline">{calc.status === "archived" ? "Вернуть из архива" : "В архив"}</span></Button>
             <Link to={`/calculation/${id}/quote`}>
               <Button variant="outline" size="sm"><FileText className="sm:mr-2 h-4 w-4" /><span className="hidden sm:inline">КП</span></Button>
             </Link>
@@ -270,6 +280,9 @@ const CalculationView = () => {
           <Card>
             <CardHeader className="pb-2"><CardTitle>{calc.name}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <Stat label="№ расчёта" value={calc.calculation_number || "—"} />
+              <Stat label="Дата расчёта" value={calc.calculation_date ? new Date(calc.calculation_date + "T00:00:00").toLocaleDateString("ru-RU") : "—"} />
+              <Stat label="Состояние" value={calc.status === "archived" ? "Архивный" : "Активный"} />
               <Stat label="Продукция" value={PRODUCT_LABELS[calc.product_type] || calc.product_type} />
               <Stat label="Тираж" value={String(calc.circulation)} />
               <Stat label="Формат" value={`${calc.format_type} ${calc.format_width}×${calc.format_height}`} />
@@ -290,6 +303,8 @@ const CalculationView = () => {
               )}
             </CardContent>
           </Card>
+
+          {calc.source_calculation_id && <p className="text-sm text-muted-foreground">Создан на основании расчёта <Link className="text-primary hover:underline" to={`/calculation/${calc.source_calculation_id}`}>№ {calc.source_calculation_number || calc.source_calculation_id}</Link></p>}
 
           {calc.is_multi_sku && skus.length > 0 && (
             <Card>
