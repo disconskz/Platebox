@@ -17,6 +17,8 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
 import { supabase } from "@/integrations/supabase/client";
+import { useCalcMode } from "@/lib/calc/multipage/context";
+import { DEFAULT_LEAFLET_BLEED_MM, LEAFLET_PRINT_METHOD_OFFSET, LEAFLET_TYPE_TWO_SIDED, normalizeLeafletParams } from "@/lib/calc/leaflet-params";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 import { useHandbook } from "@/lib/operations/HandbookProvider";
@@ -27,23 +29,6 @@ import { buildTryHandbook } from "@/lib/operations/applyHandbook";
  * ламинация, лак, перфорация, нумерация, QR/штрихкод, высечка,
  * скругление углов, склейка в блок, упаковка.
  */
-
-type LeafletKind =
-  | "simple" | "twoSided" | "flyer" | "laminated" | "perforated"
-  | "numbered" | "qr" | "diecut" | "rounded" | "block" | "premium";
-const KINDS: { value: LeafletKind; label: string }[] = [
-  { value: "simple", label: "Простая листовка" },
-  { value: "twoSided", label: "Двусторонняя листовка" },
-  { value: "flyer", label: "Флаер" },
-  { value: "laminated", label: "Листовка с ламинацией" },
-  { value: "perforated", label: "Листовка с перфорацией" },
-  { value: "numbered", label: "Листовка с нумерацией" },
-  { value: "qr", label: "Листовка с QR" },
-  { value: "diecut", label: "Листовка с высечкой" },
-  { value: "rounded", label: "Со скруглением углов" },
-  { value: "block", label: "Листовка в блоке (склейка)" },
-  { value: "premium", label: "Premium листовка" },
-];
 
 type Material = {
   value: string; label: string; type: string; density: number;
@@ -82,7 +67,6 @@ const FORMATS: FormatPreset[] = [
   { value: "custom", label: "Произвольный", w: 0, h: 0 },
 ];
 
-type PrintMode = "auto" | "digital" | "offset" | "uv";
 type TurnKind = "auto" | "own" | "foreign" | "none";
 type LamFilm = "gloss" | "matte" | "soft" | "anti";
 const LAM_PRICES: Record<LamFilm, number> = { gloss: 22, matte: 26, soft: 48, anti: 38 };
@@ -104,6 +88,7 @@ const PACKS: { value: PackKind; label: string; price: number; perPack: number }[
 
 export default function LeafletFlyerCalculator() {
   const { priceOp } = useHandbook();
+  const mode = useCalcMode();
   // Основные
   const [name, setName] = useState("");
   const [calculationDate, setCalculationDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -113,24 +98,21 @@ export default function LeafletFlyerCalculator() {
   const [comment, setComment] = useState("");
   const [leadSourceId, setLeadSourceId] = useState("");
   const [leadSources, setLeadSources] = useState<{ id: string; name: string }[]>([]);
+  const [canEditBleed, setCanEditBleed] = useState(false);
   const [circulation, setCirculation] = useState(1000);
   const [designsCount, setDesignsCount] = useState(1);
-  const [kind, setKind] = useState<LeafletKind>("simple");
   const [formatKey, setFormatKey] = useState("A5");
   const [finishedW, setFinishedW] = useState(148);
   const [finishedH, setFinishedH] = useState(210);
-  const [bleed, setBleed] = useState(2);
-  const [twoSided, setTwoSided] = useState(false);
+  const [bleed, setBleed] = useState(DEFAULT_LEAFLET_BLEED_MM);
+  const twoSided = true;
   const [colorsFront, setColorsFront] = useState(4);
-  const [colorsBack, setColorsBack] = useState(0);
+  const [colorsBack, setColorsBack] = useState(4);
   const [pantoneCount, setPantoneCount] = useState(0);
-  const [hasWhiteInk, setHasWhiteInk] = useState(false);
+  const hasWhiteInk = false;
   const [turn, setTurn] = useState<TurnKind>("auto");
-  const [printMode, setPrintMode] = useState<PrintMode>("auto");
-  const [leadDays, setLeadDays] = useState(3);
   const [margin, setMargin] = useState(45);
   const [vatPercent] = useState(16);
-  const [hasDesign, setHasDesign] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
 
@@ -175,28 +157,15 @@ export default function LeafletFlyerCalculator() {
   const [packKind, setPackKind] = useState<PackKind>("p100");
 
   useEffect(() => {
+    // Generated Supabase types are refreshed separately after the migration lands.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     supabase.from("lead_sources" as any).select("id,name").eq("is_active", true).order("sort_order")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then(({ data }) => setLeadSources((data as any[]) || []));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.rpc("has_calculation_permission" as any, { _permission: "calculation.bleed.edit" })
+      .then(({ data }) => setCanEditBleed(data === true));
   }, []);
-
-  // ===== Автологика по типу
-  useEffect(() => {
-    if (kind === "twoSided") setTwoSided(true);
-    if (kind === "laminated") setHasLamination(true);
-    if (kind === "perforated") setHasPerforation(true);
-    if (kind === "numbered") setHasNumbering(true);
-    if (kind === "qr") setHasQr(true);
-    if (kind === "diecut") { setHasDieCut(true); setHasFlashRemoval(true); }
-    if (kind === "rounded") setHasRoundCorners(true);
-    if (kind === "block") setHasBlockGlue(true);
-    if (kind === "premium") {
-      setHasLamination(true); setLamFilm("soft");
-      setHasUvSpot(true);
-      setHasRoundCorners(true);
-      if (!materialKey.startsWith("designer")) setMaterialKey("designer-250");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind]);
 
   // Биговка обязательна при плотности > 170 и наличии фальцовки
   useEffect(() => {
@@ -214,12 +183,7 @@ export default function LeafletFlyerCalculator() {
   const material = useMemo(() => MATERIALS.find((m) => m.value === materialKey)!, [materialKey]);
   const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
 
-  const effectivePrintMode: Exclude<PrintMode, "auto"> = useMemo(() => {
-    if (printMode !== "auto") return printMode;
-    if (material.type === "synthetic") return "uv";
-    if (circulation >= 1000) return "offset";
-    return "digital";
-  }, [printMode, material, circulation]);
+  const effectivePrintMode = LEAFLET_PRINT_METHOD_OFFSET as "offset" | "digital" | "uv";
 
   const effectiveTurn: Exclude<TurnKind, "auto"> = useMemo(() => {
     if (turn !== "auto") return turn;
@@ -258,7 +222,6 @@ export default function LeafletFlyerCalculator() {
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
     const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": circulation });
 
-    if (hasDesign) push("Препресс", "Дизайн листовки", Math.max(1, designsCount), "макет", 2500);
     push("Препресс", "Проверка и подготовка макета", Math.max(1, designsCount), "макет", 600);
     push("Препресс", "Подбор печатного формата · раскладка", 1, "усл.", 500);
 
@@ -421,7 +384,7 @@ export default function LeafletFlyerCalculator() {
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
     return out;
   }, [
-    hasDesign, designsCount, material, printSheets, netSheets, layout,
+    designsCount, material, printSheets, netSheets, layout,
     effectivePrintMode, effectiveTurn, colorsFront, colorsBack, twoSided,
     pantoneCount, hasWhiteInk,
     hasLamination, lamFilm, lamSides,
@@ -446,7 +409,6 @@ export default function LeafletFlyerCalculator() {
 
   const route = useMemo(() => {
     const s: string[] = [];
-    if (hasDesign) s.push("Дизайн");
     s.push("Проверка макета", "Подбор печатного формата", "Раскладка", "Расчёт бумаги", "Резка закупочного листа");
     if (effectivePrintMode === "offset") s.push("Вывод форм", "Приладка офсета", "Офсетная печать");
     else if (effectivePrintMode === "digital") s.push("Цифровая печать");
@@ -468,7 +430,7 @@ export default function LeafletFlyerCalculator() {
     if (packKind !== "none") s.push(`Упаковка: ${pack.label}`);
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, effectivePrintMode, hasLamination, lamFilm, hasUvFull, hasUvSpot,
+  }, [effectivePrintMode, hasLamination, lamFilm, hasUvFull, hasUvSpot,
       hasNumbering, hasQr, hasBarcode, hasPersonalization, hasPerforation,
       hasDieCut, hasFlashRemoval, hasBiegovka, hasFold, hasBlockGlue, hasRoundCorners,
       packKind, pack, hasDelivery]);
@@ -522,15 +484,6 @@ export default function LeafletFlyerCalculator() {
                 <CardContent className="grid gap-3 sm:grid-cols-2">
                   <div><Label>Тираж</Label><Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(+e.target.value || 0)} /></div>
                   <div>
-                    <Label>Тип листовки</Label>
-                    <Select value={kind} onValueChange={(v) => setKind(v as LeafletKind)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
                     <Label>Формат</Label>
                     <Select value={formatKey} onValueChange={setFormatKey}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -539,29 +492,17 @@ export default function LeafletFlyerCalculator() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Макетов</Label><Input type="number" min={1} value={designsCount} onChange={(e) => setDesignsCount(+e.target.value || 1)} /></div>
+                  <div><Label>Количество макетов</Label><Input type="number" min={1} step={1} value={designsCount} onChange={(e) => { const next = e.currentTarget.valueAsNumber; if (Number.isInteger(next) && next >= 1) setDesignsCount(next); }} /></div>
                   <div><Label>Готовый Ш, мм</Label><Input type="number" value={finishedW} onChange={(e) => setFinishedW(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
                   <div><Label>Готовый В, мм</Label><Input type="number" value={finishedH} onChange={(e) => setFinishedH(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
-                  <div><Label>Вылеты, мм</Label><Input type="number" min={0} value={bleed} onChange={(e) => setBleed(+e.target.value || 0)} /></div>
-                  <div className="flex items-end gap-2">
-                    <Checkbox id="two" checked={twoSided} onCheckedChange={(v) => setTwoSided(!!v)} />
-                    <Label htmlFor="two" className="cursor-pointer">Двусторонняя печать</Label>
-                  </div>
+                  {mode !== "simple" && canEditBleed ? (
+                    <div><Label>Вылеты, мм</Label><Input type="number" min={0} step={0.1} value={bleed} onChange={(e) => { const next = e.currentTarget.valueAsNumber; if (Number.isFinite(next) && next >= 0) setBleed(next); }} /></div>
+                  ) : (
+                    <div className="flex items-end rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">Вылеты: {bleed} мм — автоматически</div>
+                  )}
                   <div><Label>Цветность лицо</Label><Input type="number" min={0} max={8} value={colorsFront} onChange={(e) => setColorsFront(+e.target.value || 0)} /></div>
                   {twoSided && (<div><Label>Цветность оборот</Label><Input type="number" min={0} max={8} value={colorsBack} onChange={(e) => setColorsBack(+e.target.value || 0)} /></div>)}
                   <div><Label>Pantone красок</Label><Input type="number" min={0} value={pantoneCount} onChange={(e) => setPantoneCount(+e.target.value || 0)} /></div>
-                  <div>
-                    <Label>Тип печати</Label>
-                    <Select value={printMode} onValueChange={(v) => setPrintMode(v as PrintMode)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Авто</SelectItem>
-                        <SelectItem value="digital">Цифра</SelectItem>
-                        <SelectItem value="offset">Офсет</SelectItem>
-                        <SelectItem value="uv">UV</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   {twoSided && (
                     <div>
                       <Label>Тип оборота</Label>
@@ -576,17 +517,6 @@ export default function LeafletFlyerCalculator() {
                       </Select>
                     </div>
                   )}
-                  {effectivePrintMode === "uv" && (
-                    <div className="flex items-end gap-2">
-                      <Checkbox id="white" checked={hasWhiteInk} onCheckedChange={(v) => setHasWhiteInk(!!v)} />
-                      <Label htmlFor="white" className="cursor-pointer">Белила UV</Label>
-                    </div>
-                  )}
-                  <div><Label>Срок, дней</Label><Input type="number" min={1} value={leadDays} onChange={(e) => setLeadDays(+e.target.value || 1)} /></div>
-                  <div className="flex items-end gap-2">
-                    <Checkbox id="design" checked={hasDesign} onCheckedChange={(v) => setHasDesign(!!v)} />
-                    <Label htmlFor="design" className="cursor-pointer">Нужен макет</Label>
-                  </div>
                   <div><Label>Наценка, %</Label><Input type="number" value={margin} onChange={(e) => setMargin(+e.target.value || 0)} /></div>
                   <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
                     На лист: <b>{layout.perSheet}</b>{layout.rotated && " (поворот)"} · печ. листов: <b>{printSheets}</b>{" · "}
@@ -783,17 +713,30 @@ export default function LeafletFlyerCalculator() {
 
               <TemplateActions
                 productType="leaflet"
-                defaultName={name || `Листовка ${KINDS.find((k) => k.value === kind)?.label || ""} · ${circulation} шт`}
+                defaultName={name || `Двусторонняя листовка · ${circulation} шт`}
                 circulation={circulation}
                 totals={totals}
                 margin={margin}
                 vatPercent={vatPercent}
                 spec={lines.map((l) => ({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total }))}
-                extra={{ calculation_date: calculationDate, contact_name: contactName, contact_phone: contactPhone, lead_source_id: leadSourceId, comment, calculation_payload: { customer, kind, formatKey, finishedW, finishedH, bleed, materialKey, printMode, turn, packKind } }}
+                extra={{
+                  calculation_date: calculationDate, contact_name: contactName, contact_phone: contactPhone,
+                  lead_source_id: leadSourceId, comment,
+                  format_type: formatKey, format_width: finishedW, format_height: finishedH,
+                  color_front: colorsFront, color_back: colorsBack, items_per_sheet: layout.perSheet,
+                  print_format_width: material.sheetW, print_format_height: material.sheetH,
+                  turnaround_type: effectiveTurn,
+                  calculation_payload: normalizeLeafletParams({
+                    customer, leaflet_type: LEAFLET_TYPE_TWO_SIDED, print_method: LEAFLET_PRINT_METHOD_OFFSET,
+                    layouts_count: designsCount, bleed_mm: bleed, formatKey, finishedW, finishedH,
+                    materialKey, turn, packKind,
+                  }),
+                }}
               />
             </div>
           </div>
 
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-leaflet-flyer" />
           
           <Card className="mt-4">
