@@ -182,5 +182,8 @@ create policy "Admins delete calculations" on public.calculations for delete to 
 create policy "Authenticated read lead sources" on public.lead_sources for select to authenticated using(true);
 create policy "Admins manage lead sources" on public.lead_sources for all to authenticated using(has_calculation_permission('lead_sources.manage')) with check(has_calculation_permission('lead_sources.manage'));
 create policy "Users read calculation history" on public.calculation_history for select to authenticated using(exists(select 1 from calculations c where c.id=calculation_id and c.user_id=auth.uid()));
+grant select on table public.lead_sources, public.calculation_history to authenticated;
+grant usage, select on sequence public.calculation_history_id_seq to authenticated;
 revoke all on function public.next_calculation_number() from public, anon, authenticated;
+revoke all on function public.has_calculation_permission(text,uuid), public.copy_calculation(uuid), public.set_calculation_archived(uuid,boolean) from public, anon;
 grant execute on function public.copy_calculation(uuid), public.set_calculation_archived(uuid,boolean), public.has_calculation_permission(text,uuid) to authenticated;
