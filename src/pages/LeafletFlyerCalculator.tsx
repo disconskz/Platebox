@@ -492,7 +492,7 @@ export default function LeafletFlyerCalculator() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Количество макетов</Label><Input type="number" min={1} step={1} value={designsCount} onChange={(e) => { const next = e.currentTarget.valueAsNumber; if (Number.isInteger(next) && next >= 1) setDesignsCount(next); }} /></div>
+                  <div><Label>Количество видов</Label><Input type="number" min={1} step={1} value={designsCount} onChange={(e) => { const next = e.currentTarget.valueAsNumber; if (Number.isInteger(next) && next >= 1) setDesignsCount(next); }} /></div>
                   <div><Label>Готовый Ш, мм</Label><Input type="number" value={finishedW} onChange={(e) => setFinishedW(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
                   <div><Label>Готовый В, мм</Label><Input type="number" value={finishedH} onChange={(e) => setFinishedH(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
                   {mode !== "simple" && canEditBleed ? (
