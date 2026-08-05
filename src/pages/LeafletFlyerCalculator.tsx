@@ -23,6 +23,8 @@ import { DEFAULT_LEAFLET_BLEED_MM, LEAFLET_PRINT_METHOD_OFFSET, LEAFLET_TYPE_TWO
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 import { useHandbook } from "@/lib/operations/HandbookProvider";
 import { buildTryHandbook } from "@/lib/operations/applyHandbook";
+import { calcCongrev, type CongrevRule } from "@/lib/calc/congrev";
+import { calcEmbossing, type EmbossingRule } from "@/lib/calc/embossing";
 /**
  * Доработка 79 — выделенный шаблон «Листовка / Флаер».
  * Расширенная архитектура: типы листовки, авто-маршрут (офсет/цифра),
@@ -31,7 +33,7 @@ import { buildTryHandbook } from "@/lib/operations/applyHandbook";
  */
 
 type Material = {
-  value: string; label: string; type: string; density: number;
+  value: string; id?: string; label: string; type: string; density: number;
   pricePerSheet: number; sheetW: number; sheetH: number;
 };
 const MATERIALS: Material[] = [
@@ -117,6 +119,7 @@ export default function LeafletFlyerCalculator() {
   const [deliveryCost, setDeliveryCost] = useState(0);
 
   // Бумага
+  const [materials, setMaterials] = useState<Material[]>(MATERIALS);
   const [materialKey, setMaterialKey] = useState("coated-gloss-150");
 
   // Постпечать
@@ -142,10 +145,12 @@ export default function LeafletFlyerCalculator() {
   const [dieKnifeM, setDieKnifeM] = useState(0.8);
   const [hasFlashRemoval, setHasFlashRemoval] = useState(false);
 
-  const [hasFold, setHasFold] = useState(false);
-  const [foldCount, setFoldCount] = useState(1);
-  const [hasBiegovka, setHasBiegovka] = useState(false);
-  const [biegovkaCount, setBiegovkaCount] = useState(1);
+  const [hasCongrev, setHasCongrev] = useState(false);
+  const [congrevAreaCm2, setCongrevAreaCm2] = useState(25);
+  const [congrevRule, setCongrevRule] = useState<CongrevRule | null>(null);
+  const [hasFoilEmbossing, setHasFoilEmbossing] = useState(false);
+  const [foilAreaCm2, setFoilAreaCm2] = useState(25);
+  const [embossingRule, setEmbossingRule] = useState<EmbossingRule | null>(null);
 
   const [hasRoundCorners, setHasRoundCorners] = useState(false);
   const [cornersCount, setCornersCount] = useState(4);
@@ -165,14 +170,23 @@ export default function LeafletFlyerCalculator() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     supabase.rpc("has_calculation_permission" as any, { _permission: "calculation.bleed.edit" })
       .then(({ data }) => setCanEditBleed(data === true));
+    supabase.from("materials").select("id,name,type,density,format_width,format_height,cost_per_sheet")
+      .order("name").order("density")
+      .then(({ data }) => {
+        if (!data?.length) return;
+        const options = data.map((row) => ({
+          value: row.id, id: row.id, label: row.name, type: row.type, density: row.density,
+          pricePerSheet: Number(row.cost_per_sheet), sheetW: row.format_width, sheetH: row.format_height,
+        }));
+        setMaterials(options);
+        setMaterialKey(options.find((item) => item.type === "coated" && item.density === 150)?.value ?? options[0].value);
+      });
+    supabase.from("congrev_prices").select("*").eq("is_active", true).order("sort_order").limit(1).maybeSingle()
+      .then(({ data }) => setCongrevRule(data));
+    supabase.from("embossing_prices").select("*").eq("is_active", true).eq("uses_foil", true)
+      .order("sort_order").limit(1).maybeSingle()
+      .then(({ data }) => setEmbossingRule(data));
   }, []);
-
-  // Биговка обязательна при плотности > 170 и наличии фальцовки
-  useEffect(() => {
-    const m = MATERIALS.find((x) => x.value === materialKey);
-    if (hasFold && m && m.density > 170 && !hasBiegovka) setHasBiegovka(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasFold, materialKey]);
 
   // ===== Формат
   useEffect(() => {
@@ -180,7 +194,7 @@ export default function LeafletFlyerCalculator() {
     if (f && f.value !== "custom") { setFinishedW(f.w); setFinishedH(f.h); }
   }, [formatKey]);
 
-  const material = useMemo(() => MATERIALS.find((m) => m.value === materialKey)!, [materialKey]);
+  const material = useMemo(() => materials.find((m) => m.value === materialKey) ?? materials[0] ?? MATERIALS[0], [materials, materialKey]);
   const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
 
   const effectivePrintMode = LEAFLET_PRINT_METHOD_OFFSET as "offset" | "digital" | "uv";
@@ -334,18 +348,13 @@ export default function LeafletFlyerCalculator() {
       }
     }
 
-    // Биговка / фальцовка
-    if (hasBiegovka) {
-      tryHB("creaseMachine", { "количество бигов общее за тираж": circulation * Math.max(1, biegovkaCount) }, () => {
-        push("Постпечать", "Приладка биговки", 1, "усл.", 1000);
-        push("Постпечать", "Биговка", circulation * Math.max(1, biegovkaCount), "биг", 1.0);
-      });
+    if (hasCongrev && congrevRule) {
+      const result = calcCongrev(congrevRule, { circulation: totalItems, clicheWidthCm: 0, clicheHeightCm: 0, clicheAreaOverride: congrevAreaCm2 });
+      push("Постпечать", congrevRule.name || "Конгрев", 1, "усл.", result.finalCost);
     }
-    if (hasFold) {
-      tryHB("fold", { "Тираж": circulation * Math.max(1, foldCount), "Стоимость за 1 изделие": 0.8 }, () => {
-        push("Постпечать", "Приладка фальцовки", 1, "усл.", 1000);
-        push("Постпечать", "Фальцовка", circulation * Math.max(1, foldCount), "фальц", 0.8);
-      });
+    if (hasFoilEmbossing && embossingRule) {
+      const result = calcEmbossing(embossingRule, { circulation: totalItems, clicheWidthCm: 0, clicheHeightCm: 0, clicheAreaOverride: foilAreaCm2 });
+      push("Постпечать", embossingRule.name || "Тиснение фольгой", 1, "усл.", result.finalCost);
     }
 
     // Склейка в блок
@@ -392,7 +401,7 @@ export default function LeafletFlyerCalculator() {
     hasNumbering, numbersPerItem, hasQr, hasBarcode, hasPersonalization, variableElements,
     hasPerforation, perfLines, perfLineLenMm,
     hasDieCut, dieKnifeM, hasFlashRemoval,
-    hasBiegovka, biegovkaCount, hasFold, foldCount,
+    hasCongrev, congrevAreaCm2, congrevRule, hasFoilEmbossing, foilAreaCm2, embossingRule,
     hasBlockGlue, blockSize, finishedH,
     hasRoundCorners, cornersCount,
     packKind, pack, circulation, hasDelivery, deliveryCost,
@@ -422,8 +431,8 @@ export default function LeafletFlyerCalculator() {
     if (hasPersonalization) s.push("Персонализация");
     if (hasPerforation) s.push("Перфорация");
     if (hasDieCut) { s.push("Высечка"); if (hasFlashRemoval) s.push("Удаление облоя"); }
-    if (hasBiegovka) s.push("Биговка");
-    if (hasFold) s.push("Фальцовка");
+    if (hasCongrev) s.push("Конгрев");
+    if (hasFoilEmbossing) s.push("Тиснение фольгой");
     if (hasBlockGlue) s.push("Склейка в блок");
     if (hasRoundCorners) s.push("Скругление углов");
     s.push("Резка готовой продукции", "Контроль качества");
@@ -432,7 +441,7 @@ export default function LeafletFlyerCalculator() {
     return s;
   }, [effectivePrintMode, hasLamination, lamFilm, hasUvFull, hasUvSpot,
       hasNumbering, hasQr, hasBarcode, hasPersonalization, hasPerforation,
-      hasDieCut, hasFlashRemoval, hasBiegovka, hasFold, hasBlockGlue, hasRoundCorners,
+      hasDieCut, hasFlashRemoval, hasCongrev, hasFoilEmbossing, hasBlockGlue, hasRoundCorners,
       packKind, pack, hasDelivery]);
 
   return (
@@ -542,7 +551,7 @@ export default function LeafletFlyerCalculator() {
                             <Select value={materialKey} onValueChange={setMaterialKey}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {MATERIALS.map((m) => (
+                                {materials.map((m) => (
                                   <SelectItem key={m.value} value={m.value}>
                                     {m.label} · {fmtMoney(m.pricePerSheet)}/лист · {m.sheetW}×{m.sheetH}
                                   </SelectItem>
@@ -647,15 +656,15 @@ export default function LeafletFlyerCalculator() {
                     </AccordionItem>
 
                     <AccordionItem value="fold">
-                      <AccordionTrigger>6. Биговка · фальцовка · склейка в блок</AccordionTrigger>
+                      <AccordionTrigger>6. Конгрев · тиснение фольгой · склейка в блок</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <Row label="Биговка" checked={hasBiegovka} onChange={setHasBiegovka} />
-                          {hasBiegovka && (<div><Label>Кол-во бигов</Label>
-                            <Input type="number" min={1} value={biegovkaCount} onChange={(e) => setBiegovkaCount(+e.target.value || 1)} /></div>)}
-                          <Row label="Фальцовка" checked={hasFold} onChange={setHasFold} />
-                          {hasFold && (<div><Label>Кол-во фальцев</Label>
-                            <Input type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(+e.target.value || 1)} /></div>)}
+                          <Row label="Конгрев" checked={hasCongrev} onChange={setHasCongrev} />
+                          {hasCongrev && (<div><Label>Площадь клише, см²</Label>
+                            <Input type="number" min={1} value={congrevAreaCm2} onChange={(e) => setCongrevAreaCm2(+e.target.value || 1)} /></div>)}
+                          <Row label="Тиснение фольгой" checked={hasFoilEmbossing} onChange={setHasFoilEmbossing} />
+                          {hasFoilEmbossing && (<div><Label>Площадь тиснения, см²</Label>
+                            <Input type="number" min={1} value={foilAreaCm2} onChange={(e) => setFoilAreaCm2(+e.target.value || 1)} /></div>)}
                           <Row label="Склейка в блок (ПВА)" checked={hasBlockGlue} onChange={setHasBlockGlue} />
                           {hasBlockGlue && (<div><Label>Листов в блоке</Label>
                             <Input type="number" min={1} value={blockSize} onChange={(e) => setBlockSize(+e.target.value || 1)} /></div>)}
@@ -725,12 +734,19 @@ export default function LeafletFlyerCalculator() {
                   format_type: formatKey, format_width: finishedW, format_height: finishedH,
                   color_front: colorsFront, color_back: colorsBack, items_per_sheet: layout.perSheet,
                   print_format_width: material.sheetW, print_format_height: material.sheetH,
+                  material_id: material.id,
                   turnaround_type: effectiveTurn,
-                  calculation_payload: normalizeLeafletParams({
-                    customer, leaflet_type: LEAFLET_TYPE_TWO_SIDED, print_method: LEAFLET_PRINT_METHOD_OFFSET,
-                    layouts_count: designsCount, bleed_mm: bleed, formatKey, finishedW, finishedH,
-                    materialKey, turn, packKind,
-                  }),
+                  calculation_payload: {
+                    ...normalizeLeafletParams({
+                      customer, leaflet_type: LEAFLET_TYPE_TWO_SIDED, print_method: LEAFLET_PRINT_METHOD_OFFSET,
+                      layouts_count: designsCount, bleed_mm: bleed, formatKey, finishedW, finishedH,
+                      materialKey, turn, packKind,
+                    }),
+                    has_congrev: hasCongrev,
+                    congrev_area_cm2: congrevAreaCm2,
+                    has_foil_embossing: hasFoilEmbossing,
+                    foil_area_cm2: foilAreaCm2,
+                  },
                 }}
               />
             </div>

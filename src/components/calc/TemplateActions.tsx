@@ -68,6 +68,7 @@ export function TemplateActions(props: TemplateActionsProps) {
     contact_name: (extra?.contact_name as string) || null,
     contact_phone: (extra?.contact_phone as string) || null,
     lead_source_id: (extra?.lead_source_id as string) || null,
+    material_id: (extra?.material_id as string) || null,
     comment: (extra?.comment as string) || null,
     calculation_payload: (extra?.calculation_payload as Record<string, unknown>) ?? extra ?? {},
     pricing_snapshot: { spec, totals, margin, vatPercent },
