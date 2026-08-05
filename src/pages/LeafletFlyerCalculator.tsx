@@ -36,6 +36,22 @@ type Material = {
   value: string; id?: string; label: string; type: string; density: number;
   pricePerSheet: number; sheetW: number; sheetH: number;
 };
+const MATERIAL_TYPE_LABELS: Record<string, string> = {
+  coated: "Мелованная бумага",
+  offset: "Офсетная бумага",
+  self_adhesive: "Самоклейка",
+  cardboard: "Картон",
+  other: "Другое",
+};
+
+const normalizeMaterialType = (type: string) => {
+  if (type.startsWith("coated")) return "coated";
+  if (type === "offset") return "offset";
+  if (type === "self_adhesive") return "self_adhesive";
+  if (type === "cardboard") return "cardboard";
+  return "other";
+};
+
 const MATERIALS: Material[] = [
   { value: "coated-gloss-115", label: "Мелованная глянец 115 г", type: "coated-gloss", density: 115, pricePerSheet: 95, sheetW: 720, sheetH: 1020 },
   { value: "coated-gloss-130", label: "Мелованная глянец 130 г", type: "coated-gloss", density: 130, pricePerSheet: 105, sheetW: 720, sheetH: 1020 },
@@ -120,6 +136,7 @@ export default function LeafletFlyerCalculator() {
 
   // Бумага
   const [materials, setMaterials] = useState<Material[]>(MATERIALS);
+  const [materialType, setMaterialType] = useState("coated");
   const [materialKey, setMaterialKey] = useState("coated-gloss-150");
 
   // Постпечать
@@ -179,7 +196,9 @@ export default function LeafletFlyerCalculator() {
           pricePerSheet: Number(row.cost_per_sheet), sheetW: row.format_width, sheetH: row.format_height,
         }));
         setMaterials(options);
-        setMaterialKey(options.find((item) => item.type === "coated" && item.density === 150)?.value ?? options[0].value);
+        const initialMaterial = options.find((item) => item.type === "coated" && item.density === 150) ?? options[0];
+        setMaterialType(normalizeMaterialType(initialMaterial.type));
+        setMaterialKey(initialMaterial.value);
       });
     supabase.from("congrev_prices").select("*").eq("is_active", true).order("sort_order").limit(1).maybeSingle()
       .then(({ data }) => setCongrevRule(data));
@@ -195,6 +214,16 @@ export default function LeafletFlyerCalculator() {
   }, [formatKey]);
 
   const material = useMemo(() => materials.find((m) => m.value === materialKey) ?? materials[0] ?? MATERIALS[0], [materials, materialKey]);
+  const materialTypes = useMemo(() => Array.from(new Set(materials.map((item) => normalizeMaterialType(item.type)))), [materials]);
+  const materialsByType = useMemo(
+    () => materials.filter((item) => normalizeMaterialType(item.type) === materialType),
+    [materials, materialType],
+  );
+  const changeMaterialType = (type: string) => {
+    setMaterialType(type);
+    const firstMaterial = materials.find((item) => normalizeMaterialType(item.type) === type);
+    if (firstMaterial) setMaterialKey(firstMaterial.value);
+  };
   const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
 
   const effectivePrintMode = LEAFLET_PRINT_METHOD_OFFSET as "offset" | "digital" | "uv";
@@ -546,12 +575,25 @@ export default function LeafletFlyerCalculator() {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <div className="sm:col-span-2">
-                            <Label>Тип бумаги</Label>
+                          <div>
+                            <Label>Тип материала</Label>
+                            <Select value={materialType} onValueChange={changeMaterialType}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {materialTypes.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {MATERIAL_TYPE_LABELS[type] ?? type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Вид материала</Label>
                             <Select value={materialKey} onValueChange={setMaterialKey}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {materials.map((m) => (
+                                {materialsByType.map((m) => (
                                   <SelectItem key={m.value} value={m.value}>
                                     {m.label} · {fmtMoney(m.pricePerSheet)}/лист · {m.sheetW}×{m.sheetH}
                                   </SelectItem>
