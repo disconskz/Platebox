@@ -855,8 +855,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
       printCost: Math.round(altPrint),
       wasteCost: Math.round(altWaste),
       totalCost: Math.round(altTotal),
-    };
+     };
   });
+  return {
     layout,
     turnaround,
     forms,
