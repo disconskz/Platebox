@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, type ComponentProps, type ReactNode, useState } from "react";
 import { SpecTable } from "@/components/calc/SpecTable";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
@@ -92,17 +92,7 @@ const LAM_LABELS: Record<LamFilm, string> = {
   gloss: "Глянцевая", matte: "Матовая", soft: "Soft-touch", anti: "Anti-scratch",
 };
 
-type PackKind = "none" | "p50" | "p100" | "p250" | "p500" | "shrink" | "individual" | "box";
-const PACKS: { value: PackKind; label: string; price: number; perPack: number }[] = [
-  { value: "none", label: "Без упаковки", price: 0, perPack: 1 },
-  { value: "p50", label: "Пачка по 50", price: 14, perPack: 50 },
-  { value: "p100", label: "Пачка по 100", price: 22, perPack: 100 },
-  { value: "p250", label: "Пачка по 250", price: 38, perPack: 250 },
-  { value: "p500", label: "Пачка по 500", price: 58, perPack: 500 },
-  { value: "shrink", label: "Термоусадка", price: 35, perPack: 100 },
-  { value: "individual", label: "Индивидуальный пакет", price: 8, perPack: 1 },
-  { value: "box", label: "В коробку", price: 250, perPack: 1000 },
-];
+const PACKAGING_PRICE_PER_ITEM = 0.5;
 
 export default function LeafletFlyerCalculator() {
   const { priceOp } = useHandbook();
@@ -175,9 +165,6 @@ export default function LeafletFlyerCalculator() {
   const [hasBlockGlue, setHasBlockGlue] = useState(false);
   const [blockSize, setBlockSize] = useState(50);
 
-  // Упаковка
-  const [packKind, setPackKind] = useState<PackKind>("p100");
-
   useEffect(() => {
     // Generated Supabase types are refreshed separately after the migration lands.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,8 +211,6 @@ export default function LeafletFlyerCalculator() {
     const firstMaterial = materials.find((item) => normalizeMaterialType(item.type) === type);
     if (firstMaterial) setMaterialKey(firstMaterial.value);
   };
-  const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
-
   const effectivePrintMode = LEAFLET_PRINT_METHOD_OFFSET as "offset" | "digital" | "uv";
 
   const effectiveTurn: Exclude<TurnKind, "auto"> = useMemo(() => {
@@ -413,12 +398,7 @@ export default function LeafletFlyerCalculator() {
     push("Логистика", `Контроль качества${qcCoef > 1 ? " (×" + qcCoef.toFixed(2) + ")" : ""}`,
       circulation, "шт", +(0.3 * qcCoef).toFixed(2));
 
-    // Упаковка
-    if (packKind !== "none") {
-      const units = Math.max(1, Math.ceil(circulation / Math.max(1, pack.perPack)));
-      tryHB("packStickers", { "Количество видов": 1 },
-        () => push("Упаковка", `Упаковка: ${pack.label}`, units, "ед.", pack.price));
-    }
+    push("Упаковка", "Упаковка готовой продукции", circulation, "шт", PACKAGING_PRICE_PER_ITEM);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
     return out;
   }, [
@@ -433,7 +413,7 @@ export default function LeafletFlyerCalculator() {
     hasCongrev, congrevAreaCm2, congrevRule, hasFoilEmbossing, foilAreaCm2, embossingRule,
     hasBlockGlue, blockSize, finishedH,
     hasRoundCorners, cornersCount,
-    packKind, pack, circulation, hasDelivery, deliveryCost,
+    circulation, hasDelivery, deliveryCost,
   priceOp,
   ]);
 
@@ -465,13 +445,13 @@ export default function LeafletFlyerCalculator() {
     if (hasBlockGlue) s.push("Склейка в блок");
     if (hasRoundCorners) s.push("Скругление углов");
     s.push("Резка готовой продукции", "Контроль качества");
-    if (packKind !== "none") s.push(`Упаковка: ${pack.label}`);
+    s.push("Упаковка готовой продукции");
     if (hasDelivery) s.push("Доставка");
     return s;
   }, [effectivePrintMode, hasLamination, lamFilm, hasUvFull, hasUvSpot,
       hasNumbering, hasQr, hasBarcode, hasPersonalization, hasPerforation,
       hasDieCut, hasFlashRemoval, hasCongrev, hasFoilEmbossing, hasBlockGlue, hasRoundCorners,
-      packKind, pack, hasDelivery]);
+      hasDelivery]);
 
   return (
     <PageShell>
@@ -520,7 +500,7 @@ export default function LeafletFlyerCalculator() {
               <Card>
                 <CardHeader><CardTitle className="text-sm">1. Основные параметры</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
-                  <div><Label>Тираж</Label><Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(+e.target.value || 0)} /></div>
+                  <div><Label>Тираж</Label><NumberInput min={1} value={circulation} onValueChange={setCirculation} /></div>
                   <div>
                     <Label>Формат</Label>
                     <Select value={formatKey} onValueChange={setFormatKey}>
@@ -530,17 +510,17 @@ export default function LeafletFlyerCalculator() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Количество видов</Label><Input type="number" min={1} step={1} value={designsCount} onChange={(e) => { const next = e.currentTarget.valueAsNumber; if (Number.isInteger(next) && next >= 1) setDesignsCount(next); }} /></div>
-                  <div><Label>Готовый Ш, мм</Label><Input type="number" value={finishedW} onChange={(e) => setFinishedW(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
-                  <div><Label>Готовый В, мм</Label><Input type="number" value={finishedH} onChange={(e) => setFinishedH(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
+                  <div><Label>Количество видов</Label><NumberInput min={1} step={1} value={designsCount} onValueChange={(value) => setDesignsCount(Math.max(1, Math.trunc(value)))} /></div>
+                  <div><Label>Готовый Ш, мм</Label><NumberInput value={finishedW} onValueChange={setFinishedW} disabled={formatKey !== "custom"} /></div>
+                  <div><Label>Готовый В, мм</Label><NumberInput value={finishedH} onValueChange={setFinishedH} disabled={formatKey !== "custom"} /></div>
                   {mode !== "simple" && canEditBleed ? (
-                    <div><Label>Вылеты, мм</Label><Input type="number" min={0} step={0.1} value={bleed} onChange={(e) => { const next = e.currentTarget.valueAsNumber; if (Number.isFinite(next) && next >= 0) setBleed(next); }} /></div>
+                    <div><Label>Вылеты, мм</Label><NumberInput min={0} step={0.1} value={bleed} onValueChange={(value) => setBleed(Math.max(0, value))} /></div>
                   ) : (
                     <div className="flex items-end rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">Вылеты: {bleed} мм — автоматически</div>
                   )}
-                  <div><Label>Цветность лицо</Label><Input type="number" min={0} max={8} value={colorsFront} onChange={(e) => setColorsFront(+e.target.value || 0)} /></div>
-                  {twoSided && (<div><Label>Цветность оборот</Label><Input type="number" min={0} max={8} value={colorsBack} onChange={(e) => setColorsBack(+e.target.value || 0)} /></div>)}
-                  <div><Label>Pantone красок</Label><Input type="number" min={0} value={pantoneCount} onChange={(e) => setPantoneCount(+e.target.value || 0)} /></div>
+                  <div><Label>Цветность лицо</Label><NumberInput min={0} max={8} value={colorsFront} onValueChange={setColorsFront} /></div>
+                  {twoSided && (<div><Label>Цветность оборот</Label><NumberInput min={0} max={8} value={colorsBack} onValueChange={setColorsBack} /></div>)}
+                  <div><Label>Pantone красок</Label><NumberInput min={0} value={pantoneCount} onValueChange={setPantoneCount} /></div>
                   {twoSided && (
                     <div>
                       <Label>Тип оборота</Label>
@@ -555,7 +535,7 @@ export default function LeafletFlyerCalculator() {
                       </Select>
                     </div>
                   )}
-                  <div><Label>Наценка, %</Label><Input type="number" value={margin} onChange={(e) => setMargin(+e.target.value || 0)} /></div>
+                  <div><Label>Наценка, %</Label><NumberInput value={margin} onValueChange={setMargin} /></div>
                   <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
                     На лист: <b>{layout.perSheet}</b>{layout.rotated && " (поворот)"} · печ. листов: <b>{printSheets}</b>{" · "}
                     приладка: <b>{setupSheets}</b> · режим: <b>{effectivePrintMode}</b>
@@ -645,7 +625,7 @@ export default function LeafletFlyerCalculator() {
                           <Row label="Выборочный УФ-лак" checked={hasUvSpot} onChange={setHasUvSpot} />
                           {hasUvSpot && (
                             <div><Label>Площадь лака, см² / изд.</Label>
-                              <Input type="number" min={1} value={uvSpotAreaCm2} onChange={(e) => setUvSpotAreaCm2(+e.target.value || 1)} /></div>
+                              <NumberInput min={1} value={uvSpotAreaCm2} onValueChange={setUvSpotAreaCm2} /></div>
                           )}
                         </div>
                       </AccordionContent>
@@ -657,12 +637,12 @@ export default function LeafletFlyerCalculator() {
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
                           <Row label="Нумерация" checked={hasNumbering} onChange={setHasNumbering} />
                           {hasNumbering && (<div><Label>Номеров на изделие</Label>
-                            <Input type="number" min={1} value={numbersPerItem} onChange={(e) => setNumbersPerItem(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={numbersPerItem} onValueChange={setNumbersPerItem} /></div>)}
                           <Row label="QR-код" checked={hasQr} onChange={setHasQr} />
                           <Row label="Штрихкод" checked={hasBarcode} onChange={setHasBarcode} />
                           <Row label="Персонализация" checked={hasPersonalization} onChange={setHasPersonalization} />
                           {hasPersonalization && (<div><Label>Переменных элементов</Label>
-                            <Input type="number" min={1} value={variableElements} onChange={(e) => setVariableElements(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={variableElements} onValueChange={setVariableElements} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -680,19 +660,19 @@ export default function LeafletFlyerCalculator() {
                           <Row label="Перфорация" checked={hasPerforation} onChange={setHasPerforation} />
                           {hasPerforation && (<>
                             <div><Label>Линий на изделие</Label>
-                              <Input type="number" min={1} value={perfLines} onChange={(e) => setPerfLines(+e.target.value || 1)} /></div>
+                              <NumberInput min={1} value={perfLines} onValueChange={setPerfLines} /></div>
                             <div><Label>Длина линии, мм</Label>
-                              <Input type="number" min={1} value={perfLineLenMm} onChange={(e) => setPerfLineLenMm(+e.target.value || 1)} /></div>
+                              <NumberInput min={1} value={perfLineLenMm} onValueChange={setPerfLineLenMm} /></div>
                           </>)}
                           <Row label="Высечка" checked={hasDieCut} onChange={setHasDieCut} />
                           {hasDieCut && (<>
                             <div><Label>Длина ножа, м</Label>
-                              <Input type="number" step="0.1" min={0.05} value={dieKnifeM} onChange={(e) => setDieKnifeM(+e.target.value || 0)} /></div>
+                              <NumberInput step={0.1} min={0.05} value={dieKnifeM} onValueChange={setDieKnifeM} /></div>
                             <Row label="Удаление облоя" checked={hasFlashRemoval} onChange={setHasFlashRemoval} />
                           </>)}
                           <Row label="Скругление углов" checked={hasRoundCorners} onChange={setHasRoundCorners} />
                           {hasRoundCorners && (<div><Label>Углов на изделие</Label>
-                            <Input type="number" min={1} max={4} value={cornersCount} onChange={(e) => setCornersCount(+e.target.value || 4)} /></div>)}
+                            <NumberInput min={1} max={4} value={cornersCount} onValueChange={setCornersCount} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -703,13 +683,13 @@ export default function LeafletFlyerCalculator() {
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
                           <Row label="Конгрев" checked={hasCongrev} onChange={setHasCongrev} />
                           {hasCongrev && (<div><Label>Площадь клише, см²</Label>
-                            <Input type="number" min={1} value={congrevAreaCm2} onChange={(e) => setCongrevAreaCm2(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={congrevAreaCm2} onValueChange={setCongrevAreaCm2} /></div>)}
                           <Row label="Тиснение фольгой" checked={hasFoilEmbossing} onChange={setHasFoilEmbossing} />
                           {hasFoilEmbossing && (<div><Label>Площадь тиснения, см²</Label>
-                            <Input type="number" min={1} value={foilAreaCm2} onChange={(e) => setFoilAreaCm2(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={foilAreaCm2} onValueChange={setFoilAreaCm2} /></div>)}
                           <Row label="Склейка в блок (ПВА)" checked={hasBlockGlue} onChange={setHasBlockGlue} />
                           {hasBlockGlue && (<div><Label>Листов в блоке</Label>
-                            <Input type="number" min={1} value={blockSize} onChange={(e) => setBlockSize(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={blockSize} onValueChange={setBlockSize} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -718,21 +698,15 @@ export default function LeafletFlyerCalculator() {
                       <AccordionTrigger>7. Упаковка и доставка</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <div className="sm:col-span-2">
-                            <Label>Упаковка</Label>
-                            <Select value={packKind} onValueChange={(v) => setPackKind(v as PackKind)}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {PACKS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}{p.price ? ` · ${fmtMoney(p.price)}/ед.` : ""}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                          <div className="rounded-md bg-muted/40 px-3 py-2 text-sm sm:col-span-2">
+                            Упаковка рассчитывается автоматически: {fmtNum(circulation)} × 0,5 ₸ = <b>{fmtMoney(circulation * PACKAGING_PRICE_PER_ITEM)}</b>
                           </div>
                           <div className="flex items-end gap-2">
                             <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />
                             <Label htmlFor="delivery" className="cursor-pointer">Включить доставку</Label>
                           </div>
                           {hasDelivery && (<div><Label>Стоимость доставки</Label>
-                            <Input type="number" value={deliveryCost} onChange={(e) => setDeliveryCost(+e.target.value || 0)} /></div>)}
+                            <NumberInput min={0} value={deliveryCost} onValueChange={setDeliveryCost} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -782,7 +756,7 @@ export default function LeafletFlyerCalculator() {
                     ...normalizeLeafletParams({
                       customer, leaflet_type: LEAFLET_TYPE_TWO_SIDED, print_method: LEAFLET_PRINT_METHOD_OFFSET,
                       layouts_count: designsCount, bleed_mm: bleed, formatKey, finishedW, finishedH,
-                      materialKey, turn, packKind,
+                      materialKey, turn, packKind: "auto",
                     }),
                     has_congrev: hasCongrev,
                     congrev_area_cm2: congrevAreaCm2,
@@ -809,11 +783,56 @@ export default function LeafletFlyerCalculator() {
   );
 }
 
-function Row({ label, checked, onChange }: { label: React.ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
+function Row({ label, checked, onChange }: { label: ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <Checkbox checked={checked} onCheckedChange={(v) => onChange(!!v)} />
       <span className="flex-1 min-w-0">{label}</span>
     </div>
+  );
+}
+
+type NumberInputProps = Omit<ComponentProps<typeof Input>, "type" | "value" | "onChange"> & {
+  value: number;
+  onValueChange: (value: number) => void;
+};
+
+function NumberInput({ value, onValueChange, step, onFocus, onBlur, ...props }: NumberInputProps) {
+  const isDecimal = step != null && Number(step) % 1 !== 0;
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(() => fmtNum(value));
+
+  useEffect(() => {
+    if (!isEditing) setDraft(fmtNum(value));
+  }, [isEditing, value]);
+
+  return (
+    <Input
+      {...props}
+      type="text"
+      inputMode={isDecimal ? "decimal" : "numeric"}
+      value={isEditing ? draft : fmtNum(value)}
+      onFocus={(event) => {
+        setIsEditing(true);
+        setDraft(fmtNum(value));
+        onFocus?.(event);
+      }}
+      onChange={(event) => {
+        const raw = event.currentTarget.value;
+        setDraft(raw);
+        const normalized = raw.replace(/[\s\u00A0\u202F]/g, "").replace(",", ".");
+        if (normalized === "") {
+          onValueChange(0);
+          return;
+        }
+        const next = Number(normalized);
+        if (Number.isFinite(next)) onValueChange(next);
+      }}
+      onBlur={(event) => {
+        setIsEditing(false);
+        setDraft(fmtNum(value));
+        onBlur?.(event);
+      }}
+    />
   );
 }

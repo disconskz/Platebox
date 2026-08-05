@@ -1,11 +1,5 @@
 import type { BoxPriceResult } from "@/components/calc/BoxPriceBreakdown";
 
-/**
- * Унифицированная строка стоимости шаблонных калькуляторов.
- * Названия этапов могут быть как русскими ("Препресс", "Материалы", "Печать",
- * "Постпечать", "Сборка", "Скрепление", "Логистика", "Тиражные", "Подложка",
- * "Подложка/Сборка"…), так и английскими ("prepress"|"material"|"print"|"postpress"|"assembly"|"logistics").
- */
 export interface TemplateCostLine {
   stage: string;
   total: number;
@@ -15,12 +9,65 @@ export type TemplateBucket = "materials" | "printCost" | "postCost" | "fittings"
 
 function bucketOf(stage: string): TemplateBucket {
   const s = String(stage || "").toLowerCase();
-  if (s.includes("материал") || s.includes("бумаг") || s.includes("подлож") || s === "material") return "materials";
-  if (s.includes("постпечат") || s.includes("тиражн") || s === "postpress") return "postCost";
-  if (s.includes("скреплен") || s.includes("фурнит") || s.includes("пружин")) return "fittings";
-  if (s.includes("сборк") || s.includes("логистик") || s === "assembly" || s === "logistics") return "assembly";
-  // prepress, print → к стоимости печати/подготовки
-  if (s.includes("печат") || s.includes("препресс") || s === "prepress" || s === "print") return "printCost";
+
+  const aliases: Record<TemplateBucket, string[]> = {
+    materials: ["материал", "матеріал", "material", "materials", "paper", "бумага", "бумаг", "base"],
+    printCost: [
+      "печат",
+      "print",
+      "prepress",
+      "photo",
+      "форма",
+      "формат",
+      "form",
+      "cmyk",
+      "rgb",
+      "скан",
+    ],
+    postCost: [
+      "пост",
+      "посл",
+      "postpress",
+      "laminat",
+      "lamination",
+      "фольг",
+      "foil",
+      "клише",
+      "cliche",
+      "выруб",
+      "эмбосс",
+    ],
+    fittings: [
+      "настрой",
+      "setup",
+      "подготов",
+      "дизайн",
+      "верст",
+      "крой",
+      "доработ",
+      "fitting",
+      "склей",
+      "вырез",
+    ],
+    assembly: [
+      "сбор",
+      "assembly",
+      "logistic",
+      "logistics",
+      "упак",
+      "pack",
+      "расклад",
+      "транспорт",
+      "доставка",
+    ],
+  };
+
+  for (const bucket of Object.keys(aliases) as TemplateBucket[]) {
+    if (aliases[bucket].some((keyword) => s.includes(keyword))) return bucket;
+  }
+
+  if (s === "material" || s === "prepress" || s === "print") return "printCost";
+  if (s === "logistics" || s === "assembly") return "assembly";
   return "assembly";
 }
 
@@ -30,10 +77,6 @@ export interface ToTemplateResultOpts {
   circulation: number;
 }
 
-/**
- * Сворачивает массив строк сметы шаблона в payload, совместимый с
- * `BoxPriceBreakdown` (Calculator выводит его в боковой панели и заголовке).
- */
 export function toTemplatePriceResult(lines: TemplateCostLine[], opts: ToTemplateResultOpts): BoxPriceResult {
   const buckets: Record<TemplateBucket, number> = {
     materials: 0,
@@ -51,6 +94,7 @@ export function toTemplatePriceResult(lines: TemplateCostLine[], opts: ToTemplat
   const salePrice = total * (1 + (opts.margin || 0) / 100);
   const totalWithVat = salePrice * (1 + (opts.vatPercent || 0) / 100);
   const perUnit = opts.circulation > 0 ? totalWithVat / opts.circulation : 0;
+
   return {
     materials: buckets.materials,
     printCost: buckets.printCost,

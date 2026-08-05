@@ -1,9 +1,9 @@
-import { CalcInput, CalcResult, DEFAULTS, FormatPair, LayoutResult, PrintFormat, SpecItem, Turnaround } from "./types";
+﻿import { CalcInput, CalcResult, DEFAULTS, FormatPair, LayoutResult, PrintFormat, SpecItem, Turnaround } from "./types";
 import type { CalcRules } from "./rules";
-import { validateCalcInput, cutsForNesting, finishCutsPerItem } from "./validation";
+import { validateCalcInput, cutsForNesting } from "./validation";
 
-// Глобально настраиваемые правила. Калькулятор грузит их из БД и вызывает
-// setCalcRules(rules) перед run/layout. Если не задано — используем DEFAULTS.
+// Р“Р»РѕР±Р°Р»СЊРЅРѕ РЅР°СЃС‚СЂР°РёРІР°РµРјС‹Рµ РїСЂР°РІРёР»Р°. РљР°Р»СЊРєСѓР»СЏС‚РѕСЂ РіСЂСѓР·РёС‚ РёС… РёР· Р‘Р” Рё РІС‹Р·С‹РІР°РµС‚
+// setCalcRules(rules) РїРµСЂРµРґ run/layout. Р•СЃР»Рё РЅРµ Р·Р°РґР°РЅРѕ вЂ” РёСЃРїРѕР»СЊР·СѓРµРј DEFAULTS.
 let CURRENT_RULES: CalcRules = { ...DEFAULTS };
 export function setCalcRules(r: CalcRules) {
   CURRENT_RULES = { ...DEFAULTS, ...r };
@@ -13,11 +13,11 @@ export function getCalcRules(): CalcRules {
 }
 const R = () => CURRENT_RULES;
 
-// === Резка печатный → конечный (из справочника cut_count_rules + константа) ===
+// === Р РµР·РєР° РїРµС‡Р°С‚РЅС‹Р№ в†’ РєРѕРЅРµС‡РЅС‹Р№ (РёР· СЃРїСЂР°РІРѕС‡РЅРёРєР° cut_count_rules + РєРѕРЅСЃС‚Р°РЅС‚Р°) ===
 export interface CutRulesData {
-  /** Цена одного реза печатного листа, ₸. */
+  /** Р¦РµРЅР° РѕРґРЅРѕРіРѕ СЂРµР·Р° РїРµС‡Р°С‚РЅРѕРіРѕ Р»РёСЃС‚Р°, в‚ё. */
   pricePerCut: number;
-  /** Карта "PRINT|ITEM" -> число резов на один печатный лист. */
+  /** РљР°СЂС‚Р° "PRINT|ITEM" -> С‡РёСЃР»Рѕ СЂРµР·РѕРІ РЅР° РѕРґРёРЅ РїРµС‡Р°С‚РЅС‹Р№ Р»РёСЃС‚. */
   table: Record<string, number>;
 }
 let CUT_RULES: CutRulesData = { pricePerCut: 1, table: {} };
@@ -28,9 +28,9 @@ export function getCutRules(): CutRulesData {
   return CUT_RULES;
 }
 
-// === Расходные материалы (фольга для тиснения и т.п.) ===
+// === Р Р°СЃС…РѕРґРЅС‹Рµ РјР°С‚РµСЂРёР°Р»С‹ (С„РѕР»СЊРіР° РґР»СЏ С‚РёСЃРЅРµРЅРёСЏ Рё С‚.Рї.) ===
 export interface MaterialPrices {
-  /** Цена 1 см² фольги для тиснения, ₸. */
+  /** Р¦РµРЅР° 1 СЃРјВІ С„РѕР»СЊРіРё РґР»СЏ С‚РёСЃРЅРµРЅРёСЏ, в‚ё. */
   foilPerCm2: number;
 }
 let MATERIAL_PRICES: MaterialPrices = { foilPerCm2: 6 };
@@ -41,7 +41,7 @@ export function getMaterialPrices(): MaterialPrices {
   return MATERIAL_PRICES;
 }
 
-/** A-форматы в мм для распознавания печатного листа по фактическим размерам. */
+/** A-С„РѕСЂРјР°С‚С‹ РІ РјРј РґР»СЏ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ РїРµС‡Р°С‚РЅРѕРіРѕ Р»РёСЃС‚Р° РїРѕ С„Р°РєС‚РёС‡РµСЃРєРёРј СЂР°Р·РјРµСЂР°Рј. */
 const A_FORMATS: Array<{ name: string; w: number; h: number }> = [
   { name: "A0", w: 841, h: 1189 },
   { name: "A1", w: 594, h: 841 },
@@ -51,20 +51,20 @@ const A_FORMATS: Array<{ name: string; w: number; h: number }> = [
   { name: "A5", w: 148, h: 210 },
   { name: "A6", w: 105, h: 148 },
 ];
-/** Определить имя печатного листа по фактическим размерам (±15 мм допуск, любая ориентация). */
+/** РћРїСЂРµРґРµР»РёС‚СЊ РёРјСЏ РїРµС‡Р°С‚РЅРѕРіРѕ Р»РёСЃС‚Р° РїРѕ С„Р°РєС‚РёС‡РµСЃРєРёРј СЂР°Р·РјРµСЂР°Рј (В±15 РјРј РґРѕРїСѓСЃРє, Р»СЋР±Р°СЏ РѕСЂРёРµРЅС‚Р°С†РёСЏ). */
 export function detectPrintFormatName(w: number, h: number, tol = 15): string | null {
   const lo = Math.min(w, h);
   const hi = Math.max(w, h);
   for (const f of A_FORMATS) {
     if (Math.abs(f.w - lo) <= tol && Math.abs(f.h - hi) <= tol) return f.name;
   }
-  // SRA/печатные форматы > A2 — приравниваем к ближайшему «надформату»
+  // SRA/РїРµС‡Р°С‚РЅС‹Рµ С„РѕСЂРјР°С‚С‹ > A2 вЂ” РїСЂРёСЂР°РІРЅРёРІР°РµРј Рє Р±Р»РёР¶Р°Р№С€РµРјСѓ В«РЅР°РґС„РѕСЂРјР°С‚СѓВ»
   if (hi >= 700) return "A1";
   if (hi >= 500) return "A2";
   if (hi >= 380) return "A3";
   return null;
 }
-/** Поиск количества резов в таблице. Возвращает null, если связки нет. */
+/** РџРѕРёСЃРє РєРѕР»РёС‡РµСЃС‚РІР° СЂРµР·РѕРІ РІ С‚Р°Р±Р»РёС†Рµ. Р’РѕР·РІСЂР°С‰Р°РµС‚ null, РµСЃР»Рё СЃРІСЏР·РєРё РЅРµС‚. */
 export function lookupCutCount(printName: string | null, itemName: string | null): number | null {
   if (!printName || !itemName) return null;
   const key = `${printName}|${itemName}`;
@@ -73,9 +73,9 @@ export function lookupCutCount(printName: string | null, itemName: string | null
 }
 
 /**
- * Авто-расчёт количества резов по фактической раскладке (ТЗ).
- * - 1 изделие на листе → 4 реза (обрезка по периметру);
- * - иначе → 2 × (cols + rows).
+ * РђРІС‚Рѕ-СЂР°СЃС‡С‘С‚ РєРѕР»РёС‡РµСЃС‚РІР° СЂРµР·РѕРІ РїРѕ С„Р°РєС‚РёС‡РµСЃРєРѕР№ СЂР°СЃРєР»Р°РґРєРµ (РўР—).
+ * - 1 РёР·РґРµР»РёРµ РЅР° Р»РёСЃС‚Рµ в†’ 4 СЂРµР·Р° (РѕР±СЂРµР·РєР° РїРѕ РїРµСЂРёРјРµС‚СЂСѓ);
+ * - РёРЅР°С‡Рµ в†’ 2 Г— (cols + rows).
  */
 export function autoCutsFromLayout(layout: { cols: number; rows: number; itemsPerSheet: number }): number {
   const items = Math.max(1, layout.itemsPerSheet | 0);
@@ -83,6 +83,73 @@ export function autoCutsFromLayout(layout: { cols: number; rows: number; itemsPe
   const cols = Math.max(1, layout.cols | 0);
   const rows = Math.max(1, layout.rows | 0);
   return 2 * (cols + rows);
+}
+
+export interface FinishCutResult {
+  cutsPerSheet: number;
+  source: "manual" | "table" | "auto";
+  sourceLabel: string;
+  pricePerCut: number;
+  printName: string | null;
+  itemName: string | null;
+}
+
+function resolveCutsOverride(values: Array<number | undefined | null>): number | null {
+  const fallback = values.find((v) => Number.isFinite(v as number) && (v as number) >= 0);
+  return fallback != null ? Math.floor(fallback as number) : null;
+}
+
+export function resolveFinishCut({
+  layout,
+  printW,
+  printH,
+  productType,
+  formatType,
+  rule,
+  paperCutsOverride,
+  paperCutsPerSheetOverride,
+}: {
+  layout: LayoutResult;
+  printW: number;
+  printH: number;
+  productType: string;
+  formatType: string | null;
+  rule: CalcRules;
+  paperCutsOverride?: number | null;
+  paperCutsPerSheetOverride?: number | null;
+}): FinishCutResult {
+  const printName = detectPrintFormatName(printW, printH);
+  const itemName = formatType && formatType !== "custom" ? formatType : null;
+  const cutPrice = CUT_RULES.pricePerCut ?? rule.finishCutCost ?? 1;
+  const tableCuts = lookupCutCount(printName, itemName);
+  const override = resolveCutsOverride([paperCutsOverride, paperCutsPerSheetOverride]);
+  let cutsPerSheet: number;
+  let source: "manual" | "table" | "auto";
+  let sourceLabel: string;
+  if (override != null) {
+    cutsPerSheet = override;
+    source = "manual";
+    sourceLabel = `Р СћР ВµР В·Р С”Р В° (Р В°Р Р†РЎвЂљР С•: РЎР‚РЎС“РЎвЂЎР Р…Р В° Р С”Р С•РЎР‚РЎР‚Р ВµР С”РЎвЂљР С‘РЎР‚Р С•Р Р†Р С”Р В°, ${cutsPerSheet} РЎР‚Р ВµР В·/Р В»Р С‘РЎРѓРЎвЂљ).`;
+  } else if (tableCuts != null) {
+    cutsPerSheet = tableCuts;
+    source = "table";
+    sourceLabel = `Р СћР ВµР В·Р С”Р В° ${printName} -> ${itemName} (РЎРѓР С—РЎР‚Р В°Р Р†Р С•РЎвЂЎР Р…Р С‘Р С”, ${cutsPerSheet} РЎР‚Р ВµР В·/Р В»Р С‘РЎРѓРЎвЂљ).`;
+  } else {
+    cutsPerSheet = autoCutsFromLayout(layout);
+    source = "auto";
+    sourceLabel =
+      layout.itemsPerSheet <= 1
+        ? `Р СћР ВµР В·Р С”Р В° (Р В°Р Р†РЎвЂљР С•: 1 Р С‘Р В·Р Т‘Р ВµР В»Р С‘Р Вµ -> 4 РЎР‚Р ВµР В·/Р В»Р С‘РЎРѓРЎвЂљ).`
+        : `Р СћР ВµР В·Р С”Р В° (Р В°Р Р†РЎвЂљР С•: 2РІР‚вЂќ${layout.cols}+${layout.rows} = ${cutsPerSheet} РЎР‚Р ВµР В·/Р В»Р С‘РЎРѓРЎвЂљ).`;
+  }
+  return {
+    cutsPerSheet,
+    source,
+    sourceLabel,
+    pricePerCut: cutPrice,
+    printName,
+    itemName,
+  };
 }
 
 export function calculateLayout(
@@ -99,10 +166,10 @@ export function calculateLayout(
 }
 
 /**
- * Возвращает ВСЕ валидные варианты раскладки (обе ориентации) для данного
- * печатного листа. Используется ранжированием, чтобы можно было выбирать
- * подходящий вариант (например, чётное число изделий для «своего оборота»),
- * а не только тот, что даёт максимум шт/лист.
+ * Р’РѕР·РІСЂР°С‰Р°РµС‚ Р’РЎР• РІР°Р»РёРґРЅС‹Рµ РІР°СЂРёР°РЅС‚С‹ СЂР°СЃРєР»Р°РґРєРё (РѕР±Рµ РѕСЂРёРµРЅС‚Р°С†РёРё) РґР»СЏ РґР°РЅРЅРѕРіРѕ
+ * РїРµС‡Р°С‚РЅРѕРіРѕ Р»РёСЃС‚Р°. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ СЂР°РЅР¶РёСЂРѕРІР°РЅРёРµРј, С‡С‚РѕР±С‹ РјРѕР¶РЅРѕ Р±С‹Р»Рѕ РІС‹Р±РёСЂР°С‚СЊ
+ * РїРѕРґС…РѕРґСЏС‰РёР№ РІР°СЂРёР°РЅС‚ (РЅР°РїСЂРёРјРµСЂ, С‡С‘С‚РЅРѕРµ С‡РёСЃР»Рѕ РёР·РґРµР»РёР№ РґР»СЏ В«СЃРІРѕРµРіРѕ РѕР±РѕСЂРѕС‚Р°В»),
+ * Р° РЅРµ С‚РѕР»СЊРєРѕ С‚РѕС‚, С‡С‚Рѕ РґР°С‘С‚ РјР°РєСЃРёРјСѓРј С€С‚/Р»РёСЃС‚.
  */
 export function layoutVariants(
   productW: number,
@@ -121,10 +188,10 @@ export function layoutVariants(
   const effH = productH + bleed * 2 + gap;
 
   const variants: LayoutResult[] = [];
-  // Перебираем 4 комбинации: ориентация изделия × ориентация листа.
-  // Лист физически один и тот же — захват можно расположить по любой
-  // стороне. Из-за асимметрии полей (top vs bottom — захват) ориентация
-  // листа влияет на число изделий.
+  // РџРµСЂРµР±РёСЂР°РµРј 4 РєРѕРјР±РёРЅР°С†РёРё: РѕСЂРёРµРЅС‚Р°С†РёСЏ РёР·РґРµР»РёСЏ Г— РѕСЂРёРµРЅС‚Р°С†РёСЏ Р»РёСЃС‚Р°.
+  // Р›РёСЃС‚ С„РёР·РёС‡РµСЃРєРё РѕРґРёРЅ Рё С‚РѕС‚ Р¶Рµ вЂ” Р·Р°С…РІР°С‚ РјРѕР¶РЅРѕ СЂР°СЃРїРѕР»РѕР¶РёС‚СЊ РїРѕ Р»СЋР±РѕР№
+  // СЃС‚РѕСЂРѕРЅРµ. РР·-Р·Р° Р°СЃРёРјРјРµС‚СЂРёРё РїРѕР»РµР№ (top vs bottom вЂ” Р·Р°С…РІР°С‚) РѕСЂРёРµРЅС‚Р°С†РёСЏ
+  // Р»РёСЃС‚Р° РІР»РёСЏРµС‚ РЅР° С‡РёСЃР»Рѕ РёР·РґРµР»РёР№.
   for (const sheetRotated of [false, true]) {
     const sw = sheetRotated ? printH : printW;
     const sh = sheetRotated ? printW : printH;
@@ -171,11 +238,11 @@ export function bestLayout(
           { width: R().maxPrintW, height: R().maxPrintH },
           { width: R().altPrintW, height: R().altPrintH },
         ];
-  // Сортировка по возрастанию площади — выбираем САМЫЙ МАЛЕНЬКИЙ лист,
-  // в который помещается нужное количество (минимизируем отходы).
+  // РЎРѕСЂС‚РёСЂРѕРІРєР° РїРѕ РІРѕР·СЂР°СЃС‚Р°РЅРёСЋ РїР»РѕС‰Р°РґРё вЂ” РІС‹Р±РёСЂР°РµРј РЎРђРњР«Р™ РњРђР›Р•РќР¬РљРР™ Р»РёСЃС‚,
+  // РІ РєРѕС‚РѕСЂС‹Р№ РїРѕРјРµС‰Р°РµС‚СЃСЏ РЅСѓР¶РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ (РјРёРЅРёРјРёР·РёСЂСѓРµРј РѕС‚С…РѕРґС‹).
   const sorted = [...list].sort((a, b) => a.width * a.height - b.width * b.height);
   let best: LayoutResult | null = null;
-  let bestScore = Infinity; // меньше — лучше: отходы на 1 изделие
+  let bestScore = Infinity; // РјРµРЅСЊС€Рµ вЂ” Р»СѓС‡С€Рµ: РѕС‚С…РѕРґС‹ РЅР° 1 РёР·РґРµР»РёРµ
   for (const f of sorted) {
     const l = calculateLayout(productW, productH, f.width, f.height, isSticker);
     if (!l) continue;
@@ -189,8 +256,8 @@ export function bestLayout(
 }
 
 /**
- * Подбор пары (печатный, закупочный) из жёстких связок справочника.
- * Выбирается пара с минимумом отходов на изделие.
+ * РџРѕРґР±РѕСЂ РїР°СЂС‹ (РїРµС‡Р°С‚РЅС‹Р№, Р·Р°РєСѓРїРѕС‡РЅС‹Р№) РёР· Р¶С‘СЃС‚РєРёС… СЃРІСЏР·РѕРє СЃРїСЂР°РІРѕС‡РЅРёРєР°.
+ * Р’С‹Р±РёСЂР°РµС‚СЃСЏ РїР°СЂР° СЃ РјРёРЅРёРјСѓРјРѕРј РѕС‚С…РѕРґРѕРІ РЅР° РёР·РґРµР»РёРµ.
  */
 export function bestPair(
   productW: number,
@@ -203,7 +270,7 @@ export function bestPair(
 }
 
 /**
- * Ранжирует все пары: max изделий с закупочного, тай-брейк — меньший печатный формат.
+ * Р Р°РЅР¶РёСЂСѓРµС‚ РІСЃРµ РїР°СЂС‹: max РёР·РґРµР»РёР№ СЃ Р·Р°РєСѓРїРѕС‡РЅРѕРіРѕ, С‚Р°Р№-Р±СЂРµР№Рє вЂ” РјРµРЅСЊС€РёР№ РїРµС‡Р°С‚РЅС‹Р№ С„РѕСЂРјР°С‚.
  */
 export function rankPairs(
   productW: number,
@@ -213,8 +280,8 @@ export function rankPairs(
   options?: { requireEvenItems?: boolean; priorityPrintFormats?: PrintFormat[] }
 ): Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> {
   const out: Array<{ layout: LayoutResult; pair: FormatPair; itemsPerPurchase: number; nesting: number }> = [];
-  // Лимит максимального печатного формата (по правкам fortress: 520×360).
-  // Если изделие физически не помещается в этот лимит — лимит снимается.
+  // Р›РёРјРёС‚ РјР°РєСЃРёРјР°Р»СЊРЅРѕРіРѕ РїРµС‡Р°С‚РЅРѕРіРѕ С„РѕСЂРјР°С‚Р° (РїРѕ РїСЂР°РІРєР°Рј fortress: 520Г—360).
+  // Р•СЃР»Рё РёР·РґРµР»РёРµ С„РёР·РёС‡РµСЃРєРё РЅРµ РїРѕРјРµС‰Р°РµС‚СЃСЏ РІ СЌС‚РѕС‚ Р»РёРјРёС‚ вЂ” Р»РёРјРёС‚ СЃРЅРёРјР°РµС‚СЃСЏ.
   const r = R();
   const maxArea = r.maxPrintW * r.maxPrintH;
   const productFitsInLimit = (() => {
@@ -228,7 +295,7 @@ export function rankPairs(
     ? pairs.filter((p) => p.print.width * p.print.height <= maxArea)
     : pairs;
 
-  // Приоритетный (рабочий) печатный формат — точное совпадение по габаритам.
+  // РџСЂРёРѕСЂРёС‚РµС‚РЅС‹Р№ (СЂР°Р±РѕС‡РёР№) РїРµС‡Р°С‚РЅС‹Р№ С„РѕСЂРјР°С‚ вЂ” С‚РѕС‡РЅРѕРµ СЃРѕРІРїР°РґРµРЅРёРµ РїРѕ РіР°Р±Р°СЂРёС‚Р°Рј.
   const isPriority = (p: FormatPair) => {
     const list = options?.priorityPrintFormats;
     if (!list || !list.length) return false;
@@ -239,9 +306,9 @@ export function rankPairs(
     );
   };
 
-  // Перебираем ВСЕ варианты раскладки (обе ориентации) для каждой пары —
-  // чтобы под условие requireEvenItems можно было выбрать подходящий
-  // вариант, а не только тот, что даёт максимум шт/лист.
+  // РџРµСЂРµР±РёСЂР°РµРј Р’РЎР• РІР°СЂРёР°РЅС‚С‹ СЂР°СЃРєР»Р°РґРєРё (РѕР±Рµ РѕСЂРёРµРЅС‚Р°С†РёРё) РґР»СЏ РєР°Р¶РґРѕР№ РїР°СЂС‹ вЂ”
+  // С‡С‚РѕР±С‹ РїРѕРґ СѓСЃР»РѕРІРёРµ requireEvenItems РјРѕР¶РЅРѕ Р±С‹Р»Рѕ РІС‹Р±СЂР°С‚СЊ РїРѕРґС…РѕРґСЏС‰РёР№
+  // РІР°СЂРёР°РЅС‚, Р° РЅРµ С‚РѕР»СЊРєРѕ С‚РѕС‚, С‡С‚Рѕ РґР°С‘С‚ РјР°РєСЃРёРјСѓРј С€С‚/Р»РёСЃС‚.
   for (const p of (filtered.length ? filtered : pairs)) {
     const variants = layoutVariants(productW, productH, p.print.width, p.print.height, isSticker);
     if (!variants.length) continue;
@@ -254,25 +321,25 @@ export function rankPairs(
     }
   }
 
-  // Чётное число изделий на лист (печать «свой оборот»).
+  // Р§С‘С‚РЅРѕРµ С‡РёСЃР»Рѕ РёР·РґРµР»РёР№ РЅР° Р»РёСЃС‚ (РїРµС‡Р°С‚СЊ В«СЃРІРѕР№ РѕР±РѕСЂРѕС‚В»).
   let pool = out;
   if (options?.requireEvenItems) {
     const even = out.filter((r) => r.layout.itemsPerSheet % 2 === 0);
     if (even.length) pool = even;
   }
 
-  // ЖЁСТКИЙ приоритет рабочих форматов: если изделие помещается хотя бы в
-  // один приоритетный печатный формат — оптимальный вариант выбирается ТОЛЬКО
-  // среди приоритетных. Раскройные форматы (500×350, 250×700 и т.п.) могут
-  // оставаться лишь как альтернативы, но не как «оптимальные».
+  // Р–РЃРЎРўРљРР™ РїСЂРёРѕСЂРёС‚РµС‚ СЂР°Р±РѕС‡РёС… С„РѕСЂРјР°С‚РѕРІ: РµСЃР»Рё РёР·РґРµР»РёРµ РїРѕРјРµС‰Р°РµС‚СЃСЏ С…РѕС‚СЏ Р±С‹ РІ
+  // РѕРґРёРЅ РїСЂРёРѕСЂРёС‚РµС‚РЅС‹Р№ РїРµС‡Р°С‚РЅС‹Р№ С„РѕСЂРјР°С‚ вЂ” РѕРїС‚РёРјР°Р»СЊРЅС‹Р№ РІР°СЂРёР°РЅС‚ РІС‹Р±РёСЂР°РµС‚СЃСЏ РўРћР›Р¬РљРћ
+  // СЃСЂРµРґРё РїСЂРёРѕСЂРёС‚РµС‚РЅС‹С…. Р Р°СЃРєСЂРѕР№РЅС‹Рµ С„РѕСЂРјР°С‚С‹ (500Г—350, 250Г—700 Рё С‚.Рї.) РјРѕРіСѓС‚
+  // РѕСЃС‚Р°РІР°С‚СЊСЃСЏ Р»РёС€СЊ РєР°Рє Р°Р»СЊС‚РµСЂРЅР°С‚РёРІС‹, РЅРѕ РЅРµ РєР°Рє В«РѕРїС‚РёРјР°Р»СЊРЅС‹РµВ».
   const priorityPool = pool.filter((r) => isPriority(r.pair));
   const mainPool = priorityPool.length ? priorityPool : pool;
 
-  // Внутри отфильтрованного пула — финансово-выгодное ранжирование:
-  //   1) больше изделий на печатном листе (меньше с/с на изделие);
-  //   2) меньше отходов на изделие (рациональность);
-  //   3) больше изделий с закупочного (меньше закупаем);
-  //   4) меньший печатный лист (меньше остатков).
+  // Р’РЅСѓС‚СЂРё РѕС‚С„РёР»СЊС‚СЂРѕРІР°РЅРЅРѕРіРѕ РїСѓР»Р° вЂ” С„РёРЅР°РЅСЃРѕРІРѕ-РІС‹РіРѕРґРЅРѕРµ СЂР°РЅР¶РёСЂРѕРІР°РЅРёРµ:
+  //   1) Р±РѕР»СЊС€Рµ РёР·РґРµР»РёР№ РЅР° РїРµС‡Р°С‚РЅРѕРј Р»РёСЃС‚Рµ (РјРµРЅСЊС€Рµ СЃ/СЃ РЅР° РёР·РґРµР»РёРµ);
+  //   2) РјРµРЅСЊС€Рµ РѕС‚С…РѕРґРѕРІ РЅР° РёР·РґРµР»РёРµ (СЂР°С†РёРѕРЅР°Р»СЊРЅРѕСЃС‚СЊ);
+  //   3) Р±РѕР»СЊС€Рµ РёР·РґРµР»РёР№ СЃ Р·Р°РєСѓРїРѕС‡РЅРѕРіРѕ (РјРµРЅСЊС€Рµ Р·Р°РєСѓРїР°РµРј);
+  //   4) РјРµРЅСЊС€РёР№ РїРµС‡Р°С‚РЅС‹Р№ Р»РёСЃС‚ (РјРµРЅСЊС€Рµ РѕСЃС‚Р°С‚РєРѕРІ).
   const sortFn = (
     a: (typeof out)[number],
     b: (typeof out)[number]
@@ -289,8 +356,8 @@ export function rankPairs(
 
   mainPool.sort(sortFn);
 
-  // Альтернативы — все остальные варианты (включая раскройные), отсортированные
-  // тем же правилом, без дублей по (печатный, закупочный, ориентация).
+  // РђР»СЊС‚РµСЂРЅР°С‚РёРІС‹ вЂ” РІСЃРµ РѕСЃС‚Р°Р»СЊРЅС‹Рµ РІР°СЂРёР°РЅС‚С‹ (РІРєР»СЋС‡Р°СЏ СЂР°СЃРєСЂРѕР№РЅС‹Рµ), РѕС‚СЃРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ
+  // С‚РµРј Р¶Рµ РїСЂР°РІРёР»РѕРј, Р±РµР· РґСѓР±Р»РµР№ РїРѕ (РїРµС‡Р°С‚РЅС‹Р№, Р·Р°РєСѓРїРѕС‡РЅС‹Р№, РѕСЂРёРµРЅС‚Р°С†РёСЏ).
   const taken = new Set(
     mainPool.map((r) => `${r.pair.print.width}x${r.pair.print.height}|${r.pair.purchase.width}x${r.pair.purchase.height}|${r.layout.rotated}`)
   );
@@ -298,8 +365,8 @@ export function rankPairs(
     .filter((r) => !taken.has(`${r.pair.print.width}x${r.pair.print.height}|${r.pair.purchase.width}x${r.pair.purchase.height}|${r.layout.rotated}`))
     .sort(sortFn);
 
-  // Дедуп по (печатный, закупочный) — оставляем лучший вариант ориентации,
-  // чтобы не плодить дубликаты в превью.
+  // Р”РµРґСѓРї РїРѕ (РїРµС‡Р°С‚РЅС‹Р№, Р·Р°РєСѓРїРѕС‡РЅС‹Р№) вЂ” РѕСЃС‚Р°РІР»СЏРµРј Р»СѓС‡С€РёР№ РІР°СЂРёР°РЅС‚ РѕСЂРёРµРЅС‚Р°С†РёРё,
+  // С‡С‚РѕР±С‹ РЅРµ РїР»РѕРґРёС‚СЊ РґСѓР±Р»РёРєР°С‚С‹ РІ РїСЂРµРІСЊСЋ.
   const dedup = (arr: typeof out) => {
     const seen = new Set<string>();
     const res: typeof out = [];
@@ -362,9 +429,9 @@ function nestingPurchaseToPrint(
 }
 
 /**
- * Технологическая резка закупочного листа на печатные.
- * cuts = cols + rows - 2 (гильотинная схема: вдоль и поперёк).
- * Если печатный лист один (cols=rows=1) — резов 0.
+ * РўРµС…РЅРѕР»РѕРіРёС‡РµСЃРєР°СЏ СЂРµР·РєР° Р·Р°РєСѓРїРѕС‡РЅРѕРіРѕ Р»РёСЃС‚Р° РЅР° РїРµС‡Р°С‚РЅС‹Рµ.
+ * cuts = cols + rows - 2 (РіРёР»СЊРѕС‚РёРЅРЅР°СЏ СЃС…РµРјР°: РІРґРѕР»СЊ Рё РїРѕРїРµСЂС‘Рє).
+ * Р•СЃР»Рё РїРµС‡Р°С‚РЅС‹Р№ Р»РёСЃС‚ РѕРґРёРЅ (cols=rows=1) вЂ” СЂРµР·РѕРІ 0.
  */
 export function cutsForPurchaseLayout(cols: number, rows: number): number {
   const c = Math.max(1, Math.floor(cols));
@@ -391,8 +458,8 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const isBag = input.productType === "bag";
   const isBooklet = input.productType === "booklet";
 
-  // Если переданы жёсткие пары (закупочный↔печатный) — используем их и
-  // автоматически переопределяем закупочный формат материала.
+  // Р•СЃР»Рё РїРµСЂРµРґР°РЅС‹ Р¶С‘СЃС‚РєРёРµ РїР°СЂС‹ (Р·Р°РєСѓРїРѕС‡РЅС‹Р№в†”РїРµС‡Р°С‚РЅС‹Р№) вЂ” РёСЃРїРѕР»СЊР·СѓРµРј РёС… Рё
+  // Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РїРµСЂРµРѕРїСЂРµРґРµР»СЏРµРј Р·Р°РєСѓРїРѕС‡РЅС‹Р№ С„РѕСЂРјР°С‚ РјР°С‚РµСЂРёР°Р»Р°.
   let layout: LayoutResult | null;
   let pickedPurchase: PrintFormat | null = null;
   let alternatives: CalcResult["alternatives"] = [];
@@ -402,13 +469,13 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
       requireEvenItems: input.requireEvenItems,
       priorityPrintFormats: input.priorityPrintFormats,
     });
-    if (!ranked.length) throw new Error("Изделие не вмещается ни в один доступный печатный формат.");
+    if (!ranked.length) throw new Error("РР·РґРµР»РёРµ РЅРµ РІРјРµС‰Р°РµС‚СЃСЏ РЅРё РІ РѕРґРёРЅ РґРѕСЃС‚СѓРїРЅС‹Р№ РїРµС‡Р°С‚РЅС‹Р№ С„РѕСЂРјР°С‚.");
     layout = ranked[0].layout;
     pickedPurchase = ranked[0].pair.purchase;
     rankedPairs = ranked;
   } else {
     layout = bestLayout(input.formatWidth, input.formatHeight, isSticker, input.printFormats);
-    if (!layout) throw new Error("Изделие не вмещается в печатный лист. Выберите другой формат.");
+    if (!layout) throw new Error("РР·РґРµР»РёРµ РЅРµ РІРјРµС‰Р°РµС‚СЃСЏ РІ РїРµС‡Р°С‚РЅС‹Р№ Р»РёСЃС‚. Р’С‹Р±РµСЂРёС‚Рµ РґСЂСѓРіРѕР№ С„РѕСЂРјР°С‚.");
   }
 
   const turnaround = determineTurnaround(
@@ -427,10 +494,10 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const netPrintSheets = Math.ceil(input.circulation / layout.itemsPerSheet);
 
   // Setup sheets
-  // Базовая формула приладки (для «своего оборота»): setupOwn + 1% от тиража печатных листов.
-  // Для «чужого оборота» приладка = 2 × базовая (печатается два прогона).
-  // Для «без оборота» — приладка = базовая (один прогон), но без процентной надбавки —
-  // достаточно константы setupOwn, иначе цифры завышены.
+  // Р‘Р°Р·РѕРІР°СЏ С„РѕСЂРјСѓР»Р° РїСЂРёР»Р°РґРєРё (РґР»СЏ В«СЃРІРѕРµРіРѕ РѕР±РѕСЂРѕС‚Р°В»): setupOwn + 1% РѕС‚ С‚РёСЂР°Р¶Р° РїРµС‡Р°С‚РЅС‹С… Р»РёСЃС‚РѕРІ.
+  // Р”Р»СЏ В«С‡СѓР¶РѕРіРѕ РѕР±РѕСЂРѕС‚Р°В» РїСЂРёР»Р°РґРєР° = 2 Г— Р±Р°Р·РѕРІР°СЏ (РїРµС‡Р°С‚Р°РµС‚СЃСЏ РґРІР° РїСЂРѕРіРѕРЅР°).
+  // Р”Р»СЏ В«Р±РµР· РѕР±РѕСЂРѕС‚Р°В» вЂ” РїСЂРёР»Р°РґРєР° = Р±Р°Р·РѕРІР°СЏ (РѕРґРёРЅ РїСЂРѕРіРѕРЅ), РЅРѕ Р±РµР· РїСЂРѕС†РµРЅС‚РЅРѕР№ РЅР°РґР±Р°РІРєРё вЂ”
+  // РґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РєРѕРЅСЃС‚Р°РЅС‚С‹ setupOwn, РёРЅР°С‡Рµ С†РёС„СЂС‹ Р·Р°РІС‹С€РµРЅС‹.
   let setupSheets: number;
   if (input.manualSetupSheets !== undefined && input.manualSetupSheets !== null) {
     setupSheets = input.manualSetupSheets;
@@ -446,12 +513,12 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   }
   if (isBag) setupSheets = Math.max(rule.bagMinSetup, setupSheets);
   if (turnaround === "foreign" && (input.manualSetupSheets === undefined || input.manualSetupSheets === null)) {
-    warnings.push("Чужой оборот: приладка = ×2 от своего оборота (" + setupSheets + " листов).");
+    warnings.push("Р§СѓР¶РѕР№ РѕР±РѕСЂРѕС‚: РїСЂРёР»Р°РґРєР° = Г—2 РѕС‚ СЃРІРѕРµРіРѕ РѕР±РѕСЂРѕС‚Р° (" + setupSheets + " Р»РёСЃС‚РѕРІ).");
   }
 
   const printSheets = netPrintSheets + setupSheets;
 
-  // Purchase sheets — закупочный формат берём из пары (если есть), иначе из материала
+  // Purchase sheets вЂ” Р·Р°РєСѓРїРѕС‡РЅС‹Р№ С„РѕСЂРјР°С‚ Р±РµСЂС‘Рј РёР· РїР°СЂС‹ (РµСЃР»Рё РµСЃС‚СЊ), РёРЅР°С‡Рµ РёР· РјР°С‚РµСЂРёР°Р»Р°
   const purchaseW = pickedPurchase?.width ?? input.material.format_width;
   const purchaseH = pickedPurchase?.height ?? input.material.format_height;
   const nestingInfo = nestingPurchaseToPrint(purchaseW, purchaseH, layout.printFormat.width, layout.printFormat.height);
@@ -462,18 +529,15 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const paperCost = purchaseSheets * input.material.cost_per_sheet;
 
   if (paperCost === 0) {
-    warnings.push("Стоимость бумаги = 0. Проверьте выбор закупочного формата.");
+    warnings.push("РЎС‚РѕРёРјРѕСЃС‚СЊ Р±СѓРјР°РіРё = 0. РџСЂРѕРІРµСЂСЊС‚Рµ РІС‹Р±РѕСЂ Р·Р°РєСѓРїРѕС‡РЅРѕРіРѕ С„РѕСЂРјР°С‚Р°.");
   }
 
-  // Резка закупочного → печатный лист.
-  // Формула: cuts = cols + rows - 2 (гильотинная резка стопы).
-  // Цена реза берётся из rule.cutCostPerSheet (по умолчанию 1 тг).
-  // Технолог может переопределить количество резов через paperCutsPerSheetOverride.
+  // Р РµР·РєР° Р·Р°РєСѓРїРѕС‡РЅРѕРіРѕ в†’ РїРµС‡Р°С‚РЅС‹Р№ Р»РёСЃС‚.
+  // Р¤РѕСЂРјСѓР»Р°: cuts = cols + rows - 2 (РіРёР»СЊРѕС‚РёРЅРЅР°СЏ СЂРµР·РєР° СЃС‚РѕРїС‹).
+  // Р¦РµРЅР° СЂРµР·Р° Р±РµСЂС‘С‚СЃСЏ РёР· rule.cutCostPerSheet (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 1 С‚Рі).
+  // РўРµС…РЅРѕР»РѕРі РјРѕР¶РµС‚ РїРµСЂРµРѕРїСЂРµРґРµР»РёС‚СЊ РєРѕР»РёС‡РµСЃС‚РІРѕ СЂРµР·РѕРІ С‡РµСЂРµР· paperCutsPerSheetOverride.
   const autoPaperCutsPerSheet = cutsForPurchaseLayout(purchaseCols, purchaseRows);
-  const paperCutsOverride =
-    Number.isFinite(input.paperCutsPerSheetOverride as number) && (input.paperCutsPerSheetOverride as number) >= 0
-      ? Math.floor(input.paperCutsPerSheetOverride as number)
-      : null;
+  const paperCutsOverride = resolveCutsOverride([input.cutsPerSheetOverride, input.paperCutsPerSheetOverride]);
   const cutsPerSheet = paperCutsOverride ?? autoPaperCutsPerSheet;
   const paperCutCost = cutsPerSheet * purchaseSheets * rule.cutCostPerSheet;
 
@@ -481,8 +545,8 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const formsPrepCost = forms * rule.formPrepCost;
 
   // Print
-  // Каждый прогон краски = отдельный оттиск. Стороны учитываются через
-  // colorFront + colorBack (для «свой оборот» обычно colorBack > 0).
+  // РљР°Р¶РґС‹Р№ РїСЂРѕРіРѕРЅ РєСЂР°СЃРєРё = РѕС‚РґРµР»СЊРЅС‹Р№ РѕС‚С‚РёСЃРє. РЎС‚РѕСЂРѕРЅС‹ СѓС‡РёС‚С‹РІР°СЋС‚СЃСЏ С‡РµСЂРµР·
+  // colorFront + colorBack (РґР»СЏ В«СЃРІРѕР№ РѕР±РѕСЂРѕС‚В» РѕР±С‹С‡РЅРѕ colorBack > 0).
   const colorsTotal = Math.max(1, (input.colorFront || 0) + (input.colorBack || 0));
   const impressions = printSheets * colorsTotal;
   const setupImpressions = setupSheets * colorsTotal;
@@ -493,54 +557,43 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   // Postpress
   const postpress: SpecItem[] = [];
-  // Расходные материалы (фольга и т.п.) — выносим в отдельную «корзину»
-  // и показываем в конце сводки вместе с бумагой/краской.
+  // Р Р°СЃС…РѕРґРЅС‹Рµ РјР°С‚РµСЂРёР°Р»С‹ (С„РѕР»СЊРіР° Рё С‚.Рї.) вЂ” РІС‹РЅРѕСЃРёРј РІ РѕС‚РґРµР»СЊРЅСѓСЋ В«РєРѕСЂР·РёРЅСѓВ»
+  // Рё РїРѕРєР°Р·С‹РІР°РµРј РІ РєРѕРЅС†Рµ СЃРІРѕРґРєРё РІРјРµСЃС‚Рµ СЃ Р±СѓРјР°РіРѕР№/РєСЂР°СЃРєРѕР№.
   const consumables: SpecItem[] = [];
 
-  // Резка печатного листа на конечный формат изделия.
-  // Приоритет (по ТЗ):
-  //   1) ручное переопределение (input.cutsPerSheetOverride);
-  //   2) справочник cut_count_rules по связке «печатный → конечный»;
-  //   3) авто-расчёт по фактической раскладке: 1 → 4 реза, иначе 2×(cols+rows).
-  const printName = detectPrintFormatName(layout.printFormat.width, layout.printFormat.height);
-  const itemName = input.formatType && input.formatType !== "custom" ? input.formatType : null;
-  const cutPrice = CUT_RULES.pricePerCut ?? rule.finishCutCost ?? 1;
-  const tableCuts = lookupCutCount(printName, itemName);
-  const override = Number.isFinite(input.cutsPerSheetOverride as number) && (input.cutsPerSheetOverride as number) >= 0
-    ? Math.floor(input.cutsPerSheetOverride as number)
-    : null;
-  let finishCutsPerSheet: number;
-  let cutSource: "manual" | "table" | "auto";
-  let cutLabel: string;
-  if (override != null) {
-    finishCutsPerSheet = override;
-    cutSource = "manual";
-    cutLabel = `Резка (ручная корректировка, ${finishCutsPerSheet} рез/лист)`;
-  } else if (tableCuts != null) {
-    finishCutsPerSheet = tableCuts;
-    cutSource = "table";
-    cutLabel = `Резка ${printName} → ${itemName} (справочник, ${finishCutsPerSheet} рез/лист)`;
-  } else {
-    finishCutsPerSheet = autoCutsFromLayout(layout);
-    cutSource = "auto";
-    cutLabel = layout.itemsPerSheet <= 1
-      ? `Резка (авто: 1 изделие → 4 реза)`
-      : `Резка (авто: 2×(${layout.cols}+${layout.rows}) = ${finishCutsPerSheet} рез/лист)`;
-  }
+  // Р РµР·РєР° РїРµС‡Р°С‚РЅРѕРіРѕ Р»РёСЃС‚Р° РЅР° РєРѕРЅРµС‡РЅС‹Р№ С„РѕСЂРјР°С‚ РёР·РґРµР»РёСЏ.
+  // РџСЂРёРѕСЂРёС‚РµС‚ (РїРѕ РўР—):
+  //   1) СЂСѓС‡РЅРѕРµ РїРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёРµ (input.cutsPerSheetOverride);
+  //   2) СЃРїСЂР°РІРѕС‡РЅРёРє cut_count_rules РїРѕ СЃРІСЏР·РєРµ В«РїРµС‡Р°С‚РЅС‹Р№ в†’ РєРѕРЅРµС‡РЅС‹Р№В»;
+  //   3) Р°РІС‚Рѕ-СЂР°СЃС‡С‘С‚ РїРѕ С„Р°РєС‚РёС‡РµСЃРєРѕР№ СЂР°СЃРєР»Р°РґРєРµ: 1 в†’ 4 СЂРµР·Р°, РёРЅР°С‡Рµ 2Г—(cols+rows).
+  const finishCut = resolveFinishCut({
+    layout,
+    printW: layout.printFormat.width,
+    printH: layout.printFormat.height,
+    productType: input.productType,
+    formatType: input.formatType,
+    rule,
+    paperCutsOverride: input.cutsPerSheetOverride,
+    paperCutsPerSheetOverride: input.paperCutsPerSheetOverride,
+  });
+  const finishCutsPerSheet = finishCut.cutsPerSheet;
+  const cutSource = finishCut.source;
+  const cutPrice = finishCut.pricePerCut;
+  const cutLabel = finishCut.sourceLabel;
   const cutQty = Math.ceil(printSheets * finishCutsPerSheet);
   postpress.push({
     stage: "postpress",
-    name: `${cutLabel} — ${finishCutsPerSheet} рез/лист × ${printSheets} лист.`,
+    name: `${cutLabel} вЂ” ${finishCutsPerSheet} СЂРµР·/Р»РёСЃС‚ Г— ${printSheets} Р»РёСЃС‚.`,
     quantity: cutQty,
-    unit: "рез",
+    unit: "СЂРµР·",
     unitPrice: cutPrice,
     total: cutQty * cutPrice,
   });
   const bleed = R().bleed;
   const cutInfo = {
     source: cutSource,
-    printName,
-    itemName,
+    printName: finishCut.printName,
+    itemName: finishCut.itemName,
     cols: layout.cols,
     rows: layout.rows,
     itemsPerSheet: layout.itemsPerSheet,
@@ -560,9 +613,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     usableH: Math.max(0, layout.printFormat.height - layout.margins.top - layout.margins.bottom),
   };
 
-  // Доработка 5 и 7: устаревшие жёсткие блоки фальцовки и высечки удалены —
-  // теперь они собираются в Calculator.tsx (единый блок «сгибы» по плотности
-  // и единый блок «высечка» по типу материала со штампом).
+  // Р”РѕСЂР°Р±РѕС‚РєР° 5 Рё 7: СѓСЃС‚Р°СЂРµРІС€РёРµ Р¶С‘СЃС‚РєРёРµ Р±Р»РѕРєРё С„Р°Р»СЊС†РѕРІРєРё Рё РІС‹СЃРµС‡РєРё СѓРґР°Р»РµРЅС‹ вЂ”
+  // С‚РµРїРµСЂСЊ РѕРЅРё СЃРѕР±РёСЂР°СЋС‚СЃСЏ РІ Calculator.tsx (РµРґРёРЅС‹Р№ Р±Р»РѕРє В«СЃРіРёР±С‹В» РїРѕ РїР»РѕС‚РЅРѕСЃС‚Рё
+  // Рё РµРґРёРЅС‹Р№ Р±Р»РѕРє В«РІС‹СЃРµС‡РєР°В» РїРѕ С‚РёРїСѓ РјР°С‚РµСЂРёР°Р»Р° СЃРѕ С€С‚Р°РјРїРѕРј).
 
   if (input.hasLamPrepress || input.hasLamination) {
     const sides = input.lamPrepressSides ?? input.laminationSides ?? 1;
@@ -581,26 +634,26 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     }
     postpress.push({
       stage: "postpress",
-      name: "Припресс плёнкой (приладка)",
+      name: "РџСЂРёРїСЂРµСЃСЃ РїР»С‘РЅРєРѕР№ (РїСЂРёР»Р°РґРєР°)",
       quantity: 1,
-      unit: "шт",
+      unit: "С€С‚",
       unitPrice: setup,
       total: setup,
     });
     postpress.push({
       stage: "postpress",
-      name: `Припресс плёнкой (${printW}×${printH},${filmLabel} ${sides} ст.)`,
+      name: `РџСЂРёРїСЂРµСЃСЃ РїР»С‘РЅРєРѕР№ (${printW}Г—${printH},${filmLabel} ${sides} СЃС‚.)`,
       quantity: Math.round(areaM2 * sheets * sides * 1000) / 1000,
-      unit: "м²",
+      unit: "РјВІ",
       unitPrice: pricePerM2,
       total: filmTotal,
     });
     if (minAdjust > 0) {
       postpress.push({
         stage: "postpress",
-        name: "Припресс плёнкой (доплата до минимума)",
+        name: "РџСЂРёРїСЂРµСЃСЃ РїР»С‘РЅРєРѕР№ (РґРѕРїР»Р°С‚Р° РґРѕ РјРёРЅРёРјСѓРјР°)",
         quantity: 1,
-        unit: "шт",
+        unit: "С€С‚",
         unitPrice: minAdjust,
         total: minAdjust,
       });
@@ -609,12 +662,12 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
 
   if (input.hasNumbering && input.numbersPerSheet) {
     const qty = input.numbersPerSheet * input.circulation;
-    postpress.push({ stage: "postpress", name: "Нумерация (приладка)", quantity: 1, unit: "шт", unitPrice: (rule as any).operationSetupCost ?? 1500, total: (rule as any).operationSetupCost ?? 1500 });
-    postpress.push({ stage: "postpress", name: "Нумерация", quantity: qty, unit: "номер", unitPrice: rule.numberingCost, total: qty * rule.numberingCost });
+    postpress.push({ stage: "postpress", name: "РќСѓРјРµСЂР°С†РёСЏ (РїСЂРёР»Р°РґРєР°)", quantity: 1, unit: "С€С‚", unitPrice: (rule as any).operationSetupCost ?? 1500, total: (rule as any).operationSetupCost ?? 1500 });
+    postpress.push({ stage: "postpress", name: "РќСѓРјРµСЂР°С†РёСЏ", quantity: qty, unit: "РЅРѕРјРµСЂ", unitPrice: rule.numberingCost, total: qty * rule.numberingCost });
   }
 
   if (input.hasStamping) {
-    // Список клише: либо массив, либо одиночные W/H для обратной совместимости.
+    // РЎРїРёСЃРѕРє РєР»РёС€Рµ: Р»РёР±Рѕ РјР°СЃСЃРёРІ, Р»РёР±Рѕ РѕРґРёРЅРѕС‡РЅС‹Рµ W/H РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё.
     const cliches = (input.stampingCliches && input.stampingCliches.length
       ? input.stampingCliches
       : (input.stampingClicheW && input.stampingClicheH
@@ -623,7 +676,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     ).filter((c) => c.w > 0 && c.h > 0);
     if (cliches.length > 0) {
       const impr = input.stampingNotebook ? rule.stampingImprNotebook : rule.stampingImpr;
-      postpress.push({ stage: "postpress", name: "Тиснение (приладка)", quantity: 1, unit: "шт", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
+      postpress.push({ stage: "postpress", name: "РўРёСЃРЅРµРЅРёРµ (РїСЂРёР»Р°РґРєР°)", quantity: 1, unit: "С€С‚", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
       const pointsList = cliches.map((c) => Math.max(1, Math.floor((c as any).points ?? 1)));
       const totalPoints = pointsList.reduce((s, n) => s + n, 0);
       cliches.forEach((c, i) => {
@@ -631,29 +684,29 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
         const cliche = Math.max(rule.stampingClicheMin, area * rule.stampingClichePerCm2);
         const p = pointsList[i];
         const label = cliches.length > 1 || p > 1
-          ? ` #${i + 1} (${c.w}×${c.h} см${p > 1 ? `, ${p} точек` : ""})`
+          ? ` #${i + 1} (${c.w}Г—${c.h} СЃРј${p > 1 ? `, ${p} С‚РѕС‡РµРє` : ""})`
           : "";
-        postpress.push({ stage: "postpress", name: `Тиснение (клише)${label}`, quantity: area, unit: "см²", unitPrice: rule.stampingClichePerCm2, total: cliche });
+        postpress.push({ stage: "postpress", name: `РўРёСЃРЅРµРЅРёРµ (РєР»РёС€Рµ)${label}`, quantity: area, unit: "СЃРјВІ", unitPrice: rule.stampingClichePerCm2, total: cliche });
       });
       const totalImpr = input.circulation * totalPoints;
       postpress.push({
         stage: "postpress",
-        name: totalPoints > 1 ? `Тиснение (оттиски, ${totalPoints} точек)` : "Тиснение (оттиски)",
+        name: totalPoints > 1 ? `РўРёСЃРЅРµРЅРёРµ (РѕС‚С‚РёСЃРєРё, ${totalPoints} С‚РѕС‡РµРє)` : "РўРёСЃРЅРµРЅРёРµ (РѕС‚С‚РёСЃРєРё)",
         quantity: totalImpr,
-        unit: "оттиск",
+        unit: "РѕС‚С‚РёСЃРє",
         unitPrice: impr,
         total: totalImpr * impr,
       });
-      // Фольга: расход = сумма площадей клише с учётом точек × тираж.
+      // Р¤РѕР»СЊРіР°: СЂР°СЃС…РѕРґ = СЃСѓРјРјР° РїР»РѕС‰Р°РґРµР№ РєР»РёС€Рµ СЃ СѓС‡С‘С‚РѕРј С‚РѕС‡РµРє Г— С‚РёСЂР°Р¶.
       const totalFoilAreaPerImpr = cliches.reduce((s, c, i) => s + c.w * c.h * pointsList[i], 0);
       const foilArea = totalFoilAreaPerImpr * input.circulation;
       const foilPrice = MATERIAL_PRICES.foilPerCm2;
       if (foilArea > 0 && foilPrice > 0) {
         consumables.push({
           stage: "material",
-          name: "Фольга для тиснения",
+          name: "Р¤РѕР»СЊРіР° РґР»СЏ С‚РёСЃРЅРµРЅРёСЏ",
           quantity: Math.ceil(foilArea),
-          unit: "см²",
+          unit: "СЃРјВІ",
           unitPrice: foilPrice,
           total: Math.ceil(foilArea) * foilPrice,
         });
@@ -666,7 +719,7 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
       .filter((c) => c.w > 0 && c.h > 0);
     if (cliches.length > 0) {
       const impr = input.embossingNotebook ? rule.stampingImprNotebook : rule.stampingImpr;
-      postpress.push({ stage: "postpress", name: "Конгрев (приладка)", quantity: 1, unit: "шт", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
+      postpress.push({ stage: "postpress", name: "РљРѕРЅРіСЂРµРІ (РїСЂРёР»Р°РґРєР°)", quantity: 1, unit: "С€С‚", unitPrice: rule.stampingSetup, total: rule.stampingSetup });
       const pointsList = cliches.map((c) => Math.max(1, Math.floor((c as any).points ?? 1)));
       const totalPoints = pointsList.reduce((s, n) => s + n, 0);
       cliches.forEach((c, i) => {
@@ -674,79 +727,79 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
         const cliche = Math.max(rule.stampingClicheMin, area * rule.stampingClichePerCm2);
         const p = pointsList[i];
         const label = cliches.length > 1 || p > 1
-          ? ` #${i + 1} (${c.w}×${c.h} см${p > 1 ? `, ${p} точек` : ""})`
+          ? ` #${i + 1} (${c.w}Г—${c.h} СЃРј${p > 1 ? `, ${p} С‚РѕС‡РµРє` : ""})`
           : "";
-        postpress.push({ stage: "postpress", name: `Конгрев (клише)${label}`, quantity: area, unit: "см²", unitPrice: rule.stampingClichePerCm2, total: cliche });
+        postpress.push({ stage: "postpress", name: `РљРѕРЅРіСЂРµРІ (РєР»РёС€Рµ)${label}`, quantity: area, unit: "СЃРјВІ", unitPrice: rule.stampingClichePerCm2, total: cliche });
       });
       const totalImpr = input.circulation * totalPoints;
       postpress.push({
         stage: "postpress",
-        name: totalPoints > 1 ? `Конгрев (оттиски, ${totalPoints} точек)` : "Конгрев (оттиски)",
+        name: totalPoints > 1 ? `РљРѕРЅРіСЂРµРІ (РѕС‚С‚РёСЃРєРё, ${totalPoints} С‚РѕС‡РµРє)` : "РљРѕРЅРіСЂРµРІ (РѕС‚С‚РёСЃРєРё)",
         quantity: totalImpr,
-        unit: "оттиск",
+        unit: "РѕС‚С‚РёСЃРє",
         unitPrice: impr,
         total: totalImpr * impr,
       });
     }
   }
 
-  // Logistics: упаковка ×2 для вырубки
+  // Logistics: СѓРїР°РєРѕРІРєР° Г—2 РґР»СЏ РІС‹СЂСѓР±РєРё
   const logistics: SpecItem[] = [];
   const packUnit = input.packagingPerUnit ?? 5;
   const packMult = isDieCut && !isBag ? 2 : 1;
-  logistics.push({ stage: "logistics", name: packMult === 2 ? "Упаковка (двойная)" : "Упаковка", quantity: input.circulation * packMult, unit: "шт", unitPrice: packUnit, total: input.circulation * packMult * packUnit });
+  logistics.push({ stage: "logistics", name: packMult === 2 ? "РЈРїР°РєРѕРІРєР° (РґРІРѕР№РЅР°СЏ)" : "РЈРїР°РєРѕРІРєР°", quantity: input.circulation * packMult, unit: "С€С‚", unitPrice: packUnit, total: input.circulation * packMult * packUnit });
   if (isBag) {
-    logistics.push({ stage: "logistics", name: "Упаковка журналов + резка", quantity: input.circulation, unit: "шт", unitPrice: 8, total: input.circulation * 8 });
+    logistics.push({ stage: "logistics", name: "РЈРїР°РєРѕРІРєР° Р¶СѓСЂРЅР°Р»РѕРІ + СЂРµР·РєР°", quantity: input.circulation, unit: "С€С‚", unitPrice: 8, total: input.circulation * 8 });
   }
 
   // Prepress
   const prepress: SpecItem[] = [];
   if (input.photoOutputUnitCost > 0) {
-    prepress.push({ stage: "prepress", name: "Фотовывод", quantity: forms, unit: "шт", unitPrice: input.photoOutputUnitCost, total: forms * input.photoOutputUnitCost });
+    prepress.push({ stage: "prepress", name: "Р¤РѕС‚РѕРІС‹РІРѕРґ", quantity: forms, unit: "С€С‚", unitPrice: input.photoOutputUnitCost, total: forms * input.photoOutputUnitCost });
   }
-  // Вывод печатных форм (пластины). Если цена в правилах = 0, строку не добавляем —
-  // её заменит позиция «Вывод форм CTP» из справочника операций (auto-включается в UI).
+  // Р’С‹РІРѕРґ РїРµС‡Р°С‚РЅС‹С… С„РѕСЂРј (РїР»Р°СЃС‚РёРЅС‹). Р•СЃР»Рё С†РµРЅР° РІ РїСЂР°РІРёР»Р°С… = 0, СЃС‚СЂРѕРєСѓ РЅРµ РґРѕР±Р°РІР»СЏРµРј вЂ”
+  // РµС‘ Р·Р°РјРµРЅРёС‚ РїРѕР·РёС†РёСЏ В«Р’С‹РІРѕРґ С„РѕСЂРј CTPВ» РёР· СЃРїСЂР°РІРѕС‡РЅРёРєР° РѕРїРµСЂР°С†РёР№ (auto-РІРєР»СЋС‡Р°РµС‚СЃСЏ РІ UI).
   if (rule.formCost > 0) {
-    prepress.push({ stage: "prepress", name: "Вывод печатных форм", quantity: forms, unit: "шт", unitPrice: rule.formCost, total: formsCost });
+    prepress.push({ stage: "prepress", name: "Р’С‹РІРѕРґ РїРµС‡Р°С‚РЅС‹С… С„РѕСЂРј", quantity: forms, unit: "С€С‚", unitPrice: rule.formCost, total: formsCost });
   }
-  prepress.push({ stage: "prepress", name: "Подготовка к печати", quantity: forms, unit: "форма", unitPrice: rule.formPrepCost, total: formsPrepCost });
-  // Резка закупочного → печатный лист. Показываем всегда, когда есть резы (>0),
-  // включая случай rule.cutCostPerSheet=0 — чтобы менеджер видел количество.
+  prepress.push({ stage: "prepress", name: "РџРѕРґРіРѕС‚РѕРІРєР° Рє РїРµС‡Р°С‚Рё", quantity: forms, unit: "С„РѕСЂРјР°", unitPrice: rule.formPrepCost, total: formsPrepCost });
+  // Р РµР·РєР° Р·Р°РєСѓРїРѕС‡РЅРѕРіРѕ в†’ РїРµС‡Р°С‚РЅС‹Р№ Р»РёСЃС‚. РџРѕРєР°Р·С‹РІР°РµРј РІСЃРµРіРґР°, РєРѕРіРґР° РµСЃС‚СЊ СЂРµР·С‹ (>0),
+  // РІРєР»СЋС‡Р°СЏ СЃР»СѓС‡Р°Р№ rule.cutCostPerSheet=0 вЂ” С‡С‚РѕР±С‹ РјРµРЅРµРґР¶РµСЂ РІРёРґРµР» РєРѕР»РёС‡РµСЃС‚РІРѕ.
   if (cutsPerSheet * purchaseSheets > 0) {
-    const srcLabel = paperCutsOverride != null ? "ручная корректировка" : `авто: ${purchaseCols}+${purchaseRows}−2`;
+    const srcLabel = paperCutsOverride != null ? "СЂСѓС‡РЅР°СЏ РєРѕСЂСЂРµРєС‚РёСЂРѕРІРєР°" : `Р°РІС‚Рѕ: ${purchaseCols}+${purchaseRows}в€’2`;
     prepress.push({
       stage: "prepress",
-      name: `Резка закупочного ${purchaseW}×${purchaseH} → печатный ${layout.printFormat.width}×${layout.printFormat.height} (${purchaseCols}×${purchaseRows}, ${srcLabel})`,
+      name: `Р РµР·РєР° Р·Р°РєСѓРїРѕС‡РЅРѕРіРѕ ${purchaseW}Г—${purchaseH} в†’ РїРµС‡Р°С‚РЅС‹Р№ ${layout.printFormat.width}Г—${layout.printFormat.height} (${purchaseCols}Г—${purchaseRows}, ${srcLabel})`,
       quantity: cutsPerSheet * purchaseSheets,
-      unit: "рез",
+      unit: "СЂРµР·",
       unitPrice: rule.cutCostPerSheet,
       total: paperCutCost,
     });
   }
 
   const materials: SpecItem[] = [
-    { stage: "material", name: input.material.name, quantity: purchaseSheets, unit: "лист", unitPrice: input.material.cost_per_sheet, total: paperCost },
+    { stage: "material", name: input.material.name, quantity: purchaseSheets, unit: "Р»РёСЃС‚", unitPrice: input.material.cost_per_sheet, total: paperCost },
   ];
 
-  // Печать: разделяем приладку и тираж, чтобы менеджер видел стоимость
-  // приладочных оттисков отдельно от рабочего тиража.
-  const turnLabel = turnaround === "foreign" ? "чужой" : turnaround === "own" ? "свой" : "без оборота";
+  // РџРµС‡Р°С‚СЊ: СЂР°Р·РґРµР»СЏРµРј РїСЂРёР»Р°РґРєСѓ Рё С‚РёСЂР°Р¶, С‡С‚РѕР±С‹ РјРµРЅРµРґР¶РµСЂ РІРёРґРµР» СЃС‚РѕРёРјРѕСЃС‚СЊ
+  // РїСЂРёР»Р°РґРѕС‡РЅС‹С… РѕС‚С‚РёСЃРєРѕРІ РѕС‚РґРµР»СЊРЅРѕ РѕС‚ СЂР°Р±РѕС‡РµРіРѕ С‚РёСЂР°Р¶Р°.
+  const turnLabel = turnaround === "foreign" ? "С‡СѓР¶РѕР№" : turnaround === "own" ? "СЃРІРѕР№" : "Р±РµР· РѕР±РѕСЂРѕС‚Р°";
   const printItems: SpecItem[] = [];
   if (setupImpressions > 0) {
     printItems.push({
       stage: "print",
-      name: `Печать офсетная — приладка (${turnLabel})`,
+      name: `РџРµС‡Р°С‚СЊ РѕС„СЃРµС‚РЅР°СЏ вЂ” РїСЂРёР»Р°РґРєР° (${turnLabel})`,
       quantity: setupImpressions,
-      unit: "оттиск",
+      unit: "РѕС‚С‚РёСЃРє",
       unitPrice: printPerImpr,
       total: setupImpressions * printPerImpr,
     });
   }
   printItems.push({
     stage: "print",
-    name: `Печать офсетная — тираж (${turnLabel})`,
+    name: `РџРµС‡Р°С‚СЊ РѕС„СЃРµС‚РЅР°СЏ вЂ” С‚РёСЂР°Р¶ (${turnLabel})`,
     quantity: runImpressions,
-    unit: "оттиск",
+    unit: "РѕС‚С‚РёСЃРє",
     unitPrice: printPerImpr,
     total: runImpressions * printPerImpr,
   });
@@ -758,8 +811,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
   const vatAmount = totalCost * (vatPercent / 100);
   const totalWithVat = totalCost + vatAmount;
 
-  // Стоимости по альтернативам — упрощённая модель: бумага + печать + отходы.
-  // Используется только для сравнения вариантов в превью.
+  // РЎС‚РѕРёРјРѕСЃС‚Рё РїРѕ Р°Р»СЊС‚РµСЂРЅР°С‚РёРІР°Рј вЂ” СѓРїСЂРѕС‰С‘РЅРЅР°СЏ РјРѕРґРµР»СЊ: Р±СѓРјР°РіР° + РїРµС‡Р°С‚СЊ + РѕС‚С…РѕРґС‹.
+  // РЎС‚РѕРёРјРѕСЃС‚СЊ РїРѕ Р°Р»СЊС‚РµСЂРЅР°С‚РёРІР°Рј — СѓРїСЂРѕС‰С‘РЅРЅР°СЏ РјРѕРґРµР»СЃРµ: Р±СѓРјР°РіР° + РїРµС‡Р°С‚СЊ + РѕС‚С…РѕРґРѕРІ.
+  // РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ С‚РѕР»СЊРєРѕ РґР»СЃСЋ СЃСЂР°РІРЅРµРЅРёСЃСЊ РІР°СЂРёР°РЅС‚РѕРІ РІ РїСЂРµРІСЃРµ.
   alternatives = rankedPairs.slice(1, 4).map((r) => {
     const altNet = Math.ceil(input.circulation / r.layout.itemsPerSheet);
     const altPrintSheets = altNet + setupSheets;
@@ -767,10 +821,28 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
     const altPaper = altPurchaseSheets * input.material.cost_per_sheet;
     const altImpressions = altPrintSheets * (turnaround === "own" ? 2 : 1);
     const altPrint = altImpressions * printPerImpr;
-    // Стоимость отходов = доля бумаги, ушедшая в обрезки на печатном листе
+    const altCutsForPurchase = cutsForPurchaseLayout(r.layout.cols, r.layout.rows);
+    const altPaperCut = altCutsForPurchase * altPurchaseSheets * rule.cutCostPerSheet;
+    const altFinishCut = resolveFinishCut({
+      layout: r.layout,
+      printW: r.layout.printFormat.width,
+      printH: r.layout.printFormat.height,
+      productType: input.productType,
+      formatType: input.formatType,
+      rule,
+      paperCutsOverride: input.cutsPerSheetOverride,
+      paperCutsPerSheetOverride: input.paperCutsPerSheetOverride,
+    });
+    const altFinishCutQty = Math.ceil(altPrintSheets * altFinishCut.cutsPerSheet);
+    const altFinishCutCost = altFinishCutQty * altFinishCut.pricePerCut;
+    const altLogisticsQty = input.circulation * (isDieCut && !isBag ? 2 : 1);
+    const altBagLogistics = isBag ? input.circulation * 8 : 0;
+    const altLogistics = altLogisticsQty * packUnit + altBagLogistics;
+    // РЎС‚РѕРёРјРѕСЃС‚СЊ РѕС‚С…РѕРґРѕРІ = РґРѕР»СЏ Р±СѓРјР°РіРё, СѓС€РµРґС€Р°СЏ РІ РѕР±СЂРµР·РєРё РЅР° РїРµС‡Р°С‚РѕРј Р»РёСЃС‚Рµ
     const printArea = r.layout.printFormat.width * r.layout.printFormat.height;
     const wasteShare = printArea > 0 ? r.layout.wasteArea / printArea : 0;
     const altWaste = altPaper * wasteShare;
+    const altTotal = altPaper + altPrint + altPaperCut + altFinishCutCost + altLogistics + formsCost + formsPrepCost;
     return {
       printW: r.layout.printFormat.width,
       printH: r.layout.printFormat.height,
@@ -782,11 +854,9 @@ export function runCalculation(input: CalcInput, rulesOverride?: CalcRules): Cal
       paperCost: Math.round(altPaper),
       printCost: Math.round(altPrint),
       wasteCost: Math.round(altWaste),
-      totalCost: Math.round(altPaper + altPrint),
+      totalCost: Math.round(altTotal),
     };
   });
-
-  return {
     layout,
     turnaround,
     forms,
@@ -827,3 +897,4 @@ export const FORMAT_PRESETS: Record<string, { w: number; h: number }> = {
   A5: { w: 148, h: 210 },
   A6: { w: 105, h: 148 },
 };
+
