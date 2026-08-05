@@ -95,7 +95,7 @@ export interface FinishCutResult {
 }
 
 function resolveCutsOverride(values: Array<number | undefined | null>): number | null {
-  const fallback = values.find((v) => Number.isFinite(v as number) && (v as number) >= 0);
+  const fallback = values.find((v) => Number.isFinite(v as number) && (v as number) > 0);
   return fallback != null ? Math.floor(fallback as number) : null;
 }
 
