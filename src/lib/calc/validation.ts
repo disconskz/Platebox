@@ -83,6 +83,8 @@ export const multiSkuInputSchema = z
     material: materialSchema,
     vatPercent: nonNegNum.max(100).optional(),
     printCostPerImpression: nonNegNum.max(1e5).optional(),
+    cutsPerSheetOverride: nonNegNum.max(1000).optional(),
+    paperCutsPerSheetOverride: nonNegNum.max(1000).optional(),
     maxExtraImpositions: nonNegNum.int().max(20).optional(),
   })
   .passthrough();

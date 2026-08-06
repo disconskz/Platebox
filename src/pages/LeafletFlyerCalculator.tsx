@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, type ComponentProps, type ReactNode, useState } from "react";
 import { SpecTable } from "@/components/calc/SpecTable";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText } from "lucide-react";
 import { PageShell, PageHeader, PageHeaderRow, PageMain, PageContainer } from "@/components/PageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,10 +16,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import TemplateActions from "@/components/calc/TemplateActions";
+import { supabase } from "@/integrations/supabase/client";
+import { useCalcMode } from "@/lib/calc/multipage/context";
+import { DEFAULT_LEAFLET_BLEED_MM, LEAFLET_PRINT_METHOD_OFFSET, LEAFLET_TYPE_TWO_SIDED, normalizeLeafletParams } from "@/lib/calc/leaflet-params";
 
 import LegacyCostByStageBlock from "@/components/calc/multipage/LegacyCostByStageBlock";
 import { useHandbook } from "@/lib/operations/HandbookProvider";
 import { buildTryHandbook } from "@/lib/operations/applyHandbook";
+import { calcCongrev, type CongrevRule } from "@/lib/calc/congrev";
+import { calcEmbossing, type EmbossingRule } from "@/lib/calc/embossing";
 /**
  * Доработка 79 — выделенный шаблон «Листовка / Флаер».
  * Расширенная архитектура: типы листовки, авто-маршрут (офсет/цифра),
@@ -26,27 +32,26 @@ import { buildTryHandbook } from "@/lib/operations/applyHandbook";
  * скругление углов, склейка в блок, упаковка.
  */
 
-type LeafletKind =
-  | "simple" | "twoSided" | "flyer" | "laminated" | "perforated"
-  | "numbered" | "qr" | "diecut" | "rounded" | "block" | "premium";
-const KINDS: { value: LeafletKind; label: string }[] = [
-  { value: "simple", label: "Простая листовка" },
-  { value: "twoSided", label: "Двусторонняя листовка" },
-  { value: "flyer", label: "Флаер" },
-  { value: "laminated", label: "Листовка с ламинацией" },
-  { value: "perforated", label: "Листовка с перфорацией" },
-  { value: "numbered", label: "Листовка с нумерацией" },
-  { value: "qr", label: "Листовка с QR" },
-  { value: "diecut", label: "Листовка с высечкой" },
-  { value: "rounded", label: "Со скруглением углов" },
-  { value: "block", label: "Листовка в блоке (склейка)" },
-  { value: "premium", label: "Premium листовка" },
-];
-
 type Material = {
-  value: string; label: string; type: string; density: number;
+  value: string; id?: string; label: string; type: string; density: number;
   pricePerSheet: number; sheetW: number; sheetH: number;
 };
+const MATERIAL_TYPE_LABELS: Record<string, string> = {
+  coated: "Мелованная бумага",
+  offset: "Офсетная бумага",
+  self_adhesive: "Самоклейка",
+  cardboard: "Картон",
+  other: "Другое",
+};
+
+const normalizeMaterialType = (type: string) => {
+  if (type.startsWith("coated")) return "coated";
+  if (type === "offset") return "offset";
+  if (type === "self_adhesive") return "self_adhesive";
+  if (type === "cardboard") return "cardboard";
+  return "other";
+};
+
 const MATERIALS: Material[] = [
   { value: "coated-gloss-115", label: "Мелованная глянец 115 г", type: "coated-gloss", density: 115, pricePerSheet: 95, sheetW: 720, sheetH: 1020 },
   { value: "coated-gloss-130", label: "Мелованная глянец 130 г", type: "coated-gloss", density: 130, pricePerSheet: 105, sheetW: 720, sheetH: 1020 },
@@ -80,7 +85,6 @@ const FORMATS: FormatPreset[] = [
   { value: "custom", label: "Произвольный", w: 0, h: 0 },
 ];
 
-type PrintMode = "auto" | "digital" | "offset" | "uv";
 type TurnKind = "auto" | "own" | "foreign" | "none";
 type LamFilm = "gloss" | "matte" | "soft" | "anti";
 const LAM_PRICES: Record<LamFilm, number> = { gloss: 22, matte: 26, soft: 48, anti: 38 };
@@ -88,44 +92,41 @@ const LAM_LABELS: Record<LamFilm, string> = {
   gloss: "Глянцевая", matte: "Матовая", soft: "Soft-touch", anti: "Anti-scratch",
 };
 
-type PackKind = "none" | "p50" | "p100" | "p250" | "p500" | "shrink" | "individual" | "box";
-const PACKS: { value: PackKind; label: string; price: number; perPack: number }[] = [
-  { value: "none", label: "Без упаковки", price: 0, perPack: 1 },
-  { value: "p50", label: "Пачка по 50", price: 14, perPack: 50 },
-  { value: "p100", label: "Пачка по 100", price: 22, perPack: 100 },
-  { value: "p250", label: "Пачка по 250", price: 38, perPack: 250 },
-  { value: "p500", label: "Пачка по 500", price: 58, perPack: 500 },
-  { value: "shrink", label: "Термоусадка", price: 35, perPack: 100 },
-  { value: "individual", label: "Индивидуальный пакет", price: 8, perPack: 1 },
-  { value: "box", label: "В коробку", price: 250, perPack: 1000 },
-];
+const PACKAGING_PRICE_PER_ITEM = 0.5;
 
 export default function LeafletFlyerCalculator() {
   const { priceOp } = useHandbook();
+  const mode = useCalcMode();
   // Основные
   const [name, setName] = useState("");
+  const [calculationDate, setCalculationDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customer, setCustomer] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [comment, setComment] = useState("");
+  const [leadSourceId, setLeadSourceId] = useState("");
+  const [leadSources, setLeadSources] = useState<{ id: string; name: string }[]>([]);
+  const [canEditBleed, setCanEditBleed] = useState(false);
   const [circulation, setCirculation] = useState(1000);
   const [designsCount, setDesignsCount] = useState(1);
-  const [kind, setKind] = useState<LeafletKind>("simple");
   const [formatKey, setFormatKey] = useState("A5");
   const [finishedW, setFinishedW] = useState(148);
   const [finishedH, setFinishedH] = useState(210);
-  const [bleed, setBleed] = useState(2);
-  const [twoSided, setTwoSided] = useState(false);
+  const [bleed, setBleed] = useState(DEFAULT_LEAFLET_BLEED_MM);
+  const twoSided = true;
   const [colorsFront, setColorsFront] = useState(4);
-  const [colorsBack, setColorsBack] = useState(0);
+  const [colorsBack, setColorsBack] = useState(4);
   const [pantoneCount, setPantoneCount] = useState(0);
-  const [hasWhiteInk, setHasWhiteInk] = useState(false);
+  const hasWhiteInk = false;
   const [turn, setTurn] = useState<TurnKind>("auto");
-  const [printMode, setPrintMode] = useState<PrintMode>("auto");
-  const [leadDays, setLeadDays] = useState(3);
   const [margin, setMargin] = useState(45);
   const [vatPercent] = useState(16);
-  const [hasDesign, setHasDesign] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
 
   // Бумага
+  const [materials, setMaterials] = useState<Material[]>(MATERIALS);
+  const [materialType, setMaterialType] = useState("coated");
   const [materialKey, setMaterialKey] = useState("coated-gloss-150");
 
   // Постпечать
@@ -151,10 +152,12 @@ export default function LeafletFlyerCalculator() {
   const [dieKnifeM, setDieKnifeM] = useState(0.8);
   const [hasFlashRemoval, setHasFlashRemoval] = useState(false);
 
-  const [hasFold, setHasFold] = useState(false);
-  const [foldCount, setFoldCount] = useState(1);
-  const [hasBiegovka, setHasBiegovka] = useState(false);
-  const [biegovkaCount, setBiegovkaCount] = useState(1);
+  const [hasCongrev, setHasCongrev] = useState(false);
+  const [congrevAreaCm2, setCongrevAreaCm2] = useState(25);
+  const [congrevRule, setCongrevRule] = useState<CongrevRule | null>(null);
+  const [hasFoilEmbossing, setHasFoilEmbossing] = useState(false);
+  const [foilAreaCm2, setFoilAreaCm2] = useState(25);
+  const [embossingRule, setEmbossingRule] = useState<EmbossingRule | null>(null);
 
   const [hasRoundCorners, setHasRoundCorners] = useState(false);
   const [cornersCount, setCornersCount] = useState(4);
@@ -162,34 +165,34 @@ export default function LeafletFlyerCalculator() {
   const [hasBlockGlue, setHasBlockGlue] = useState(false);
   const [blockSize, setBlockSize] = useState(50);
 
-  // Упаковка
-  const [packKind, setPackKind] = useState<PackKind>("p100");
-
-  // ===== Автологика по типу
   useEffect(() => {
-    if (kind === "twoSided") setTwoSided(true);
-    if (kind === "laminated") setHasLamination(true);
-    if (kind === "perforated") setHasPerforation(true);
-    if (kind === "numbered") setHasNumbering(true);
-    if (kind === "qr") setHasQr(true);
-    if (kind === "diecut") { setHasDieCut(true); setHasFlashRemoval(true); }
-    if (kind === "rounded") setHasRoundCorners(true);
-    if (kind === "block") setHasBlockGlue(true);
-    if (kind === "premium") {
-      setHasLamination(true); setLamFilm("soft");
-      setHasUvSpot(true);
-      setHasRoundCorners(true);
-      if (!materialKey.startsWith("designer")) setMaterialKey("designer-250");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind]);
-
-  // Биговка обязательна при плотности > 170 и наличии фальцовки
-  useEffect(() => {
-    const m = MATERIALS.find((x) => x.value === materialKey);
-    if (hasFold && m && m.density > 170 && !hasBiegovka) setHasBiegovka(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasFold, materialKey]);
+    // Generated Supabase types are refreshed separately after the migration lands.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from("lead_sources" as any).select("id,name").eq("is_active", true).order("sort_order")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data }) => setLeadSources((data as any[]) || []));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.rpc("has_calculation_permission" as any, { _permission: "calculation.bleed.edit" })
+      .then(({ data }) => setCanEditBleed(data === true));
+    supabase.from("materials").select("id,name,type,density,format_width,format_height,cost_per_sheet")
+      .order("name").order("density")
+      .then(({ data }) => {
+        if (!data?.length) return;
+        const options = data.map((row) => ({
+          value: row.id, id: row.id, label: row.name, type: row.type, density: row.density,
+          pricePerSheet: Number(row.cost_per_sheet), sheetW: row.format_width, sheetH: row.format_height,
+        }));
+        setMaterials(options);
+        const initialMaterial = options.find((item) => item.type === "coated" && item.density === 150) ?? options[0];
+        setMaterialType(normalizeMaterialType(initialMaterial.type));
+        setMaterialKey(initialMaterial.value);
+      });
+    supabase.from("congrev_prices").select("*").eq("is_active", true).order("sort_order").limit(1).maybeSingle()
+      .then(({ data }) => setCongrevRule(data));
+    supabase.from("embossing_prices").select("*").eq("is_active", true).eq("uses_foil", true)
+      .order("sort_order").limit(1).maybeSingle()
+      .then(({ data }) => setEmbossingRule(data));
+  }, []);
 
   // ===== Формат
   useEffect(() => {
@@ -197,15 +200,18 @@ export default function LeafletFlyerCalculator() {
     if (f && f.value !== "custom") { setFinishedW(f.w); setFinishedH(f.h); }
   }, [formatKey]);
 
-  const material = useMemo(() => MATERIALS.find((m) => m.value === materialKey)!, [materialKey]);
-  const pack = useMemo(() => PACKS.find((p) => p.value === packKind)!, [packKind]);
-
-  const effectivePrintMode: Exclude<PrintMode, "auto"> = useMemo(() => {
-    if (printMode !== "auto") return printMode;
-    if (material.type === "synthetic") return "uv";
-    if (circulation >= 1000) return "offset";
-    return "digital";
-  }, [printMode, material, circulation]);
+  const material = useMemo(() => materials.find((m) => m.value === materialKey) ?? materials[0] ?? MATERIALS[0], [materials, materialKey]);
+  const materialTypes = useMemo(() => Array.from(new Set(materials.map((item) => normalizeMaterialType(item.type)))), [materials]);
+  const materialsByType = useMemo(
+    () => materials.filter((item) => normalizeMaterialType(item.type) === materialType),
+    [materials, materialType],
+  );
+  const changeMaterialType = (type: string) => {
+    setMaterialType(type);
+    const firstMaterial = materials.find((item) => normalizeMaterialType(item.type) === type);
+    if (firstMaterial) setMaterialKey(firstMaterial.value);
+  };
+  const effectivePrintMode = LEAFLET_PRINT_METHOD_OFFSET as "offset" | "digital" | "uv";
 
   const effectiveTurn: Exclude<TurnKind, "auto"> = useMemo(() => {
     if (turn !== "auto") return turn;
@@ -244,7 +250,6 @@ export default function LeafletFlyerCalculator() {
       out.push({ stage, name: n, qty, unit, price, total: qty * price });
     const tryHB = buildTryHandbook(priceOp, (stage, name, qty, unit, price) => push(stage, name, qty, unit, price), { "ТИРАЖ": circulation });
 
-    if (hasDesign) push("Препресс", "Дизайн листовки", Math.max(1, designsCount), "макет", 2500);
     push("Препресс", "Проверка и подготовка макета", Math.max(1, designsCount), "макет", 600);
     push("Препресс", "Подбор печатного формата · раскладка", 1, "усл.", 500);
 
@@ -357,18 +362,13 @@ export default function LeafletFlyerCalculator() {
       }
     }
 
-    // Биговка / фальцовка
-    if (hasBiegovka) {
-      tryHB("creaseMachine", { "количество бигов общее за тираж": circulation * Math.max(1, biegovkaCount) }, () => {
-        push("Постпечать", "Приладка биговки", 1, "усл.", 1000);
-        push("Постпечать", "Биговка", circulation * Math.max(1, biegovkaCount), "биг", 1.0);
-      });
+    if (hasCongrev && congrevRule) {
+      const result = calcCongrev(congrevRule, { circulation: totalItems, clicheWidthCm: 0, clicheHeightCm: 0, clicheAreaOverride: congrevAreaCm2 });
+      push("Постпечать", congrevRule.name || "Конгрев", 1, "усл.", result.finalCost);
     }
-    if (hasFold) {
-      tryHB("fold", { "Тираж": circulation * Math.max(1, foldCount), "Стоимость за 1 изделие": 0.8 }, () => {
-        push("Постпечать", "Приладка фальцовки", 1, "усл.", 1000);
-        push("Постпечать", "Фальцовка", circulation * Math.max(1, foldCount), "фальц", 0.8);
-      });
+    if (hasFoilEmbossing && embossingRule) {
+      const result = calcEmbossing(embossingRule, { circulation: totalItems, clicheWidthCm: 0, clicheHeightCm: 0, clicheAreaOverride: foilAreaCm2 });
+      push("Постпечать", embossingRule.name || "Тиснение фольгой", 1, "усл.", result.finalCost);
     }
 
     // Склейка в блок
@@ -398,16 +398,11 @@ export default function LeafletFlyerCalculator() {
     push("Логистика", `Контроль качества${qcCoef > 1 ? " (×" + qcCoef.toFixed(2) + ")" : ""}`,
       circulation, "шт", +(0.3 * qcCoef).toFixed(2));
 
-    // Упаковка
-    if (packKind !== "none") {
-      const units = Math.max(1, Math.ceil(circulation / Math.max(1, pack.perPack)));
-      tryHB("packStickers", { "Количество видов": 1 },
-        () => push("Упаковка", `Упаковка: ${pack.label}`, units, "ед.", pack.price));
-    }
+    push("Упаковка", "Упаковка готовой продукции", circulation, "шт", PACKAGING_PRICE_PER_ITEM);
     if (hasDelivery) push("Логистика", "Доставка", 1, "усл.", deliveryCost);
     return out;
   }, [
-    hasDesign, designsCount, material, printSheets, netSheets, layout,
+    designsCount, material, printSheets, netSheets, layout,
     effectivePrintMode, effectiveTurn, colorsFront, colorsBack, twoSided,
     pantoneCount, hasWhiteInk,
     hasLamination, lamFilm, lamSides,
@@ -415,10 +410,10 @@ export default function LeafletFlyerCalculator() {
     hasNumbering, numbersPerItem, hasQr, hasBarcode, hasPersonalization, variableElements,
     hasPerforation, perfLines, perfLineLenMm,
     hasDieCut, dieKnifeM, hasFlashRemoval,
-    hasBiegovka, biegovkaCount, hasFold, foldCount,
+    hasCongrev, congrevAreaCm2, congrevRule, hasFoilEmbossing, foilAreaCm2, embossingRule,
     hasBlockGlue, blockSize, finishedH,
     hasRoundCorners, cornersCount,
-    packKind, pack, circulation, hasDelivery, deliveryCost,
+    circulation, hasDelivery, deliveryCost,
   priceOp,
   ]);
 
@@ -432,7 +427,6 @@ export default function LeafletFlyerCalculator() {
 
   const route = useMemo(() => {
     const s: string[] = [];
-    if (hasDesign) s.push("Дизайн");
     s.push("Проверка макета", "Подбор печатного формата", "Раскладка", "Расчёт бумаги", "Резка закупочного листа");
     if (effectivePrintMode === "offset") s.push("Вывод форм", "Приладка офсета", "Офсетная печать");
     else if (effectivePrintMode === "digital") s.push("Цифровая печать");
@@ -446,18 +440,18 @@ export default function LeafletFlyerCalculator() {
     if (hasPersonalization) s.push("Персонализация");
     if (hasPerforation) s.push("Перфорация");
     if (hasDieCut) { s.push("Высечка"); if (hasFlashRemoval) s.push("Удаление облоя"); }
-    if (hasBiegovka) s.push("Биговка");
-    if (hasFold) s.push("Фальцовка");
+    if (hasCongrev) s.push("Конгрев");
+    if (hasFoilEmbossing) s.push("Тиснение фольгой");
     if (hasBlockGlue) s.push("Склейка в блок");
     if (hasRoundCorners) s.push("Скругление углов");
     s.push("Резка готовой продукции", "Контроль качества");
-    if (packKind !== "none") s.push(`Упаковка: ${pack.label}`);
+    s.push("Упаковка готовой продукции");
     if (hasDelivery) s.push("Доставка");
     return s;
-  }, [hasDesign, effectivePrintMode, hasLamination, lamFilm, hasUvFull, hasUvSpot,
+  }, [effectivePrintMode, hasLamination, lamFilm, hasUvFull, hasUvSpot,
       hasNumbering, hasQr, hasBarcode, hasPersonalization, hasPerforation,
-      hasDieCut, hasFlashRemoval, hasBiegovka, hasFold, hasBlockGlue, hasRoundCorners,
-      packKind, pack, hasDelivery]);
+      hasDieCut, hasFlashRemoval, hasCongrev, hasFoilEmbossing, hasBlockGlue, hasRoundCorners,
+      hasDelivery]);
 
   return (
     <PageShell>
@@ -481,23 +475,32 @@ export default function LeafletFlyerCalculator() {
 
       <PageMain>
         <PageContainer>
+          <Card className="mb-4">
+            <CardHeader><CardTitle className="text-sm">Данные расчёта и заказчика</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <section><h2 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Данные расчёта</h2><div className="grid gap-3 sm:grid-cols-3">
+                <div><Label>№ расчёта</Label><Input value="Будет присвоен при сохранении" disabled /></div>
+                <div><Label>Дата расчёта</Label><Input type="date" value={calculationDate} onChange={(e) => setCalculationDate(e.target.value)} /></div>
+                <div><Label>Ответственный менеджер</Label><Input value="Текущий пользователь" disabled /></div>
+              </div></section>
+              <section><h2 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Заказчик</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div><Label>Заказчик / компания</Label><Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Поиск или новый заказчик" /></div>
+                <div><Label>Контактное лицо</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} /></div>
+                <div><Label>Телефон</Label><Input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} /></div>
+                <div><Label>Источник обращения</Label><Select value={leadSourceId} onValueChange={setLeadSourceId}><SelectTrigger><SelectValue placeholder="Выберите источник" /></SelectTrigger><SelectContent>{leadSources.map((source) => <SelectItem key={source.id} value={source.id}>{source.name}</SelectItem>)}</SelectContent></Select></div>
+              </div></section>
+              <section><h2 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Дополнительно</h2><div className="grid gap-3 sm:grid-cols-2">
+                <div><Label>Название расчёта</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Листовка для летней акции" /></div>
+                <div><Label>Комментарий</Label><Textarea value={comment} onChange={(e) => setComment(e.target.value)} /></div>
+              </div></section>
+            </CardContent>
+          </Card>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4">
               <Card>
                 <CardHeader><CardTitle className="text-sm">1. Основные параметры</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 sm:grid-cols-2">
-                  <div className="sm:col-span-2"><Label>Название расчёта</Label>
-                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Листовка А5 промо" /></div>
-                  <div><Label>Тираж</Label><Input type="number" min={1} value={circulation} onChange={(e) => setCirculation(+e.target.value || 0)} /></div>
-                  <div>
-                    <Label>Тип листовки</Label>
-                    <Select value={kind} onValueChange={(v) => setKind(v as LeafletKind)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <div><Label>Тираж</Label><NumberInput min={1} value={circulation} onValueChange={setCirculation} /></div>
                   <div>
                     <Label>Формат</Label>
                     <Select value={formatKey} onValueChange={setFormatKey}>
@@ -507,29 +510,17 @@ export default function LeafletFlyerCalculator() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Макетов</Label><Input type="number" min={1} value={designsCount} onChange={(e) => setDesignsCount(+e.target.value || 1)} /></div>
-                  <div><Label>Готовый Ш, мм</Label><Input type="number" value={finishedW} onChange={(e) => setFinishedW(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
-                  <div><Label>Готовый В, мм</Label><Input type="number" value={finishedH} onChange={(e) => setFinishedH(+e.target.value || 0)} disabled={formatKey !== "custom"} /></div>
-                  <div><Label>Вылеты, мм</Label><Input type="number" min={0} value={bleed} onChange={(e) => setBleed(+e.target.value || 0)} /></div>
-                  <div className="flex items-end gap-2">
-                    <Checkbox id="two" checked={twoSided} onCheckedChange={(v) => setTwoSided(!!v)} />
-                    <Label htmlFor="two" className="cursor-pointer">Двусторонняя печать</Label>
-                  </div>
-                  <div><Label>Цветность лицо</Label><Input type="number" min={0} max={8} value={colorsFront} onChange={(e) => setColorsFront(+e.target.value || 0)} /></div>
-                  {twoSided && (<div><Label>Цветность оборот</Label><Input type="number" min={0} max={8} value={colorsBack} onChange={(e) => setColorsBack(+e.target.value || 0)} /></div>)}
-                  <div><Label>Pantone красок</Label><Input type="number" min={0} value={pantoneCount} onChange={(e) => setPantoneCount(+e.target.value || 0)} /></div>
-                  <div>
-                    <Label>Тип печати</Label>
-                    <Select value={printMode} onValueChange={(v) => setPrintMode(v as PrintMode)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Авто</SelectItem>
-                        <SelectItem value="digital">Цифра</SelectItem>
-                        <SelectItem value="offset">Офсет</SelectItem>
-                        <SelectItem value="uv">UV</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <div><Label>Количество видов</Label><NumberInput min={1} step={1} value={designsCount} onValueChange={(value) => setDesignsCount(Math.max(1, Math.trunc(value)))} /></div>
+                  <div><Label>Готовый Ш, мм</Label><NumberInput value={finishedW} onValueChange={setFinishedW} disabled={formatKey !== "custom"} /></div>
+                  <div><Label>Готовый В, мм</Label><NumberInput value={finishedH} onValueChange={setFinishedH} disabled={formatKey !== "custom"} /></div>
+                  {mode !== "simple" && canEditBleed ? (
+                    <div><Label>Вылеты, мм</Label><NumberInput min={0} step={0.1} value={bleed} onValueChange={(value) => setBleed(Math.max(0, value))} /></div>
+                  ) : (
+                    <div className="flex items-end rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">Вылеты: {bleed} мм — автоматически</div>
+                  )}
+                  <div><Label>Цветность лицо</Label><NumberInput min={0} max={8} value={colorsFront} onValueChange={setColorsFront} /></div>
+                  {twoSided && (<div><Label>Цветность оборот</Label><NumberInput min={0} max={8} value={colorsBack} onValueChange={setColorsBack} /></div>)}
+                  <div><Label>Pantone красок</Label><NumberInput min={0} value={pantoneCount} onValueChange={setPantoneCount} /></div>
                   {twoSided && (
                     <div>
                       <Label>Тип оборота</Label>
@@ -544,18 +535,7 @@ export default function LeafletFlyerCalculator() {
                       </Select>
                     </div>
                   )}
-                  {effectivePrintMode === "uv" && (
-                    <div className="flex items-end gap-2">
-                      <Checkbox id="white" checked={hasWhiteInk} onCheckedChange={(v) => setHasWhiteInk(!!v)} />
-                      <Label htmlFor="white" className="cursor-pointer">Белила UV</Label>
-                    </div>
-                  )}
-                  <div><Label>Срок, дней</Label><Input type="number" min={1} value={leadDays} onChange={(e) => setLeadDays(+e.target.value || 1)} /></div>
-                  <div className="flex items-end gap-2">
-                    <Checkbox id="design" checked={hasDesign} onCheckedChange={(v) => setHasDesign(!!v)} />
-                    <Label htmlFor="design" className="cursor-pointer">Нужен макет</Label>
-                  </div>
-                  <div><Label>Наценка, %</Label><Input type="number" value={margin} onChange={(e) => setMargin(+e.target.value || 0)} /></div>
+                  <div><Label>Наценка, %</Label><NumberInput value={margin} onValueChange={setMargin} /></div>
                   <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
                     На лист: <b>{layout.perSheet}</b>{layout.rotated && " (поворот)"} · печ. листов: <b>{printSheets}</b>{" · "}
                     приладка: <b>{setupSheets}</b> · режим: <b>{effectivePrintMode}</b>
@@ -575,12 +555,25 @@ export default function LeafletFlyerCalculator() {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <div className="sm:col-span-2">
-                            <Label>Тип бумаги</Label>
+                          <div>
+                            <Label>Тип материала</Label>
+                            <Select value={materialType} onValueChange={changeMaterialType}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {materialTypes.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {MATERIAL_TYPE_LABELS[type] ?? type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Вид материала</Label>
                             <Select value={materialKey} onValueChange={setMaterialKey}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {MATERIALS.map((m) => (
+                                {materialsByType.map((m) => (
                                   <SelectItem key={m.value} value={m.value}>
                                     {m.label} · {fmtMoney(m.pricePerSheet)}/лист · {m.sheetW}×{m.sheetH}
                                   </SelectItem>
@@ -632,7 +625,7 @@ export default function LeafletFlyerCalculator() {
                           <Row label="Выборочный УФ-лак" checked={hasUvSpot} onChange={setHasUvSpot} />
                           {hasUvSpot && (
                             <div><Label>Площадь лака, см² / изд.</Label>
-                              <Input type="number" min={1} value={uvSpotAreaCm2} onChange={(e) => setUvSpotAreaCm2(+e.target.value || 1)} /></div>
+                              <NumberInput min={1} value={uvSpotAreaCm2} onValueChange={setUvSpotAreaCm2} /></div>
                           )}
                         </div>
                       </AccordionContent>
@@ -644,12 +637,12 @@ export default function LeafletFlyerCalculator() {
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
                           <Row label="Нумерация" checked={hasNumbering} onChange={setHasNumbering} />
                           {hasNumbering && (<div><Label>Номеров на изделие</Label>
-                            <Input type="number" min={1} value={numbersPerItem} onChange={(e) => setNumbersPerItem(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={numbersPerItem} onValueChange={setNumbersPerItem} /></div>)}
                           <Row label="QR-код" checked={hasQr} onChange={setHasQr} />
                           <Row label="Штрихкод" checked={hasBarcode} onChange={setHasBarcode} />
                           <Row label="Персонализация" checked={hasPersonalization} onChange={setHasPersonalization} />
                           {hasPersonalization && (<div><Label>Переменных элементов</Label>
-                            <Input type="number" min={1} value={variableElements} onChange={(e) => setVariableElements(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={variableElements} onValueChange={setVariableElements} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -667,36 +660,36 @@ export default function LeafletFlyerCalculator() {
                           <Row label="Перфорация" checked={hasPerforation} onChange={setHasPerforation} />
                           {hasPerforation && (<>
                             <div><Label>Линий на изделие</Label>
-                              <Input type="number" min={1} value={perfLines} onChange={(e) => setPerfLines(+e.target.value || 1)} /></div>
+                              <NumberInput min={1} value={perfLines} onValueChange={setPerfLines} /></div>
                             <div><Label>Длина линии, мм</Label>
-                              <Input type="number" min={1} value={perfLineLenMm} onChange={(e) => setPerfLineLenMm(+e.target.value || 1)} /></div>
+                              <NumberInput min={1} value={perfLineLenMm} onValueChange={setPerfLineLenMm} /></div>
                           </>)}
                           <Row label="Высечка" checked={hasDieCut} onChange={setHasDieCut} />
                           {hasDieCut && (<>
                             <div><Label>Длина ножа, м</Label>
-                              <Input type="number" step="0.1" min={0.05} value={dieKnifeM} onChange={(e) => setDieKnifeM(+e.target.value || 0)} /></div>
+                              <NumberInput step={0.1} min={0.05} value={dieKnifeM} onValueChange={setDieKnifeM} /></div>
                             <Row label="Удаление облоя" checked={hasFlashRemoval} onChange={setHasFlashRemoval} />
                           </>)}
                           <Row label="Скругление углов" checked={hasRoundCorners} onChange={setHasRoundCorners} />
                           {hasRoundCorners && (<div><Label>Углов на изделие</Label>
-                            <Input type="number" min={1} max={4} value={cornersCount} onChange={(e) => setCornersCount(+e.target.value || 4)} /></div>)}
+                            <NumberInput min={1} max={4} value={cornersCount} onValueChange={setCornersCount} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
 
                     <AccordionItem value="fold">
-                      <AccordionTrigger>6. Биговка · фальцовка · склейка в блок</AccordionTrigger>
+                      <AccordionTrigger>6. Конгрев · тиснение фольгой · склейка в блок</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <Row label="Биговка" checked={hasBiegovka} onChange={setHasBiegovka} />
-                          {hasBiegovka && (<div><Label>Кол-во бигов</Label>
-                            <Input type="number" min={1} value={biegovkaCount} onChange={(e) => setBiegovkaCount(+e.target.value || 1)} /></div>)}
-                          <Row label="Фальцовка" checked={hasFold} onChange={setHasFold} />
-                          {hasFold && (<div><Label>Кол-во фальцев</Label>
-                            <Input type="number" min={1} value={foldCount} onChange={(e) => setFoldCount(+e.target.value || 1)} /></div>)}
+                          <Row label="Конгрев" checked={hasCongrev} onChange={setHasCongrev} />
+                          {hasCongrev && (<div><Label>Площадь клише, см²</Label>
+                            <NumberInput min={1} value={congrevAreaCm2} onValueChange={setCongrevAreaCm2} /></div>)}
+                          <Row label="Тиснение фольгой" checked={hasFoilEmbossing} onChange={setHasFoilEmbossing} />
+                          {hasFoilEmbossing && (<div><Label>Площадь тиснения, см²</Label>
+                            <NumberInput min={1} value={foilAreaCm2} onValueChange={setFoilAreaCm2} /></div>)}
                           <Row label="Склейка в блок (ПВА)" checked={hasBlockGlue} onChange={setHasBlockGlue} />
                           {hasBlockGlue && (<div><Label>Листов в блоке</Label>
-                            <Input type="number" min={1} value={blockSize} onChange={(e) => setBlockSize(+e.target.value || 1)} /></div>)}
+                            <NumberInput min={1} value={blockSize} onValueChange={setBlockSize} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -705,21 +698,15 @@ export default function LeafletFlyerCalculator() {
                       <AccordionTrigger>7. Упаковка и доставка</AccordionTrigger>
                       <AccordionContent>
                         <div className="grid gap-3 sm:grid-cols-2 pt-2">
-                          <div className="sm:col-span-2">
-                            <Label>Упаковка</Label>
-                            <Select value={packKind} onValueChange={(v) => setPackKind(v as PackKind)}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {PACKS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}{p.price ? ` · ${fmtMoney(p.price)}/ед.` : ""}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                          <div className="rounded-md bg-muted/40 px-3 py-2 text-sm sm:col-span-2">
+                            Упаковка рассчитывается автоматически: {fmtNum(circulation)} × 0,5 ₸ = <b>{fmtMoney(circulation * PACKAGING_PRICE_PER_ITEM)}</b>
                           </div>
                           <div className="flex items-end gap-2">
                             <Checkbox id="delivery" checked={hasDelivery} onCheckedChange={(v) => setHasDelivery(!!v)} />
                             <Label htmlFor="delivery" className="cursor-pointer">Включить доставку</Label>
                           </div>
                           {hasDelivery && (<div><Label>Стоимость доставки</Label>
-                            <Input type="number" value={deliveryCost} onChange={(e) => setDeliveryCost(+e.target.value || 0)} /></div>)}
+                            <NumberInput min={0} value={deliveryCost} onValueChange={setDeliveryCost} /></div>)}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -751,16 +738,37 @@ export default function LeafletFlyerCalculator() {
 
               <TemplateActions
                 productType="leaflet"
-                defaultName={name || `Листовка ${KINDS.find((k) => k.value === kind)?.label || ""} · ${circulation} шт`}
+                defaultName={name || `Двусторонняя листовка · ${circulation} шт`}
                 circulation={circulation}
                 totals={totals}
                 margin={margin}
                 vatPercent={vatPercent}
                 spec={lines.map((l) => ({ stage: l.stage, name: l.name, quantity: l.qty, unit: l.unit, unitPrice: l.price, total: l.total }))}
+                extra={{
+                  calculation_date: calculationDate, contact_name: contactName, contact_phone: contactPhone,
+                  lead_source_id: leadSourceId, comment,
+                  format_type: formatKey, format_width: finishedW, format_height: finishedH,
+                  color_front: colorsFront, color_back: colorsBack, items_per_sheet: layout.perSheet,
+                  print_format_width: material.sheetW, print_format_height: material.sheetH,
+                  material_id: material.id,
+                  turnaround_type: effectiveTurn,
+                  calculation_payload: {
+                    ...normalizeLeafletParams({
+                      customer, leaflet_type: LEAFLET_TYPE_TWO_SIDED, print_method: LEAFLET_PRINT_METHOD_OFFSET,
+                      layouts_count: designsCount, bleed_mm: bleed, formatKey, finishedW, finishedH,
+                      materialKey, turn, packKind: "auto",
+                    }),
+                    has_congrev: hasCongrev,
+                    congrev_area_cm2: congrevAreaCm2,
+                    has_foil_embossing: hasFoilEmbossing,
+                    foil_area_cm2: foilAreaCm2,
+                  },
+                }}
               />
             </div>
           </div>
 
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <LegacyCostByStageBlock lines={lines as any} storageKey="legacy-leaflet-flyer" />
           
           <Card className="mt-4">
@@ -775,11 +783,56 @@ export default function LeafletFlyerCalculator() {
   );
 }
 
-function Row({ label, checked, onChange }: { label: React.ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
+function Row({ label, checked, onChange }: { label: ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <Checkbox checked={checked} onCheckedChange={(v) => onChange(!!v)} />
       <span className="flex-1 min-w-0">{label}</span>
     </div>
+  );
+}
+
+type NumberInputProps = Omit<ComponentProps<typeof Input>, "type" | "value" | "onChange"> & {
+  value: number;
+  onValueChange: (value: number) => void;
+};
+
+function NumberInput({ value, onValueChange, step, onFocus, onBlur, ...props }: NumberInputProps) {
+  const isDecimal = step != null && Number(step) % 1 !== 0;
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(() => fmtNum(value));
+
+  useEffect(() => {
+    if (!isEditing) setDraft(fmtNum(value));
+  }, [isEditing, value]);
+
+  return (
+    <Input
+      {...props}
+      type="text"
+      inputMode={isDecimal ? "decimal" : "numeric"}
+      value={isEditing ? draft : fmtNum(value)}
+      onFocus={(event) => {
+        setIsEditing(true);
+        setDraft(fmtNum(value));
+        onFocus?.(event);
+      }}
+      onChange={(event) => {
+        const raw = event.currentTarget.value;
+        setDraft(raw);
+        const normalized = raw.replace(/[\s\u00A0\u202F]/g, "").replace(",", ".");
+        if (normalized === "") {
+          onValueChange(0);
+          return;
+        }
+        const next = Number(normalized);
+        if (Number.isFinite(next)) onValueChange(next);
+      }}
+      onBlur={(event) => {
+        setIsEditing(false);
+        setDraft(fmtNum(value));
+        onBlur?.(event);
+      }}
+    />
   );
 }

@@ -15,6 +15,9 @@ import ModeSwitcher from "./ModeSwitcher";
 export default function StandaloneModeShell({ children }: { children?: React.ReactNode }) {
   return (
     <MultipageCalcProvider>
+      <div className="container mx-auto flex justify-end px-4 pt-3">
+        <ModeSwitcher />
+      </div>
       {children ?? <Outlet />}
     </MultipageCalcProvider>
   );

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database, TrendingUp, Copy, Trash2, Search, Sparkles, LogOut, Eye } from "lucide-react";
+import { Plus, Calculator as CalcIcon, FileText, Bookmark, Database, TrendingUp, Copy, Archive, Search, Sparkles, LogOut, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataState } from "@/components/DataState";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -29,6 +30,9 @@ type Calc = {
   sale_price: number | null;
   is_template: boolean;
   created_at: string;
+  calculation_number: string | null;
+  calculation_date: string;
+  status: "active" | "archived";
 };
 
 const Index = () => {
@@ -36,6 +40,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"active" | "archived" | "all">("active");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -58,7 +63,11 @@ const Index = () => {
     setLoadError(null);
     const timeout = createSupabaseTimeout();
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/calculations?select=*&order=created_at.desc&limit=200`;
+      const params = new URLSearchParams({ select: "*", order: "calculation_date.desc,created_at.desc", limit: "50" });
+      if (status !== "all") params.set("status", `eq.${status}`);
+      const term = query.trim().replace(/[,%()]/g, "");
+      if (term) params.set("or", `(calculation_number.ilike.*${term}*,name.ilike.*${term}*,contact_name.ilike.*${term}*,contact_phone.ilike.*${term}*)`);
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/calculations?${params}`;
       const res = await fetch(url, {
         signal: timeout.signal,
         headers: {
@@ -89,13 +98,15 @@ const Index = () => {
     if (!user) { setLoading(false); return; }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user?.id, session?.access_token]);
+  }, [authLoading, user?.id, session?.access_token, status]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return calcs;
-    return calcs.filter((c) => (c.name || "").toLowerCase().includes(q) || (PRODUCT_LABELS[c.product_type] || "").toLowerCase().includes(q));
-  }, [calcs, query]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { if (!authLoading && user) load(); }, 350);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  const filtered = useMemo(() => calcs, [calcs]);
 
   const recent = filtered.filter((c) => !c.is_template);
   const templates = filtered.filter((c) => c.is_template);
@@ -105,14 +116,10 @@ const Index = () => {
   const confirmDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
-    const { error: itemsErr } = await supabase.from("calculation_items").delete().eq("calculation_id", deleteId);
-    if (handleSupabaseError(itemsErr, "удаление позиций")) { setDeleting(false); return; }
-    const { error: adjErr } = await supabase.from("calculation_adjustments").delete().eq("calculation_id", deleteId);
-    if (handleSupabaseError(adjErr, "удаление истории")) { setDeleting(false); return; }
-    const { error } = await supabase.from("calculations").delete().eq("id", deleteId);
+    const { error } = await supabase.rpc("set_calculation_archived" as any, { _id: deleteId, _archived: true });
     setDeleting(false);
-    if (handleSupabaseError(error, "удаление расчёта")) return;
-    toast.success("Удалено");
+    if (handleSupabaseError(error, "архивирование расчёта")) return;
+    toast.success("Расчёт перемещён в архив");
     setDeleteId(null);
     load();
   };
@@ -143,9 +150,11 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto py-4 sm:py-8 space-y-5 sm:space-y-8 px-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9 h-11" placeholder="Поиск по названию или виду продукции…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,28rem)_12rem]">
+          <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9 h-11" placeholder="Номер, название, заказчик, контакт, телефон…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
+          <Select value={status} onValueChange={(value) => setStatus(value as typeof status)}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Активные</SelectItem><SelectItem value="archived">Архивные</SelectItem><SelectItem value="all">Все</SelectItem></SelectContent></Select>
         </div>
 
         {templates.length > 0 && (
@@ -191,15 +200,15 @@ const Index = () => {
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить расчёт?</AlertDialogTitle>
+            <AlertDialogTitle>Переместить расчёт в архив?</AlertDialogTitle>
             <AlertDialogDescription>
-              Это действие нельзя отменить. Будут удалены позиции расчёта и история правок.
+              Номер, параметры, позиции, цены и история сохранятся. Расчёт можно будет восстановить.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Отмена</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleting ? "Удаление…" : "Удалить"}
+              {deleting ? "Архивирование…" : "В архив"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -245,9 +254,7 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
                     {isTemplate ? <Sparkles className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   </Button>
                 </Link>
-                <Button size="sm" variant="outline" className="h-8 px-2 hover:text-destructive" onClick={() => onRemove(c.id)} title="Удалить">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {c.status !== "archived" && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => onRemove(c.id)} title="В архив"><Archive className="h-3.5 w-3.5" /></Button>}
               </div>
             </td>
           </tr>
@@ -276,7 +283,7 @@ const CalcTable = ({ rows, onRemove, isTemplate }: { rows: Calc[]; onRemove: (id
             <Link to={`/calculator?from=${c.id}`}>
               <Button size="sm" variant="outline" className="h-8 w-8 p-0">{isTemplate ? <Sparkles className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}</Button>
             </Link>
-            <Button size="sm" variant="outline" className="h-8 w-8 p-0 hover:text-destructive" onClick={() => onRemove(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+            {c.status !== "archived" && <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => onRemove(c.id)}><Archive className="h-3.5 w-3.5" /></Button>}
           </div>
         </div>
       </div>

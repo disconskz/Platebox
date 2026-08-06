@@ -87,6 +87,21 @@ describe("P1 — параметризация финишной резки", () =
     const b = runCalculation({ ...baseInput, cutsPerSheetOverride: 4 });
     expect(b.totalCost).toBeLessThan(a.totalCost);
   });
+  it("legacy paperCutsPerSheetOverride применяется как ручной override", () => {
+    const a = runCalculation({ ...baseInput, paperCutsPerSheetOverride: 10 });
+    const b = runCalculation({ ...baseInput, paperCutsPerSheetOverride: 20 });
+    expect(a.totalCost).toBeLessThan(b.totalCost);
+    expect(a.cutInfo).toBeTruthy();
+    expect(a.cutInfo?.cutsPerSheet).toBe(10);
+  });
+  it("cutsPerSheetOverride имеет приоритет над paperCutsPerSheetOverride", () => {
+    const r = runCalculation({
+      ...baseInput,
+      paperCutsPerSheetOverride: 20,
+      cutsPerSheetOverride: 8,
+    });
+    expect(r.cutInfo?.cutsPerSheet).toBe(8);
+  });
 });
 
 describe("P2 — precision / большие тиражи", () => {
@@ -135,8 +150,8 @@ describe("P2 — multi-sku ↔ single-SKU паритет", () => {
     // Multi-SKU — MVP (см. аудит, P1-4): полная унификация постпечати
     // ещё не сделана, поэтому допускаем широкий коридор ±3× и фиксируем
     // факт расхождения как регрессионный baseline.
-    expect(best.totalCost).toBeGreaterThan(single.totalCost * 0.5);
-    expect(best.totalCost).toBeLessThan(single.totalCost * 3);
+    expect(best.totalCost).toBeGreaterThan(single.totalCost * 0.8);
+    expect(best.totalCost).toBeLessThan(single.totalCost * 1.5);
   });
 });
 
